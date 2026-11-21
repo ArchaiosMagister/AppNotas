@@ -84,6 +84,16 @@ En **Ajustes y copias** se distingue entre exportar un archivo portátil y **rea
 
 La copia histórica .cdoc se conserva como opción de rescate, separada del archivo portátil .cuaderno. El sistema **no realiza copias externas automáticas** sin intervención del usuario.
 
+## Modo alumno y estabilidad de la PWA en iPad
+
+- **Evaluaciones plegables** en el visor de cada alumno, con orden de actividades configurable por evaluación (categoría, orden del cuaderno, alfabético o últimas primero).
+- **Rúbricas consultables** en el modo alumno: criterios individuales desplegables con nota, peso y descriptor del nivel cuando exista.
+- **Devolución por faltas** a nivel de grupo académico: aplica a sus exámenes sin cambiar otros grupos ni revocar notas ya devueltas. Se conserva la personalización por actividad.
+- **Enter sin salto de página** al introducir notas: se mantiene la posición de la tabla y se intenta conservar la del navegador al pasar a la siguiente casilla.
+- **Safari/iPadOS:** el service worker normaliza las respuestas de navegación que hayan pasado por una redirección HTTP hacia la portada de la misma PWA, evitando que WebKit rechace ese contenido; los datos de IndexedDB no se borran.
+
+Guía: [Modo alumno, penalización y error de Safari](docs/MEJORAS_IPAD_MODO_ALUMNO_Y_SAFARI.md).
+
 ## Identificación y orden del alumnado de optativas
 
 Cada alumno dispone de campos **Apellidos**, **Nombre** y **Grupo de procedencia** (etiqueta de su clase de tutoría, independiente del grupo académico de la optativa). La tabla de notas y el resumen anual permiten ordenar por **apellidos (predeterminado)**, **nombre**, **grupo de procedencia y apellidos**, o **orden manual**. En la vista agrupada aparecen separadores con el número de alumnos y etiquetas visibles.
