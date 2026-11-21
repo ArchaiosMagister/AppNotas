@@ -177,7 +177,7 @@ export function initialNotebook({empty=false}={}) {
   ];
   const grades = students.flatMap((s,i)=>assessments.map((p,j)=>mark({id:uid(),studentId:s.id,assessmentId:p.id,score:matrix[i][j],createdAt:now()})));
   const competencies = empty?[]:[mark({id:uid(),name:'CE1 · Interpretación de textos',links:[{categoryId:e.id,weight:70},{categoryId:t.id,weight:30}],createdAt:now()})];
-  return {schemaVersion:SCHEMA_VERSION,planner:createPlanner(group.course),gradingProfiles:[],individualCategoryRules:[],rubrics:[],finalConfigs:[],finalOverrides:[],id:uid(),title:'CuadernoDocente',createdAt:now(),updatedAt:now(),settings:{decimals:2,rounding:'half-up',orthographyDefaults:{...ORTHOGRAPHY_DEFAULTS},subjectAccents:{...SUBJECT_COLORS}},groups:empty?[]:[group],periods:[period,...otherPeriods],categories:[e,t,a],students,assessments,grades,competencies};
+  return {schemaVersion:SCHEMA_VERSION,planner:createPlanner(group.course),gradingProfiles:[],individualCategoryRules:[],rubrics:[],finalConfigs:[],finalOverrides:[],id:uid(),title:'CuadernoDocente',createdAt:now(),updatedAt:now(),settings:{decimals:2,rounding:'half-up',orthographyDefaults:{...ORTHOGRAPHY_DEFAULTS},subjectAccents:{...SUBJECT_COLORS}},groups:empty?[]:[group],periods:[period,...otherPeriods],categories:[e,t,a],students,assessments,grades,gradeObservations:[],competencies};
 }
 
 /** Cuaderno sin datos de demostración: conserva solo tres evaluaciones y categorías base. */
@@ -270,6 +270,24 @@ export function assertModel(doc) {
     const k=x.studentId+'|'+x.assessmentId;
     if(seen.has(k)) throw new Error('Calificación duplicada.');
     seen.add(k);
+  }
+  // Opcional para poder abrir cuadernos antiguos del mismo schemaVersion=8.
+  // Las observaciones son anotaciones, nunca calificaciones ni evidencias.
+  if(doc.gradeObservations!==undefined){
+    if(!Array.isArray(doc.gradeObservations))throw new Error('Formato de observaciones inválido.');
+    const observationPairs=new Set(),observationIds=new Set();
+    for(const note of doc.gradeObservations){
+      const student=doc.students.find(s=>s.id===note?.studentId);
+      const assessment=doc.assessments.find(a=>a.id===note?.assessmentId);
+      const key=note?.studentId+'|'+note?.assessmentId;
+      if(!student||!assessment||student.groupId!==assessment.groupId||
+         typeof note.id!=='string'||!note.id||observationIds.has(note.id)||
+         observationPairs.has(key)||typeof note.text!=='string'||!note.text.trim()||
+         note.text!==note.text.trim()||note.text.length>1500||
+         typeof note.visibleToStudent!=='boolean')
+        throw new Error('Observación de calificación inválida o duplicada.');
+      observationPairs.add(key);observationIds.add(note.id);
+    }
   }
   for(const c of doc.competencies){
     if(c.groupId!==undefined&&!gs.has(c.groupId))throw new Error('Competencia con grupo inexistente.');
@@ -687,10 +705,38 @@ export function removeAssessment(doc,id){
   if(!doc.assessments.some(x=>x.id===id))throw new Error('Actividad inexistente.');
   doc.assessments=doc.assessments.filter(x=>x.id!==id);
   doc.grades=doc.grades.filter(x=>x.assessmentId!==id);
+  if(doc.gradeObservations)doc.gradeObservations=doc.gradeObservations.filter(x=>x.assessmentId!==id);
   // Conservar la cita del calendario aunque se quite la columna del cuaderno.
   doc.planner?.years?.forEach(y=>y.events.forEach(e=>{if(e.assessmentId===id)e.assessmentId=null;}));
   doc.updatedAt=now();
 }
+/** Una observación pertenece al alumno y la actividad, independientemente de
+ * que exista una nota. Permanece ante cambios de nota, NP, AJ o rúbrica.
+ * visibleToStudent=false por defecto impide exposiciones accidentales. */
+export function getGradeObservation(doc,studentId,assessmentId){
+  return (doc.gradeObservations??[]).find(n=>n.studentId===studentId&&n.assessmentId===assessmentId)??null;
+}
+export function setGradeObservation(doc,studentId,assessmentId,text,visibleToStudent=false){
+  const student=doc.students.find(s=>s.id===studentId);
+  const assessment=doc.assessments.find(a=>a.id===assessmentId);
+  if(!student||!assessment||student.groupId!==assessment.groupId)
+    throw new Error('Alumno o actividad inexistente para la observación.');
+  if(typeof text!=='string'||text.length>1500||typeof visibleToStudent!=='boolean')
+    throw new Error('La observación debe ser texto de hasta 1500 caracteres.');
+  const normalized=text.trim();
+  const original=getGradeObservation(doc,studentId,assessmentId);
+  if(original?.text===normalized&&original.visibleToStudent===visibleToStudent)return doc;
+  if(!original&&!normalized)return doc;
+  if(!doc.gradeObservations)doc.gradeObservations=[];
+  if(!normalized)doc.gradeObservations=doc.gradeObservations.filter(n=>n!==original);
+  else if(original){
+    original.text=normalized;original.visibleToStudent=visibleToStudent;original.updatedAt=now();
+  }else{
+    doc.gradeObservations.push(mark({id:uid(),studentId,assessmentId,text:normalized,visibleToStudent,createdAt:now()}));
+  }
+  doc.updatedAt=now();return doc;
+}
+
 /** Ausencia justificada: omite la actividad de todos los cálculos. Si existía
  * nota, se conserva íntegra en el mismo registro y reaparece al desmarcar AJ.
  * Si no existía nota, se usa un marcador reversible sin calificación real. */
@@ -901,6 +947,7 @@ export function moveStudent(doc,studentId,direction){
 export function removeStudent(doc,studentId){
   if(!doc.students.some(s=>s.id===studentId))throw new Error('Alumno inexistente.');
   doc.grades=doc.grades.filter(g=>g.studentId!==studentId);
+  if(doc.gradeObservations)doc.gradeObservations=doc.gradeObservations.filter(g=>g.studentId!==studentId);
   doc.finalOverrides=doc.finalOverrides.filter(o=>o.studentId!==studentId);
   doc.individualCategoryRules=doc.individualCategoryRules.filter(o=>o.studentId!==studentId);
   const groupId=doc.students.find(s=>s.id===studentId).groupId;
