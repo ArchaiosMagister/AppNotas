@@ -52,14 +52,20 @@ replace_exact(
 )
 ui.write_text(source, encoding="utf-8")
 
-# Asegurar que las instalaciones PWA no reutilizan el módulo antiguo en caché.
-sw = root / "sw.js"
-sw_source = sw.read_text(encoding="utf-8")
-old_cache = "const CACHE='cuaderno-docente-static-v119-dev';"
-new_cache = "const CACHE='cuaderno-docente-static-v119-agenda-audit-20261121';"
-if sw_source.count(old_cache) != 1:
-    raise SystemExit("No se reconoce la versión de caché de la PWA")
-sw.write_text(sw_source.replace(old_cache, new_cache), encoding="utf-8")
+# La clave debe respetar el formato que verifican los controles offline.
+# Actualizar Service Worker y todas las referencias en módulos de diagnóstico.
+old_cache = "cuaderno-docente-static-v119-dev"
+new_cache = "cuaderno-docente-static-v120-dev"
+cache_files = [root / "sw.js", *(root / "src").glob("*.js")]
+cache_updates = 0
+for target in cache_files:
+    contents = target.read_text(encoding="utf-8")
+    if old_cache not in contents:
+        continue
+    cache_updates += contents.count(old_cache)
+    target.write_text(contents.replace(old_cache, new_cache), encoding="utf-8")
+if cache_updates < 2:
+    raise SystemExit("No se han actualizado SW y comprobador offline")
 
 # Actualizar el manifiesto del paquete extraído, sin tocar el ZIP original.
 newlines = []
@@ -80,4 +86,4 @@ if not changed:
     raise SystemExit("El manifiesto no contiene el módulo modificado")
 manifest.write_text("".join(newlines), encoding="utf-8")
 print("Aplicadas cuatro correcciones de agenda e iCalendar; hashes actualizados:", changed)
-print("Nueva caché PWA: cuaderno-docente-static-v119-agenda-audit-20261121")
+print("Nueva caché PWA: cuaderno-docente-static-v120-dev")
