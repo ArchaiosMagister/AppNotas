@@ -57,9 +57,10 @@ test('iCalendar: plegado de líneas a 75 octetos UTF-8', () => {
 });
 
 test('PWA: la caché cambia para entregar nuevos recursos a instalaciones previas', () => {
+  const app=readFileSync(path.join(root,'app.js'),'utf8');
   const match=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/);
   assert.ok(match,'La caché debe respetar el formato auditado');
   assert.ok(Number(match[2])>=120,'No se debe volver a una caché anterior a la auditoría');
-  assert.ok(source.includes(`caches.open('${match[1]}')`),'La UI debe consultar exactamente la caché del service worker');
+  assert.ok(app.includes(`caches.open('${match[1]}')`),'La UI debe consultar exactamente la caché del service worker');
   assert.ok(sw.includes("'./src/planner-ui.js'"));
 });
