@@ -29,30 +29,19 @@ jobs:
           echo '85189a3b59a7e6829664d6b89fcb48b624761f963b023eb560fc0575861e8f29  _release/CuadernoDocente_v1.19.zip' | sha256sum --check
           unzip -q _release/CuadernoDocente_v1.19.zip -d _release
           ( cd _release/CuadernoDocente_v1.19-prepublicacion && sha256sum --check MANIFEST_SHA256.txt )
-      - name: Diagnosticar fuentes de agenda para incorporar auditoría
-        if: github.event_name == 'pull_request'
+      - name: Aplicar reparaciones auditadas al paquete PWA
         shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          root = Path('_release/CuadernoDocente_v1.19-prepublicacion')
-          print('ARCHIVOS JAVASCRIPT:', [p.relative_to(root).as_posix() for p in root.rglob('*.js') if 'node_modules' not in str(p)][:100])
-          patterns = ['weekday(dateNow())', 'y.name.slice(0, 4)', 'fields.time.value', 'fields.time.disabled', 'function eventModal', 'function exportIcs', 'const clean =', 'lines.join', 'slotModal(', 'plan-new-year']
-          for path in root.rglob('*.js'):
-              if 'node_modules' in str(path): continue
-              lines = path.read_text(encoding='utf-8').splitlines()
-              relevant = [(i, p) for i, line in enumerate(lines) for p in patterns if p in line]
-              if not relevant: continue
-              print('ARCHIVO', path.relative_to(root).as_posix(), len(lines), 'lineas')
-              for i, pat in relevant[:24]:
-                  print('PATRON', pat, 'LINEA', i+1)
-                  for j in range(max(i-2, 0), min(i+5, len(lines))):
-                      print(str(j+1) + ': ' + lines[j][:800])
-          PY
+          set -euo pipefail
+          python3 scripts/apply_v119_audit.py _release/CuadernoDocente_v1.19-prepublicacion
+          ( cd _release/CuadernoDocente_v1.19-prepublicacion && sha256sum --check MANIFEST_SHA256.txt )
       - name: Preparar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validar JavaScript reparado
+        working-directory: _release/CuadernoDocente_v1.19-prepublicacion
+        run: node --check src/planner-ui.js
       - name: Ejecutar 362 pruebas automatizadas
         working-directory: _release/CuadernoDocente_v1.19-prepublicacion
         run: npm test
@@ -79,12 +68,17 @@ jobs:
           test -f _site/data/curriculos/lat4.pdf
           test -f _site/data/curriculos/lat2-2022.pdf
           test "$(find _site -type f \( -name '*.cuaderno' -o -name '*.cdoc' -o -name '*.sqlite' -o -name '*.db' \) | wc -l)" -eq 0
-      - name: Conservar ZIP verificable para testers
+      - name: Empaquetar PWA auditada tras pruebas
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          ( cd _release && zip -q -r CuadernoDocente_v1.19_auditada.zip CuadernoDocente_v1.19-prepublicacion )
+      - name: Conservar ZIP auditado verificable para testers
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
-          name: CuadernoDocente-v1.19-ZIP-completo
-          path: _release/CuadernoDocente_v1.19.zip
+          name: CuadernoDocente-v1.19-auditada-ZIP-completo
+          path: _release/CuadernoDocente_v1.19_auditada.zip
           if-no-files-found: error
       - name: Preparar GitHub Pages
         if: github.ref == 'refs/heads/main'
