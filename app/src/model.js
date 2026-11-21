@@ -445,6 +445,8 @@ export function studentIdentity(input){
   if(!input||typeof input!=='object'||Array.isArray(input)||
     Object.keys(input).some(key=>!['firstName','lastName','originGroup','name'].includes(key)))
     throw new Error('Datos de alumno inválidos.');
+  if(['originGroup','firstName','lastName','name'].some(key=>input[key]!==undefined&&typeof input[key]!=='string'))
+    throw new Error('Los campos de alumno deben ser texto.');
   const originGroup=String(input.originGroup??'').trim();
   if(originGroup.length>60)throw new Error('La etiqueta del grupo supera 60 caracteres.');
   const firstName=String(input.firstName??'').trim(),lastName=String(input.lastName??'').trim();
