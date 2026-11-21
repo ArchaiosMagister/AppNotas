@@ -1044,6 +1044,17 @@ function renderStudentView(){
   }).join('')}<section class="panel panel-pad"><div class="section-title-row"><strong>Evaluación final del curso</strong><strong class="student-score">${gradeChip(finalGrade(STATE.doc,student.id,STATE.groupId))} / 10</strong></div></section>`;
 }
 function bindStudentView(){
+  document.querySelectorAll('[data-student-period]').forEach(details=>details.addEventListener('toggle',()=>{
+    STATE.studentPeriodOpen[details.dataset.studentPeriod]=details.open;
+  }));
+  document.querySelectorAll('[data-student-period-order]').forEach(select=>select.addEventListener('change',()=>{
+    if(!STUDENT_ACTIVITY_SORT_MODES.includes(select.value))return;
+    STATE.studentActivityOrders[select.dataset.studentPeriodOrder]=select.value;
+    try{localStorage.setItem('cuaderno-docente-student-activity-orders',JSON.stringify(STATE.studentActivityOrders));}catch{}
+    const x=window.scrollX,y=window.scrollY;
+    render();
+    window.scrollTo(x,y);
+  }));
   const selectStudent=id=>{
     if(!allStudents().some(student=>student.id===id))return;
     STATE.studentId=id;render();
