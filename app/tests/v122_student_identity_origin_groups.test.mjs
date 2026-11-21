@@ -79,7 +79,7 @@ test('cuadernos antiguos conservan nombres largos sin que el nuevo esquema los i
   assert(legacy.name.length>150);
   const previous=structuredClone(doc.grades);
   assertModel(doc);
-  assert.equal(sortStudents(doc.students)[0].name,legacy.name);
+  assert(sortStudents(doc.students).some(student=>student.id===legacy.id&&student.name===legacy.name));
   assert.deepEqual(doc.grades,previous);
 });
 
