@@ -188,6 +188,8 @@ test('interfaz: editar desde todas las casillas y mostrar al alumno solo con per
  assert(css.includes('.grade-table .grade-observation-button.has-observation'));
  assert(css.includes('.student-assessment-observation>p'));
  assert(css.includes('white-space:pre-wrap'));
- assert(sw.includes("const CACHE='cuaderno-docente-static-v129-dev'"));
- assert(app.includes("caches.open('cuaderno-docente-static-v129-dev')"));
+ const cache=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/)?.[1];
+ assert(cache,'El servicio offline debe declarar una caché versionada');
+ assert(Number(cache.match(/v(\d+)-dev/)[1])>=129);
+ assert(app.includes("caches.open('"+cache+"')"),'La interfaz y el SW deben usar la misma caché');
 });
