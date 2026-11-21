@@ -73,6 +73,16 @@ test('alumnos antiguos no se separan automáticamente ni se pierden al ordenar o
  assertModel(doc);
 });
 
+test('cuadernos antiguos conservan nombres largos sin que el nuevo esquema los invalide',()=>{
+  const doc=initialNotebook(),legacy=doc.students[0];
+  legacy.name='Nombre histórico de demostración '.repeat(7).trim();
+  assert(legacy.name.length>150);
+  const previous=structuredClone(doc.grades);
+  assertModel(doc);
+  assert.equal(sortStudents(doc.students)[0].name,legacy.name);
+  assert.deepEqual(doc.grades,previous);
+});
+
 test('rechazo de datos malformados, inyección en campos y campos incompletos sin cambios',()=>{
  const {doc,group}=fixture(),before=structuredClone(doc);
  for(const bad of [
