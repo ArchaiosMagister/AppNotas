@@ -1,41 +1,40 @@
-# AppNotas · CuadernoDocente v1.17 (pruebas)
+# AppNotas · CuadernoDocente v1.19 (pruebas)
 
-**Repositorio público de código de una PWA docente. No almacena cuadernos personales, contraseñas, notas de alumnos ni ficheros de copia cifrada.** Los ejemplos incluidos en el ZIP son ficticios. **No introducir calificaciones reales** hasta completar las pruebas en dispositivos físicos y la evaluación del centro.
+**Repositorio público de código y PWA de prueba.** No contiene cuadernos personales ni calificaciones reales. Utilizar solo datos ficticios mientras se realizan pruebas en Safari, iPhone e iPad y se valida el uso institucional.
 
-## Versión publicada
+## Acceso a la PWA
 
-Se conserva íntegra la versión histórica v1.0-rc1 en `payload/`. La nueva versión v1.17 está contenida en el ZIP original, fragmentado en `releases/v1.17/part_*.b64` para su transferencia verificable. Los fragmentos son código y recursos de pruebas, no datos docentes.
+https://archaiosmagister.github.io/AppNotas/
 
-SHA-256 del ZIP v1.17:
-`b90c00e31a723756387b53309ff5a2bcd82787eca23461f23d9c50481fcf81be`.
+La v1.19 ofrece instalación PWA con iconos para móvil y escritorio, búsqueda manual de actualizaciones con confirmación, columna **Nota Ítaca** por trimestre con tres reglas de redondeo (0,5, 0,7 o sin redondear) y excepciones por alumno, y colores de categoría personalizables visibles incluso en modo OLED.
 
-Para recuperar las fuentes completas:
+Las notas se guardan localmente en IndexedDB y los ficheros exportados se cifran con AES-256-GCM antes de guardarlos en el dispositivo. No hay almacenamiento automático ni sincronización de datos personales en GitHub, OneDrive u otros servicios.
+
+## Paquete fuente y pruebas
+
+Se conservan versiones anteriores en `payload/` y `releases/v1.17/`. El ZIP completo v1.19 está fragmentado sin alterar en `releases/v1.19/part_*.b64` para su transporte y reconstrucción.
+
+SHA-256: `85189a3b59a7e6829664d6b89fcb48b624761f963b023eb560fc0575861e8f29`.
 
 ```bash
-cat releases/v1.17/part_*.b64 | base64 --decode > CuadernoDocente_v1.17.zip
-echo 'b90c00e31a723756387b53309ff5a2bcd82787eca23461f23d9c50481fcf81be  CuadernoDocente_v1.17.zip' | sha256sum --check
-unzip CuadernoDocente_v1.17.zip
-cd CuadernoDocente_v1.17-prepublicacion
+cat releases/v1.19/part_*.b64 | base64 --decode > CuadernoDocente_v1.19.zip
+echo '85189a3b59a7e6829664d6b89fcb48b624761f963b023eb560fc0575861e8f29  CuadernoDocente_v1.19.zip' | sha256sum --check
+unzip CuadernoDocente_v1.19.zip
+cd CuadernoDocente_v1.19-prepublicacion
 sha256sum -c MANIFEST_SHA256.txt
 npm test
 ```
 
-## Web de pruebas
+El flujo `.github/workflows/pages.yml` reconstruye y valida el ZIP, ejecuta **362 pruebas automatizadas**, prepara los archivos estáticos y los publica en GitHub Pages tras éxito. Las copias `.cuaderno`, archivos de bases de datos y credenciales no se despliegan.
 
-URL prevista de GitHub Pages (solo si la acción termina correctamente):
-https://archaiosmagister.github.io/AppNotas/
+## Pruebas reales recomendadas
 
-La publicación reconstruye y verifica el ZIP, pasa las pruebas `npm test` y despliega únicamente la PWA estática (`index.html`, CSS, JS, módulos, librería local, manifiesto, service worker y recursos curriculares). No se publica ninguna base IndexedDB, ni copias `.cuaderno` o `.cdoc`.
+1. Instalar desde «Instalar aplicación»; en Safari iOS, utilizar Compartir → Añadir a pantalla de inicio.
+2. Crear un curso con alumnos ficticios, configurar Nota Ítaca general y excepciones por trimestre y revisar las medias.
+3. Elegir colores por categoría y comprobarlos en modo OLED.
+4. Exportar el cuaderno cifrado con «Cerrar cuaderno»; importarlo en otro dispositivo con «Abrir cuaderno».
+5. Comprobar que notas, cálculos, excepciones y colores se conservan y que una copia antigua o contraseña errónea no sobrescribe datos.
+6. Pulsar «Buscar actualizaciones»; nunca actualizar sin confirmar antes que los cambios pendientes están guardados.
+7. Comprobar instalación, modo offline y exportación desde Safari de macOS, iPhone y iPad.
 
-Si la configuración inicial de Pages falla con `Resource not accessible by integration`, abrir **Settings → Pages**, elegir **GitHub Actions** como origen y volver a ejecutar el workflow. GitHub Pages es accesible públicamente incluso cuando los datos del cuaderno permanecen exclusivamente en cada dispositivo.
-
-## Pruebas propuestas
-
-1. Crear un cuaderno solo con alumnos ficticios en un dispositivo.
-2. Introducir puntuaciones, rúbricas y reglas de ponderación; confirmar que los cálculos se mantienen.
-3. Pulsar **Cerrar cuaderno** para obtener un archivo `.cuaderno` cifrado y comprobar la ubicación de guardado.
-4. Abrirlo en otro dispositivo con **Abrir cuaderno**, introducir la contraseña, revisar el resumen y confirmar.
-5. Probar contraseña equivocada, archivo alterado, copias antiguas y conflictos entre dispositivos.
-6. Comprobar que una cancelación nunca borra las notas locales, y que la PWA funciona sin conexión tras instalarse.
-
-La v1.17 conserva almacenamiento local IndexedDB y cifra los archivos antes de descargarlos. **El sitio público no es un control de acceso a la aplicación** y el cifrado de las copias no sustituye a las políticas de protección de dispositivos o autorización institucional.
+**Limitación:** las pruebas interactivas en navegadores Apple reales están pendientes; las 362 pruebas automatizadas no sustituyen a la verificación física. No usar notas reales sin revisión de seguridad y autorización del centro o Generalitat.
