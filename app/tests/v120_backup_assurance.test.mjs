@@ -69,6 +69,7 @@ test('interfaz: guarda copias portátiles y solo registra verificación sobre re
   assert(app.includes('verifiedAt:new Date().toISOString()'));
   assert(app.includes('await recordExportReceipt(STATE.db,receipt,STATE.envelope)'));
   assert(app.includes('Descargar copia histórica (.cdoc)'));
-  assert(app.includes("caches.open('cuaderno-docente-static-v122-dev')"));
-  assert(worker.includes("const CACHE='cuaderno-docente-static-v122-dev'"));
+  const cache=worker.match(/const CACHE='([^']+)'/)?.[1];
+  assert(cache&&/^cuaderno-docente-static-v\d+-dev$/.test(cache));
+  assert(app.includes("caches.open('"+cache+"')"),'La UI debe comprobar la misma caché que el Service Worker');
 });

@@ -1,6 +1,10 @@
 # AppNotas · CuadernoDocente v1.19
 
-**Repositorio público de código y PWA de pruebas:** https://archaiosmagister.github.io/AppNotas/
+**Repositorio público de código:** https://github.com/ArchaiosMagister/AppNotas
+
+**Instalación principal de pruebas (origen HTTPS exclusivo):** https://appnotas-docente.pages.dev/
+
+**GitHub Pages histórico:** https://archaiosmagister.github.io/AppNotas/ (no editar el mismo cuaderno desde ambos orígenes, porque no se sincronizan)
 
 La aplicación permite llevar calificaciones, rúbricas, agenda docente y evaluación final. Conserva los cuadernos en IndexedDB en cada dispositivo y exporta ficheros cifrados con AES-256-GCM. GitHub **no almacena ni sincroniza** notas o cuadernos personales.
 
@@ -51,7 +55,7 @@ Abre una rama y una PR hacia `main`. GitHub Actions valida el manifiesto, ejecut
 
 ## Auditoría de seguridad y conservación
 
-Consulta [la auditoría del 21 de noviembre de 2026](SECURITY_AUDIT_2026-11-21.md). **AppNotas no debe almacenar datos reales del alumnado en su origen actual**, porque GitHub Pages sirve distintos proyectos de la cuenta bajo el mismo origen HTTPS y las aplicaciones comparten acceso al almacenamiento del navegador.
+Consulta [la auditoría del 21 de noviembre de 2026](SECURITY_AUDIT_2026-11-21.md). La auditoría original detectó el origen compartido de GitHub Pages como un riesgo. Desde entonces se ha desplegado y comprobado **Cloudflare Pages con origen HTTPS exclusivo**. El uso de datos reales sigue sujeto a la autorización del centro y los controles de seguridad aplicables.
 
 En **Ajustes y copias** puedes comprobar y solicitar almacenamiento persistente. Es una protección complementaria contra ciertas eliminaciones automáticas, **no** una copia de seguridad. El cifrado y la restauración siguen siendo locales.
 
@@ -59,7 +63,7 @@ En **Ajustes y copias** puedes comprobar y solicitar almacenamiento persistente.
 
 El código sigue en este repositorio público. Para separar el almacenamiento local de las otras aplicaciones de GitHub Pages, hemos preparado una construcción estática en `dist/`, compatible con **Cloudflare Pages** y **Vercel**, y cabeceras HTTP de seguridad (`_headers` y `vercel.json`).
 
-**El nuevo sitio requiere conectar una cuenta de alojamiento; no se debe dar por desplegado antes de confirmar su URL real.** La versión antigua de GitHub Pages se conserva mientras se comprueba la nueva, sin borrar IndexedDB ni trasladar datos automáticamente.
+**Cloudflare Pages ya está conectado, desplegado y verificado** en https://appnotas-docente.pages.dev/. La versión histórica GitHub Pages se conserva, pero su IndexedDB es distinto y no se sincroniza; los cuadernos se trasladan solo mediante archivos cifrados verificados.
 
 Consulta la [guía de alojamiento y migración](docs/ALOJAMIENTO_AISLADO_Y_MIGRACION.md).
 
@@ -70,7 +74,7 @@ node scripts/build-static-site.mjs
 node --test scripts/dedicated-hosting.test.mjs scripts/backup-origin-migration.test.mjs
 ```
 
-Estas pruebas verifican que los recursos publicados coinciden con los archivos de la PWA, que no se filtran documentos personales en el sitio y que una **migración simulada** conserva las notas. **La verificación en navegadores y el despliegue real siguen pendientes** hasta disponer del nuevo dominio.
+Estas pruebas verifican que los recursos publicados coinciden con los archivos de la PWA, que no se filtran documentos personales en el sitio y que una **migración simulada** conserva las notas. La versión publicada en Cloudflare se ha cotejado con los archivos y cabeceras esperados; la restauración con datos de prueba también se ha comprobado en el iPad. Las nuevas funciones de reinicio seguro requieren comprobación manual antes de introducir datos reales.
 
 ## Política de copias cifradas externas
 
@@ -79,6 +83,14 @@ Consulta la [política de copias de seguridad](docs/POLITICA_COPIAS_CIFRADAS.md)
 En **Ajustes y copias** se distingue entre exportar un archivo portátil y **reabrirlo para comprobar su integridad y contraseña**. La verificación solo se registra para la misma revisión del cuaderno y no altera notas, rúbricas ni reglas. El indicador cambia cuando hay notas posteriores a la copia o pasan siete días sin comprobarla; no se afirma que la nube haya completado ninguna sincronización.
 
 La copia histórica .cdoc se conserva como opción de rescate, separada del archivo portátil .cuaderno. El sistema **no realiza copias externas automáticas** sin intervención del usuario.
+
+## Crear un cuaderno vacío y reiniciar de forma segura
+
+En una instalación sin datos, se puede elegir entre **Crear cuaderno vacío** (tres evaluaciones y categorías básicas, sin alumnos ni notas) y **Crear cuaderno de demostración** (ocho alumnos ficticios). Ambas opciones requieren contraseña y cifran el contenido solo en el dispositivo.
+
+Para reiniciar un cuaderno ya existente, entrar en **Ajustes y copias → Empezar de cero**. Es obligatorio seleccionar y descifrar un archivo .cuaderno que corresponda exactamente a la última revisión, y escribir **REINICIAR**. La sustitución y el punto único de rescate cifrado se registran en una sola transacción, sin modificar otros dispositivos ni carpetas externas.
+
+Guía paso a paso para iPad: [Empezar desde cero](docs/EMPEZAR_DESDE_CERO_IPAD.md).
 
 ## Paquete histórico y reproducibilidad
 
