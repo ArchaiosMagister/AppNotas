@@ -922,3 +922,32 @@ html[data-theme="oled"] .student-origin-divider th{background:#000!important;bor
 html[data-theme="oled"] .student-order-bar,html[data-theme="oled"] .student-directory-divider{background:#000!important}
 html[data-theme="oled"] .student-origin-badge{background:#090909;border-color:var(--accent)}
 @media(max-width:650px){.student-order-bar{padding:10px}.student-sort-control{width:100%}.student-sort-control select{max-width:none;flex:1;min-width:0}.student-name-cell{gap:4px}.student-origin-divider th>span+span{float:none;margin-left:12px}}
+
+
+/* Modo alumno v1.25: acordeones de evaluaciones y desglose de criterios,
+ * legible y sin edición en iPad y modos claro, oscuro u OLED. */
+details.student-period{margin-top:15px;overflow:visible}
+.student-period-summary{display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer;list-style:none;padding:7px 0;font-weight:770;font-size:16px;color:var(--ink)}
+.student-period-summary::-webkit-details-marker{display:none}
+.student-period-summary::before{content:'›';font-weight:900;font-size:20px;flex-shrink:0;color:var(--accent-text);transition:transform .15s}
+details[open]>.student-period-summary::before{transform:rotate(90deg)}
+.student-period-summary span{flex:1;min-width:0;overflow-wrap:anywhere}
+.student-period-summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+.student-period-body{padding-top:12px;border-top:1px solid var(--line)}
+.student-period-order-label{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:6px 0 13px;font-weight:700;font-size:12px;color:var(--muted)}
+.student-period-order-label select{min-height:40px;min-width:190px;max-width:100%;padding:6px 11px;border-radius:9px;background:var(--raised);color:var(--ink);border:1px solid var(--line)}
+.student-activity-list{display:grid;gap:9px}
+.student-activity-list .student-assessment-block{border:1px solid var(--line);padding:5px 12px;border-radius:10px;background:var(--raised)}
+.student-assessment-block{min-width:0}
+.student-activity-category{display:block;color:var(--muted);font-weight:500;margin-top:3px}
+.student-rubric-breakdown{margin:6px 0 12px;padding:8px 10px;border:1px solid var(--line);background:var(--raised);border-radius:9px;font-size:12px;color:var(--ink)}
+.student-rubric-breakdown>summary{cursor:pointer;line-height:1.5;font-weight:750;color:var(--accent-text);padding:3px}
+.student-rubric-items{display:grid;gap:8px;margin-top:9px}
+.student-rubric-item{border:1px solid var(--line);background:var(--surface);border-radius:8px;overflow:hidden}
+.student-rubric-item>summary{cursor:pointer;display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;font-weight:700}
+.student-rubric-item>summary strong{white-space:nowrap;font-variant-numeric:tabular-nums}
+.student-rubric-item-body{padding:0 12px 11px;line-height:1.55;overflow-wrap:anywhere}
+.student-rubric-item-body p{margin:7px 0 0}
+.student-rubric-breakdown summary:focus-visible,.student-rubric-item summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+html[data-theme="oled"] .student-rubric-breakdown,html[data-theme="oled"] .student-rubric-item,html[data-theme="oled"] .student-activity-list .student-assessment-block{background:#000}
+@media(max-width:600px){.student-period-order-label{display:grid}.student-period-order-label select{width:100%}.student-rubric-item>summary{align-items:flex-start}.student-period-summary{font-size:14px}}
