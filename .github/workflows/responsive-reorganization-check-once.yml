@@ -1,5 +1,5 @@
 name: Validar rediseño B móvil y iPad (temporal)
-# Segunda pasada: las pruebas heredadas verifican la nueva posición de los botones
+# Pruebas funcionales verdes; para navegador emplear Ubuntu 24.04 compatible con Playwright
 on:
   push:
     branches: [feat/responsive-interface-reorganization-20261121]
@@ -9,7 +9,7 @@ permissions:
 jobs:
   verify:
     if: github.repository == 'ArchaiosMagister/AppNotas'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
