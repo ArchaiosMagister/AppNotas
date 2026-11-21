@@ -1,0 +1,46 @@
+name: Validar colores por categoría y recalcular inventario (temporal)
+on:
+  push:
+    branches: [fix/category-column-colors-20261121]
+    paths: [.github/workflows/category-colors-check-once.yml]
+permissions:
+  contents: write
+jobs:
+  audit:
+    if: github.repository == 'ArchaiosMagister/AppNotas'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Comprobar sintaxis, generar manifiesto y cotejar SHA-256
+        run: |
+          set -euo pipefail
+          node --check app/app.js
+          node --check app/src/model.js
+          node --check app/sw.js
+          node --check app/tests/v125_category_column_colors.test.mjs
+          python3 scripts/source_manifest.py --write
+          python3 scripts/source_manifest.py --check
+          (cd app && sha256sum --check MANIFEST_SHA256.txt >/dev/null)
+      - name: Auditar colores, notas y regresiones del cuaderno
+        run: |
+          set -euo pipefail
+          (cd app && npm test)
+          CUADERNO_ROOT=app node --test scripts/audit-v119.test.mjs
+      - name: Validar distribución estática, CSP y restauración cifrada
+        run: |
+          set -euo pipefail
+          node scripts/build-static-site.mjs
+          node --test scripts/dedicated-hosting.test.mjs scripts/backup-origin-migration.test.mjs
+      - name: Registrar inventario actualizado sin publicar
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/MANIFEST_SHA256.txt
+          git diff --cached --quiet && { echo "Se esperaba un inventario modificado"; exit 1; }
+          git commit -m "build: regenerar hashes de colores de categorías"
+          git push origin HEAD:fix/category-column-colors-20261121
