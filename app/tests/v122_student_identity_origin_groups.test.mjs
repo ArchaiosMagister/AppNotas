@@ -83,7 +83,6 @@ test('rechazo de datos malformados, inyección en campos y campos incompletos si
   {firstName:'Ana',lastName:'Pérez',groupId:'otro'},
   {firstName:'Ana',lastName:'Pérez',originGroup:99}
  ]){
-  if(bad.originGroup===99)continue;
   assert.throws(()=>addStudent(doc,group.id,bad));
   assert.deepEqual(doc,before);
  }
