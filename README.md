@@ -1,31 +1,41 @@
-# CuadernoDocente · v1.0-rc1
+# AppNotas · CuadernoDocente v1.17 (pruebas)
 
-**Candidata para pruebas en Safari macOS, iPhone y iPad, con datos ficticios exclusivamente.** No introducir datos reales del alumnado hasta completar las pruebas y la revisión institucional.
+**Repositorio público de código de una PWA docente. No almacena cuadernos personales, contraseñas, notas de alumnos ni ficheros de copia cifrada.** Los ejemplos incluidos en el ZIP son ficticios. **No introducir calificaciones reales** hasta completar las pruebas en dispositivos físicos y la evaluación del centro.
 
-## Versión y procedencia
+## Versión publicada
 
-Este repositorio es privado y contiene una copia **íntegra y verificable** del ZIP original `CuadernoDocente_v1.0-rc1.zip`. La transferencia se realizó como 22 fragmentos Base64 en `payload/part_*.b64` por los límites del conector. El flujo de GitHub Actions los une y comprueba el SHA-256 antes de ejecutar pruebas y desplegar el sitio.
+Se conserva íntegra la versión histórica v1.0-rc1 en `payload/`. La nueva versión v1.17 está contenida en el ZIP original, fragmentado en `releases/v1.17/part_*.b64` para su transferencia verificable. Los fragmentos son código y recursos de pruebas, no datos docentes.
 
-SHA-256 del ZIP original: `105162db702e5205bd307db8f48e9e975b480cf6105ce27eb31ccd72525af6be`.
+SHA-256 del ZIP v1.17:
+`b90c00e31a723756387b53309ff5a2bcd82787eca23461f23d9c50481fcf81be`.
 
-Los archivos del ZIP —código JavaScript, CSS, datos curriculares, pruebas, documentos y PDFs— se recuperan **sin modificaciones** mediante:
+Para recuperar las fuentes completas:
 
 ```bash
-cat payload/part_*.b64 | base64 --decode > CuadernoDocente_v1.0-rc1.zip
-unzip CuadernoDocente_v1.0-rc1.zip
-cd CuadernoDocente_v1.0-rc1
+cat releases/v1.17/part_*.b64 | base64 --decode > CuadernoDocente_v1.17.zip
+echo 'b90c00e31a723756387b53309ff5a2bcd82787eca23461f23d9c50481fcf81be  CuadernoDocente_v1.17.zip' | sha256sum --check
+unzip CuadernoDocente_v1.17.zip
+cd CuadernoDocente_v1.17-prepublicacion
 sha256sum -c MANIFEST_SHA256.txt
 npm test
 ```
 
-## Prueba de la webapp en dispositivos reales
+## Web de pruebas
 
-El flujo `.github/workflows/pages.yml` reconstruye el ZIP, verifica los archivos, ejecuta **133 pruebas automatizadas** y genera el sitio estático. Si la cuenta permite GitHub Pages desde un repositorio privado, intenta habilitar y publicar la web de prueba. Comprueba el resultado en **Actions** y en **Settings → Pages**. En caso de requerir activación manual, selecciona **GitHub Actions** como origen de publicación.
+URL prevista de GitHub Pages (solo si la acción termina correctamente):
+https://archaiosmagister.github.io/AppNotas/
 
-**Importante: GitHub Pages puede ser público aunque el repositorio sea privado.** La URL web prevista, si se habilita y despliega correctamente, es `https://archaiosmagister.github.io/AppNotas/`; no debe darse por operativa sin comprobar el workflow. El código distribuido es estático y los datos del cuaderno se guardan cifrados localmente en cada navegador. No se sincronizan notas entre dispositivos.
+La publicación reconstruye y verifica el ZIP, pasa las pruebas `npm test` y despliega únicamente la PWA estática (`index.html`, CSS, JS, módulos, librería local, manifiesto, service worker y recursos curriculares). No se publica ninguna base IndexedDB, ni copias `.cuaderno` o `.cdoc`.
 
-Para repetir las pruebas, consulta `qa/PROTOCOLO_SAFARI.md` y `docs/ESTABILIZACION_RC1.md` dentro del ZIP. Las pruebas en dispositivos físicos están pendientes. La prueba de persistencia de un navegador no demuestra persistencia en los demás: cada origen y cada navegador mantiene su propio almacenamiento.
+Si la configuración inicial de Pages falla con `Resource not accessible by integration`, abrir **Settings → Pages**, elegir **GitHub Actions** como origen y volver a ejecutar el workflow. GitHub Pages es accesible públicamente incluso cuando los datos del cuaderno permanecen exclusivamente en cada dispositivo.
 
-## Descarga del ZIP íntegro
+## Pruebas propuestas
 
-Una ejecución correcta del workflow en `main` publica el ZIP original como artefacto `CuadernoDocente_v1.0-rc1-original` en **Actions → Validate and publish CuadernoDocente RC1 → última ejecución → Artifacts**. Ese artefacto requiere acceso autorizado al repositorio.
+1. Crear un cuaderno solo con alumnos ficticios en un dispositivo.
+2. Introducir puntuaciones, rúbricas y reglas de ponderación; confirmar que los cálculos se mantienen.
+3. Pulsar **Cerrar cuaderno** para obtener un archivo `.cuaderno` cifrado y comprobar la ubicación de guardado.
+4. Abrirlo en otro dispositivo con **Abrir cuaderno**, introducir la contraseña, revisar el resumen y confirmar.
+5. Probar contraseña equivocada, archivo alterado, copias antiguas y conflictos entre dispositivos.
+6. Comprobar que una cancelación nunca borra las notas locales, y que la PWA funciona sin conexión tras instalarse.
+
+La v1.17 conserva almacenamiento local IndexedDB y cifra los archivos antes de descargarlos. **El sitio público no es un control de acceso a la aplicación** y el cifrado de las copias no sustituye a las políticas de protección de dispositivos o autorización institucional.
