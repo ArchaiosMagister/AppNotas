@@ -12,7 +12,7 @@ La aplicación permite llevar calificaciones, rúbricas, agenda docente y evalua
 | --- | --- |
 | [`app/`](app/) | **Fuente editable y canónica de la PWA**, incluidos `index.html`, `app.js`, `styles.css`, `sw.js` y `manifest.webmanifest` |
 | [`app/src/`](app/src/) | Módulos separados: cálculos, modelo, agenda, almacenamiento, cifrado, UI, etc. |
-| [`app/tests/`](app/tests/) | Las 362 pruebas originales y 4 nuevas de seguridad y conservación |
+| [`app/tests/`](app/tests/) | Pruebas originales, de seguridad, conservación y copias cifradas |
 | [`app/icons/`](app/icons/), [`app/vendor/`](app/vendor/) y [`app/data/curriculos/`](app/data/curriculos/) | Recursos PWA, dependencia JSZip y fuentes curriculares |
 | [`scripts/audit-v119.test.mjs`](scripts/audit-v119.test.mjs) | Seis pruebas de regresión específicas de agenda, ICS y caché |
 | [`scripts/source_manifest.py`](scripts/source_manifest.py) | Verificar o recalcular SHA-256 de los archivos versionados |
@@ -40,12 +40,12 @@ node --check app/src/planner-ui.js
 node --check app/app.js
 node --check app/sw.js
 
-# Suite completa (366 pruebas del cuaderno + 6 de regresión):
+# Suite del cuaderno y 6 regresiones de agenda/PWA:
 ( cd app && npm test )
 CUADERNO_ROOT=app node --test scripts/audit-v119.test.mjs
 ```
 
-Abre una rama y una PR hacia `main`. GitHub Actions valida el manifiesto, ejecuta las **372 pruebas automatizadas**, verifica los recursos necesarios y construye el sitio estático. **Solo cuando la PR pasa las comprobaciones y se fusiona en `main`**, el flujo despliega GitHub Pages y adjunta un ZIP de fuentes verificadas a la ejecución.
+Abre una rama y una PR hacia `main`. GitHub Actions valida el manifiesto, ejecuta la batería completa de pruebas automatizadas, verifica los recursos necesarios y construye el sitio estático. **Solo cuando la PR pasa las comprobaciones y se fusiona en `main`**, el flujo despliega GitHub Pages y adjunta un ZIP de fuentes verificadas a la ejecución.
 
 **Ya no se reconstruyen los ZIP fragmentados ni se ejecuta el parche de auditoría en cada despliegue.** Las correcciones están directamente en el código editable. Para futuras ediciones, conserva los tests de cálculos y cifrado y modifica el manifiesto mediante el script indicado.
 
@@ -71,6 +71,14 @@ node --test scripts/dedicated-hosting.test.mjs scripts/backup-origin-migration.t
 ```
 
 Estas pruebas verifican que los recursos publicados coinciden con los archivos de la PWA, que no se filtran documentos personales en el sitio y que una **migración simulada** conserva las notas. **La verificación en navegadores y el despliegue real siguen pendientes** hasta disponer del nuevo dominio.
+
+## Política de copias cifradas externas
+
+Consulta la [política de copias de seguridad](docs/POLITICA_COPIAS_CIFRADAS.md). La conservación de notas **no depende de Cloudflare o GitHub**: el cuaderno reside en IndexedDB y se recomienda mantener **dos copias cifradas en ubicaciones externas distintas**, renovadas al menos cada semana y después de cambios importantes.
+
+En **Ajustes y copias** se distingue entre exportar un archivo portátil y **reabrirlo para comprobar su integridad y contraseña**. La verificación solo se registra para la misma revisión del cuaderno y no altera notas, rúbricas ni reglas. El indicador cambia cuando hay notas posteriores a la copia o pasan siete días sin comprobarla; no se afirma que la nube haya completado ninguna sincronización.
+
+La copia histórica .cdoc se conserva como opción de rescate, separada del archivo portátil .cuaderno. El sistema **no realiza copias externas automáticas** sin intervención del usuario.
 
 ## Paquete histórico y reproducibilidad
 

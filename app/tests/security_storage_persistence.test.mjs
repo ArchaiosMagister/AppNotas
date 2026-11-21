@@ -30,7 +30,8 @@ test('el aviso del origen compartido figura en la vista de Ajustes',async()=>{
 });
 test('la nueva caché PWA coincide con el comprobador offline',async()=>{
   const [app,sw]=await Promise.all(['app.js','sw.js'].map(path=>readFile(new URL('../'+path,import.meta.url),'utf8')));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v121-dev'"));
-  assert(app.includes("caches.open('cuaderno-docente-static-v121-dev')"));
-  assert(!app.includes("caches.open('cuaderno-docente-static-v120-dev')"));
+  const cache=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/)?.[1];
+  assert(cache,'El service worker debe declarar una caché versionada');
+  assert(Number(cache.match(/v(\d+)-dev/)[1])>=121,'No reutilizar una caché anterior');
+  assert(app.includes("caches.open('"+cache+"')"),'La UI debe utilizar exactamente la misma caché');
 });
