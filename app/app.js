@@ -1,4 +1,4 @@
-import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,moveStudent,removeStudent,updateGroupInfo,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor} from './src/model.js';
+import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor} from './src/model.js';
 import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,itacaGrade} from './src/calculations.js';
 import {studentsFromCsv} from './src/csv.js';
 import {parseRubricText} from './src/rubric-import.js';
@@ -137,7 +137,14 @@ window.addEventListener('appinstalled',()=>{pendingInstallPrompt=null;paintPwaBu
 const savedTheme=()=>{try{const value=localStorage.getItem('cuaderno-docente-theme');return ['light','dark','oled'].includes(value)?value:'light';}catch{return 'light';}};
 const savedNavigation=()=>{try{return localStorage.getItem('cuaderno-docente-nav-collapsed')==='yes';}catch{return false;}};
 const savedStudentSort=()=>{try{const mode=localStorage.getItem('cuaderno-docente-student-sort');return STUDENT_SORT_MODES.includes(mode)?mode:'surname';}catch{return 'surname';}};
-const STATE={plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
+const savedStudentActivityOrders=()=>{try{
+  const raw=JSON.parse(localStorage.getItem('cuaderno-docente-student-activity-orders')||'{}');
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))return {};
+  return Object.fromEntries(Object.entries(raw).filter(([id,mode])=>id.length<150&&STUDENT_ACTIVITY_SORT_MODES.includes(mode)).slice(0,200));
+}catch{return {};}};
+const STUDENT_ACTIVITY_SORT_OPTIONS=[['category','Por categoría'],['column','Orden del cuaderno'],['alphabetical','Nombre de actividad (A–Z)'],['reverse','Últimas actividades primero']];
+
+const STATE={plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),studentActivityOrders:savedStudentActivityOrders(),studentPeriodOpen:{},db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const $=(sel,context=document)=>context.querySelector(sel);
 const opt=(id,label,chosen)=>`<option value="${esc(id)}" ${chosen===id?'selected':''}>${esc(label)}</option>`;
@@ -1005,22 +1012,35 @@ function renderStudentView(){
   const position=students.findIndex(s=>s.id===student.id);
   const previous=students[position-1],next=students[position+1];
   const periods=[...STATE.doc.periods].sort((a,b)=>a.order-b.order);
-  return `<section class="panel panel-pad student-privacy"><div class="student-detail-head"><div><span class="eyebrow">VISOR INDIVIDUAL</span><h2 id="student-view-title" tabindex="-1">${esc(student.name)}</h2><p class="subtitle">${esc(currentGroup().name)}${student.originGroup?' · Grupo de procedencia: '+esc(student.originGroup):''} · Solo aparecen las calificaciones de este alumno.</p></div><div class="student-navigation" role="group" aria-label="Cambiar de alumno"><button class="btn" type="button" id="previous-student" ${previous?'':'disabled'} aria-label="Alumno anterior">← Anterior</button><span class="student-position" aria-label="Alumno ${position+1} de ${students.length}">${position+1} de ${students.length}</span><button class="btn" type="button" id="next-student" ${next?'':'disabled'} aria-label="Alumno siguiente">Siguiente →</button></div><button class="btn primary" id="hide-student">Volver al listado</button></div></section>${periods.map(p=>{
+  const renderRubricBreakdown=(assessment,grade)=>{
+    if(!assessment.rubricId||!grade?.rubricRatings||grade.notSubmitted||grade.pendingJustified)return '';
+    const rubric=STATE.doc.rubrics.find(r=>r.id===assessment.rubricId);
+    if(!rubric)return '';
+    return `<details class="student-rubric-breakdown"><summary>Desglose de rúbrica · ${esc(rubric.name)} (${rubric.criteria.length} criterios)</summary><div class="student-rubric-items">${rubric.criteria.map(criterion=>{
+      const rating=grade.rubricRatings.find(r=>r.criterionId===criterion.id);
+      const level=criterion.levels?.find(l=>l.score===rating?.score);
+      return `<details class="student-rubric-item"><summary><span>${esc(criterion.name)}</span><strong>${esc(rawFmt(rating?.score))} / ${esc(rawFmt(criterion.maxScore))}</strong></summary><div class="student-rubric-item-body"><span class="hint">Peso relativo: ${esc(criterion.weight)}</span>${level?`<p><strong>${esc(level.label)}</strong></p>${level.description?`<p>${esc(level.description)}</p>`:''}`:''}</div></details>`;
+    }).join('')}</div></details>`;
+  };
+  const renderActivity=(a,categoryName='')=>{
+    const grade=STATE.doc.grades.find(g=>g.studentId===student.id&&g.assessmentId===a.id);
+    const effective=grade?effectiveAssessmentScore(STATE.doc,a,grade):null;
+    const orthography=a.orthography?.enabled&&grade;
+    const shown=!grade?'Sin calificar':grade.pendingJustified?'<span class="aj-badge">AJ · Ausencia justificada pendiente</span>':grade.notSubmitted?'<span class="np-badge">NP · No presentado</span>':orthography
+      ?`${gradeChip(effective)}<small class="student-original">(${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))})${grade.orthographyFaults?` · ${grade.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(orthographyPenalty(a,grade)))} por ${grade.orthographyFaults} faltas`}`:''}</small>`
+      :a.rubricId?`${gradeChip(recordedScore(STATE.doc,a,grade))} /10 (rúbrica)`
+      :a.convertToTen&&a.maxScore!==10?`${gradeChip(normalizedScore(grade.score,a.maxScore,true))}<small class="student-original">(${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))})</small>`
+      :a.maxScore===10?gradeChip(grade.score):`<span class="student-raw">${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))}</span>`;
+    return `<div class="student-assessment-block"><div class="student-assessment"><span>${esc(a.name)}${categoryName?`<small class="student-activity-category">${esc(categoryName)}</small>`:''}</span><strong>${shown}</strong></div>${renderRubricBreakdown(a,grade)}</div>`;
+  };
+  return `<section class="panel panel-pad student-privacy"><div class="student-detail-head"><div><span class="eyebrow">VISOR INDIVIDUAL</span><h2 id="student-view-title" tabindex="-1">${esc(student.name)}</h2><p class="subtitle">${esc(currentGroup().name)}${student.originGroup?' · Grupo de procedencia: '+esc(student.originGroup):''} · Solo aparecen las calificaciones de este alumno.</p></div><div class="student-navigation" role="group" aria-label="Cambiar de alumno"><button class="btn" type="button" id="previous-student" ${previous?'':'disabled'} aria-label="Alumno anterior">← Anterior</button><span class="student-position" aria-label="Alumno ${position+1} de ${students.length}">${position+1} de ${students.length}</span><button class="btn" type="button" id="next-student" ${next?'':'disabled'} aria-label="Alumno siguiente">Siguiente →</button></div><button class="btn primary" id="hide-student">Volver al listado</button></div></section>${periods.map((p,index)=>{
     const cats=effectiveCategories(STATE.doc,STATE.groupId,p.id);
-    return `<section class="panel panel-pad student-period"><div class="section-title-row"><h2>${esc(p.name)}</h2><strong class="student-score">${gradeChip(overallGrade(STATE.doc,student.id,STATE.groupId,p.id))} / 10</strong></div>${cats.map(c=>{
-      const assessments=STATE.doc.assessments.filter(a=>a.groupId===STATE.groupId&&a.periodId===p.id&&a.categoryId===c.id).sort((a,b)=>a.order-b.order);
-      return `<div class="student-category"><div class="cardline"><strong>${esc(c.name)}</strong><span class="value">${gradeChip(categoryGrade(STATE.doc,student.id,c.id,STATE.groupId,p.id))} / 10</span></div>${assessments.map(a=>{
-        const grade=STATE.doc.grades.find(g=>g.studentId===student.id&&g.assessmentId===a.id);
-        const effective=grade?effectiveAssessmentScore(STATE.doc,a,grade):null;
-        const orthography=a.orthography?.enabled&&grade;
-        const shown=!grade?'Sin calificar':grade.pendingJustified?'<span class="aj-badge">AJ · Ausencia justificada pendiente</span>':grade.notSubmitted?'<span class="np-badge">NP · No presentado</span>':orthography
-          ?`${gradeChip(effective)}<small class="student-original">(${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))})${grade.orthographyFaults?` · ${grade.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(orthographyPenalty(a,grade)))} por ${grade.orthographyFaults} faltas`}`:''}</small>`
-          :a.rubricId?`${gradeChip(recordedScore(STATE.doc,a,grade))} /10 (rúbrica)`
-          :a.convertToTen&&a.maxScore!==10?`${gradeChip(normalizedScore(grade.score,a.maxScore,true))}<small class="student-original">(${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))})</small>`
-          :a.maxScore===10?gradeChip(grade.score):`<span class="student-raw">${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))}</span>`;
-        return `<div class="student-assessment"><span>${esc(a.name)}</span><strong>${shown}</strong></div>`;
-      }).join('')||'<p class="hint">Sin actividades en esta categoría.</p>'}</div>`;
-    }).join('')}</section>`;
+    const mode=STATE.studentActivityOrders[p.id]||'category';
+    const ordered=sortStudentPeriodActivities(STATE.doc,STATE.groupId,p.id,mode);
+    const content=mode==='category'?cats.map(c=>`<div class="student-category"><div class="cardline"><strong>${esc(c.name)}</strong><span class="value">${gradeChip(categoryGrade(STATE.doc,student.id,c.id,STATE.groupId,p.id))} / 10</span></div>${ordered.filter(a=>a.categoryId===c.id).map(a=>renderActivity(a)).join('')||'<p class="hint">Sin actividades en esta categoría.</p>'}</div>`).join('')
+      :`<div class="student-activity-list">${ordered.map(a=>renderActivity(a,cats.find(c=>c.id===a.categoryId)?.name||'')).join('')||'<p class="hint">Sin actividades en esta evaluación.</p>'}</div>`;
+    const opened=STATE.studentPeriodOpen[p.id]??index===0;
+    return `<details class="panel panel-pad student-period" data-student-period="${esc(p.id)}" ${opened?'open':''}><summary class="student-period-summary"><span>${esc(p.name)}</span><strong class="student-score">${gradeChip(overallGrade(STATE.doc,student.id,STATE.groupId,p.id))} / 10</strong></summary><div class="student-period-body"><label class="student-period-order-label">Orden de las actividades<select data-student-period-order="${esc(p.id)}" aria-label="Orden de actividades de ${esc(p.name)}">${STUDENT_ACTIVITY_SORT_OPTIONS.map(([key,label])=>opt(key,label,mode)).join('')}</select></label>${content}</div></details>`;
   }).join('')}<section class="panel panel-pad"><div class="section-title-row"><strong>Evaluación final del curso</strong><strong class="student-score">${gradeChip(finalGrade(STATE.doc,student.id,STATE.groupId))} / 10</strong></div></section>`;
 }
 function bindStudentView(){
