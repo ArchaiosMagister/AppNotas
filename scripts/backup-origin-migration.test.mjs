@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialNotebook,ensureBookMetadata,setGrade,assertModel} from '../app/src/model.js';
+import {initialNotebook,setGrade,assertModel} from '../app/src/model.js';
 import {createVault,seal,unlockVault,saltFromEnvelope} from '../app/src/vault.js';
-import {createPortableCopy,readBackupFile,compareBookVersions} from '../app/src/cuaderno.js';
+import {ensureBookMetadata,createPortableCopy,readBackupFile,compareBookVersions} from '../app/src/cuaderno.js';
 
 const password='Frase de paso ficticia para pruebas 2026 única!';
 const originalOrigin='https://archaiosmagister.github.io';
