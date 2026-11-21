@@ -488,6 +488,30 @@ export function studentIdentity(input){
   return {name,originGroup};
 }
 export const STUDENT_SORT_MODES=Object.freeze(['surname','firstName','originGroup','manual']);
+
+/** El modo alumno puede ordenar las actividades de cada evaluación sin mover
+ * columnas ni cambiar la estructura docente del cuaderno. */
+export const STUDENT_ACTIVITY_SORT_MODES=Object.freeze(['category','column','alphabetical','reverse']);
+export function sortStudentPeriodActivities(doc,groupId,periodId,mode='category'){
+  if(!STUDENT_ACTIVITY_SORT_MODES.includes(mode))throw new Error('Orden de actividades del alumno inválido.');
+  const categories=availableCategories(doc,groupId);
+  const positions=new Map(categories.map((c,i)=>[c.id,i]));
+  const collator=new Intl.Collator('es',{numeric:true,sensitivity:'base'});
+  return doc.assessments.filter(a=>a.groupId===groupId&&a.periodId===periodId).sort((a,b)=>{
+    if(mode==='category'){
+      const left=positions.get(a.categoryId)??Number.MAX_SAFE_INTEGER;
+      const right=positions.get(b.categoryId)??Number.MAX_SAFE_INTEGER;
+      if(left!==right)return left-right;
+    }
+    if(mode==='alphabetical'){
+      const name=collator.compare(a.name,b.name);
+      if(name)return name;
+    }
+    return (mode==='reverse'?b.order-a.order:a.order-b.order)||
+      collator.compare(a.name,b.name)||collator.compare(a.id,b.id);
+  });
+}
+
 const studentCollator=new Intl.Collator('es',{sensitivity:'base',numeric:true});
 /** Orden de presentación: nunca reescribe ni renumera notas/alumnos. */
 export function sortStudents(students,mode='surname'){
