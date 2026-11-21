@@ -18,7 +18,7 @@ import tempfile
 import zipfile
 
 REPO = Path(__file__).resolve().parents[1]
-DEST = REPO / "app"
+DEST = Path(os.environ.get("CUADERNO_OUTPUT_DIR", str(REPO / "app"))).resolve()
 PARTS = sorted((REPO / "releases" / "v1.19").glob("part_*.b64"))
 EXPECTED_SHA = "85189a3b59a7e6829664d6b89fcb48b624761f963b023eb560fc0575861e8f29"
 PREFIX = "CuadernoDocente_v1.19-prepublicacion"
