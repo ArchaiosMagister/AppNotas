@@ -1,4 +1,5 @@
 name: Validar observaciones cifradas de calificaciones (temporal)
+# Revalidar pruebas tras eliminar número de caché fijado en test anterior
 on:
   push:
     branches: [feat/grade-observations-20261121]
