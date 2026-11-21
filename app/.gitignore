@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+*.log
+.env
+.env.*
+!*.example
+coverage/
+test-results/
+playwright-report/
+
+# Capturas derivadas de QA con datos ficticios
+qa/vista_*_simulada.png

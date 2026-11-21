@@ -1,48 +1,62 @@
-# AppNotas · CuadernoDocente v1.19 (pruebas)
+# AppNotas · CuadernoDocente v1.19
 
-**Repositorio público de código y PWA de prueba.** No contiene cuadernos personales ni calificaciones reales. Utilizar solo datos ficticios mientras se realizan pruebas en Safari, iPhone e iPad y se valida el uso institucional.
+**Repositorio público de código y PWA de pruebas:** https://archaiosmagister.github.io/AppNotas/
 
-## Acceso a la PWA
+La aplicación permite llevar calificaciones, rúbricas, agenda docente y evaluación final. Conserva los cuadernos en IndexedDB en cada dispositivo y exporta ficheros cifrados con AES-256-GCM. GitHub **no almacena ni sincroniza** notas o cuadernos personales.
 
-https://archaiosmagister.github.io/AppNotas/
+> **Privacidad:** trabajar con datos ficticios durante las pruebas. No incorporar al repositorio información identificativa de alumnado, calificaciones reales, contraseñas ni copias `.cuaderno` / `.cdoc`. La utilización institucional requiere las comprobaciones y autorizaciones aplicables.
 
-La v1.19 ofrece instalación PWA con iconos para móvil y escritorio, búsqueda manual de actualizaciones con confirmación, columna **Nota Ítaca** por trimestre con tres reglas de redondeo (0,5, 0,7 o sin redondear) y excepciones por alumno, y colores de categoría personalizables visibles incluso en modo OLED.
+## Estructura del repositorio
 
-Las notas se guardan localmente en IndexedDB y los ficheros exportados se cifran con AES-256-GCM antes de guardarlos en el dispositivo. No hay almacenamiento automático ni sincronización de datos personales en GitHub, OneDrive u otros servicios.
+| Ruta | Contenido |
+| --- | --- |
+| [`app/`](app/) | **Fuente editable y canónica de la PWA**, incluidos `index.html`, `app.js`, `styles.css`, `sw.js` y `manifest.webmanifest` |
+| [`app/src/`](app/src/) | Módulos separados: cálculos, modelo, agenda, almacenamiento, cifrado, UI, etc. |
+| [`app/tests/`](app/tests/) | Las 362 pruebas originales |
+| [`app/icons/`](app/icons/), [`app/vendor/`](app/vendor/) y [`app/data/curriculos/`](app/data/curriculos/) | Recursos PWA, dependencia JSZip y fuentes curriculares |
+| [`scripts/audit-v119.test.mjs`](scripts/audit-v119.test.mjs) | Seis pruebas de regresión específicas de agenda, ICS y caché |
+| [`scripts/source_manifest.py`](scripts/source_manifest.py) | Verificar o recalcular SHA-256 de los archivos versionados |
+| [`.github/workflows/pages.yml`](.github/workflows/pages.yml) | CI y despliegue de GitHub Pages **directamente desde `app/`** |
+| [`releases/v1.19/`](releases/v1.19/) y [`releases/v1.17/`](releases/v1.17/) | Paquetes históricos **sin modificar**, para trazabilidad |
+| [`payload/`](payload/) | Archivo histórico anterior; no interviene en el despliegue |
+| [`scripts/export_source_tree.py`](scripts/export_source_tree.py) y [`scripts/apply_v119_audit.py`](scripts/apply_v119_audit.py) | Reproducción puntual de la migración desde el ZIP auditado; **no forman parte de la compilación normal** |
 
-## Correcciones de agenda posteriores a la auditoría
+El código de `app/` se ha extraído de la v1.19 verificada, se ha aplicado la auditoría correctiva de agenda y se ha cotejado con el original. La arquitectura funcional y los algoritmos de calificación se mantienen.
 
-La PWA publicada desde `main` se construye a partir del ZIP original v1.19, que permanece inalterado y verificable. Durante la compilación, `scripts/apply_v119_audit.py` corrige el módulo de agenda y sincroniza la caché offline de `sw.js` y `app.js`. El script aborta si el código original no coincide con el esperado y recalcula el manifiesto de la distribución reparada.
+El HTML `app/CuadernoDocente_sin_instalar.html` se conserva como **artefacto histórico autónomo**; la versión que publica Pages es la PWA construida a partir de `app/index.html` y sus módulos.
 
-Correcciones incluidas: día inicial de sesiones nuevas en fin de semana; creación de curso siguiente con nombres personalizados; conservación de horas manuales en exámenes y eventos; exportación iCalendar con normalización de saltos de línea y plegado de líneas a 75 octetos UTF-8. **No se cambian los cálculos de notas ni los archivos personales.**
+## Editar, comprobar y publicar cambios
 
-El despliegue exige pasar las **362 pruebas originales y 6 pruebas nuevas** sobre estos casos, además de la comprobación del manifiesto. Tras la compilación correcta, GitHub Actions genera un ZIP auditado como artefacto de la ejecución; el HTML autónomo histórico incluido en el paquete fuente no sustituye a esta PWA corregida.
-
-## Paquete fuente y pruebas
-
-Se conservan versiones anteriores en `payload/` y `releases/v1.17/`. El ZIP completo v1.19 está fragmentado sin alterar en `releases/v1.19/part_*.b64` para su transporte y reconstrucción.
-
-SHA-256: `85189a3b59a7e6829664d6b89fcb48b624761f963b023eb560fc0575861e8f29`.
+Necesitas Python 3 y Node.js 22 (o versión compatible indicada en `app/package.json`).
 
 ```bash
-cat releases/v1.19/part_*.b64 | base64 --decode > CuadernoDocente_v1.19.zip
-echo '85189a3b59a7e6829664d6b89fcb48b624761f963b023eb560fc0575861e8f29  CuadernoDocente_v1.19.zip' | sha256sum --check
-unzip CuadernoDocente_v1.19.zip
-cd CuadernoDocente_v1.19-prepublicacion
-sha256sum -c MANIFEST_SHA256.txt
-npm test
+# Después de editar, añadir o eliminar archivos dentro de app/:
+python3 scripts/source_manifest.py --write
+
+# Comprobar integridad y sintaxis:
+python3 scripts/source_manifest.py --check
+( cd app && sha256sum --check MANIFEST_SHA256.txt )
+node --check app/src/planner-ui.js
+node --check app/app.js
+node --check app/sw.js
+
+# Suite completa (362 pruebas originales + 6 de regresión):
+( cd app && npm test )
+CUADERNO_ROOT=app node --test scripts/audit-v119.test.mjs
 ```
 
-El flujo `.github/workflows/pages.yml` reconstruye y valida el ZIP, ejecuta **368 pruebas automatizadas (362 originales y 6 nuevas)**, prepara los archivos estáticos y los publica en GitHub Pages tras éxito. Las copias `.cuaderno`, archivos de bases de datos y credenciales no se despliegan.
+Abre una rama y una PR hacia `main`. GitHub Actions valida el manifiesto, ejecuta las **368 pruebas automatizadas**, verifica los recursos necesarios y construye el sitio estático. **Solo cuando la PR pasa las comprobaciones y se fusiona en `main`**, el flujo despliega GitHub Pages y adjunta un ZIP de fuentes verificadas a la ejecución.
 
-## Pruebas reales recomendadas
+**Ya no se reconstruyen los ZIP fragmentados ni se ejecuta el parche de auditoría en cada despliegue.** Las correcciones están directamente en el código editable. Para futuras ediciones, conserva los tests de cálculos y cifrado y modifica el manifiesto mediante el script indicado.
 
-1. Instalar desde «Instalar aplicación»; en Safari iOS, utilizar Compartir → Añadir a pantalla de inicio.
-2. Crear un curso con alumnos ficticios, configurar Nota Ítaca general y excepciones por trimestre y revisar las medias.
-3. Elegir colores por categoría y comprobarlos en modo OLED.
-4. Exportar el cuaderno cifrado con «Cerrar cuaderno»; importarlo en otro dispositivo con «Abrir cuaderno».
-5. Comprobar que notas, cálculos, excepciones y colores se conservan y que una copia antigua o contraseña errónea no sobrescribe datos.
-6. Pulsar «Buscar actualizaciones»; nunca actualizar sin confirmar antes que los cambios pendientes están guardados.
-7. Comprobar instalación, modo offline y exportación desde Safari de macOS, iPhone y iPad.
+## Paquete histórico y reproducibilidad
 
-**Limitación:** las pruebas interactivas en navegadores Apple reales están pendientes; las 362 pruebas automatizadas no sustituyen a la verificación física. No usar notas reales sin revisión de seguridad y autorización del centro o Generalitat.
+El ZIP original v1.19 sigue disponible sin cambios en `releases/v1.19/part_*.b64`, con SHA-256:
+
+`85189a3b59a7e6829664d6b89fcb48b624761f963b023eb560fc0575861e8f29`
+
+Para reproducir la extracción histórica en una carpeta vacía, usa `CUADERNO_OUTPUT_DIR=/ruta/temporal python3 scripts/export_source_tree.py`. No utilices ese procedimiento para editar o desplegar la PWA habitual.
+
+## Comprobación manual aún necesaria
+
+Antes de usar datos reales, probar con un cuaderno ficticio: entrada y cálculo de calificaciones, reglas Ítaca, excepciones individuales, exportación e importación cifrada, cierre y reapertura, funcionamiento sin conexión y actualización de la PWA en Safari de macOS, iPhone y iPad. Las pruebas automáticas no sustituyen esta verificación.

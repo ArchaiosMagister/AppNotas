@@ -1,0 +1,8 @@
+{
+  "name": "Trabajo escrito · ejemplo",
+  "criteria": [
+    {"name": "Contenido", "maxScore": 5, "weight": 2},
+    {"name": "Presentación", "maxScore": 3, "weight": 1},
+    {"name": "Corrección", "maxScore": 2, "weight": 1}
+  ]
+}

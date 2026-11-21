@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="theme-color" content="#263246"/>
+  <meta name="description" content="Prototipo offline de cuaderno docente con notas locales cifradas."/>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"/>
+  <link rel="manifest" href="./manifest.webmanifest"/>
+  <link rel="icon" type="image/svg+xml" href="./icons/icon.svg"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-title" content="Cuaderno"/>
+  <link rel="stylesheet" href="./styles.css"/>
+  <title>CuadernoDocente · v1.19 · Tabularium</title>
+</head>
+<body>
+  <div id="app">
+    <div class="loading-screen"><span class="spinner"></span><strong>CuadernoDocente</strong><p>Preparando el cuaderno local…</p></div>
+  </div>
+  <dialog id="modal" aria-labelledby="modal-heading"></dialog>
+  <script src="./vendor/jszip.min.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
