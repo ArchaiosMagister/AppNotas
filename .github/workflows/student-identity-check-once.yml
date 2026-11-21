@@ -1,5 +1,5 @@
 name: Validar alumnos optativa y regenerar inventario (temporal)
-# Revalidación: compatibilidad de cuadernos históricos con nombres largos
+# Revalidación: nombre largo histórico permanece en la lista sin presuponer orden
 on:
   push:
     branches: [feat/student-surnames-origin-groups-20261121]
