@@ -1012,3 +1012,56 @@ html[data-theme="oled"] .grade-table tbody tr:nth-child(even) td.category-tinted
 }
 html[data-theme="oled"] .grade-table td.category-tinted .rubric-grade-button,
 html[data-theme="oled"] .grade-table td.category-tinted .orthography-grade-button{background:#000!important}
+
+
+/* Colores de categoría en modo alumno — los mismos que en el cuaderno docente.
+   Los elementos de evaluación siguen usando los colores propios de la NOTA. */
+.student-period .student-category.student-category-tinted{
+  --student-category-base:var(--category-color,var(--line));
+  border:1px solid color-mix(in srgb,var(--student-category-base) 70%,var(--line));
+  border-left:5px solid var(--student-category-base);
+  background:color-mix(in srgb,var(--student-category-base) 22%,var(--surface));
+}
+.student-period .student-category.student-category-tinted>.cardline{
+  border-bottom:1px solid color-mix(in srgb,var(--student-category-base) 43%,var(--line));
+}
+.student-period .student-assessment-block.student-category-tinted{
+  --student-activity-base:var(--category-color,var(--line));
+  border-left:4px solid var(--student-activity-base);
+  border-radius:7px;
+  padding:4px 10px;
+  margin:5px 0;
+  background:color-mix(in srgb,var(--student-activity-base) 14%,var(--surface));
+}
+.student-period .student-activity-list .student-assessment-block.student-category-tinted{
+  border:1px solid color-mix(in srgb,var(--student-activity-base) 65%,var(--line));
+  border-left:4px solid var(--student-activity-base);
+  background:color-mix(in srgb,var(--student-activity-base) 28%,var(--surface));
+}
+.student-period .student-assessment-block.student-category-tinted .student-activity-category{
+  color:var(--ink);
+  opacity:.75;
+}
+html[data-theme="dark"] .student-period .student-category.student-category-tinted{
+  background:color-mix(in srgb,var(--student-category-base) 16%,var(--surface));
+}
+html[data-theme="dark"] .student-period .student-assessment-block.student-category-tinted{
+  background:color-mix(in srgb,var(--student-activity-base) 13%,var(--surface));
+}
+html[data-theme="dark"] .student-period .student-activity-list .student-assessment-block.student-category-tinted{
+  background:color-mix(in srgb,var(--student-activity-base) 20%,var(--surface));
+}
+/* OLED: fondos negros auténticos; raya coloreada para reconocer la categoría. */
+html[data-theme="oled"] .student-period .student-category.student-category-tinted,
+html[data-theme="oled"] .student-period .student-assessment-block.student-category-tinted,
+html[data-theme="oled"] .student-period .student-activity-list .student-assessment-block.student-category-tinted{
+  background:#000!important;
+  border-left-color:var(--category-color)!important;
+}
+html[data-theme="oled"] .student-period .student-category.student-category-tinted{
+  border-top-color:color-mix(in srgb,var(--category-color) 75%,#000)!important;
+}
+@media(max-width:600px){
+  .student-period .student-category.student-category-tinted{padding:8px 10px}
+  .student-period .student-assessment-block.student-category-tinted{padding:6px 8px}
+}
