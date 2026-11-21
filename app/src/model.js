@@ -157,7 +157,7 @@ export function assertModel(doc) {
   const gs = has('groups'), ps = has('periods'), cs = has('categories'), ss=has('students'), as=has('assessments'), rs=has('rubrics');
   if(doc.students.some(x=>!gs.has(x.groupId))) throw new Error('Estudiante sin grupo válido.');
   if(doc.students.some(student=>{
-    if(typeof student.name!=='string'||!student.name.trim()||student.name.length>150)return true;
+    if(typeof student.name!=='string'||!student.name.trim())return true; // Un registro histórico podía superar 150 caracteres; no bloquear su lectura.
     if(student.originGroup!==undefined&&(typeof student.originGroup!=='string'||student.originGroup.length>60))return true;
     const hasFirst=student.firstName!==undefined,hasLast=student.lastName!==undefined;
     if(hasFirst!==hasLast)return true;
