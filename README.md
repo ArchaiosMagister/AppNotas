@@ -55,6 +55,23 @@ Consulta [la auditoría del 21 de noviembre de 2026](SECURITY_AUDIT_2026-11-21.m
 
 En **Ajustes y copias** puedes comprobar y solicitar almacenamiento persistente. Es una protección complementaria contra ciertas eliminaciones automáticas, **no** una copia de seguridad. El cifrado y la restauración siguen siendo locales.
 
+## Alojamiento con origen HTTPS exclusivo
+
+El código sigue en este repositorio público. Para separar el almacenamiento local de las otras aplicaciones de GitHub Pages, hemos preparado una construcción estática en `dist/`, compatible con **Cloudflare Pages** y **Vercel**, y cabeceras HTTP de seguridad (`_headers` y `vercel.json`).
+
+**El nuevo sitio requiere conectar una cuenta de alojamiento; no se debe dar por desplegado antes de confirmar su URL real.** La versión antigua de GitHub Pages se conserva mientras se comprueba la nueva, sin borrar IndexedDB ni trasladar datos automáticamente.
+
+Consulta la [guía de alojamiento y migración](docs/ALOJAMIENTO_AISLADO_Y_MIGRACION.md).
+
+La construcción habitual ahora se realiza con:
+
+```bash
+node scripts/build-static-site.mjs
+node --test scripts/dedicated-hosting.test.mjs scripts/backup-origin-migration.test.mjs
+```
+
+Estas pruebas verifican que los recursos publicados coinciden con los archivos de la PWA, que no se filtran documentos personales en el sitio y que una **migración simulada** conserva las notas. **La verificación en navegadores y el despliegue real siguen pendientes** hasta disponer del nuevo dominio.
+
 ## Paquete histórico y reproducibilidad
 
 El ZIP original v1.19 sigue disponible sin cambios en `releases/v1.19/part_*.b64`, con SHA-256:
