@@ -30,7 +30,7 @@ La tabla y la página recuerdan la posición de desplazamiento al guardar una no
 
 ## Error de Safari: «Response served by service worker has redirections»
 
-Este aviso es de la **carga offline de la PWA**, no una indicación de pérdida de datos de IndexedDB. En el service worker anterior, una respuesta almacenada para la portada podía conservar metadatos de una redirección HTTP. WebKit rechaza que se utilice directamente como respuesta de navegación. La actualización conserva recursos y caché, pero entrega una respuesta reconstruida **solo para redirecciones a la portada dentro del origen y ámbito de la PWA**, evitando el metadato de redirección.
+Este aviso es de la **carga offline de la PWA**, no una indicación de pérdida de datos de IndexedDB. Lo he confirmado mediante una petición HTTPS real al alojamiento: **Cloudflare responde a /index.html con una redirección hacia /**. En el service worker anterior, la respuesta almacenada para esa portada podía conservar los metadatos de dicha redirección. WebKit rechaza que se utilice directamente como respuesta de navegación. La actualización conserva recursos y caché, pero entrega una respuesta reconstruida **solo para redirecciones a la portada dentro del origen y ámbito de la PWA**, evitando el metadato de redirección.
 
 Si el icono instalado no abre, **no borres los datos del sitio ni desinstales la PWA** sin disponer primero de una copia cifrada verificada. Cuando puedas abrirla con conexión, pulsa **Buscar actualizaciones**, permite su activación y comprueba la vista sin conexión. Si el error persiste, documenta si ocurre al abrir desde pantalla de inicio, al recargar o estando sin conexión, y qué dirección estaba utilizando.
 
