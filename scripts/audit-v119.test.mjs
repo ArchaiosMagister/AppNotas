@@ -57,6 +57,6 @@ test('iCalendar: plegado de líneas a 75 octetos UTF-8', () => {
 });
 
 test('PWA: la caché cambia para entregar nuevos recursos a instalaciones previas', () => {
-  assert.ok(sw.includes("const CACHE='cuaderno-docente-static-v119-agenda-audit-20261121';"));
+  assert.ok(sw.includes("const CACHE='cuaderno-docente-static-v120-dev';"));
   assert.ok(sw.includes("'./src/planner-ui.js'"));
 });
