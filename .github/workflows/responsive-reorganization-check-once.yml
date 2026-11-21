@@ -1,4 +1,5 @@
 name: Validar rediseño B móvil y iPad (temporal)
+# Segunda pasada: las pruebas heredadas verifican la nueva posición de los botones
 on:
   push:
     branches: [feat/responsive-interface-reorganization-20261121]
