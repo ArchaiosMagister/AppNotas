@@ -1363,3 +1363,13 @@ html[data-theme="oled"] .notebook-more-actions>summary{background:#000!important
 @media print{
   .header-tools,.course-disclosure,.group-actions-disclosure,.notebook-more-actions{display:none!important}
 }
+
+
+/* Privacidad por encima de cualquier breakpoint: durante la consulta individual
+ * no deben reaparecer ni el grupo ni la navegación del profesor en móvil. */
+.shell.student-focus .toolbar.class-toolbar,
+.shell.student-focus .tabs,
+.shell.student-focus .headrow,
+.shell.student-focus .header-tools{
+  display:none!important
+}
