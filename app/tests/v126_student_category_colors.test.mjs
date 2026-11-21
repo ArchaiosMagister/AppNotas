@@ -78,6 +78,8 @@ test('estilos: mismos colores en claro/oscuro, bandas de categoría en OLED y ch
   assert(css.includes('background:#000!important;'));
   assert(css.includes('--grade-bg')&&css.includes('--grade-fg'),'Se mantienen chips de notas');
   assert(html.includes("style-src 'self'"));
-  assert(js.includes("caches.open('cuaderno-docente-static-v128-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v128-dev'"));
+  const cache=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/)?.[1];
+  assert(cache,'La caché debe tener versión');
+  assert(Number(cache.match(/v(\d+)-dev/)[1])>=128);
+  assert(js.includes("caches.open('"+cache+"')"),'La UI usa la misma versión offline');
 });
