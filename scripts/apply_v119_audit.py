@@ -56,7 +56,7 @@ ui.write_text(source, encoding="utf-8")
 # Actualizar Service Worker y todas las referencias en módulos de diagnóstico.
 old_cache = "cuaderno-docente-static-v119-dev"
 new_cache = "cuaderno-docente-static-v120-dev"
-cache_files = [root / "sw.js", *(root / "src").glob("*.js")]
+cache_files = [root / "sw.js", root / "app.js", *(root / "src").glob("*.js")]
 cache_updates = 0
 for target in cache_files:
     contents = target.read_text(encoding="utf-8")
