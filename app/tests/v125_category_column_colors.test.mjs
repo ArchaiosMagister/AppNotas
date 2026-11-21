@@ -80,8 +80,10 @@ test('la aplicación usa CSSOM, no atributos style bloqueados por CSP; cabecera 
   assert(css.indexOf('/* Categorías del cuaderno v127')>css.indexOf('.grade-table tbody tr:nth-child(odd) td'));
   assert(app.includes('categoryColumnColor(STATE.doc,c.id)'));
   assert(app.includes('Color predeterminado'));
-  assert(app.includes("caches.open('cuaderno-docente-static-v127-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v127-dev'"));
+  const cache=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/)?.[1];
+  assert(cache,'La caché debe estar versionada');
+  assert(Number(cache.match(/v(\d+)-dev/)[1])>=127,'No reutilizar una caché previa');
+  assert(app.includes("caches.open('"+cache+"')"),'La interfaz debe usar la misma caché que el SW');
 });
 
 test('pintado en DOM: dos celdas y cabecera del mismo tipo reciben la misma variable sin tocar puntuaciones',async()=>{
