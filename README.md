@@ -84,6 +84,12 @@ En **Ajustes y copias** se distingue entre exportar un archivo portátil y **rea
 
 La copia histórica .cdoc se conserva como opción de rescate, separada del archivo portátil .cuaderno. El sistema **no realiza copias externas automáticas** sin intervención del usuario.
 
+## Identificación y orden del alumnado de optativas
+
+Cada alumno dispone de campos **Apellidos**, **Nombre** y **Grupo de procedencia** (etiqueta de su clase de tutoría, independiente del grupo académico de la optativa). La tabla de notas y el resumen anual permiten ordenar por **apellidos (predeterminado)**, **nombre**, **grupo de procedencia y apellidos**, o **orden manual**. En la vista agrupada aparecen separadores con el número de alumnos y etiquetas visibles.
+
+La importación CSV admite las columnas apellidos, nombre y grupo, y sigue aceptando el formato antiguo sin dividir automáticamente nombres históricos. Todas las identidades y notas permanecen cifradas en el cuaderno. Guía: [Alumnos de optativas, apellidos y orden de grupos](docs/ALUMNOS_OPTATIVA_ORDEN_Y_PROCEDENCIA.md).
+
 ## Crear un cuaderno vacío y reiniciar de forma segura
 
 En una instalación sin datos, se puede elegir entre **Crear cuaderno vacío** (tres evaluaciones y categorías básicas, sin alumnos ni notas) y **Crear cuaderno de demostración** (ocho alumnos ficticios). Ambas opciones requieren contraseña y cifran el contenido solo en el dispositivo.
