@@ -1,4 +1,5 @@
 name: Aplicar aviso y prueba de persistencia (un único uso)
+# Segundo intento: prueba de caché dinámica, sin alterar código docente.
 on:
   push:
     branches: [security/storage-retention-audit-20261121]
