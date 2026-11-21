@@ -1,0 +1,85 @@
+name: Validate and publish CuadernoDocente RC1
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cuadernodocente-pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private repository
+        uses: actions/checkout@v4
+      - name: Reconstruct and verify original ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _release
+          cat payload/part_*.b64 | base64 --decode > _release/CuadernoDocente_v1.0-rc1.zip
+          echo '105162db702e5205bd307db8f48e9e975b480cf6105ce27eb31ccd72525af6be  _release/CuadernoDocente_v1.0-rc1.zip' | sha256sum --check
+          unzip -q _release/CuadernoDocente_v1.0-rc1.zip -d _release
+          ( cd _release/CuadernoDocente_v1.0-rc1 && sha256sum --check MANIFEST_SHA256.txt )
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run automated tests
+        working-directory: _release/CuadernoDocente_v1.0-rc1
+        run: npm test
+      - name: Prepare static release for Pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir=_release/CuadernoDocente_v1.0-rc1
+          mkdir -p _site/data
+          cp "$source_dir"/{index.html,styles.css,app.js,sw.js,manifest.webmanifest} _site/
+          cp -R "$source_dir"/icons "$source_dir"/src _site/
+          cp -R "$source_dir"/data/curriculos _site/data/
+          touch _site/.nojekyll
+          test -f _site/src/curriculum-data.js
+          test -f _site/data/curriculos/gr1y2-nuevo.pdf
+          test -f _site/data/curriculos/lat1y2-nuevo.pdf
+          test -f _site/data/curriculos/lat4.pdf
+          test -f _site/data/curriculos/lat2-2022.pdf
+      - name: Store original ZIP for authorized testers
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: CuadernoDocente_v1.0-rc1-original
+          path: _release/CuadernoDocente_v1.0-rc1.zip
+          if-no-files-found: error
+      - name: Upload tested Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: verify-and-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Enable and configure Pages, when the account permits it
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Publish test candidate
+        id: deployment
+        uses: actions/deploy-pages@v4
