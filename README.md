@@ -10,6 +10,14 @@ La v1.19 ofrece instalación PWA con iconos para móvil y escritorio, búsqueda 
 
 Las notas se guardan localmente en IndexedDB y los ficheros exportados se cifran con AES-256-GCM antes de guardarlos en el dispositivo. No hay almacenamiento automático ni sincronización de datos personales en GitHub, OneDrive u otros servicios.
 
+## Correcciones de agenda posteriores a la auditoría
+
+La PWA publicada desde `main` se construye a partir del ZIP original v1.19, que permanece inalterado y verificable. Durante la compilación, `scripts/apply_v119_audit.py` corrige el módulo de agenda y sincroniza la caché offline de `sw.js` y `app.js`. El script aborta si el código original no coincide con el esperado y recalcula el manifiesto de la distribución reparada.
+
+Correcciones incluidas: día inicial de sesiones nuevas en fin de semana; creación de curso siguiente con nombres personalizados; conservación de horas manuales en exámenes y eventos; exportación iCalendar con normalización de saltos de línea y plegado de líneas a 75 octetos UTF-8. **No se cambian los cálculos de notas ni los archivos personales.**
+
+El despliegue exige pasar las **362 pruebas originales y 6 pruebas nuevas** sobre estos casos, además de la comprobación del manifiesto. Tras la compilación correcta, GitHub Actions genera un ZIP auditado como artefacto de la ejecución; el HTML autónomo histórico incluido en el paquete fuente no sustituye a esta PWA corregida.
+
 ## Paquete fuente y pruebas
 
 Se conservan versiones anteriores en `payload/` y `releases/v1.17/`. El ZIP completo v1.19 está fragmentado sin alterar en `releases/v1.19/part_*.b64` para su transporte y reconstrucción.
@@ -25,7 +33,7 @@ sha256sum -c MANIFEST_SHA256.txt
 npm test
 ```
 
-El flujo `.github/workflows/pages.yml` reconstruye y valida el ZIP, ejecuta **362 pruebas automatizadas**, prepara los archivos estáticos y los publica en GitHub Pages tras éxito. Las copias `.cuaderno`, archivos de bases de datos y credenciales no se despliegan.
+El flujo `.github/workflows/pages.yml` reconstruye y valida el ZIP, ejecuta **368 pruebas automatizadas (362 originales y 6 nuevas)**, prepara los archivos estáticos y los publica en GitHub Pages tras éxito. Las copias `.cuaderno`, archivos de bases de datos y credenciales no se despliegan.
 
 ## Pruebas reales recomendadas
 
