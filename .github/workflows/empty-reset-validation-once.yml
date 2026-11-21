@@ -1,4 +1,5 @@
 name: Validar inicio vacío y reinicio protegido (temporal)
+# Segunda ejecución: caché PWA sincronizada
 on:
   push:
     branches: [feat/empty-and-safe-reset-20261121]
