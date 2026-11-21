@@ -959,3 +959,56 @@ html[data-theme="oled"] .student-rubric-breakdown,html[data-theme="oled"] .stude
 .student-period-itaca{padding-left:14px;border-left:1px solid var(--line)}
 .student-period-grade .student-score{display:inline-flex;align-items:center;gap:5px}
 @media(max-width:600px){.student-period-summary{flex-wrap:wrap}.student-period-grades{width:100%;justify-content:flex-end;gap:10px;margin-left:22px}.student-period-itaca{padding-left:9px}}
+
+
+/* Categorías del cuaderno v127: EXÁMENES / TRABAJOS / ACTITUD.
+ * Reaplicar DESPUÉS de los fondos alternos y reglas oscuras, que antes
+ * tapaban el color de las columnas. Las notas conservan su paleta /10. */
+.grade-table thead th.category-tinted{
+  background:color-mix(in srgb,var(--category-color) 84%,var(--surface))!important;
+  color:var(--ink)!important;
+  border-right:2px solid color-mix(in srgb,var(--category-color) 75%,var(--line));
+  border-bottom:4px solid color-mix(in srgb,var(--category-color) 70%,#56708d)!important;
+}
+.grade-table thead th.category-tinted small{color:var(--ink);opacity:.82}
+.grade-table tbody tr:nth-child(odd) td.category-tinted{
+  background:color-mix(in srgb,var(--category-color) 45%,var(--row-odd))!important;
+  border-right:2px solid color-mix(in srgb,var(--category-color) 75%,var(--line));
+}
+.grade-table tbody tr:nth-child(even) td.category-tinted{
+  background:color-mix(in srgb,var(--category-color) 51%,var(--row-even))!important;
+  border-right:2px solid color-mix(in srgb,var(--category-color) 75%,var(--line));
+}
+.grade-table td.category-tinted .rubric-grade-button,
+.grade-table td.category-tinted .orthography-grade-button{
+  background:color-mix(in srgb,var(--category-color) 18%,var(--surface));
+}
+html[data-theme="dark"] .grade-table thead th.category-tinted{
+  background:color-mix(in srgb,var(--category-color) 31%,var(--surface))!important;
+  border-bottom-color:var(--category-color)!important;
+}
+html[data-theme="dark"] .grade-table tbody tr:nth-child(odd) td.category-tinted{
+  background:color-mix(in srgb,var(--category-color) 19%,var(--row-odd))!important;
+}
+html[data-theme="dark"] .grade-table tbody tr:nth-child(even) td.category-tinted{
+  background:color-mix(in srgb,var(--category-color) 20%,var(--row-even))!important;
+}
+html[data-theme="dark"] .grade-table td.category-tinted .rubric-grade-button,
+html[data-theme="dark"] .grade-table td.category-tinted .orthography-grade-button{
+  background:color-mix(in srgb,var(--category-color) 15%,var(--surface));
+}
+/* OLED preserva el negro puro en las celdas: el tipo de actividad se marca
+ * con bandas verticales y cabecera coloreadas, sin romper el modo OLED. */
+html[data-theme="oled"] .grade-table thead th.category-tinted{
+  background:#000!important;
+  border-bottom:4px solid var(--category-color)!important;
+  border-right:3px solid var(--category-color)!important;
+}
+html[data-theme="oled"] .grade-table tbody tr:nth-child(odd) td.category-tinted,
+html[data-theme="oled"] .grade-table tbody tr:nth-child(even) td.category-tinted{
+  background:#000!important;
+  border-left:3px solid var(--category-color)!important;
+  border-right:1px solid color-mix(in srgb,var(--category-color) 60%,#000)!important;
+}
+html[data-theme="oled"] .grade-table td.category-tinted .rubric-grade-button,
+html[data-theme="oled"] .grade-table td.category-tinted .orthography-grade-button{background:#000!important}

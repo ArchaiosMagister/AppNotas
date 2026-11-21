@@ -54,6 +54,8 @@ test('visor muestra la media original primero y a su derecha Ítaca mediante el 
   assert(css.includes('.student-period-grades{display:flex'));
   assert(css.includes('.student-period-summary>.student-period-name'));
   assert(css.includes('.student-period-itaca'));
-  assert(js.includes("caches.open('cuaderno-docente-static-v126-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v126-dev'"));
+  const activeCache=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/)?.[1];
+  assert(activeCache,'El SW debe declarar una caché versionada');
+  assert(Number(activeCache.match(/v(\d+)-dev/)[1])>=126);
+  assert(js.includes("caches.open('"+activeCache+"')"),'El visor y la comprobación offline deben usar la versión del SW');
 });
