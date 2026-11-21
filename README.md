@@ -12,7 +12,7 @@ La aplicación permite llevar calificaciones, rúbricas, agenda docente y evalua
 | --- | --- |
 | [`app/`](app/) | **Fuente editable y canónica de la PWA**, incluidos `index.html`, `app.js`, `styles.css`, `sw.js` y `manifest.webmanifest` |
 | [`app/src/`](app/src/) | Módulos separados: cálculos, modelo, agenda, almacenamiento, cifrado, UI, etc. |
-| [`app/tests/`](app/tests/) | Las 362 pruebas originales |
+| [`app/tests/`](app/tests/) | Las 362 pruebas originales y 4 nuevas de seguridad y conservación |
 | [`app/icons/`](app/icons/), [`app/vendor/`](app/vendor/) y [`app/data/curriculos/`](app/data/curriculos/) | Recursos PWA, dependencia JSZip y fuentes curriculares |
 | [`scripts/audit-v119.test.mjs`](scripts/audit-v119.test.mjs) | Seis pruebas de regresión específicas de agenda, ICS y caché |
 | [`scripts/source_manifest.py`](scripts/source_manifest.py) | Verificar o recalcular SHA-256 de los archivos versionados |
@@ -40,14 +40,20 @@ node --check app/src/planner-ui.js
 node --check app/app.js
 node --check app/sw.js
 
-# Suite completa (362 pruebas originales + 6 de regresión):
+# Suite completa (366 pruebas del cuaderno + 6 de regresión):
 ( cd app && npm test )
 CUADERNO_ROOT=app node --test scripts/audit-v119.test.mjs
 ```
 
-Abre una rama y una PR hacia `main`. GitHub Actions valida el manifiesto, ejecuta las **368 pruebas automatizadas**, verifica los recursos necesarios y construye el sitio estático. **Solo cuando la PR pasa las comprobaciones y se fusiona en `main`**, el flujo despliega GitHub Pages y adjunta un ZIP de fuentes verificadas a la ejecución.
+Abre una rama y una PR hacia `main`. GitHub Actions valida el manifiesto, ejecuta las **372 pruebas automatizadas**, verifica los recursos necesarios y construye el sitio estático. **Solo cuando la PR pasa las comprobaciones y se fusiona en `main`**, el flujo despliega GitHub Pages y adjunta un ZIP de fuentes verificadas a la ejecución.
 
 **Ya no se reconstruyen los ZIP fragmentados ni se ejecuta el parche de auditoría en cada despliegue.** Las correcciones están directamente en el código editable. Para futuras ediciones, conserva los tests de cálculos y cifrado y modifica el manifiesto mediante el script indicado.
+
+## Auditoría de seguridad y conservación
+
+Consulta [la auditoría del 21 de noviembre de 2026](SECURITY_AUDIT_2026-11-21.md). **AppNotas no debe almacenar datos reales del alumnado en su origen actual**, porque GitHub Pages sirve distintos proyectos de la cuenta bajo el mismo origen HTTPS y las aplicaciones comparten acceso al almacenamiento del navegador.
+
+En **Ajustes y copias** puedes comprobar y solicitar almacenamiento persistente. Es una protección complementaria contra ciertas eliminaciones automáticas, **no** una copia de seguridad. El cifrado y la restauración siguen siendo locales.
 
 ## Paquete histórico y reproducibilidad
 

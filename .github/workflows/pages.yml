@@ -49,7 +49,7 @@ jobs:
         env:
           CUADERNO_ROOT: app
         run: node --test scripts/audit-v119.test.mjs
-      - name: Ejecutar 362 pruebas automatizadas
+      - name: Ejecutar 366 pruebas de aplicación y seguridad
         working-directory: app
         run: npm test
       - name: Construir PWA estatica desde app/
