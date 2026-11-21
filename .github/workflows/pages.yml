@@ -29,6 +29,26 @@ jobs:
           echo '85189a3b59a7e6829664d6b89fcb48b624761f963b023eb560fc0575861e8f29  _release/CuadernoDocente_v1.19.zip' | sha256sum --check
           unzip -q _release/CuadernoDocente_v1.19.zip -d _release
           ( cd _release/CuadernoDocente_v1.19-prepublicacion && sha256sum --check MANIFEST_SHA256.txt )
+      - name: Diagnosticar fuentes de agenda para incorporar auditoría
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path('_release/CuadernoDocente_v1.19-prepublicacion')
+          print('ARCHIVOS JAVASCRIPT:', [p.relative_to(root).as_posix() for p in root.rglob('*.js') if 'node_modules' not in str(p)][:100])
+          patterns = ['weekday(dateNow())', 'y.name.slice(0, 4)', 'fields.time.value', 'fields.time.disabled', 'function eventModal', 'function exportIcs', 'const clean =', 'lines.join', 'slotModal(', 'plan-new-year']
+          for path in root.rglob('*.js'):
+              if 'node_modules' in str(path): continue
+              lines = path.read_text(encoding='utf-8').splitlines()
+              relevant = [(i, p) for i, line in enumerate(lines) for p in patterns if p in line]
+              if not relevant: continue
+              print('ARCHIVO', path.relative_to(root).as_posix(), len(lines), 'lineas')
+              for i, pat in relevant[:24]:
+                  print('PATRON', pat, 'LINEA', i+1)
+                  for j in range(max(i-2, 0), min(i+5, len(lines))):
+                      print(str(j+1) + ': ' + lines[j][:800])
+          PY
       - name: Preparar Node.js
         uses: actions/setup-node@v4
         with:
