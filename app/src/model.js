@@ -25,6 +25,30 @@ export function setItacaStudentRule(doc,studentId,periodId,rule){
   else delete student.itacaRoundingOverrides;
   student.updatedAt=doc.updatedAt=now();return doc;
 }
+/** Colores estables y distintos por categoría. La identidad de la categoría,
+ * no el nombre de cada prueba ni la puntuación, determina el color del bloque.
+ * Colores anteriores personalizados siguen teniendo prioridad. */
+export const DEFAULT_CATEGORY_COLUMN_COLORS=Object.freeze({
+  examenes:'#C5DDF9',
+  trabajos:'#FCE0B7',
+  actitud:'#C9EBD1'
+});
+const EXTRA_CATEGORY_COLUMN_COLORS=Object.freeze(['#E1D4FA','#F9D3E7','#B9EAE8','#F7E2C7','#D8E5B9']);
+const categoryColorKey=name=>String(name??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es').trim();
+export function categoryColumnColor(doc,categoryId){
+  const category=doc?.categories?.find(c=>c.id===categoryId);
+  if(!category)return null;
+  if(category.columnColor)return category.columnColor;
+  const key=categoryColorKey(category.name);
+  if(key==='examen'||key==='examenes')return DEFAULT_CATEGORY_COLUMN_COLORS.examenes;
+  if(key==='trabajo'||key==='trabajos')return DEFAULT_CATEGORY_COLUMN_COLORS.trabajos;
+  if(key==='actitud')return DEFAULT_CATEGORY_COLUMN_COLORS.actitud;
+  // Nombre normalizado: dos categorías personalizadas del mismo tipo reciben
+  // el mismo color predeterminado, aunque pertenezcan a grupos distintos.
+  let hash=0;
+  for(const char of key)hash=(Math.imul(hash,31)+char.codePointAt(0))>>>0;
+  return EXTRA_CATEGORY_COLUMN_COLORS[hash%EXTRA_CATEGORY_COLUMN_COLORS.length];
+}
 export function setCategoryColumnColor(doc,categoryId,color){
   const category=doc.categories.find(c=>c.id===categoryId);
   if(!category||!validCategoryColumnColor(color))throw new Error('Color de columna inválido.');
