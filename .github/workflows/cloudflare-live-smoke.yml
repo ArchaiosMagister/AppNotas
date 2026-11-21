@@ -1,0 +1,136 @@
+name: Comprobar Cloudflare rediseño responsive v130
+
+on:
+  push:
+    branches: [audit/cloudflare-redesign-responsive-v130-20261121]
+    paths: [.github/workflows/cloudflare-live-smoke.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: github.repository == 'ArchaiosMagister/AppNotas'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Leer versión validada de main en rama de auditoría
+        uses: actions/checkout@v4
+      - name: Preparar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Comprobar manifiesto, construir sitio de referencia
+        run: |
+          set -euo pipefail
+          python3 scripts/source_manifest.py --check
+          node scripts/build-static-site.mjs
+      - name: Comprobar origen, cabeceras y paridad de los 33 recursos HTTPS
+        env:
+          AUDIT_ORIGIN: https://appnotas-docente.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+          from urllib.parse import urlsplit, urljoin
+          import re
+
+          origin=os.environ["AUDIT_ORIGIN"]
+          assert origin=="https://appnotas-docente.pages.dev"
+          assert origin!="https://archaiosmagister.github.io"
+          base=origin+"/"
+          req_headers={"User-Agent":"Mozilla/5.0 (compatible; AppNotasDeploymentAudit/1.0)"}
+          def get(rel):
+              url=urljoin(base,rel)
+              if urlsplit(url).netloc!="appnotas-docente.pages.dev":
+                  raise AssertionError("Recurso sale del origen aislado: "+url)
+              with urlopen(Request(url,headers=req_headers),timeout=20) as resp:
+                  if resp.status!=200:
+                      raise AssertionError(f"{url}: HTTP {resp.status}")
+                  if urlsplit(resp.geturl()).netloc!="appnotas-docente.pages.dev":
+                      raise AssertionError("Redirige fuera del dominio dedicado")
+                  return resp.read(),resp.headers
+          html,head=get("")
+          local=Path("dist/index.html").read_bytes()
+          assert html==local, "La portada remota no corresponde a la versión auditada"
+          policy=head.get("Content-Security-Policy","")
+          assert "script-src 'self'" in policy, f"Falta script-src self: {policy}"
+          assert "frame-ancestors 'none'" in policy, f"Falta protección HTTP de iframe: {policy}"
+          assert "connect-src 'self'" in policy
+          assert head.get("X-Frame-Options","").upper()=="DENY", "Falta X-Frame-Options DENY"
+          assert head.get("X-Content-Type-Options","").lower()=="nosniff"
+          assert head.get("Referrer-Policy","").lower()=="no-referrer"
+          print("OK página HTTPS en origen distinto, mismo HTML, CSP, no iframe y no referrer")
+          sw=Path("app/sw.js").read_text()
+          assets=re.search(r"const ASSETS=\[([^\]]+)\]",sw)
+          assert assets, "No se reconocen los archivos necesarios para offline"
+          names=re.findall(r"'(\.[^']+)'",assets.group(1))
+          assert len(names)==33, f"Esperados 33 recursos PWA, encontrados {len(names)}"
+          checked=0
+          for name in names:
+              if name=="./":
+                  continue
+              rel=name.removeprefix("./")
+              assert ".." not in rel and not rel.startswith("/")
+              remote,headers=get(rel)
+              original=Path("dist",rel).read_bytes()
+              if remote!=original:
+                  raise AssertionError(f"Archivo distinto /{rel}: remoto={hashlib.sha256(remote).hexdigest()} esperado={hashlib.sha256(original).hexdigest()}")
+              print(f"OK /{rel} ({len(remote)} bytes)")
+              checked+=1
+          appjs,_=get("app.js")
+          assert b"data-create-mode" in appjs, "Falta selector vacío/demo en Cloudflare"
+          assert b'renderNavigation()' in appjs, "Falta nueva estructura de navegacion"
+          assert b'ACADEMIC_WORKSPACE_TABS' in appjs, "Falta gestion academica"
+          assert b'data-shell-disclosure="course"' in appjs, "Falta selector plegable de asignatura"
+          assert b'data-shell-disclosure="tools"' in appjs, "Falta menu de herramientas"
+          assert b'notebook-more-actions' in appjs, "Faltan acciones secundarias del cuaderno"
+          visual_css,_=get("styles.css")
+          assert b'v130' in visual_css, "Falta CSS responsive"
+          assert b'.shell.student-focus .toolbar.class-toolbar' in visual_css, "Falta control de privacidad para movil"
+          assert b"resetNotebookFromVerifiedCopy" in appjs, "Falta reinicio protegido en Cloudflare"
+          swjs,_=get("sw.js")
+          assert b"cuaderno-docente-static-v130-dev" in swjs, "Versión de caché anticuada"
+          assert b"safeNavigationResponse" in swjs, "Falta corrección redirect Safari"
+          assert b"data-student-period-order" in appjs, "Falta orden por evaluación"
+          assert b"student-rubric-item" in appjs, "Falta rúbrica por criterio"
+          assert b'student-period-itaca' in appjs, "Falta nota Itaca a la derecha de la media"
+          assert b'itacaChip(STATE.doc,student.id,STATE.groupId,p.id)' in appjs, "No se reutiliza el calculo docente de Itaca"
+          assert b"paintCategoryColumns(root)" in appjs, "Falta pintado de categorias"
+          assert b"paintStudentCategoryCards(root)" in appjs, "Falta colorear modo alumno"
+          assert b"openGradeObservation(" in appjs, "Falta editor docente de observacion"
+          assert b"data-observation-student" in appjs, "Falta boton por casilla"
+          assert b"visibleObservation" in appjs, "Falta visibilidad explicita en modo alumno"
+          model,_=get("src/model.js")
+          assert b"setGradeObservation" in model, "Falta almacenamiento independiente"
+          assert b"getGradeObservation" in model, "Falta recuperacion de comentarios"
+          assert b"student-assessment-block student-category-tinted" in appjs, "Faltan bloques de actividades coloreados"
+          assert b"student-category student-category-tinted" in appjs, "Faltan secciones por categoria coloreadas"
+          assert b"data-column-category" in appjs, "Falta identificador de categoria"
+          assert b'--category-color:' not in appjs, "No usar estilos HTML bloqueados por CSP"
+          colors,_=get("styles.css")
+          assert b".grade-table thead th.category-tinted" in colors, "Cabeceras sin color"
+          assert b".student-period .student-category.student-category-tinted" in colors, "Secciones individuales sin color"
+          assert b"html[data-theme=\"oled\"] .student-period" in colors, "OLED sin bordes coloreados"
+          assert b".grade-table tbody tr:nth-child(even) td.category-tinted" in colors, "Celdas sin color"
+          model,_=get("src/model.js")
+          assert b"DEFAULT_CATEGORY_COLUMN_COLORS" in model, "Faltan colores por defecto"
+          assert b"setGroupOrthographyRefundable" in appjs, "Falta devolución por grupo"
+          assert b"preventScroll:true" in appjs, "Falta conservación de scroll al introducir notas"
+          assert b"originGroupHeader" in appjs, "Falta agrupación visual por procedencia"
+          assert b"data-create-mode" in appjs, "Falta arranque vacío"
+          assert b"studentSortControls" in appjs, "Falta selector de apellidos/nombre/grupo"
+          student_model,_=get("src/model.js")
+          assert b"sortStudents" in student_model, "Falta ordenación de alumnos"
+          csv,_=get("src/csv.js")
+          assert b"studentsFromCsv" in csv, "Falta importación de apellidos y procedencia"
+          _,sw_headers=get("sw.js")
+          assert "no-store" in sw_headers.get("Cache-Control",""),"El SW no tiene no-store HTTP"
+          _,html_headers=get("index.html")
+          assert "no-cache" in html_headers.get("Cache-Control",""),"El HTML no tiene no-cache"
+          print(f"VERIFICADO: origen exclusivo, cabeceras HTTP, {checked} recursos exactos y caché PWA segura")
+          PY
