@@ -1,6 +1,6 @@
-import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,moveStudent,removeStudent,updateGroupInfo,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor} from './src/model.js';
+import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,moveStudent,removeStudent,updateGroupInfo,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor} from './src/model.js';
 import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,itacaGrade} from './src/calculations.js';
-import {namesFromCsv} from './src/csv.js';
+import {studentsFromCsv} from './src/csv.js';
 import {parseRubricText} from './src/rubric-import.js';
 import {parseRubricFile} from './src/rubric-xlsx.js';
 import {createVault,seal,unlockVault,saltFromEnvelope,validateEnvelope} from './src/vault.js';
@@ -136,7 +136,8 @@ window.addEventListener('appinstalled',()=>{pendingInstallPrompt=null;paintPwaBu
 
 const savedTheme=()=>{try{const value=localStorage.getItem('cuaderno-docente-theme');return ['light','dark','oled'].includes(value)?value:'light';}catch{return 'light';}};
 const savedNavigation=()=>{try{return localStorage.getItem('cuaderno-docente-nav-collapsed')==='yes';}catch{return false;}};
-const STATE={plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),navCollapsed:savedNavigation(),db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
+const savedStudentSort=()=>{try{const mode=localStorage.getItem('cuaderno-docente-student-sort');return STUDENT_SORT_MODES.includes(mode)?mode:'surname';}catch{return 'surname';}};
+const STATE={plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const $=(sel,context=document)=>context.querySelector(sel);
 const opt=(id,label,chosen)=>`<option value="${esc(id)}" ${chosen===id?'selected':''}>${esc(label)}</option>`;
@@ -234,7 +235,26 @@ document.documentElement.dataset.theme=STATE.theme;
 const currentGroup=()=>STATE.doc.groups.find(x=>x.id===STATE.groupId);
 const currentPeriod=()=>STATE.doc.periods.find(x=>x.id===STATE.periodId);
 const allAssessments=()=>STATE.doc.assessments.filter(x=>x.groupId===STATE.groupId&&x.periodId===STATE.periodId).sort((a,b)=>a.order-b.order);
-const allStudents=()=>STATE.doc.students.filter(x=>x.groupId===STATE.groupId).sort((a,b)=>a.order-b.order);
+const allStudents=()=>sortStudents(STATE.doc.students.filter(x=>x.groupId===STATE.groupId),STATE.studentSort);
+const STUDENT_SORT_LABELS=[['surname','Apellidos (A–Z)'],['firstName','Nombre (A–Z)'],['originGroup','Grupo de procedencia · apellidos'],['manual','Orden manual']];
+const studentSortControls=()=>`<label class="student-sort-control" for="student-sort-mode"><span>Ordenar alumnos</span><select id="student-sort-mode" aria-label="Ordenar alumnos">${STUDENT_SORT_LABELS.map(([key,label])=>opt(key,label,STATE.studentSort)).join('')}</select></label><small class="student-sort-hint">Las notas no cambian al ordenar.</small>`;
+const studentOriginBadge=student=>student.originGroup?`<span class="student-origin-badge" title="Grupo de procedencia">${esc(student.originGroup)}</span>`:'';
+const originEqual=(a,b)=>String(a||'').localeCompare(String(b||''),'es',{sensitivity:'base',numeric:true})===0;
+/** Cabeceras de grupo solo en el modo específico: las filas no modifican las notas. */
+function originGroupHeader(students,index,colspan){
+  if(STATE.studentSort!=='originGroup')return '';
+  const group=students[index].originGroup||'';
+  if(index>0&&originEqual(group,students[index-1].originGroup||''))return '';
+  const number=students.filter(s=>originEqual(group,s.originGroup||'')).length;
+  return `<tr class="student-origin-divider"><th colspan="${colspan}" scope="rowgroup"><span>Grupo de procedencia: ${esc(group||'Sin etiqueta')}</span><span>${number} ${number===1?'alumno':'alumnos'}</span></th></tr>`;
+}
+function originDirectoryHeader(students,index){
+  if(STATE.studentSort!=='originGroup')return '';
+  const group=students[index].originGroup||'';
+  if(index>0&&originEqual(group,students[index-1].originGroup||''))return '';
+  return `<div class="student-directory-divider" role="heading" aria-level="3">Grupo de procedencia: ${esc(group||'Sin etiqueta')}</div>`;
+}
+
 let toastTimeout;
 function toast(message){let el=$('#toast');if(!el){el=document.createElement('div');el.id='toast';el.className='status-message';document.body.appendChild(el);}el.textContent=message;el.classList.remove('hidden');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.add('hidden'),4300);}
 function fail(error){console.error(error);toast(error?.message||'Ha ocurrido un error.');}
@@ -1129,6 +1149,12 @@ Participación;2;20"></textarea></label></div><div id="activity-import-rubric" c
   dialog.showModal();form.querySelector('[name=name]')?.focus();
 }
 function bindCommon(){
+  $('#student-sort-mode')?.addEventListener('change',event=>{
+    if(!STUDENT_SORT_MODES.includes(event.target.value))return;
+    STATE.studentSort=event.target.value;
+    try{localStorage.setItem('cuaderno-docente-student-sort',STATE.studentSort);}catch{}
+    render();
+  });
   $('#toggle-navigation')?.addEventListener('click',()=>{
     STATE.navCollapsed=!STATE.navCollapsed;
     $('.shell')?.classList.toggle('nav-collapsed',STATE.navCollapsed);
