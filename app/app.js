@@ -518,6 +518,68 @@ function adoptRestoredNotebook(envelope,recovery,opened,doc){
   STATE.history=emptyHistory();chooseInitial();STATE.tab='cuaderno';STATE.studentId=null;render();
 }
 
+/** Reiniciar exige leer un archivo portable EXACTO del cuaderno vigente. */
+async function confirmResetNotebook(summary){
+  if(dialog.open)throw new Error('Cierra el diálogo actual antes de reiniciar.');
+  return new Promise(resolve=>{
+    let settled=false;
+    const closeResult=value=>{
+      if(settled)return;
+      settled=true;dialog.removeEventListener('close',onClose);
+      dialog.close();resolve(value);
+    };
+    const onClose=()=>{if(settled)return;settled=true;dialog.removeEventListener('close',onClose);resolve(false);};
+    dialog.innerHTML=`<form class="modal-inner portable-dialog" id="reset-notebook-form">
+      <h2 id="modal-heading">Reiniciar cuaderno · última confirmación</h2>
+      <p><strong>Se ha descifrado y comprobado un archivo .cuaderno que coincide exactamente con este cuaderno.</strong></p>
+      <p>${summary.courses.length} grupos · ${summary.students} alumnos · ${summary.grades} notas · ${summary.rubrics} rúbricas.</p>
+      <p class="section-note">Se reemplazarán todos los grupos, alumnos, actividades, notas, rúbricas y la agenda por un cuaderno vacío. Permanecerán tres evaluaciones y tres categorías básicas. El cuaderno anterior se conservará como un único punto de rescate <strong>cifrado en este dispositivo</strong>, que no sustituye al archivo externo.</p>
+      <label for="reset-notebook-phrase">Escribe <strong>REINICIAR</strong> para confirmar</label>
+      <input class="text-field" id="reset-notebook-phrase" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="9" required pattern="REINICIAR" placeholder="REINICIAR"/>
+      <div class="modal-actions"><button type="button" class="btn" id="reset-notebook-cancel">Cancelar</button><button type="submit" class="btn warn" id="reset-notebook-confirm">Reiniciar y conservar rescate cifrado</button></div>
+    </form>`;
+    dialog.addEventListener('close',onClose);
+    $('#reset-notebook-cancel',dialog).onclick=()=>closeResult(false);
+    $('#reset-notebook-form',dialog).onsubmit=e=>{
+      e.preventDefault();
+      if($('#reset-notebook-phrase',dialog).value!=='REINICIAR')return;
+      closeResult(true);
+    };
+    dialog.showModal();$('#reset-notebook-phrase',dialog).focus();
+  });
+}
+async function resetNotebookFromVerifiedCopy(file){
+  await STATE.mutationQueue;await STATE.saveQueue;
+  if(!STATE.doc||!STATE.key||!STATE.salt||!STATE.envelope||STATE.saveError||STATE.failedEnvelope)
+    throw new Error('No se puede reiniciar mientras haya cambios sin guardar o el cuaderno esté bloqueado.');
+  const previousDoc=STATE.doc,previousEnvelope=STATE.envelope;
+  if(!sameEnvelope(await readEnvelope(STATE.db),previousEnvelope))
+    throw new Error('Otra pestaña cambió el cuaderno. Reinicio cancelado, sin modificar notas.');
+  const password=await requestBackupPassword('Comprobar copia externa antes de reiniciar');
+  if(password===null){toast('Reinicio cancelado. No se ha modificado el cuaderno.');return;}
+  const opened=await readBackupFile(file,password);
+  if(opened.legacy||compareBookVersions(previousDoc,opened.doc)!=='same'||
+    JSON.stringify(previousDoc)!==JSON.stringify(opened.doc))
+    throw new Error('La copia no coincide exactamente con el cuaderno actual. Guarda y selecciona un archivo .cuaderno reciente; no se ha borrado nada.');
+  const agreed=await confirmResetNotebook(backupSummary(opened.doc,opened.exportedAt));
+  if(!agreed){toast('Reinicio cancelado. No se ha modificado el cuaderno.');return;}
+  return enqueueMutation(async()=>{
+    await STATE.saveQueue;
+    if(STATE.saveError||STATE.failedEnvelope||!STATE.key||STATE.doc!==previousDoc||
+      !sameEnvelope(STATE.envelope,previousEnvelope)||
+      !sameEnvelope(await readEnvelope(STATE.db),previousEnvelope))
+      throw new Error('El cuaderno cambió durante la confirmación. Reinicio cancelado sin sobrescribir datos.');
+    const blank=emptyNotebook();ensureBookMetadata(blank);assertModel(blank);
+    const replacement=await seal(blank,STATE.key,STATE.salt);
+    // La versión anterior permanece cifrada. CAS y rescate se escriben en
+    // la misma transacción: un fallo deja el cuaderno anterior intacto.
+    const recovery=await replaceEnvelopeWithRecovery(STATE.db,replacement,previousEnvelope);
+    STATE.exportReceipt=null;
+    adoptRestoredNotebook(replacement,recovery,{key:STATE.key,salt:STATE.salt},blank);
+    toast('Cuaderno vacío creado. Rescate cifrado disponible en Ajustes y copias.');
+  });
+}
+
 function downloadEncryptedEnvelope(envelope,filename){
   if(!envelope)throw new Error('No hay ninguna copia cifrada que descargar.');
   const blob=new Blob([JSON.stringify(envelope,null,2)],{type:'application/json'});
