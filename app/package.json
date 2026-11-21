@@ -1,0 +1,16 @@
+{
+  "name": "cuaderno-docente",
+  "version": "1.19.0-dev.1",
+  "private": true,
+  "type": "module",
+  "description": "Prototipo PWA offline-first de calificaciones con datos cifrados y ficticios",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "start": "node server.mjs",
+    "check": "npm test",
+    "build:standalone": "node tools/build-standalone.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

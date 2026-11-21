@@ -1,0 +1,1502 @@
+import {initialNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,moveStudent,removeStudent,updateGroupInfo,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor} from './src/model.js';
+import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,itacaGrade} from './src/calculations.js';
+import {namesFromCsv} from './src/csv.js';
+import {parseRubricText} from './src/rubric-import.js';
+import {parseRubricFile} from './src/rubric-xlsx.js';
+import {createVault,seal,unlockVault,saltFromEnvelope,validateEnvelope} from './src/vault.js';
+import {openDb,readEnvelope,writeEnvelope,sameEnvelope,readRecoveryEnvelope,replaceEnvelopeWithRecovery,swapRecoveryEnvelope,readExportReceipt,recordExportReceipt} from './src/storage.js';
+import {ensureBookMetadata,markBookChange,compareBookVersions,bookStatus,createPortableCopy,readBackupFile,backupSummary,portableFilename} from './src/cuaderno.js';
+import {emptyHistory,recordChange,stepHistory} from './src/history.js';
+import {previewRubric,validateRubricDraft} from './src/rubric-ui.js';
+import {RELOAD_PROBE_KEY,makeReloadProbe,evaluateReloadProbe} from './src/diagnostics.js';
+import {CURRICULA} from './src/curriculum-data.js';
+import {officialCompetenciesForGroup,groupCompetencies,linkedOfficialCompetency} from './src/official-competencies.js';
+import {ensurePlanner,localToday,activeYear,setActiveYear,addAcademicYear} from './src/planner.js';
+import {renderPlanner,bindPlanner} from './src/planner-ui.js';
+import {assessmentClassStatistics,periodClassStatistics,finalClassStatistics,categoryClassStatistics,competencyClassStatistics} from './src/statistics.js';
+
+import {installInstructions,mayReloadForUpdate} from './src/pwa-controls.js';
+
+const root=document.getElementById('app');
+const dialog=document.getElementById('modal');
+// Control de instalación y actualizaciones: ninguna recarga automática durante una edición.
+let pendingInstallPrompt=null;
+let pwaRegistration=null;
+let checkingPwaUpdate=false;
+let applyingPwaUpdate=false;
+const installedAsPwa=()=>window.matchMedia?.('(display-mode: standalone)').matches===true||navigator.standalone===true;
+const installIcon='<svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4"/></svg>';
+const updateIcon='<svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.3 9A8 8 0 0 1 19 7l1 5M4 12l1 5a8 8 0 0 0 13.7-2"/></svg>';
+function pwaButtons(){
+  return `<div class="pwa-controls" role="group" aria-label="Instalación y actualizaciones"><button type="button" class="btn small pwa-action" data-pwa-install>${installIcon}<span class="pwa-install-label">Instalar aplicación</span></button><button type="button" class="btn small pwa-action" data-pwa-update>${updateIcon}<span class="pwa-update-label">Buscar actualizaciones</span></button></div>`;
+}
+function paintPwaButtons(){
+  for(const button of root.querySelectorAll('[data-pwa-install]')){
+    button.disabled=installedAsPwa();
+    button.querySelector('.pwa-install-label').textContent=installedAsPwa()?'Ya instalada':'Instalar aplicación';
+    button.title=installedAsPwa()?'Esta aplicación ya está instalada':'Instalar o ver instrucciones para este dispositivo';
+  }
+  for(const button of root.querySelectorAll('[data-pwa-update]')){
+    const waiting=Boolean(pwaRegistration?.waiting&&navigator.serviceWorker?.controller);
+    button.disabled=checkingPwaUpdate||applyingPwaUpdate;
+    button.querySelector('.pwa-update-label').textContent=checkingPwaUpdate?'Buscando…':waiting?'Actualización disponible':'Buscar actualizaciones';
+    button.classList.toggle('has-update',waiting);
+    button.title=waiting?'Hay una versión preparada: revisa y confirma la actualización':'Comprobar si GitHub ha publicado una nueva versión';
+  }
+}
+function wirePwaButtons(){
+  for(const button of root.querySelectorAll('[data-pwa-install]'))button.addEventListener('click',()=>installPwa().catch(fail));
+  for(const button of root.querySelectorAll('[data-pwa-update]'))button.addEventListener('click',()=>checkPwaUpdate().catch(fail));
+  paintPwaButtons();
+}
+function watchPwaRegistration(reg){
+  pwaRegistration=reg;
+  const observe=worker=>{
+    if(!worker)return;
+    worker.addEventListener('statechange',()=>{
+      if(worker.state==='installed'&&navigator.serviceWorker.controller){paintPwaButtons();toast('Nueva versión disponible. Pulsa «Buscar actualizaciones» para aplicarla cuando hayas terminado de trabajar.');}
+      else paintPwaButtons();
+    });
+  };
+  reg.addEventListener('updatefound',()=>observe(reg.installing));
+  observe(reg.installing);
+  paintPwaButtons();
+}
+async function installPwa(){
+  if(installedAsPwa()){toast('La aplicación ya está instalada en este dispositivo.');return;}
+  if(location.protocol==='file:'){
+    showInfo('Instalación no disponible en este archivo','<p>La versión HTML autónoma sirve para pruebas, pero no se puede instalar como PWA desde un archivo local. Abre la dirección HTTPS de AppNotas.</p>');return;
+  }
+  if(pendingInstallPrompt){
+    const prompt=pendingInstallPrompt;pendingInstallPrompt=null;
+    await prompt.prompt();
+    const choice=await prompt.userChoice;
+    toast(choice?.outcome==='accepted'?'El navegador ha aceptado la solicitud de instalación. Comprueba tu pantalla de inicio o aplicaciones.':'Instalación cancelada. Puedes volver a intentarlo desde el menú del navegador.');
+    paintPwaButtons();return;
+  }
+  const guide=installInstructions(navigator.userAgent||'',navigator.platform||'');
+  showInfo('Instalar CuadernoDocente',`<p>${esc(guide)}</p><p class="hint">El cuaderno permanece en el almacenamiento local de este dispositivo. Instalar la PWA no sincroniza notas entre equipos.</p>`);
+}
+async function waitForPwaInstall(reg){
+  if(!reg.installing)return;
+  const installing=reg.installing;
+  if(['installed','activated','redundant'].includes(installing.state))return;
+  await new Promise(resolve=>{
+    const done=()=>{clearTimeout(timer);installing.removeEventListener('statechange',watch);resolve();};
+    const watch=()=>{if(['installed','activated','redundant'].includes(installing.state))done();};
+    const timer=setTimeout(done,20000);
+    installing.addEventListener('statechange',watch);watch();
+  });
+}
+async function checkPwaUpdate(){
+  if(checkingPwaUpdate||applyingPwaUpdate)return;
+  if(location.protocol==='file:'||!('serviceWorker' in navigator)){
+    toast('Las actualizaciones se comprueban desde la PWA HTTPS, no desde el HTML autónomo.');return;
+  }
+  if(!navigator.onLine){toast('No hay conexión. Conservamos la versión instalada; comprueba las actualizaciones cuando vuelvas a tener internet.');return;}
+  checkingPwaUpdate=true;paintPwaButtons();
+  try{
+    const reg=pwaRegistration||await navigator.serviceWorker.getRegistration('./');
+    if(!reg){toast('Preparando el servicio offline. Recarga con conexión y vuelve a comprobar.');return;}
+    if(!pwaRegistration)watchPwaRegistration(reg);
+    if(!reg.waiting){await reg.update();await waitForPwaInstall(reg);}
+    if(reg.waiting&&navigator.serviceWorker.controller){
+      await applyPwaUpdate(reg);return;
+    }
+    if(reg.installing){toast('El navegador sigue preparando la nueva versión. Repite la comprobación cuando termine.');return;}
+    toast('No hay una nueva versión pendiente de aplicar.');
+  }catch(error){toast('No ha sido posible comprobar la actualización: '+error.message);}
+  finally{checkingPwaUpdate=false;paintPwaButtons();}
+}
+async function applyPwaUpdate(reg){
+  if(!reg.waiting)return;
+  if(!window.confirm('Hay una nueva versión de CuadernoDocente. Se esperará al guardado local antes de actualizar y recargar. ¿Aplicarla ahora?'))return;
+  await STATE.mutationQueue;
+  try{await STATE.saveQueue;}catch{
+    toast('La actualización está bloqueada por un error de guardado. Conserva los datos y resuelve el problema.');return;
+  }
+  if(!mayReloadForUpdate(STATE)){
+    toast('Hay cambios pendientes o un error de guardado. No se actualizará hasta que el cuaderno esté guardado.');return;
+  }
+  applyingPwaUpdate=true;root.inert=true;paintPwaButtons();
+  let finished=false;
+  const changed=()=>{finished=true;clearTimeout(timer);location.reload();};
+  const timer=setTimeout(()=>{
+    if(finished)return;
+    navigator.serviceWorker.removeEventListener('controllerchange',changed);
+    applyingPwaUpdate=false;root.inert=false;paintPwaButtons();
+    toast('No se ha podido activar la actualización. Tus datos se conservan. Vuelve a comprobarla.');
+  },12000);
+  navigator.serviceWorker.addEventListener('controllerchange',changed,{once:true});
+  try{reg.waiting.postMessage({type:'SKIP_WAITING'});}
+  catch(error){clearTimeout(timer);navigator.serviceWorker.removeEventListener('controllerchange',changed);applyingPwaUpdate=false;root.inert=false;toast('No se ha podido activar: '+error.message);}
+}
+window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();pendingInstallPrompt=event;paintPwaButtons();});
+window.addEventListener('appinstalled',()=>{pendingInstallPrompt=null;paintPwaButtons();toast('El navegador ha confirmado la instalación de CuadernoDocente.');});
+
+const savedTheme=()=>{try{const value=localStorage.getItem('cuaderno-docente-theme');return ['light','dark','oled'].includes(value)?value:'light';}catch{return 'light';}};
+const savedNavigation=()=>{try{return localStorage.getItem('cuaderno-docente-nav-collapsed')==='yes';}catch{return false;}};
+const STATE={plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),navCollapsed:savedNavigation(),db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
+const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const $=(sel,context=document)=>context.querySelector(sel);
+const opt=(id,label,chosen)=>`<option value="${esc(id)}" ${chosen===id?'selected':''}>${esc(label)}</option>`;
+const gradeFmt=x=>formatGrade(x,STATE.doc.settings);
+const rawFmt=x=>x===null||x===undefined?'—':Number(x).toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:2});
+const penaltyFmt=x=>Number(x).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+const gradeStyle=x=>Number.isFinite(x)?` data-grade-value="${x}"`:'';
+/** Usar CSSOM permite respetar la CSP sin autorizar estilos inline en HTML. */
+function paintGrades(context=document){
+  context.querySelectorAll('[data-grade-value]').forEach(el=>{
+    const tone=gradeTone(Number(el.dataset.gradeValue));
+    if(!tone)return;
+    el.style.setProperty('--grade-bg',tone.background);
+    el.style.setProperty('--grade-fg',tone.color);
+  });
+}
+const gradeChip=(score,suffix='')=>score===null||score===undefined||!Number.isFinite(score)?'<span class="grade-empty">—</span>':`<span class="grade-chip"${gradeStyle(score)}>${esc(gradeFmt(score))}${suffix?`<span class="grade-suffix">${esc(suffix)}</span>`:''}</span>`;
+/** Ítaca usa enteros para umbrales y media con dos decimales en modo «sin redondear»,
+ * incluso cuando el usuario configura otra precisión visual en el cuaderno. */
+function itacaChip(doc,studentId,groupId,periodId){
+  const score=itacaGrade(doc,studentId,groupId,periodId);
+  if(score===null)return '<span class="grade-empty">—</span>';
+  const specific=itacaStudentRule(doc,studentId,periodId);
+  const rule=specific==='general'?itacaGroupRule(doc,groupId):specific;
+  const shown=rule==='none'?score.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}):String(score);
+  return `<span class="grade-chip"${gradeStyle(score)}>${esc(shown)}</span>`;
+}
+
+// Indicadores visibles únicamente en las vistas docentes, nunca en el modo alumno.
+const classStatButton=(kind,id,label)=>`<button type="button" class="class-stat-trigger" data-class-stat="${esc(kind+':'+id)}" aria-label="Estadísticas de ${esc(label)}: media y aprobados" aria-expanded="false"><span class="class-stat-info" aria-hidden="true">ⓘ</span></button>`;
+let unbindClassStats=()=>{};
+function bindClassStatistics(){
+  unbindClassStats();unbindClassStats=()=>{};
+  const triggers=[...document.querySelectorAll('[data-class-stat]')];
+  if(!STATE.doc||!triggers.length||!['cuaderno','final','calculos','competencias'].includes(STATE.tab))return;
+  let popup=null,active=null;
+  const settings=STATE.doc.settings;
+  const formatNumber=x=>Number(x).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+  function hide(){
+    if(active){active.setAttribute('aria-expanded','false');active.removeAttribute('aria-controls');}
+    active=null;popup?.remove();popup=null;
+  }
+  function metrics(key){
+    const index=key.indexOf(':');if(index<0)return null;
+    const type=key.slice(0,index),id=key.slice(index+1),g=STATE.groupId,p=STATE.periodId;
+    if(type==='assessment')return assessmentClassStatistics(STATE.doc,g,id);
+    if(type==='period')return periodClassStatistics(STATE.doc,g,id);
+    if(type==='annual-period')return periodClassStatistics(STATE.doc,g,id,{finalView:true});
+    if(type==='course')return finalClassStatistics(STATE.doc,g);
+    if(type==='category')return categoryClassStatistics(STATE.doc,g,p,id);
+    if(type==='competency')return competencyClassStatistics(STATE.doc,g,p,id);
+    return null;
+  }
+  function place(trigger){
+    if(!popup)return;
+    const rect=trigger.getBoundingClientRect();
+    const width=popup.offsetWidth;
+    const x=Math.max(8,Math.min(window.innerWidth-width-8,rect.left+rect.width/2-width/2));
+    const above=rect.bottom+popup.offsetHeight+14>window.innerHeight&&rect.top>popup.offsetHeight+14;
+    popup.style.left=x+'px';
+    popup.style.top=(above?Math.max(8,rect.top-popup.offsetHeight-8):Math.max(8,Math.min(window.innerHeight-popup.offsetHeight-8,rect.bottom+8)))+'px';
+  }
+  function show(trigger){
+    const stats=metrics(trigger.dataset.classStat);if(!stats)return;
+    hide();active=trigger;trigger.setAttribute('aria-expanded','true');trigger.setAttribute('aria-controls','class-stat-popover');
+    popup=document.createElement('div');
+    popup.id='class-stat-popover';popup.className='class-stat-popover';popup.setAttribute('role','region');
+    popup.setAttribute('aria-label','Estadísticas de la clase');
+    popup.innerHTML=`<strong>Estadísticas de la clase</strong><div class="class-stat-line"><span>Media</span><b>${stats.mean===null?'Sin notas':esc(formatGrade(stats.mean,settings))+' /'+esc(stats.maximum)}</b></div><div class="class-stat-line"><span>Aprobados</span><b>${stats.passed} / ${stats.total} (${stats.percentTotal===null?'—':formatNumber(stats.percentTotal)+' %'})</b></div><div class="class-stat-line"><span>Con nota</span><b>${stats.graded} / ${stats.total}</b></div><small>${stats.graded?`De los evaluados, aprueba el ${formatNumber(stats.percentGraded)} %.`:'Todavía no hay calificaciones.'} Las notas vacías no se cuentan en la media ni como suspensos.</small>`;
+    document.body.appendChild(popup);
+    place(trigger);
+  }
+  const onOutside=e=>{if(active&&!active.contains(e.target)&&!popup?.contains(e.target))hide();};
+  const onKey=e=>{if(e.key==='Escape'&&popup){const button=active;hide();button?.focus();}};
+  const onScroll=()=>{if(popup)hide();};
+  const off=[];
+  function listen(node,type,fn,opts){node.addEventListener(type,fn,opts);off.push(()=>node.removeEventListener(type,fn,opts));}
+  for(const trigger of triggers){
+    // Única vía de apertura: activación explícita (clic, toque, Intro o Espacio).
+    // No registrar pointerenter, mouseenter ni focus: el hover no debe abrir nada.
+    listen(trigger,'click',e=>{
+      e.stopPropagation();
+      if(active===trigger)hide();else show(trigger);
+    });
+  }
+  listen(document,'pointerdown',onOutside);
+  listen(document,'keydown',onKey);
+  listen(window,'scroll',onScroll,true);
+  listen(window,'resize',onScroll);
+  unbindClassStats=()=>{hide();for(const f of off)f();};
+}
+
+const visibleCategories=()=>availableCategories(STATE.doc,STATE.groupId);
+document.documentElement.dataset.theme=STATE.theme;
+const currentGroup=()=>STATE.doc.groups.find(x=>x.id===STATE.groupId);
+const currentPeriod=()=>STATE.doc.periods.find(x=>x.id===STATE.periodId);
+const allAssessments=()=>STATE.doc.assessments.filter(x=>x.groupId===STATE.groupId&&x.periodId===STATE.periodId).sort((a,b)=>a.order-b.order);
+const allStudents=()=>STATE.doc.students.filter(x=>x.groupId===STATE.groupId).sort((a,b)=>a.order-b.order);
+let toastTimeout;
+function toast(message){let el=$('#toast');if(!el){el=document.createElement('div');el.id='toast';el.className='status-message';document.body.appendChild(el);}el.textContent=message;el.classList.remove('hidden');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.add('hidden'),4300);}
+function fail(error){console.error(error);toast(error?.message||'Ha ocurrido un error.');}
+function fieldsModal(title,fields,onSubmit,caption=''){
+  dialog.innerHTML=`<form method="dialog" class="modal-inner" id="modal-form"><h2 id="modal-heading">${esc(title)}</h2>${caption?`<p class="subtitle">${esc(caption)}</p>`:''}<div class="modal-fields">${fields.map(f=>`<label>${esc(f.label)}${f.type==='textarea'?`<textarea class="text-field rubric-textarea" name="${esc(f.id)}" rows="7" required>${esc(f.value??'')}</textarea>`:f.type==='select'?`<select name="${esc(f.id)}" ${f.required===false?'':'required'}>${f.options.map(o=>opt(o.value,o.label,f.value)).join('')}</select>`:`<input class="text-field" name="${esc(f.id)}" type="${esc(f.type||'text')}" value="${esc(f.value??'')}" ${f.required===false?'':'required'} ${f.min!==undefined?`min="${f.min}"`:''} ${f.max!==undefined?`max="${f.max}"`:''} ${f.step?`step="${f.step}"`:''} maxlength="${f.maxlength||150}" autocomplete="off"/>`}</label>`).join('')}</div><div class="modal-error" role="alert"></div><div class="modal-actions"><button type="button" class="btn" id="close-dialog">Cancelar</button><button class="btn primary" type="submit">Guardar</button></div></form>`;
+  $('#close-dialog',dialog).addEventListener('click',()=>dialog.close());
+  $('#modal-form',dialog).addEventListener('submit',async e=>{
+    e.preventDefault();
+    const form=e.currentTarget,submit=$('[type=submit]',form);
+    const data=Object.fromEntries(new FormData(form));
+    submit.disabled=true;
+    try{await onSubmit(data);if(form.isConnected)dialog.close();}
+    catch(err){$('.modal-error',form).textContent=err.message;}
+    finally{submit.disabled=false;}
+  });
+  dialog.showModal();$('input,select,textarea',dialog)?.focus();
+}
+function showInfo(title,markup){
+  dialog.innerHTML=`<div class="modal-inner"><h2 id="modal-heading">${esc(title)}</h2>${markup}<div class="modal-actions"><button class="btn primary" id="close-info">Cerrar</button></div></div>`;
+  paintGrades(dialog);$('#close-info',dialog).onclick=()=>dialog.close();dialog.showModal();
+}
+function setStatus(){const el=$('#save-status');if(!el)return;const error=!!STATE.saveError;el.className='pill status '+(error?'error':STATE.saving?'pending':'ok');el.textContent=error?'¡Sin guardar!':STATE.saving?'Guardando…':'Guardado cifrado';updatePortableStatus();}
+function updatePortableStatus(){
+  const el=$('#portable-status');if(!el||!STATE.doc)return;
+  const status=bookStatus(STATE.doc,STATE.exportReceipt);
+  el.textContent=STATE.saveError?'⚠ Hay cambios sin guardar. No cierres ni importes todavía.':
+    STATE.saving?'Guardando en este dispositivo…':
+    status==='exported'?'✓ Copia escrita en la ubicación seleccionada · sin cambios posteriores':
+    status==='modified'?'● Modificaciones posteriores a la última exportación confirmada':
+    '● No consta ninguna exportación verificable en este dispositivo';
+  el.className='portable-status '+(STATE.saveError?'portable-error':status==='exported'?'portable-ok':'');
+}
+async function persist(snapshot){
+  STATE.saving++;setStatus();
+  const task=async()=>{
+    const envelope=await seal(snapshot,STATE.key,STATE.salt);
+    STATE.failedEnvelope=envelope;
+    await writeEnvelope(STATE.db,envelope,STATE.envelope);
+    STATE.failedEnvelope=null;
+    STATE.envelope=envelope;
+    STATE.saveError=null;
+  };
+  STATE.saveQueue=STATE.saveQueue.catch(()=>{}).then(task);
+  try{await STATE.saveQueue;}catch(e){STATE.saveError=e;fail(new Error('No se han podido guardar los cambios. En Ajustes puedes descargar el intento cifrado si está disponible. '+e.message));throw e;}
+  finally{STATE.saving--;setStatus();}
+}
+/** Guardar antes de confirmar un cambio evita perder la única versión válida si falla IndexedDB. */
+function warnPending(event){
+  event.preventDefault();event.returnValue=true;
+}
+function updateUnloadWarning(){
+  if(STATE.pending||STATE.saveError)window.addEventListener('beforeunload',warnPending);
+  else window.removeEventListener('beforeunload',warnPending);
+}
+function enqueueMutation(fn){
+  STATE.pending++;updateUnloadWarning();
+  const job=STATE.mutationQueue.then(fn).finally(()=>{
+    STATE.pending--;updateUnloadWarning();
+  });
+  STATE.mutationQueue=job.catch(()=>{});
+  return job;
+}
+
+function commit(action,label='Modificar cuaderno'){
+  return enqueueMutation(async()=>{
+    if(!STATE.doc||!STATE.key)throw new Error('El cuaderno está bloqueado.');
+    if(STATE.saveError)throw new Error('El guardado está bloqueado por un error. No introduzcas más notas: recarga el cuaderno y revisa la situación.');
+    const before=STATE.doc,next=structuredClone(before);
+    action(next);assertModel(next);
+    if(JSON.stringify(before)===JSON.stringify(next))return;
+    markBookChange(next,before);
+    await persist(next);
+    STATE.history=recordChange(STATE.history,before,next,label);
+    STATE.doc=next;render();
+  });
+}
+function navigateHistory(direction){
+  return enqueueMutation(async()=>{
+    if(!STATE.doc||!STATE.key)throw new Error('El cuaderno está bloqueado.');
+    if(STATE.saveError)throw new Error('No se puede deshacer o rehacer hasta resolver el error de almacenamiento.');
+    const step=stepHistory(STATE.history,STATE.doc,direction);
+    if(!step)return;
+    assertModel(step.doc);
+    markBookChange(step.doc,STATE.doc);
+    await persist(step.doc);
+    STATE.doc=step.doc;STATE.history=step.history;
+    // Mantener la vista individual solo si su registro sigue siendo válido.
+    if(STATE.studentId&&!STATE.doc.students.some(s=>s.id===STATE.studentId&&s.groupId===STATE.groupId))STATE.studentId=null;
+    render();toast(`${direction==='undo'?'Deshecho':'Rehecho'}: ${step.label}.`);
+  });
+}
+
+function chooseInitial(){
+  const group=STATE.doc.groups[0];STATE.groupId=group?.id||null;
+  STATE.level=group?.level||'legacy';STATE.subject=group?group.subject:'Latín I';
+  if(!group){STATE.level='1bach';STATE.subject='Latín I';}
+  STATE.periodId=[...STATE.doc.periods].sort((a,b)=>a.order-b.order)[0]?.id||null;
+}
+const groupsForSubject=()=>STATE.doc.groups.filter(g=>(g.level??'legacy')===STATE.level&&g.subject===STATE.subject);
+function setSubjectChoice(level,subject){
+  STATE.level=level;STATE.subject=subject;STATE.competencyVersion='auto';
+  STATE.groupId=groupsForSubject()[0]?.id||null;
+  render();
+}
+function colorFor(level,subject){return STATE.doc.settings.subjectAccents[subjectKey(level,subject)]||SUBJECT_COLORS[subjectKey(level,subject)]||'#F59E0B';}
+function contrastFor(hex){
+  const vals=[1,3,5].map(pos=>parseInt(hex.slice(pos,pos+2),16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);
+  return vals[0]*.2126+vals[1]*.7152+vals[2]*.0722>.179?'#000000':'#FFFFFF';
+}
+function applyTheme(){
+  document.documentElement.dataset.theme=STATE.theme;
+  const color=colorFor(STATE.level,STATE.subject);
+  document.documentElement.style.setProperty('--accent',color);
+  document.documentElement.style.setProperty('--accent-ink',contrastFor(color));
+}
+const pairOptions=()=>Object.entries(COURSE_SUBJECTS).flatMap(([level,x])=>x.subjects.map(subject=>({value:subjectKey(level,subject),label:`${x.label} · ${subject}`})));
+
+async function init(){
+  try{
+    STATE.db=await openDb();
+    STATE.envelope=await readEnvelope(STATE.db);
+    STATE.recovery=await readRecoveryEnvelope(STATE.db);
+    STATE.exportReceipt=await readExportReceipt(STATE.db);
+    // Solo se coteja la huella del sobre cifrado. La validación del modelo ocurre al desbloquear.
+    let probe=null;
+    try{
+      const raw=sessionStorage.getItem(RELOAD_PROBE_KEY);
+      if(raw){sessionStorage.removeItem(RELOAD_PROBE_KEY);probe=await evaluateReloadProbe(JSON.parse(raw),STATE.envelope);}
+    }catch{probe={ok:false,reason:'unavailable'};}
+    STATE.reloadProbe=probe;
+    showUnlock(!STATE.envelope);
+    if('serviceWorker' in navigator&&location.protocol!=='file:'){
+      navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(watchPwaRegistration).catch(err=>console.warn('No se ha activado el modo instalable:',err));
+    }
+  }catch(e){root.innerHTML=`<div class="unlock-screen"><div class="unlock-box"><h1>Error de almacenamiento</h1><p>${esc(e.message)}</p><p>No introduzcas datos hasta solucionar el problema. Usa HTTPS o localhost y permite almacenamiento local.</p></div></div>`;}
+}
+function showUnlock(isNew){
+  STATE.doc=null;STATE.key=null;STATE.salt=null;STATE.history=emptyHistory();
+  root.innerHTML=`<main class="unlock-screen"><div class="unlock-box"><div class="brand-mini">▦</div><div class="eyebrow">Solo uso experimental</div><h1>CuadernoDocente</h1><p>${isNew?'Crearás un cuaderno con ocho alumnos ficticios. Se guardará cifrado en este dispositivo.':'Desbloquea tu cuaderno local cifrado para continuar.'}</p>${STATE.reloadProbe?`<p class="${STATE.reloadProbe.ok?'section-note':'unlock-error'}" role="status">${STATE.reloadProbe.ok?'Recarga verificada: la misma copia cifrada continúa en IndexedDB. Desbloquéala para validar las notas.':'No se ha podido verificar el guardado tras recargar. Revisa el almacenamiento y no introduzcas más datos hasta comprobar la copia.'}</p>`:''}${pwaButtons()}<form id="unlock-form"><label for="password">${isNew?'Crea una contraseña de 12 caracteres como mínimo':'Contraseña del cuaderno'}</label><input id="password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>${isNew?'<label for="confirm-password">Repite la contraseña</label><input id="confirm-password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>':''}<div id="unlock-error" class="unlock-error" role="alert"></div><button class="btn primary" type="submit">${isNew?'Crear cuaderno de demostración':'Desbloquear'}</button></form><p class="hint">La contraseña no se envía ni se almacena. Si la pierdes, no podrás recuperar los datos cifrados.</p><p class="hint">No utilizar con datos reales del alumnado: versión experimental pendiente de auditoría institucional y de seguridad.</p><button class="btn" id="restore-locked">Restaurar una copia cifrada</button><input class="hidden" type="file" id="restore-locked-file" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/>${STATE.recovery?'<div class="recovery-choice"><p class="hint">Hay una copia cifrada de rescate anterior a la última restauración.</p><button class="btn" id="recover-locked">Recuperar versión anterior</button><button class="btn" id="download-recovery-locked">Descargar copia de rescate</button></div>':''}</div></main>`;
+  $('#unlock-form').addEventListener('submit',e=>{
+    e.preventDefault();
+    const password=$('#password').value, confirmation=$('#confirm-password')?.value, button=$('#unlock-form button');
+    button.disabled=true;$('#unlock-error').textContent='';
+    enqueueMutation(async()=>{
+    if(!button.isConnected)return;
+    try{
+      if(isNew){
+        if(password!==confirmation)throw new Error('Las contraseñas no coinciden.');
+        const doc=initialNotebook();ensureBookMetadata(doc);const {key,envelope}=await createVault(password,doc);
+        await writeEnvelope(STATE.db,envelope,null);
+        STATE.key=key;STATE.salt=saltFromEnvelope(envelope);STATE.envelope=envelope;STATE.doc=doc;
+      }else{
+        STATE.envelope=await readEnvelope(STATE.db);
+        if(!STATE.envelope)throw new Error('No se encuentra el cuaderno local. Comprueba el perfil del navegador.');
+        const unlocked=await unlockVault(password,STATE.envelope);
+        const migrated=migrateNotebook(unlocked.doc);
+        STATE.key=unlocked.key;STATE.salt=unlocked.salt;STATE.doc=migrated.doc;
+        const tracked=ensureBookMetadata(migrated.doc);
+        if(migrated.migrated||tracked){await persist(migrated.doc);toast('Cuaderno anterior validado y preparado para copias portátiles.');}
+      }
+      STATE.saveError=null;STATE.history=emptyHistory();chooseInitial();STATE.tab='cuaderno';STATE.studentId=null;render();
+      if(STATE.reloadProbe?.ok)toast('Persistencia confirmada: el cuaderno cifrado se ha recuperado y validado tras recargar.');
+      STATE.reloadProbe=null;
+    }catch(err){STATE.doc=null;STATE.key=null;STATE.salt=null;$('#unlock-error').textContent=err.message;button.disabled=false;}
+    }).catch(fail);
+  });
+  wirePwaButtons();
+  $('#restore-locked').onclick=()=>$('#restore-locked-file').click();
+  $('#restore-locked-file').onchange=async e=>{try{const f=e.target.files[0];e.target.value='';if(f)await restoreBackup(f);}catch(err){fail(err);}e.target.value='';};
+  $('#recover-locked')?.addEventListener('click',()=>recoverPreviousVersion().catch(fail));
+  $('#download-recovery-locked')?.addEventListener('click',()=>downloadRecovery().catch(fail));
+}
+/** Introducción enmascarada: nunca solicitar contraseñas mediante window.prompt. */
+function requestBackupPassword(title){
+  return new Promise(resolve=>{
+    if(dialog.open){resolve(null);return;}
+    dialog.innerHTML=`<form class="modal-inner" id="backup-password-form"><h2 id="modal-heading">${esc(title)}</h2><label for="backup-password">Contraseña de la copia cifrada</label><input id="backup-password" class="text-field" type="password" minlength="12" autocomplete="off" spellcheck="false" required/><div class="modal-actions"><button type="button" class="btn" id="cancel-backup-password">Cancelar</button><button class="btn primary" type="submit">Continuar</button></div></form>`;
+    const cancelled=()=>{if(dialog.open)return;dialog.removeEventListener('close',cancelled);resolve(null);};
+    dialog.addEventListener('close',cancelled);
+    $('#cancel-backup-password',dialog).onclick=()=>dialog.close();
+    $('#backup-password-form',dialog).onsubmit=e=>{
+      e.preventDefault();const secret=$('#backup-password',dialog).value;
+      dialog.removeEventListener('close',cancelled);dialog.close();resolve(secret);
+    };
+    dialog.showModal();$('#backup-password',dialog).focus();
+  });
+}
+async function openBackupFile(file,password){
+  return readBackupFile(file,password);
+}
+async function verifyBackup(file){
+  const password=await requestBackupPassword('Verificar copia sin restaurarla');
+  if(password===null){toast('Verificación cancelada. Los datos no han cambiado.');return;}
+  const {doc,exportedAt}=await openBackupFile(file,password);
+  const info=backupSummary(doc,exportedAt);
+  showInfo('Copia íntegra y autenticada',`<p>Archivo válido · ${esc(info.modelVersion)} (versión de datos) · ${info.courses.length} grupos · ${info.students} alumnos · ${info.grades} notas.</p><p class="hint">Solo se ha leído y validado. Ningún dato ha sido sustituido.</p>`);
+}
+const conflictMessage={
+  empty:'No hay cuaderno local que sustituir.',
+  same:'El archivo y el cuaderno local tienen la misma revisión registrada.',
+  newer:'La copia contiene una revisión posterior del mismo cuaderno.',
+  older:'⚠ Esta copia es anterior: importarla descartaría cambios locales posteriores.',
+  divergent:'⚠ CONFLICTO: existen cambios diferentes entre los dispositivos. No se fusionarán.',
+  different:'⚠ El archivo pertenece a OTRO cuaderno. Se sustituiría el cuaderno completo de este dispositivo.',
+  unknown:'⚠ No se puede determinar el orden de las versiones (copia histórica o cuaderno bloqueado).'
+};
+function decideImport(info,conflict,hasLocal){
+  return new Promise(resolve=>{
+    if(dialog.open){resolve('cancel');return;}
+    const courses=info.courses.map(c=>`<li>${esc(c.subject)} · ${esc(c.name)} (${esc(c.course)})</li>`).join('');
+    const conflictClass=['older','divergent','different','unknown'].includes(conflict)?'import-warning':'section-note';
+    dialog.innerHTML=`<div class="modal-inner portable-dialog"><h2 id="modal-heading">Abrir cuaderno · comprobar antes de importar</h2><p>Archivo descifrado y autenticado correctamente. <strong>Aún no se ha modificado ningún dato local.</strong></p><div class="portable-facts"><div>Creado: <strong>${esc(new Date(info.createdAt).toLocaleString('es-ES'))}</strong></div><div>Exportado: <strong>${info.exportedAt?esc(new Date(info.exportedAt).toLocaleString('es-ES')):'No consta (copia histórica)'}</strong></div><div>Esquema de datos: <strong>v${esc(info.modelVersion)}</strong></div><div>Cursos/grupos: <strong>${info.courses.length}</strong> · Alumnos: <strong>${info.students}</strong> · Notas: <strong>${info.grades}</strong> · Rúbricas: <strong>${info.rubrics}</strong></div></div><details><summary>Mostrar los cursos incluidos</summary><ul>${courses}</ul></details><p class="${conflictClass}" role="status">${conflictMessage[conflict]}</p><p class="hint">${hasLocal?'Al importar se conservará previamente una copia cifrada del estado local en IndexedDB. Solo hay un punto de recuperación: otra importación lo sustituye.':'Se creará una copia local cifrada de este archivo.'} No se combinarán notas.</p><div class="modal-actions portable-choices"><button class="btn" id="import-keep">Conservar datos actuales</button><button class="btn" id="import-cancel">Cancelar</button><button class="btn warn" id="import-confirm">Importar copia</button></div></div>`;
+    let chosen=false;
+    const settle=choice=>{if(chosen)return;chosen=true;dialog.removeEventListener('close',onClose);dialog.close();resolve(choice);};
+    const onClose=()=>{if(dialog.open||chosen)return;chosen=true;dialog.removeEventListener('close',onClose);resolve('cancel');};
+    dialog.addEventListener('close',onClose);
+    $('#import-keep',dialog).onclick=()=>settle('keep');
+    $('#import-cancel',dialog).onclick=()=>settle('cancel');
+    $('#import-confirm',dialog).onclick=()=>settle('import');
+    dialog.showModal();
+  });
+}
+async function restoreBackup(file){
+  await STATE.mutationQueue;await STATE.saveQueue;
+  if(STATE.saveError||STATE.failedEnvelope)throw new Error('Hay datos sin guardar. Debes resolver el error antes de importar.');
+  const password=await requestBackupPassword('Abrir cuaderno · contraseña del archivo');
+  if(password===null){toast('Apertura cancelada. Conservas todos los datos locales.');return;}
+  const opened=await openBackupFile(file,password);
+  const info=backupSummary(opened.doc,opened.exportedAt);
+  const existing=await readEnvelope(STATE.db);
+  if(!sameEnvelope(existing,STATE.envelope))throw new Error('Otra pestaña ha cambiado las notas. Importación cancelada sin cambios.');
+  const conflict=STATE.doc?compareBookVersions(STATE.doc,opened.doc):existing?'unknown':'empty';
+  const choice=await decideImport(info,conflict,!!existing);
+  if(choice!=='import'){toast(choice==='keep'?'Se ha conservado el cuaderno local sin cambios.':'Importación cancelada: ningún dato ha cambiado.');return;}
+  return enqueueMutation(async()=>{
+    await STATE.saveQueue;
+    if(STATE.saveError||STATE.failedEnvelope)throw new Error('Hay datos sin guardar. No se ha importado nada.');
+    const doc=structuredClone(opened.doc);
+    ensureBookMetadata(doc);
+    assertModel(doc);
+    const replacement=await seal(doc,opened.key,opened.salt);
+    // La transacción compara el sobre previo y conserva una copia cifrada de rescate.
+    const recovery=await replaceEnvelopeWithRecovery(STATE.db,replacement,existing);
+    adoptRestoredNotebook(replacement,recovery,{key:opened.key,salt:opened.salt},doc);
+    toast(recovery?'Copia abierta. Estado anterior conservado como rescate cifrado.':'Copia abierta y validada.');
+  });
+}
+function adoptRestoredNotebook(envelope,recovery,opened,doc){
+  STATE.envelope=envelope;STATE.recovery=recovery;
+  STATE.doc=doc;STATE.key=opened.key;STATE.salt=opened.salt;STATE.saveError=null;
+  STATE.history=emptyHistory();chooseInitial();STATE.tab='cuaderno';STATE.studentId=null;render();
+}
+
+function downloadEncryptedEnvelope(envelope,filename){
+  if(!envelope)throw new Error('No hay ninguna copia cifrada que descargar.');
+  const blob=new Blob([JSON.stringify(envelope,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+}
+async function downloadRecovery(){
+  const recovery=await readRecoveryEnvelope(STATE.db);
+  if(!recovery?.envelope)throw new Error('No hay una copia de rescate disponible.');
+  validateEnvelope(recovery.envelope);
+  downloadEncryptedEnvelope(recovery.envelope,'CuadernoDocente-rescate-'+new Date().toISOString().slice(0,10)+'.cdoc');
+  toast('Copia de rescate cifrada preparada para descargar.');
+}
+async function recoverPreviousVersion(){
+  const recovery=await readRecoveryEnvelope(STATE.db);
+  if(!recovery?.envelope)throw new Error('No existe una versión anterior recuperable.');
+  const password=await requestBackupPassword('Recuperar el cuaderno previo a la restauración');
+  if(password===null)return;
+  const opened=await unlockVault(password,recovery.envelope);
+  const upgraded=migrateNotebook(opened.doc);assertModel(upgraded.doc);
+  const tracked=ensureBookMetadata(upgraded.doc);
+  if(!window.confirm('¿Volver a la copia anterior a la última restauración? Se perderán los cambios posteriores en la versión actual. Esta última se conservará como copia de rescate cifrada.'))return;
+  return enqueueMutation(async()=>{
+    if(STATE.failedEnvelope)throw new Error('Descarga el intento de guardado cifrado y recarga antes de recuperar.');
+    const replacement=upgraded.migrated||tracked?await seal(upgraded.doc,opened.key,opened.salt):recovery.envelope;
+    const previous=await swapRecoveryEnvelope(STATE.db,STATE.envelope,recovery,replacement);
+    adoptRestoredNotebook(replacement,previous,opened,upgraded.doc);
+    toast('Cuaderno anterior recuperado y validado. La otra versión sigue cifrada como rescate.');
+  });
+}
+
+/** Preparar después del guardado; el gesto posterior sobre «Guardar archivo» abre
+ * el selector de sistema antes de cualquier await, necesario en Safari/iOS.
+ */
+async function closeNotebook(){
+  await STATE.mutationQueue;await STATE.saveQueue;
+  if(!STATE.doc||!STATE.key||STATE.saveError||STATE.failedEnvelope)throw new Error('No se puede cerrar: hay cambios sin guardar. Conserva el cuaderno local y resuelve el error.');
+  if(!sameEnvelope(await readEnvelope(STATE.db),STATE.envelope))throw new Error('El cuaderno cambió desde otra pestaña. No exportes una versión desactualizada.');
+  const snapshot=structuredClone(STATE.doc);
+  const exportedDate=new Date();
+  const prepared=await createPortableCopy(snapshot,STATE.key,STATE.salt,exportedDate);
+  const filename=portableFilename(exportedDate);
+  if(dialog.open)throw new Error('Cierra el diálogo actual para exportar.');
+  dialog.innerHTML=`<div class="modal-inner portable-dialog"><h2 id="modal-heading">Cerrar cuaderno · copia cifrada</h2><p>Los cambios se han guardado en este dispositivo. La copia completa está cifrada con la contraseña de este cuaderno.</p><p><strong>${esc(filename)}</strong></p><p class="hint">Selecciona una carpeta de OneDrive institucional, iCloud Drive o Archivos si el sistema la ofrece. Esta aplicación no accede a ninguna nube ni confirma la sincronización posterior.</p><p id="close-result" class="hint" role="status">El cuaderno local permanece intacto aunque canceles.</p><div class="modal-actions portable-choices"><button class="btn" id="close-cancel">Cancelar</button><button class="btn primary" id="close-save">Guardar archivo cifrado</button><button class="btn hidden" id="close-lock">Bloquear cuaderno</button></div></div>`;
+  $('#close-cancel',dialog).onclick=()=>{dialog.close();toast('Exportación cancelada. El cuaderno local permanece guardado.');};
+  $('#close-save',dialog).onclick=()=>savePreparedCopy(prepared,filename);
+  dialog.showModal();
+}
+function preparedSaveCompleted(){
+  const back=$('#close-cancel',dialog),lock=$('#close-lock',dialog);
+  if(back){back.textContent='Volver al cuaderno';back.onclick=()=>dialog.close();}
+  if(lock){lock.classList.remove('hidden');lock.onclick=()=>{dialog.close();showUnlock(false);toast('Cuaderno bloqueado. La copia local cifrada permanece en el dispositivo.');};}
+}
+async function savePreparedCopy(prepared,filename){
+  const button=$('#close-save',dialog),message=$('#close-result',dialog);
+  if(button.disabled)return;
+  const blob=new Blob([JSON.stringify(prepared.file)],{type:'application/octet-stream'});
+  const downloadable=new File([blob],filename,{type:'application/octet-stream'});
+  // showSaveFilePicker debe ejecutarse directamente en el evento click del usuario.
+  let picker=null,mode='download';
+  try{
+    if(typeof window.showSaveFilePicker==='function'){
+      mode='picker';picker=await window.showSaveFilePicker({suggestedName:filename,
+        types:[{description:'Cuaderno cifrado de Tabularium',accept:{'application/octet-stream':['.cuaderno']}}]});
+    }else if(typeof navigator.share==='function'&&typeof navigator.canShare==='function'&&navigator.canShare({files:[downloadable]})){
+      mode='share';
+      await navigator.share({files:[downloadable],title:'Copia cifrada Tabularium'});
+      message.textContent='Archivo compartido con el destino elegido. El navegador no puede verificar que se haya almacenado o sincronizado. El cuaderno local sigue intacto.';
+      preparedSaveCompleted();toast('Copia compartida. Comprueba manualmente que se ha guardado.');return;
+    }
+    button.disabled=true;
+    if(mode==='picker'){
+      const writer=await picker.createWritable();
+      await writer.write(blob);await writer.close();
+      // Si el guardado falló, el control anterior nunca llega aquí.
+      const receipt={version:1,bookId:prepared.bookId,head:prepared.head,exportedAt:prepared.exportedAt};
+      try{
+        await recordExportReceipt(STATE.db,receipt,STATE.envelope);
+        STATE.exportReceipt=receipt;
+        message.textContent='Archivo escrito en la ubicación seleccionada. No podemos comprobar si OneDrive/iCloud ya lo ha sincronizado.';
+      }catch(e){message.textContent='Archivo escrito, pero no se pudo registrar la exportación local: '+e.message;}
+      updatePortableStatus();preparedSaveCompleted();toast('Copia cifrada escrita. Verifica su presencia en la carpeta elegida.');
+    }else{
+      downloadEncryptedEnvelope(prepared.file,filename);
+      message.textContent='Descarga iniciada. Este navegador no confirma dónde se guarda: comprueba el archivo en Descargas o Archivos antes de darlo por cerrado.';
+      preparedSaveCompleted();toast('Descarga iniciada; guardado externo sin verificar.');
+    }
+  }catch(error){
+    if(error?.name==='AbortError'){
+      message.textContent='Operación cancelada. No se ha modificado ni borrado el cuaderno local.';
+      toast('Exportación cancelada. Todos los datos siguen en este dispositivo.');
+    }else{
+      message.textContent='No se ha podido exportar: '+String(error?.message||error)+'. Los datos locales siguen intactos.';
+      fail(error);
+    }
+  }finally{button.disabled=false;}
+}
+
+function renderPeriodButtons(){
+  const periods=[...STATE.doc.periods].sort((a,b)=>a.order-b.order);
+  return `<nav class="term-bar" aria-label="Evaluación actual"><div class="term-buttons" role="group" aria-label="Períodos">${periods.map(p=>`<span class="term-item ${STATE.tab==='cuaderno'&&STATE.periodId===p.id?'active':''}"><button type="button" class="term-button ${STATE.tab==='cuaderno'&&STATE.periodId===p.id?'active':''}" data-period-choice="${esc(p.id)}" aria-pressed="${STATE.tab==='cuaderno'&&STATE.periodId===p.id}" title="Seleccionar ${esc(p.name)} (doble clic para renombrar)">${esc(p.name)}</button><button type="button" class="term-edit" data-rename-period="${esc(p.id)}" aria-label="Renombrar ${esc(p.name)}" title="Renombrar ${esc(p.name)}">✎</button></span>`).join('')}<button type="button" class="term-add" id="new-period" aria-label="Añadir período" title="Crear período">+ <span>Período</span></button></div><button type="button" class="term-button term-final ${STATE.tab==='final'?'active':''}" data-final-choice="1" aria-pressed="${STATE.tab==='final'}">★ Evaluación final</button></nav>`;
+}
+function render(){
+  if(!STATE.doc)return;
+  ensurePlanner(STATE.doc);
+  if(!STATE.level){chooseInitial();}
+  if(!currentPeriod())STATE.periodId=[...STATE.doc.periods].sort((a,b)=>a.order-b.order)[0]?.id||null;
+  const period=currentPeriod();
+  const matching=groupsForSubject();
+  if(!matching.some(g=>g.id===STATE.groupId))STATE.groupId=matching[0]?.id||null;
+  const group=currentGroup();
+  applyTheme();
+  // Cada boton corresponde a una materia concreta, no solo a una etapa:
+  // elegir entre Latin y Griego nunca depende de un segundo desplegable.
+  const courseChoices=[...Object.entries(COURSE_SUBJECTS).flatMap(([level,entry])=>entry.subjects.map(subject=>({
+    level,subject,subjectName:subject.startsWith('Griego')?'Griego':'Latín',stage:entry.label
+  }))), ...[...new Set(STATE.doc.groups.filter(g=>g.level===null).map(g=>g.subject))].map(subject=>({
+    level:'legacy',subject,subjectName:subject||'Sin asignatura',stage:'Sin clasificar'
+  }))];
+  const choices=matching.map(x=>opt(x.id,x.name,STATE.groupId)).join('');
+  const subjectLabel=STATE.subject||'Sin asignatura';
+  const levelLabel=COURSE_SUBJECTS[STATE.level]?.label||'Sin clasificar';
+  const hasGroup=!!STATE.groupId;
+  const color=STATE.level==='legacy'?'#F59E0B':colorFor(STATE.level,STATE.subject);
+  unbindClassStats();
+  root.innerHTML=`<div class="shell ${STATE.tab==='alumno'&&STATE.studentId?'student-focus':''} ${STATE.navCollapsed?'nav-collapsed':''}"><header class="topbar"><div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h30M12 16h24M15 19v17m9-17v17m9-17v17M9 39h30M12 36h24M12 12c1-5 6-8 12-8s11 3 12 8"/><path d="M19 12h10"/></svg></div><div class="brand-copy"><strong>CuadernoDocente</strong><small>Tabularium · Agenda y evaluación</small></div></div><div class="topmeta"><label class="theme-picker">Tema <select id="theme-select" aria-label="Modo de apariencia">${[['light','Claro'],['dark','Oscuro'],['oled','OLED']].map(([k,v])=>opt(k,v,STATE.theme)).join('')}</select></label><span class="pill">🔒 Almacenamiento local cifrado</span><span id="save-status" role="status" class="pill status ok">Guardado cifrado</span><div class="portable-controls" role="group" aria-label="Copias de cuaderno"><button type="button" class="btn small" id="open-notebook">Abrir cuaderno</button><button type="button" class="btn small primary" id="close-notebook">Cerrar cuaderno</button></div>${pwaButtons()}<div class="history-actions" role="group" aria-label="Historial de cambios"><button type="button" class="btn small" id="undo-change" title="Deshacer último cambio (Ctrl/Cmd+Z)" ${STATE.history.past.length?'':'disabled'}>↶ Deshacer</button><button type="button" class="btn small" id="redo-change" title="Rehacer (Ctrl/Cmd+Mayús+Z)" ${STATE.history.future.length?'':'disabled'}>↷ Rehacer</button></div><button class="lock-btn" id="lock">Bloquear</button></div></header><main class="content"><div class="headrow"><div><div class="eyebrow">TABULARIUM · CUADERNO ACADÉMICO · V1.19</div><h1>${esc(subjectLabel)} <span class="muted-slash">/</span> ${esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${esc(levelLabel)} · ${esc(group?.course||'Curso escolar por configurar')} · ${esc(period?.name||'')} · Datos ficticios</p></div><span class="demo-tag">⚠ No introducir datos personales reales</span></div><p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar"><div class="selectors"><div class="course-picker" role="group" aria-label="Seleccionar curso y asignatura"><span class="course-picker-label">Curso y asignatura</span><div class="course-buttons">${courseChoices.map(x=>`<button type="button" class="btn course-choice" data-course-level="${esc(x.level)}" data-course-subject="${esc(x.subject)}" aria-pressed="${STATE.level===x.level&&STATE.subject===x.subject}"><strong class="course-name">${esc(x.subjectName)}</strong><span class="course-stage">${esc(x.stage)}</span></button>`).join('')}</div></div><label>Grupo<select id="group-select" ${matching.length?'':'disabled'}>${matching.length?choices:'<option value="">Sin grupos</option>'}</select></label>${STATE.level==='legacy'?'':`<label class="color-select-label">Color de acento<input id="accent-select" type="color" value="${esc(color)}" aria-label="Color de acento para ${esc(subjectLabel)}"/></label>`}<button class="btn small" id="edit-group" ${hasGroup?'':'disabled'} title="Editar nombre y curso escolar del grupo">⋯ Grupo</button><button class="btn" id="new-group" ${STATE.level==='legacy'?'disabled':''}>+ Grupo</button>${group?.level===null?'<button class="btn" id="classify-group">Clasificar grupo</button>':''}</div><div class="actions"><button class="btn" id="csv-import" ${hasGroup?'':'disabled'}>↑ Importar CSV</button><button class="btn" id="new-recovery" ${hasGroup?'':'disabled'}>↺ Recuperación</button><input type="file" id="csv-file" class="hidden" accept=".csv,text/csv"/></div></div><div class="workspace"><nav class="tabs" aria-label="Secciones del cuaderno"><button type="button" class="nav-collapse" id="toggle-navigation" aria-label="Plegar o desplegar navegación" aria-expanded="${!STATE.navCollapsed}" title="Plegar o desplegar menú"><span class="nav-collapse-glyph" aria-hidden="true">☷</span><span class="nav-text">Menú</span></button>${[['cuaderno','Cuaderno de notas','▦','docencia'],['planificador','Planificador','▣','docencia'],['alumno','Modo alumno','◉','docencia'],['calculos','Cálculos','∑','evaluacion'],['competencias','Competencias','◎','evaluacion'],['curriculo','Currículo','◇','evaluacion'],['rubricas','Rúbricas','▤','recursos'],['ajustes','Ajustes y copias','⚙','recursos']].map(([k,v,icon,section],i,arr)=>`${i===0||section!==arr[i-1][3]?`<span class="nav-section-label">${section==='docencia'?'DOCENCIA':section==='evaluacion'?'EVALUACIÓN':'RECURSOS'}</span>`:''}<button type="button" data-tab="${k}" class="tab ${STATE.tab===k||(STATE.tab==='final'&&k==='cuaderno')?'active':''}" ${STATE.tab===k||(STATE.tab==='final'&&k==='cuaderno')?'aria-current="page"':''} title="${v}"><span class="nav-glyph" aria-hidden="true">${icon}</span><span class="nav-text">${v}</span></button>`).join('')}<div class="nav-footer" aria-hidden="true"><span>✦</span> Μνήμη · Studium</div></nav><div class="work-area">${hasGroup&&['cuaderno','final'].includes(STATE.tab)?renderPeriodButtons():''}<div id="tab-content">${!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'?`<section class="panel panel-pad no-group-state"><h2>No hay grupos de ${esc(subjectLabel)}</h2><p>Selecciona otro grupo o crea uno nuevo para esta asignatura. No se mezclarán las calificaciones de materias distintas.</p>${STATE.level==='legacy'?'<p>Clasifica primero el grupo anterior para utilizarlo en uno de los cursos disponibles.</p>':'<button class="btn primary" id="new-group-empty">+ Crear primer grupo</button>'}</section>`:STATE.tab==='cuaderno'?renderNotebook():STATE.tab==='planificador'?renderPlanner(STATE.doc,STATE):STATE.tab==='alumno'?renderStudentView():STATE.tab==='final'?renderFinalEvaluation():STATE.tab==='calculos'?renderRules():STATE.tab==='rubricas'?renderRubrics():STATE.tab==='competencias'?renderCompetencies():STATE.tab==='curriculo'?renderCurriculum():renderSettings()}</div></div></div></main></div>`;
+  bindCommon();
+  wirePwaButtons();
+  updatePortableStatus();
+  // Mantener la pestaña activa a la vista en pantallas pequeñas, sin desplazar verticalmente la página.
+  const tabStrip=$('.tabs'),activeTab=$('.tabs .tab.active');
+  if(tabStrip&&activeTab){
+    const outer=tabStrip.getBoundingClientRect(),inner=activeTab.getBoundingClientRect();
+    if(inner.left<outer.left)tabStrip.scrollLeft+=inner.left-outer.left-8;
+    else if(inner.right>outer.right)tabStrip.scrollLeft+=inner.right-outer.right+8;
+  }
+  if(!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'){$('#new-group-empty')?.addEventListener('click',()=>$('#new-group').click());}
+  else if(STATE.tab==='cuaderno')bindNotebook();
+  else if(STATE.tab==='planificador'){const api=bindPlanner(STATE.doc,STATE,{render,commit,fieldsModal,dialog,toast,fail,getDoc:()=>STATE.doc});if(STATE.plannerEventRequest){const request=STATE.plannerEventRequest;STATE.plannerEventRequest=null;api.eventModal(request);}}
+  else if(STATE.tab==='alumno')bindStudentView();
+  else if(STATE.tab==='final')bindFinalEvaluation();
+  else if(STATE.tab==='rubricas')bindRubrics();
+  else if(STATE.tab==='calculos')bindRules();
+  else if(STATE.tab==='competencias')bindCompetencies();
+  else if(STATE.tab==='curriculo')bindCurriculum();
+  else if(STATE.tab==='ajustes')bindSettings();
+  paintGrades(root);
+  bindClassStatistics();
+  setStatus();
+}
+
+function renderNotebook(){
+  const assessments=allAssessments(),students=allStudents();
+  const visibleIds=new Set(assessments.map(a=>a.id));
+  const gradesByStudent=new Map();
+  for(const grade of STATE.doc.grades){
+    if(!visibleIds.has(grade.assessmentId))continue;
+    if(!gradesByStudent.has(grade.studentId))gradesByStudent.set(grade.studentId,new Map());
+    gradesByStudent.get(grade.studentId).set(grade.assessmentId,grade);
+  }
+  const headers=assessments.map(a=>{
+    const c=STATE.doc.categories.find(c=>c.id===a.categoryId);
+    return `<th ${c?.columnColor?`class="category-tinted" style="--category-color:${esc(c.columnColor)}"`:''}><span class="column-heading">${esc(a.name)}${classStatButton('assessment',a.id,a.name)}<button type="button" class="assessment-menu" data-edit="${esc(a.id)}" aria-label="Configurar ${esc(a.name)}" title="Editar, ordenar o eliminar actividad">⋯</button></span><small>${a.recoveryOf?'Recuperación · ':''}${esc(c?.name||'')} · ${a.rubricId?'Rúbrica /10':'/'+esc(a.maxScore)+(a.convertToTen?' → /10':' · sin conversión')}${a.weight!==1?' · ×'+esc(a.weight):''}${a.orthography?.enabled?' · faltas recuperables':''}</small></th>`;
+  }).join('');
+  const categoryCell=a=>{const color=STATE.doc.categories.find(c=>c.id===a.categoryId)?.columnColor;return color?` class="category-tinted" style="--category-color:${esc(color)}"`:'';};
+  const rows=students.map(s=>`<tr><td class="name-col"><div class="student-name-cell"><span>${esc(s.name)}</span><button class="view-student" type="button" title="Mostrar solo las notas de este alumno" data-view-student="${esc(s.id)}">Ver</button><button class="view-student" type="button" title="Editar, ordenar o quitar alumno" data-edit-student="${esc(s.id)}">⋯</button></div></td>${assessments.map(a=>{
+    const g=gradesByStudent.get(s.id)?.get(a.id);
+    const npLabel=g?.notSubmitted?'Quitar «No presentado»':'Marcar «No presentado»';
+    const ajButton=`<button type="button" class="aj-button ${g?.pendingJustified?'active':''}" data-aj-student="${esc(s.id)}" data-aj-assessment="${esc(a.id)}" aria-pressed="${!!g?.pendingJustified}" aria-label="${g?.pendingJustified?'Quitar':'Marcar'} ausencia justificada pendiente: ${esc(s.name)} · ${esc(a.name)}" title="${g?.pendingJustified?'Reactivar calificación anterior':'Pendiente por ausencia justificada (no computa)'}">AJ</button>`;
+    const npButton=`<button type="button" class="np-button" data-np-student="${esc(s.id)}" data-np-assessment="${esc(a.id)}" aria-pressed="${!!g?.notSubmitted}" aria-label="${npLabel}: ${esc(s.name)} · ${esc(a.name)}" title="${npLabel}">NP</button>`;
+    if(a.rubricId){const score=g?recordedScore(STATE.doc,a,g):null;
+      return `<td${categoryCell(a)}><button class="rubric-grade-button" type="button" data-rubric-grade="${esc(a.id)}" data-rubric-student="${esc(s.id)}" aria-label="Evaluar ${esc(s.name)} en ${esc(a.name)} con rúbrica">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?'Editar':g?gradeChip(score):'Evaluar'}<small>/10</small></button>${npButton}${ajButton}</td>`;
+    }
+    if(a.orthography?.enabled){
+      const value=g?effectiveAssessmentScore(STATE.doc,a,g):null;
+      const faults=g?.orthographyFaults??0;
+      const amount=g?orthographyPenalty(a,g):0;
+      const note=g?`<small class="orthography-meta">Original: ${esc(rawFmt(g.score))}/${esc(rawFmt(a.maxScore))}${faults?` · ${g.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(amount))} (${faults} faltas)`}`:''}</small>`:'<small class="orthography-meta">Nota, faltas y entrega</small>';
+      return `<td${categoryCell(a)}><button class="orthography-grade-button" type="button" data-orthography-grade="${esc(a.id)}" data-orthography-student="${esc(s.id)}" aria-label="Corregir ${esc(s.name)} en ${esc(a.name)}: nota, faltas y entrega">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?'Editar':g?gradeChip(value):'<strong>+ Nota</strong>'}${g?.notSubmitted||g?.pendingJustified?'':note}</button>${npButton}${ajButton}</td>`;
+    }
+    const isTenScale=a.maxScore===10||a.convertToTen;
+    const converted=g&&!g.notSubmitted&&!g.pendingJustified&&isTenScale?normalizedScore(g.score,a.maxScore,a.convertToTen):null;
+    const showConverted=g&&!g.notSubmitted&&!g.pendingJustified&&a.convertToTen&&a.maxScore!==10;
+    return `<td${categoryCell(a)}><div class="grade-entry ${showConverted?'converted-entry':''}">${showConverted?`<button type="button" class="converted-primary" data-focus-original="${esc(a.id)}:${esc(s.id)}" aria-label="Nota sobre diez: ${esc(gradeFmt(converted))}; editar nota original">${gradeChip(converted)}</button><small class="original-score">(<input class="note-input original-note-input" type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota original de ${esc(s.name)} en ${esc(a.name)}, sobre ${esc(rawFmt(a.maxScore))}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${esc(rawFmt(g.score))}"/> /${esc(rawFmt(a.maxScore))})</small>`:`<input class="note-input ${converted!==null?'grade-colored':''}" ${converted!==null?gradeStyle(converted):''} type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota de ${esc(s.name)} en ${esc(a.name)}" placeholder="${g?.pendingJustified?'AJ':g?.notSubmitted?'NP':'—'}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${g&&!g.notSubmitted&&!g.pendingJustified?esc(rawFmt(g.score)):''}"/>`}</div>${npButton}${ajButton}</td>`;
+  }).join('')}<td class="final-col"><button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip(overallGrade(STATE.doc,s.id,STATE.groupId,STATE.periodId))}</button></td><td class="itaca-col"><button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc,s.id,STATE.groupId,STATE.periodId)}${itacaStudentRule(STATE.doc,s.id,STATE.periodId)!=='general'?'<span class="itaca-exception" title="Excepción individual">*</span>':''}</button></td></tr>`).join('');
+  const sum=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).reduce((s,c)=>s+c.weight,0);
+  const problems=students.flatMap(st=>periodCalculationWarnings(STATE.doc,st.id,STATE.groupId,STATE.periodId)).filter(v=>v.includes('sin conversión'));
+  return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><div class="notebook-heading-kicker">TABULAE · EVALUACIÓN</div><strong>Calificaciones</strong><p>Pulsa o toca ⓘ en la cabecera de cada columna para ver la media y los aprobados de la clase. Introduce notas con hasta dos decimales. NP cuenta como cero; AJ marca una ausencia justificada pendiente que no computa. En los exámenes con faltas recuperables, pulsa la calificación para editar nota original, faltas y entrega. «⋯» configura una columna.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><button class="btn" id="copy-structure">⇉ Copiar actividades</button><button class="btn" id="schedule-exam">▣ Programar examen</button></div></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col">Nota Ítaca <small>/10 · clic para excepción</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><div class="legend"><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></div>`;
+}
+const ITACA_OPTIONS=[['half','Redondear desde ,5'],['seven','Redondear desde ,7'],['none','No redondear']];
+const RULE_LABELS={mean:'Media aritmética',weighted_mean:'Media ponderada por actividad',highest:'Mejor nota',best_n:'Media de las N mejores',last:'Última evaluada',latest_if_highest:'Última si iguala o supera la mejor; si no, media'};
+function renderRules(){
+  const categories=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId);
+  const sum=categories.reduce((s,x)=>s+x.weight,0);
+  const profile=STATE.doc.gradingProfiles.find(x=>x.groupId===STATE.groupId&&x.periodId===STATE.periodId);
+  const individualCount=STATE.doc.individualCategoryRules.filter(r=>r.periodId===STATE.periodId&&STATE.doc.students.some(s=>s.id===r.studentId&&s.groupId===STATE.groupId)).length;
+  return `<div class="grid-two"><section class="panel panel-pad"><div class="section-title-row"><h2>Porcentajes y reglas</h2><div class="tool-actions"><button class="btn small primary" id="individual-rules">Reglas por alumno${individualCount?` (${individualCount})`:``}</button><button class="btn small" id="new-category">+ Categoría</button></div></div><p class="subtitle"><strong>${esc(currentGroup().name)} · ${esc(currentPeriod().name)}</strong>. Configura este periodo sin afectar a los demás. Puedes retirar categorías vacías de este grupo sin modificar los otros. ${profile?'Personalizado':'Se aplican valores predeterminados'}.</p>${categories.map(c=>`<div class="rule-row"><div><div class="category-header"><div class="rule-title class-stat-heading">${esc(c.name)} ${classStatButton('category',c.id,c.name)}</div><button class="btn small category-delete" type="button" data-delete-category="${esc(c.id)}" title="Quitar categoría del grupo si no tiene actividades en ninguna evaluación">Eliminar</button></div><div class="hint">${c.rule==='weighted_mean'?'Usa pesos de actividades':'Porcentaje en esta evaluación'}</div><label class="category-color-control">Color de columnas <input type="color" data-category-color="${esc(c.id)}" value="${esc(c.columnColor||'#D6E8F8')}" aria-label="Color de las actividades de ${esc(c.name)}" title="Aplicar color a las columnas de esta categoría"/></label><button type="button" class="category-color-reset" data-category-color-reset="${esc(c.id)}" ${c.columnColor?'':'disabled'}>Sin color</button></div><label><span class="visually-hidden">Porcentaje de ${esc(c.name)}</span><input class="number-field" type="number" data-periodweight="${esc(c.id)}" min="0" max="100" step="any" value="${esc(c.weight)}"/> %</label><label><span class="visually-hidden">Regla de ${esc(c.name)}</span><select data-periodrule="${esc(c.id)}">${Object.entries(RULE_LABELS).map(([key,label])=>opt(key,label,c.rule)).join('')}</select></label><label class="best-n-box ${c.rule==='best_n'?'':'hidden'}">Mejores <input type="number" class="number-field" data-bestcount="${esc(c.id)}" min="1" max="100" step="1" value="${esc(c.bestCount??2)}"/></label></div>`).join('')}<div class="sum-line ${Math.abs(sum-100)>1e-8?'bad':''}">Total del periodo: ${sum} % ${Math.abs(sum-100)>1e-8?'— ajusta hasta llegar al 100 %':'✓'}</div><div class="settings-actions"><button class="btn small" id="reset-rules">Restablecer reglas de este periodo</button><label>Copiar de <select id="source-period"><option value="">Selecciona periodo</option>${[...STATE.doc.periods].sort((a,b)=>a.order-b.order).filter(x=>x.id!==STATE.periodId).map(x=>opt(x.id,x.name,'')).join('')}</select></label><button class="btn small" id="copy-rules">Aplicar copia</button></div></section><section class="panel panel-pad"><h2>Cómo se calcula</h2><p>Cada actividad se convierte a 0–10 cuando está activada la conversión. Una nota bruta superior a 10 bloquea los cálculos dependientes hasta corregir la escala. Solo se utilizan las actividades evaluadas; una casilla vacía no es un cero.</p><p>Las excepciones individuales permiten usar siempre la media, obligarla cuando un NP computa como cero o sustituir por el último examen. AJ (ausencia justificada pendiente) queda fuera del cálculo; la nota previa se conserva al activar y desactivar AJ.</p><p>La media ponderada usa los pesos individuales de las actividades. La regla «N mejores» elige las N mayores notas normalizadas; si hay menos, utiliza las disponibles.</p><div class="section-note"><strong>Recuperaciones.</strong> Una recuperación enlazada sustituye la evidencia original si eliges «sustituir siempre», o cuenta solo si mejora su nota con «conservar la mayor». Nunca se suma como segundo examen. Una actividad posterior sin nota no puede considerarse la «última» para activar la regla condicional; en ese caso se usa la media de las evaluadas.</div><p class="note">Los porcentajes deben sumar 100. Una categoría sin evidencias se excluye y el peso de las evaluadas se redistribuye. Las competencias se calculan con sus propios vínculos.</p></section></div>`;
+}
+function renderCompetencies(){
+  const group=currentGroup(),catalog=officialCompetenciesForGroup(group,STATE.competencyVersion);
+  if(!catalog)return '<section class="panel panel-pad"><h2>Competencias</h2><p>Selecciona un grupo con asignatura clasificada.</p></section>';
+  const students=allStudents();
+  const official=catalog.competencias.map(ce=>({...ce,stored:linkedOfficialCompetency(STATE.doc,group.id,ce.key)}));
+  const custom=groupCompetencies(STATE.doc,group.id).filter(c=>!c.curriculumKey);
+  const visible=visibleCategories();
+  const linkRows=(id,key)=>`<div class="comp-table"><table class="full-width"><tbody>${visible.map(cat=>{
+    const stored=id?STATE.doc.competencies.find(c=>c.id===id):null;
+    const l=stored?.links.find(x=>x.categoryId===cat.id);
+    return `<tr><td>${esc(cat.name)}</td><td class="align-right"><label class="visually-hidden" for="link-${esc(key)}-${esc(cat.id)}">Peso de ${esc(cat.name)} en ${esc(key)}</label><input class="number-field" id="link-${esc(key)}-${esc(cat.id)}" type="number" min="0" max="1000" step="1" value="${esc(l?.weight??0)}" ${id?`data-comp="${esc(id)}"`:`data-official="${esc(key)}"`} data-linkcat="${esc(cat.id)}"/></td></tr>`;}).join('')}</tbody></table></div>`;
+  const currentGrade=(student,comp)=>comp?.id?gradeChip(competencyGrade(STATE.doc,student.id,comp.id,group.id,STATE.periodId)):gradeChip(null);
+  return `<div class="competency-view"><section class="panel panel-pad"><div class="section-title-row"><div><h2>Competencias específicas · ${esc(group.subject)}</h2><p class="subtitle">${esc(catalog.data.norma)} · ${catalog.competencias.length} competencias oficiales · selección de pesos opcional</p></div><button class="btn small" id="new-competency">+ Competencia propia</button></div>
+  ${group.subject==='Latín II'?`<label class="competency-version">Normativa para Latín II <select id="comp-curr-version">${[['auto','Según curso escolar'],['2022','2022 · 2026–2027'],['2026','2026 · desde 2027–2028']].map(([v,t])=>opt(v,t,STATE.competencyVersion)).join('')}</select></label>`:''}
+  ${catalog.warning?`<p class="comp-curr-warning">⚠ ${esc(catalog.warning)}</p>`:''}
+  <p class="section-note">Los enunciados son los del decreto. Cada competencia empieza sin cálculo: solo tendrá nota si asignas explícitamente pesos a categorías. Ninguna ponderación se presume oficial.</p>
+  <div class="official-competency-grid">${official.map(ce=>`<article class="competency-item official-competency"><div class="comp-head"><strong class="ce-number">${esc(ce.code)}</strong><h3>${esc(ce.enunciado)}</h3></div><details class="comp-weights"><summary>Vincular categorías para calificar ${esc(ce.code)}</summary><p class="hint">0 = categoría sin vínculo. Los pesos son relativos y no se requiere sumarlos a 100.</p>${linkRows(ce.stored?.id,ce.key)}</details></article>`).join('')}</div>
+  ${custom.length?`<details class="custom-competencies"><summary>Competencias personalizadas o de versiones anteriores (${custom.length})</summary>${custom.map(c=>`<div class="competency-item"><h3>${esc(c.name)}</h3>${linkRows(c.id,c.id)}</div>`).join('')}</details>`:''}</section>
+  <section class="panel panel-pad"><h2>Resultados por competencia</h2><p class="subtitle">${esc(group.name)} · ${esc(currentPeriod()?.name)} · las casillas sin vínculo permanecen vacías</p><div class="overflow-auto"><table class="comp-table"><thead><tr><th>Alumno</th>${official.map(c=>`<th title="${esc(c.enunciado)}"><span class="class-stat-heading">${esc(c.code)} ${c.stored?.id?classStatButton('competency',c.stored.id,c.code):''}</span></th>`).join('')}</tr></thead><tbody>${students.map(st=>`<tr><td class="comp-name">${esc(st.name)}</td>${official.map(c=>`<td>${currentGrade(st,c.stored)}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="section-note">Los resultados competenciales son independientes de la nota final. Puedes consultar sus criterios de evaluación completos en «Currículo».</p></section></div>`;
+}
+
+/** La consulta curricular es de solo lectura, completamente separada de las calificaciones. */
+function currentCurriculum(){
+  if(STATE.level==='4eso'&&STATE.subject==='Latín 4.º')return CURRICULA.lat4;
+  if(STATE.level==='1bach'&&STATE.subject==='Latín I')return CURRICULA.lat1;
+  if(STATE.level==='1bach'&&STATE.subject==='Griego I')return CURRICULA.gr1;
+  if(STATE.level==='2bach'&&STATE.subject==='Latín II')return STATE.curriculumVersion==='2026'?CURRICULA.lat2:CURRICULA['lat2-2022'];
+  if(STATE.level==='2bach'&&STATE.subject==='Griego II')return CURRICULA.gr2;
+  return null;
+}
+function curriculumText(text){
+  return String(text||'').split(/\n\s*\n/).filter(Boolean).map(p=>`<p>${esc(p)}</p>`).join('');
+}
+function curriculumContains(value,term){return !term||String(value).toLocaleLowerCase('es').includes(term);}
+function curriculumCards(data){
+  if(!data)return '';
+  const q=STATE.curriculumQuery.trim().toLocaleLowerCase('es');
+  if(STATE.curriculumSection==='competencias'){
+    const found=data.competencias.filter(c=>(STATE.curriculumCompetence==='all'||String(c.id)===STATE.curriculumCompetence)&&curriculumContains(`CE ${c.id} ${c.enunciado} ${c.descripcion} ${(c.claves||[]).join(' ')}`,q));
+    return found.map(c=>`<article class="curr-card curr-competency"><div class="curr-card-heading"><span class="curr-number" aria-hidden="true">${esc(c.id)}</span><div><span class="curr-eyebrow">Competencia específica ${esc(c.id)}</span><h3>${esc(c.enunciado)}</h3></div></div>${c.claves?.length?`<div class="curr-keywords">${c.claves.map(k=>`<span class="curr-keyword">${esc(k)}</span>`).join('')}</div>`:''}${c.descripcion?`<details class="curr-details"><summary>Leer descripción completa</summary><p>${esc(c.descripcion)}</p></details>`:''}<div class="curr-source">Decreto · página ${esc(c.page)} del PDF · <a href="${esc(data.fuente_pdf)}#page=${esc(c.page)}" target="_blank" rel="noopener noreferrer">Ver página</a></div></article>`).join('')||'<p class="curr-empty">No hay competencias que coincidan con la búsqueda.</p>';
+  }
+  if(STATE.curriculumSection==='criterios'){
+    const found=data.criterios.filter(c=>(STATE.curriculumCompetence==='all'||String(c.competencia)===STATE.curriculumCompetence)&&curriculumContains(`CE ${c.competencia} ${c.codigo||''} ${c.texto}`,q));
+    return found.map((c,i)=>`<article class="curr-card curr-criterion"><div class="curr-card-heading"><span class="curr-number" aria-hidden="true">${esc(c.codigo||'•')}</span><div><span class="curr-eyebrow">Competencia específica ${esc(c.competencia)}</span><h3>${c.codigo?'Criterio '+esc(c.codigo):'Criterio de evaluación'}</h3></div></div><p>${esc(c.texto)}</p><div class="curr-source">Decreto · página ${esc(c.page)} del PDF · <a href="${esc(data.fuente_pdf)}#page=${esc(c.page)}" target="_blank" rel="noopener noreferrer">Ver página</a></div></article>`).join('')||'<p class="curr-empty">No hay criterios que coincidan con la búsqueda.</p>';
+  }
+  if(STATE.curriculumSection==='saberes'){
+    const filtered=data.saberes.map(b=>({...b,items:b.items?.filter(item=>curriculumContains(item.texto,q))||[],subbloques:b.subbloques?.map(sb=>({...sb,items:sb.items.filter(it=>curriculumContains(it.texto,q))})).filter(sb=>sb.items.length||curriculumContains(sb.titulo,q))||[]}))
+      .filter(b=>!q||curriculumContains(b.titulo,q)||b.items.length||b.subbloques.length);
+    return filtered.map(b=>`<article class="curr-card curr-block"><div class="curr-card-heading"><span class="curr-number curr-roman">${esc(b.codigo)}</span><div><span class="curr-eyebrow">Bloque de saberes básicos</span><h3>${esc(b.titulo)}</h3></div></div>${b.subbloques?.map(sb=>`<div class="curr-subblock"><h4>${esc(sb.codigo)}. ${esc(sb.titulo)}</h4><ul>${sb.items.map(i=>`<li>${esc(i.texto)}</li>`).join('')}</ul></div>`).join('')||''}${b.items?.length?`<ul>${b.items.map(i=>`<li>${esc(i.texto)}</li>`).join('')}</ul>`:''}<div class="curr-source">Decreto · página ${esc(b.page)} del PDF · <a href="${esc(data.fuente_pdf)}#page=${esc(b.page)}" target="_blank" rel="noopener noreferrer">Ver página</a></div></article>`).join('')||'<p class="curr-empty">No hay saberes que coincidan con la búsqueda.</p>';
+  }
+  const sections=[{titulo:'Presentación de la materia',texto:data.presentacion},...(data.complementos||[])];
+  return sections.filter(c=>curriculumContains(c.titulo+' '+c.texto,q)).map(c=>`<article class="curr-card curr-prose"><h3>${esc(c.titulo)}</h3><details class="curr-details"><summary>Leer apartado íntegro</summary>${curriculumText(c.texto)}</details></article>`).join('')||'<p class="curr-empty">No hay apartados que coincidan con la búsqueda.</p>';
+}
+function renderCurriculum(){
+  const data=currentCurriculum();
+  if(!data)return `<section class="panel panel-pad"><h2>Currículo de la materia</h2><p>Selecciona Latín de 4.º de ESO, Latín I o II, o Griego I o II para consultar su normativa.</p></section>`;
+  const isLatin2=STATE.level==='2bach'&&STATE.subject==='Latín II';
+  const available=data.estado!=='fuente_pendiente';
+  const nSab=data.saberes.reduce((total,b)=>total+(b.items?.length||0)+(b.subbloques||[]).reduce((sum,x)=>sum+x.items.length,0),0);
+  const sections=[['competencias','Competencias específicas'],['criterios','Criterios de evaluación'],['saberes','Saberes básicos'],['otros','Otros apartados']];
+  const source=data.fuente_pdf||data.fuente_web;
+  return `<div class="curriculum-view"><section class="curr-hero"><div class="curr-intro"><span class="curr-eyebrow">Biblioteca curricular · consulta</span><h2>${esc(data.titulo)}</h2><p>${esc(data.norma)}</p><p class="curr-readonly">Consulta de solo lectura. No altera competencias evaluables, rúbricas, pesos ni calificaciones del cuaderno.</p></div><div class="curr-metrics"><div><strong>${available?data.competencias.length:'—'}</strong><span>Competencias</span></div><div><strong>${available?data.criterios.length:'—'}</strong><span>Criterios</span></div><div><strong>${available?nSab:'—'}</strong><span>Saberes</span></div></div></section>
+  ${isLatin2?`<div class="curr-version-picker" role="group" aria-label="Versión del currículo de Latín II"><button type="button" data-curr-version="2022" class="${STATE.curriculumVersion==='2022'?'selected':''}" aria-pressed="${STATE.curriculumVersion==='2022'}">2022 · 2026–2027</button><button type="button" data-curr-version="2026" class="${STATE.curriculumVersion==='2026'?'selected':''}" aria-pressed="${STATE.curriculumVersion==='2026'}">2026 · Desde 2027–2028</button></div>`:''}
+  ${available?`<div class="curr-controls"><nav class="curr-section-nav" aria-label="Apartados del currículo">${sections.map(([k,t])=>`<button type="button" data-curr-section="${k}" class="${STATE.curriculumSection===k?'selected':''}" aria-pressed="${STATE.curriculumSection===k}">${t}</button>`).join('')}</nav><div class="curr-filters"><label for="curr-search">Buscar en ${esc(sections.find(([k])=>k===STATE.curriculumSection)?.[1].toLocaleLowerCase('es'))}</label><input id="curr-search" class="text-field" type="search" placeholder="Busca un término, código o tema…" autocomplete="off" value="${esc(STATE.curriculumQuery)}"/>${['competencias','criterios'].includes(STATE.curriculumSection)?`<label for="curr-competence">Competencia</label><select id="curr-competence">${[['all','Todas'],...data.competencias.map(c=>[String(c.id),'CE '+c.id])].map(([k,t])=>opt(k,t,STATE.curriculumCompetence)).join('')}</select>`:''}</div></div><div class="curr-card-grid" id="curriculum-cards">${curriculumCards(data)}</div>`:`<section class="curr-warning"><h3>Versión 2022: transcripción pendiente de fuente oficial</h3><p>${esc(data.incidencia)}</p><p>La consulta queda identificada y separada de la versión 2026, pero no se muestran como oficiales textos procedentes de una programación de aula.</p></section>`}
+  <div class="curr-footer"><span>Fuente: ${esc(data.norma)}</span><a href="${esc(source)}" target="_blank" rel="noopener noreferrer">${data.fuente_pdf?'Abrir extracto del DOGV (sin conexión)':'Consultar decreto original de 2022 (requiere conexión)'}</a>${data.fuente_pdf&&data.fuente_web?`<a href="${esc(data.fuente_web)}" target="_blank" rel="noopener noreferrer">Consultar DOGV</a>`:''}</div></div>`;
+}
+function bindCurriculum(){
+  document.querySelectorAll('[data-curr-version]').forEach(b=>b.onclick=()=>{
+    STATE.curriculumVersion=b.dataset.currVersion;STATE.curriculumQuery='';STATE.curriculumSection='competencias';STATE.curriculumCompetence='all';render();
+  });
+  document.querySelectorAll('[data-curr-section]').forEach(b=>b.onclick=()=>{
+    STATE.curriculumSection=b.dataset.currSection;STATE.curriculumQuery='';STATE.curriculumCompetence='all';render();
+  });
+  $('#curr-search')?.addEventListener('input',event=>{
+    STATE.curriculumQuery=event.target.value;
+    const panel=$('#curriculum-cards');if(panel)panel.innerHTML=curriculumCards(currentCurriculum());
+  });
+  $('#curr-competence')?.addEventListener('change',event=>{
+    STATE.curriculumCompetence=event.target.value;
+    const panel=$('#curriculum-cards');if(panel)panel.innerHTML=curriculumCards(currentCurriculum());
+  });
+}
+function renderSettings(){
+  const s=STATE.doc.settings;
+  return `<div class="grid-two"><section class="panel panel-pad"><h2>Precisión y presentación</h2><div class="settings-grid"><div class="setting-box"><label for="decimals"><strong>Decimales mostrados</strong></label><select id="decimals">${[0,1,2].map(n=>opt(String(n),String(n),String(Math.min(2,s.decimals)))).join('')}</select><p class="hint">El cálculo interno mantiene toda la precisión.</p></div><div class="setting-box"><label for="rounding"><strong>Tipo de redondeo</strong></label><select id="rounding">${[['half-up','Matemático'],['floor','Hacia abajo'],['ceil','Hacia arriba']].map(([k,v])=>opt(k,v,s.rounding)).join('')}</select><p class="hint">Se aplica al mostrar el resultado.</p></div></div><div class="section-note">Periodo, grupo, categorías y actividades se almacenan en un modelo versionado. OneDrive no está conectado y la webapp no envía datos del cuaderno a servidores.</div></section><section class="panel panel-pad"><h2>Colores por curso y asignatura</h2><p class="subtitle">Cada materia conserva su color independientemente del grupo y del periodo. Los cambios se guardan en el cuaderno local cifrado.</p><div class="accent-list">${pairOptions().map(x=>{const [level,subject]=x.value.split(':');return `<label class="accent-row"><span>${esc(x.label)}</span><input type="color" data-accent="${esc(x.value)}" value="${esc(colorFor(level,subject))}" aria-label="Color de ${esc(x.label)}"/></label>`;}).join('')}</div><button class="btn small" id="reset-accents">Restablecer colores predeterminados</button></section><section class="panel panel-pad"><h2>Valores predeterminados para faltas</h2><p class="subtitle">Se aplican a <strong>nuevos exámenes</strong> de la categoría Exámenes. Los exámenes existentes mantienen sus propias reglas.</p><div class="settings-grid"><div class="setting-box"><label><input id="orth-default-on" type="checkbox" ${s.orthographyDefaults?.enabledForExams?'checked':''}/> Activar en exámenes nuevos</label></div><div class="setting-box"><label for="orth-default-rate">Puntos a restar por falta</label><input id="orth-default-rate" class="text-field" type="number" min="0" max="10" step="0.01" value="${esc(s.orthographyDefaults?.penaltyPerFault??0.1)}"/></div><div class="setting-box"><label for="orth-default-copies">Veces que debe copiar cada falta</label><input id="orth-default-copies" class="text-field" type="number" min="1" max="1000" step="1" value="${esc(s.orthographyDefaults?.repetitions??30)}"/></div><div class="setting-box"><label><input id="orth-default-refundable" type="checkbox" ${s.orthographyDefaults?.refundable?'checked':''}/> Restaurar la nota cuando se entreguen</label></div></div><button type="button" class="btn primary" id="save-orth-defaults">Guardar valores para nuevos exámenes</button><p class="hint">Los cambios no alteran las notas ya guardadas ni las actividades existentes.</p></section><section class="panel panel-pad"><h2>Copias de seguridad cifradas</h2><p>Descarga una copia del cuaderno. Para recuperarla necesitarás la contraseña con la que se cifró. Guárdala fuera del almacenamiento del navegador.</p><div class="actions"><button class="btn primary" id="backup-download">↓ Descargar copia cifrada</button>${STATE.failedEnvelope?'<button class="btn warn" id="backup-draft">Descargar intento cifrado</button>':''}<button class="btn" id="backup-verify">✓ Verificar copia</button><button class="btn" id="backup-restore">↑ Restaurar copia</button>${STATE.recovery?'<button class="btn" id="backup-recover">↶ Recuperar versión anterior</button><button class="btn" id="backup-download-recovery">↓ Descargar rescate</button>':''}</div><input type="file" id="backup-file" class="hidden" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/><input type="file" id="backup-verify-file" class="hidden" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/><p class="recovery-help">Al restaurar una copia se guarda automáticamente la versión anterior, todavía cifrada. Solo se conserva <strong>un punto de rescate</strong> dentro del navegador; la siguiente restauración lo sustituye. Descarga siempre una copia externa antes de restaurar.</p><div class="section-note">No se ha realizado una auditoría independiente. Esta versión solo debe utilizarse con datos ficticios y no constituye una autorización para tratar datos reales del alumnado.</div></section><section class="panel panel-pad"><h2>Preparación para trabajar offline</h2><p>Comprueba que el navegador tiene almacenados los recursos estáticos de esta versión. La comprobación no sustituye la prueba real desconectando internet.</p><div class="actions"><button class="btn" id="check-offline">Comprobar recursos offline</button><button class="btn" id="check-reload">Probar guardado y recarga</button></div><p class="hint">La prueba de recarga compara la misma copia cifrada antes y después de recargar, sin alterar calificaciones. No verifica un cierre completo del navegador ni la apertura sin red.</p><p id="offline-result" class="hint" role="status" aria-live="polite"></p></section></div>`;
+}
+function renderRubrics(){
+  const rubrics=STATE.doc.rubrics;
+  return `<div class="grid-two"><section class="panel panel-pad"><h2>Plantillas de rúbricas</h2><p class="subtitle">Define criterios, puntuaciones máximas y pesos. Se pueden reutilizar para Trabajos y Actitud y se convierten a /10.</p><div class="actions"><button class="btn primary" id="create-rubric">+ Crear rúbrica</button><button class="btn" id="import-rubric">↑ Importar Excel/CSV/JSON</button><input id="rubric-import-file" class="hidden" type="file" accept=".xlsx,.json,.csv,application/json,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/></div>${rubrics.map(r=>{
+    const used=STATE.doc.assessments.some(a=>a.rubricId===r.id&&STATE.doc.grades.some(g=>g.assessmentId===a.id));
+    const descriptive=r.criteria.some(c=>c.levels?.length);
+    return `<div class="competency-item"><div class="section-title-row"><h3>${esc(r.name)}</h3><div class="actions"><button class="btn small" data-copy-rubric="${esc(r.id)}">Duplicar</button><button class="btn small" data-edit-rubric="${esc(r.id)}" ${used||descriptive?'disabled':''} title="${descriptive?'Para cambiar descriptores, edita el Excel y vuelve a importarlo':'Editar criterios'}">Editar</button></div></div><p class="hint">${r.criteria.length} criterios · ${used?'Con notas: bloqueada para evitar recalcular notas antiguas; puedes duplicarla.':descriptive?'Con niveles descriptivos: edítala en Excel y vuelve a importarla.':'Editable'}</p><table class="comp-table full-width"><thead><tr><th>Criterio</th><th>Máximo</th><th>Peso</th></tr></thead><tbody>${r.criteria.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.maxScore)}</td><td>${esc(c.weight)}</td></tr>`).join('')}</tbody></table></div>`;
+  }).join('')||'<p class="hint">No hay rúbricas. Crea una para poder seleccionarla al añadir una actividad.</p>'}</section><section class="panel panel-pad"><h2>Calificación con rúbrica</h2><p>Desde el cuaderno, pulsa <strong>Evaluar</strong> en la columna que tenga una rúbrica. Verás la nota calculada mientras introduces cada criterio, con botones de puntuación rápida y la opción «Guardar y siguiente alumno».</p><p>Para importar, admite <strong>Excel XLSX</strong> con niveles descriptivos, <strong>CSV</strong> con <code>criterio;maximo;peso</code> o <strong>JSON</strong> con <code>name</code> y <code>criteria</code>.</p><div class="section-note">Una rúbrica con notas queda bloqueada frente a ediciones que reinterpretarían sus resultados. «Duplicar» genera una plantilla nueva y no altera las calificaciones existentes.</div></section></div>`;
+}
+function editRubricModal(rubric=null){
+  const items=rubric?.criteria||[{name:'Contenido',maxScore:5,weight:2},{name:'Presentación',maxScore:3,weight:1},{name:'Corrección',maxScore:2,weight:1}];
+  dialog.classList.add('rubric-modal');
+  dialog.addEventListener('close',()=>dialog.classList.remove('rubric-modal'),{once:true});
+  const row=(c={name:'',maxScore:5,weight:1})=>`<div class="rubric-edit-row" data-editor-row><label>Criterio<input type="text" data-criterion-name maxlength="150" required value="${esc(c.name)}" placeholder="Descripción"/></label><label>Máximo<input type="number" data-criterion-max min="0.01" max="1000" step="any" required value="${esc(c.maxScore)}"/></label><label>Peso<input type="number" data-criterion-weight min="0.01" max="1000" step="any" required value="${esc(c.weight)}"/></label><button type="button" class="btn small" data-remove-criterion title="Quitar criterio" aria-label="Quitar criterio">×</button></div>`;
+  dialog.innerHTML=`<form class="modal-inner rubric-dialog" id="rubric-editor"><h2 id="modal-heading">${rubric?'Editar':'Crear'} rúbrica</h2><p class="subtitle">Cada criterio tiene un máximo y un peso relativo. Puedes añadirlos y quitarlos sin escribir fórmulas.</p><label class="rubric-editor-name">Nombre de la rúbrica<input class="text-field" id="rubric-editor-name" maxlength="150" required value="${esc(rubric?.name||'Trabajo escrito')}"/></label><div class="rubric-edit-head"><strong>Criterios</strong><span id="rubric-editor-count"></span></div><div id="rubric-criterion-list">${items.map(row).join('')}</div><button class="btn small" type="button" id="add-criterion">+ Añadir criterio</button><p class="hint" id="rubric-editor-weight"></p><p class="modal-error" role="alert"></p><div class="modal-actions"><button type="button" class="btn" id="cancel-rubric-editor">Cancelar</button><button type="submit" class="btn primary">Guardar rúbrica</button></div></form>`;
+  const list=$('#rubric-criterion-list',dialog);
+  function updateIndicators(){
+    const rows=[...list.querySelectorAll('[data-editor-row]')];
+    $('#rubric-editor-count',dialog).textContent=`${rows.length} de 40`;
+    const weights=rows.map(r=>Number($('[data-criterion-weight]',r).value));
+    $('#rubric-editor-weight',dialog).textContent=weights.every(w=>Number.isFinite(w)&&w>0)?`Peso total: ${weights.reduce((a,b)=>a+b,0)} (los pesos son relativos)`:'Introduce pesos mayores que cero.';
+    list.querySelectorAll('[data-remove-criterion]').forEach(b=>b.disabled=rows.length===1);
+    $('#add-criterion',dialog).disabled=rows.length>=40;
+  }
+  list.addEventListener('input',updateIndicators);
+  list.addEventListener('click',e=>{if(!e.target.closest('[data-remove-criterion]'))return;e.target.closest('[data-editor-row]').remove();updateIndicators();});
+  $('#add-criterion',dialog).onclick=()=>{if(list.children.length>=40)return;list.insertAdjacentHTML('beforeend',row());updateIndicators();list.lastElementChild.querySelector('input').focus();};
+  $('#cancel-rubric-editor',dialog).onclick=()=>dialog.close();
+  $('#rubric-editor',dialog).onsubmit=async e=>{
+    e.preventDefault();const form=e.currentTarget;
+    try{
+      const criteria=validateRubricDraft([...list.querySelectorAll('[data-editor-row]')].map(r=>({name:$('[data-criterion-name]',r).value,maxScore:$('[data-criterion-max]',r).value,weight:$('[data-criterion-weight]',r).value})));
+      form.querySelector('[type="submit"]').disabled=true;
+      await commit(d=>rubric?updateRubric(d,rubric.id,$('#rubric-editor-name',dialog).value,criteria):createRubric(d,$('#rubric-editor-name',dialog).value,criteria),rubric?'Editar rúbrica':'Crear rúbrica');
+      dialog.close();
+    }catch(err){$('.modal-error',dialog).textContent=err.message;form.querySelector('[type="submit"]').disabled=false;}
+  };
+  updateIndicators();dialog.showModal();$('#rubric-editor-name',dialog).focus();
+}
+function bindRubrics(){
+  $('#create-rubric').onclick=()=>editRubricModal();
+  document.querySelectorAll('[data-edit-rubric]').forEach(b=>b.onclick=()=>editRubricModal(STATE.doc.rubrics.find(r=>r.id===b.dataset.editRubric)));
+  document.querySelectorAll('[data-copy-rubric]').forEach(b=>b.onclick=async()=>{try{await commit(d=>duplicateRubric(d,b.dataset.copyRubric),'Duplicar rúbrica');toast('Copia creada; puedes editarla sin modificar las notas anteriores.');}catch(err){fail(err);}});
+  $('#import-rubric').onclick=()=>$('#rubric-import-file').click();
+  $('#rubric-import-file').onchange=async e=>{
+    const file=e.target.files[0];if(!file)return;
+    try{const spec=await parseRubricFile(file);
+      await commit(d=>createRubric(d,spec.name,spec.criteria),'Importar rúbrica');toast('Rúbrica importada localmente.');}
+    catch(err){fail(err);}finally{e.target.value='';}
+  };
+}
+function openRubricGrade(studentId,assessmentId){
+  const student=STATE.doc.students.find(s=>s.id===studentId),assessment=STATE.doc.assessments.find(a=>a.id===assessmentId);
+  if(!student||!assessment?.rubricId)return;
+  const rubric=STATE.doc.rubrics.find(r=>r.id===assessment.rubricId);
+  if(!rubric)return;
+  const old=STATE.doc.grades.find(g=>g.studentId===studentId&&g.assessmentId===assessmentId);
+  const students=allStudents(),position=students.findIndex(s=>s.id===studentId),nextStudent=students[position+1];
+  dialog.classList.add('rubric-modal');
+  dialog.addEventListener('close',()=>dialog.classList.remove('rubric-modal'),{once:true});
+  const criteria=rubric.criteria.map(c=>{
+    const value=old?.rubricRatings?.find(x=>x.criterionId===c.id)?.score;
+    const control=c.levels?.length
+      ? `<select class="text-field rubric-rating-input level-select" id="rating-${esc(c.id)}" data-rating-id="${esc(c.id)}"><option value="">Selecciona un nivel</option>${c.levels.map(l=>`<option value="${esc(l.score)}" ${value===l.score?'selected':''}>${esc(l.label)} (${esc(l.score)})</option>`).join('')}</select><p class="level-description" data-level-description="${esc(c.id)}"></p>`
+      : `<input class="text-field rubric-rating-input" id="rating-${esc(c.id)}" data-rating-id="${esc(c.id)}" inputmode="decimal" type="text" maxlength="15" spellcheck="false" value="${value===undefined?'':esc(value)}" placeholder="—"/><div class="rubric-quick"><button type="button" class="btn small" data-rating-quick="0" data-criterion="${esc(c.id)}">0</button><button type="button" class="btn small" data-rating-quick="0.5" data-criterion="${esc(c.id)}">½</button><button type="button" class="btn small" data-rating-quick="1" data-criterion="${esc(c.id)}">Máx.</button></div>`;
+    return `<div class="rubric-rating-row"><div class="rubric-rating-heading"><strong>${esc(c.name)}</strong><span class="hint">Peso ${esc(c.weight)} · máximo ${esc(c.maxScore)}</span></div><div class="rubric-rating-controls"><label class="visually-hidden" for="rating-${esc(c.id)}">Nota de ${esc(c.name)}</label>${control}<span class="rubric-contribution hint" data-contribution="${esc(c.id)}"></span></div></div>`;
+  }).join('');
+  dialog.innerHTML=`<form class="modal-inner rubric-dialog" id="rubric-rating-form"><div class="rubric-modal-heading"><div><span class="eyebrow">Evaluación por criterios</span><h2 id="modal-heading">${esc(rubric.name)}</h2><p class="subtitle"><strong>${esc(student.name)}</strong> · ${esc(assessment.name)}${old?.notSubmitted?' · No presentado':''}</p></div><span class="rubric-evaluation-pill">/10</span></div><div class="rubric-rating-list">${criteria}</div><div class="rubric-preview" aria-live="polite"><div><strong id="rubric-live-score">Sin completar</strong><p class="hint" id="rubric-live-description"></p></div><div class="rubric-progress"><div id="rubric-progress-fill"></div></div></div><p class="modal-error" role="alert"></p><div class="modal-actions rubric-modal-actions"><button type="button" class="btn" id="cancel-rubric-grade">Cancelar</button>${old?'<button type="button" class="btn warn" id="clear-rubric-grade">Borrar nota</button>':''}<button type="submit" class="btn primary" id="save-rubric-grade" disabled>Guardar nota</button>${nextStudent?'<button type="submit" class="btn" id="save-rubric-next" data-next="1" disabled>Guardar y siguiente</button>':''}</div></form>`;
+  const form=$('#rubric-rating-form',dialog);
+  function values(){return Object.fromEntries([...form.querySelectorAll('[data-rating-id]')].map(input=>[input.dataset.ratingId,input.value]));}
+  function refresh(){
+    const save=$('#save-rubric-grade',form),saveNext=$('#save-rubric-next',form),error=$('.modal-error',form);
+    try{
+      const p=previewRubric(rubric,values());error.textContent='';
+      $('#rubric-live-score',form).innerHTML=p.grade===null?`${p.completed}/${p.total} criterios`:gradeChip(p.grade)+' / 10';
+      paintGrades(form);
+      $('#rubric-live-description',form).textContent=p.grade===null?`Nota posible: ${gradeFmt(p.minimum)}–${gradeFmt(p.maximum)} / 10. Completa todos los criterios.`:'Nota calculada sin redondeos intermedios.';
+      $('#rubric-progress-fill',form).style.width=(p.completed/p.total*100)+'%';
+      rubric.criteria.forEach(c=>{
+        if(!c.levels)return;
+        const level=c.levels.find(l=>String(l.score)===String(values()[c.id]));
+        const dest=form.querySelector(`[data-level-description="${c.id}"]`);
+        if(dest)dest.textContent=level?.description||'Selecciona un nivel para ver su descripción.';
+      });
+      p.criteria.forEach(x=>{const span=[...form.querySelectorAll("[data-contribution]")].find(el=>el.dataset.contribution===x.id);if(span)span.textContent=x.filled?`+${gradeFmt(x.contribution)}`:'Pendiente';});
+      save.disabled=p.grade===null;if(saveNext)saveNext.disabled=p.grade===null;
+    }catch(err){error.textContent=err.message;save.disabled=true;if(saveNext)saveNext.disabled=true;$('#rubric-live-score',form).textContent='Revisar puntuaciones';}
+  }
+  form.querySelectorAll('[data-rating-id]').forEach(input=>{input.addEventListener('input',refresh);input.addEventListener('change',refresh);});
+  form.querySelectorAll('[data-rating-quick]').forEach(btn=>btn.addEventListener('click',()=>{
+    const input=[...form.querySelectorAll("[data-rating-id]")].find(el=>el.dataset.ratingId===btn.dataset.criterion),c=rubric.criteria.find(c=>c.id===btn.dataset.criterion);
+    input.value=String(c.maxScore*Number(btn.dataset.ratingQuick));input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();
+  }));
+  $('#cancel-rubric-grade',form).onclick=()=>dialog.close();
+  $('#clear-rubric-grade',form)?.addEventListener('click',async()=>{
+    if(!window.confirm('¿Borrar la valoración de este alumno? Podrás deshacerlo en esta sesión.'))return;
+    try{await commit(d=>setRubricGrade(d,studentId,assessmentId,null),'Borrar nota de rúbrica');dialog.close();}
+    catch(err){$('.modal-error',form).textContent=err.message;}
+  });
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const next=e.submitter?.dataset.next==='1';
+    try{
+      const v=values(),p=previewRubric(rubric,v);
+      if(p.grade===null)throw new Error('Completa todos los criterios antes de guardar.');
+      form.querySelectorAll('[type="submit"]').forEach(b=>b.disabled=true);
+      await commit(d=>setRubricGrade(d,studentId,assessmentId,v),'Evaluar con rúbrica');
+      dialog.close();if(next&&nextStudent)openRubricGrade(nextStudent.id,assessmentId);
+    }catch(err){$('.modal-error',form).textContent=err.message;refresh();}
+  });
+  refresh();dialog.showModal();form.querySelector('[data-rating-id]')?.focus();
+}
+
+function renderStudentView(){
+  const student=STATE.doc.students.find(s=>s.id===STATE.studentId&&s.groupId===STATE.groupId);
+  const students=allStudents();
+  if(!student)return `<section class="panel panel-pad student-directory"><div class="section-title-row"><div><span class="eyebrow">CONSULTA INDIVIDUAL</span><h2 id="student-list-heading" tabindex="-1">Modo alumno · ${esc(currentGroup()?.name||'Grupo')}</h2><p class="subtitle">Selecciona un alumno para consultar sus calificaciones y medias.</p></div><span class="student-count">${students.length} ${students.length===1?'alumno':'alumnos'}</span></div><div class="student-directory-grid">${students.map(s=>`<button type="button" class="student-directory-choice" data-open-student="${esc(s.id)}"><span class="student-directory-avatar" aria-hidden="true">◉</span><span>${esc(s.name)}</span><span class="student-directory-arrow" aria-hidden="true">›</span></button>`).join('')||'<p class="hint">Todavía no hay alumnos en este grupo.</p>'}</div><p class="section-note">La lista contiene nombres del grupo. Antes de compartir la pantalla, selecciona el alumno correspondiente: la consulta individual oculta los demás nombres.</p><button class="btn" id="return-notebook">Volver al cuaderno</button></section>`;
+  const position=students.findIndex(s=>s.id===student.id);
+  const previous=students[position-1],next=students[position+1];
+  const periods=[...STATE.doc.periods].sort((a,b)=>a.order-b.order);
+  return `<section class="panel panel-pad student-privacy"><div class="student-detail-head"><div><span class="eyebrow">VISOR INDIVIDUAL</span><h2 id="student-view-title" tabindex="-1">${esc(student.name)}</h2><p class="subtitle">${esc(currentGroup().name)} · Solo aparecen las calificaciones de este alumno.</p></div><div class="student-navigation" role="group" aria-label="Cambiar de alumno"><button class="btn" type="button" id="previous-student" ${previous?'':'disabled'} aria-label="Alumno anterior">← Anterior</button><span class="student-position" aria-label="Alumno ${position+1} de ${students.length}">${position+1} de ${students.length}</span><button class="btn" type="button" id="next-student" ${next?'':'disabled'} aria-label="Alumno siguiente">Siguiente →</button></div><button class="btn primary" id="hide-student">Volver al listado</button></div></section>${periods.map(p=>{
+    const cats=effectiveCategories(STATE.doc,STATE.groupId,p.id);
+    return `<section class="panel panel-pad student-period"><div class="section-title-row"><h2>${esc(p.name)}</h2><strong class="student-score">${gradeChip(overallGrade(STATE.doc,student.id,STATE.groupId,p.id))} / 10</strong></div>${cats.map(c=>{
+      const assessments=STATE.doc.assessments.filter(a=>a.groupId===STATE.groupId&&a.periodId===p.id&&a.categoryId===c.id).sort((a,b)=>a.order-b.order);
+      return `<div class="student-category"><div class="cardline"><strong>${esc(c.name)}</strong><span class="value">${gradeChip(categoryGrade(STATE.doc,student.id,c.id,STATE.groupId,p.id))} / 10</span></div>${assessments.map(a=>{
+        const grade=STATE.doc.grades.find(g=>g.studentId===student.id&&g.assessmentId===a.id);
+        const effective=grade?effectiveAssessmentScore(STATE.doc,a,grade):null;
+        const orthography=a.orthography?.enabled&&grade;
+        const shown=!grade?'Sin calificar':grade.pendingJustified?'<span class="aj-badge">AJ · Ausencia justificada pendiente</span>':grade.notSubmitted?'<span class="np-badge">NP · No presentado</span>':orthography
+          ?`${gradeChip(effective)}<small class="student-original">(${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))})${grade.orthographyFaults?` · ${grade.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(orthographyPenalty(a,grade)))} por ${grade.orthographyFaults} faltas`}`:''}</small>`
+          :a.rubricId?`${gradeChip(recordedScore(STATE.doc,a,grade))} /10 (rúbrica)`
+          :a.convertToTen&&a.maxScore!==10?`${gradeChip(normalizedScore(grade.score,a.maxScore,true))}<small class="student-original">(${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))})</small>`
+          :a.maxScore===10?gradeChip(grade.score):`<span class="student-raw">${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))}</span>`;
+        return `<div class="student-assessment"><span>${esc(a.name)}</span><strong>${shown}</strong></div>`;
+      }).join('')||'<p class="hint">Sin actividades en esta categoría.</p>'}</div>`;
+    }).join('')}</section>`;
+  }).join('')}<section class="panel panel-pad"><div class="section-title-row"><strong>Evaluación final del curso</strong><strong class="student-score">${gradeChip(finalGrade(STATE.doc,student.id,STATE.groupId))} / 10</strong></div></section>`;
+}
+function bindStudentView(){
+  const selectStudent=id=>{
+    if(!allStudents().some(student=>student.id===id))return;
+    STATE.studentId=id;render();
+    $('#student-view-title')?.focus({preventScroll:true});
+  };
+  document.querySelectorAll('[data-open-student]').forEach(button=>button.addEventListener('click',()=>selectStudent(button.dataset.openStudent)));
+  const moveStudent=offset=>{
+    const students=allStudents(),index=students.findIndex(student=>student.id===STATE.studentId);
+    if(index<0||!students[index+offset])return;
+    selectStudent(students[index+offset].id);
+  };
+  $('#previous-student')?.addEventListener('click',()=>moveStudent(-1));
+  $('#next-student')?.addEventListener('click',()=>moveStudent(1));
+  $('#hide-student')?.addEventListener('click',()=>{STATE.studentId=null;render();$('#student-list-heading')?.focus({preventScroll:true});});
+  $('#return-notebook')?.addEventListener('click',()=>{STATE.tab='cuaderno';STATE.studentId=null;render();});
+}
+const FINAL_RULE_LABELS={mean:'Media aritmética',weighted_mean:'Media ponderada',latest_if_highest:'Último periodo si es la nota más alta; si no, media'};
+function renderFinalEvaluation(){
+  const cfg=STATE.doc.finalConfigs.find(c=>c.groupId===STATE.groupId);
+  const periods=[...STATE.doc.periods].sort((a,b)=>a.order-b.order);
+  const rule=cfg?.rule||'mean';
+  const rows=allStudents().map(student=>{
+    const evidence=finalEvidence(STATE.doc,student.id,STATE.groupId);
+    return `<tr><td class="name-col">${esc(student.name)}</td>${evidence.evidence.map(e=>`<td><div class="final-period-cell"><span class="hint">Auto: ${gradeChip(e.automatic)}</span><input class="note-input ${e.manual!==null?'grade-colored':''}" ${e.manual!==null?gradeStyle(e.manual):''} inputmode="decimal" type="text" maxlength="10" data-finalstudent="${esc(student.id)}" data-finalperiod="${esc(e.periodId)}" aria-label="Nota manual de ${esc(student.name)} en ${esc(e.name)}" placeholder="Automática" value="${e.manual===null?'':esc(String(e.manual).replace('.',','))}"/><span class="hint">${e.manual===null?'Usando automática':'Usando manual'}</span></div></td>`).join('')}<td class="final-col"><strong>${gradeChip(evidence.grade)}</strong>${evidence.issue?`<small class="warning-calculation">⚠ Revisa las notas de los periodos.</small>`:''}</td></tr>`;
+  }).join('');
+  return `<section class="panel panel-pad"><h2>Evaluación final del curso</h2><p class="subtitle">Pestaña independiente de los periodos. Recupera automáticamente la nota final de cada evaluación. Para sustituirla, escribe una nota manual de 0 a 10; deja la casilla vacía para volver a la automática.</p><div class="final-config"><label>Regla final<select id="final-rule">${Object.entries(FINAL_RULE_LABELS).map(([k,v])=>opt(k,v,rule)).join('')}</select></label><div class="final-weights">${periods.map(p=>`<label class="final-weight-block"><span>${esc(p.name)}</span><span class="final-include"><input type="checkbox" data-finalinclude="${esc(p.id)}" ${(cfg?.excludedPeriodIds||[]).includes(p.id)?'':'checked'}/>Incluir en final</span><span class="hint">Peso relativo</span><input type="number" min="0" max="1000" step="any" value="${esc(cfg?.weights?.[p.id]??1)}" data-finalweight="${esc(p.id)}" ${rule==='weighted_mean'?'':'disabled'} /></label>`).join('')}</div></div><p class="hint">Los pesos son relativos, no necesitan sumar 100. Los periodos sin nota o desmarcados se excluyen del cálculo; los pesos solo se usan con media ponderada. Se conserva la precisión completa hasta mostrar el resultado.</p></section><section class="panel"><div class="panel-header"><strong>Resumen anual</strong><span class="hint">${esc(currentGroup().name)}</span></div><div class="table-scroller"><table class="grade-table final-table"><thead><tr><th class="name-col">Alumno</th>${periods.map(p=>`<th><span class="class-stat-heading">${esc(p.name)} ${classStatButton('annual-period',p.id,p.name)}</span><small>Media final /10</small></th>`).join('')}<th class="final-col"><span class="class-stat-heading">Nota final curso ${classStatButton('course',STATE.groupId,'nota final del curso')}</span></th></tr></thead><tbody>${rows||`<tr><td class="empty-table-message" colspan="${periods.length+2}">No hay alumnos.</td></tr>`}</tbody></table></div></section>`;
+}
+function bindFinalEvaluation(){
+  const groupId=STATE.groupId;
+  $('#final-rule').onchange=e=>{
+    const rule=e.target.value;
+    commit(d=>setFinalConfig(d,groupId,{rule})).catch(fail);
+  };
+  document.querySelectorAll('[data-finalinclude]').forEach(input=>input.onchange=()=>{
+    const id=input.dataset.finalinclude,checked=input.checked;
+    commit(d=>{
+      const excluded=d.finalConfigs.find(c=>c.groupId===groupId)?.excludedPeriodIds||[];
+      const next=excluded.filter(x=>x!==id);
+      if(!checked)next.push(id);
+      setFinalConfig(d,groupId,{excludedPeriodIds:next});
+    }).catch(fail);
+  });
+  document.querySelectorAll('[data-finalweight]').forEach(input=>input.onchange=()=>{
+    const {value}=input,id=input.dataset.finalweight;
+    commit(d=>setFinalConfig(d,groupId,{weights:{[id]:parseScore(value)}}))
+      .catch(err=>{fail(err);render();});
+  });
+  document.querySelectorAll('[data-finalstudent][data-finalperiod]').forEach(input=>input.onchange=async e=>{
+    const val=e.target.value.trim();try{await commit(d=>setFinalOverride(d,e.target.dataset.finalstudent,e.target.dataset.finalperiod,val===''?null:val.replace(',','.')),'Nota manual de periodo');}catch(err){fail(err);render();}
+  });
+}
+
+function openCopyActivities(){
+  const destinations=[...STATE.doc.periods].sort((a,b)=>a.order-b.order).filter(p=>p.id!==STATE.periodId);
+  if(!destinations.length)return toast('Primero crea una segunda evaluación.');
+  const source=allAssessments();
+  if(!source.length)return toast('No hay actividades en la evaluación actual.');
+  dialog.innerHTML=`<form class="modal-inner" id="copy-activities-form"><h2 id="modal-heading">Copiar actividades a otras evaluaciones</h2><p class="subtitle">Se copian ${source.length} actividades de ${esc(currentPeriod().name)}, con sus rúbricas, escalas, pesos y reglas de categorías. <strong>No se copian alumnos, notas ni recuperaciones evaluadas.</strong> Las evaluaciones con actividades no se sobrescriben.</p><div class="copy-targets">${destinations.map(p=>{const count=STATE.doc.assessments.filter(a=>a.groupId===STATE.groupId&&a.periodId===p.id).length;return `<label><input type="checkbox" value="${esc(p.id)}" data-copy-destination ${count?'disabled':'checked'}/><span>${esc(p.name)} ${count?`· ${count} actividades existentes (no se modifican)`:'· Vacía'}</span></label>`;}).join('')}</div><p class="modal-error" role="alert"></p><div class="modal-actions"><button type="button" class="btn" id="cancel-copy">Cancelar</button><button type="submit" class="btn primary">Copiar estructura</button></div></form>`;
+  $('#cancel-copy',dialog).onclick=()=>dialog.close();
+  $('#copy-activities-form',dialog).onsubmit=async e=>{
+    e.preventDefault();const targets=[...dialog.querySelectorAll('[data-copy-destination]:checked')].map(x=>x.value);
+    if(!targets.length){$('.modal-error',dialog).textContent='Selecciona al menos una evaluación vacía.';return;}
+    try{await commit(d=>copyPeriodAssessments(d,STATE.groupId,STATE.periodId,targets),'Copiar actividades sin notas');dialog.close();toast('Estructura copiada; no se han duplicado calificaciones.');}
+    catch(err){$('.modal-error',dialog).textContent=err.message;}
+  };
+  dialog.showModal();
+}
+function openAssessmentCreator(){
+  if(!STATE.doc.categories.length){toast('Crea primero una categoría desde Cálculos.');return;}
+  const kinds=[{id:'',name:'Nota numérica'},...STATE.doc.rubrics.map(r=>({id:r.id,name:'Rúbrica existente: '+r.name})),{id:'__new',name:'Crear rúbrica aquí'}, {id:'__import',name:'Importar rúbrica Excel, CSV o JSON'}];
+  dialog.classList.add('activity-modal');dialog.addEventListener('close',()=>dialog.classList.remove('activity-modal'),{once:true});
+  dialog.innerHTML=`<form class="modal-inner" id="activity-form"><h2 id="modal-heading">Nueva actividad</h2><p class="subtitle">La nota siempre se normaliza a /10 si lo eliges; una rúbrica se transforma a /10 automáticamente.</p><div class="modal-fields"><label>Nombre de la actividad<input name="name" class="text-field" maxlength="150" required value="Examen"/></label><label>Categoría<select name="categoryId">${visibleCategories().map(c=>opt(c.id,c.name)).join('')}</select></label><details class="activity-disclosure" open><summary><span class="disclosure-symbol" aria-hidden="true">Ⅰ</span> Escala y forma de calificación <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="activity-disclosure-body"><label>Forma de evaluar<select name="kind" id="activity-kind">${kinds.map(x=>opt(x.id,x.name)).join('')}</select></label><div id="activity-new-rubric" class="activity-rubric-box hidden"><label>Nombre de la nueva rúbrica<input name="rubricName" class="text-field" value="Actitud" maxlength="150"/></label><label>Criterios, uno por línea (criterio; máximo; peso)<textarea name="rubricRows" class="text-field" rows="5" placeholder="Asistencia;2;20
+Participación;2;20"></textarea></label></div><div id="activity-import-rubric" class="activity-rubric-box hidden"><label>Archivo de rúbrica (.xlsx, .csv o .json)<input type="file" name="rubricFile" id="activity-rubric-file" accept=".xlsx,.csv,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/></label><p class="hint" id="activity-rubric-preview">Las rúbricas Excel con descriptores Bien/Regular/Mal se pueden importar directamente.</p></div><div id="activity-numeric-options" class="activity-numeric-options"><label>Nota máxima<input name="maxScore" class="text-field" type="number" min="0.01" max="1000" step="any" value="10"/></label><label>Conversión para cálculos<select name="convertToTen"><option value="true">Convertir a 0–10</option><option value="false">Usar la nota bruta</option></select></label></div></div></details><details class="activity-disclosure"><summary><span class="disclosure-symbol" aria-hidden="true">Ⅱ</span> Penalización ortográfica <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="activity-disclosure-body"><div class="orthography-activity-options" id="activity-orthography"><h3>Faltas de ortografía (opcional)</h3><label>Penalización recuperable<select name="orthEnabled" id="activity-orth-enabled"><option value="false">Desactivada</option><option value="true">Activada</option></select></label><div class="orthography-config-fields"><label>Descuento por falta (sobre 10)<input class="text-field" name="orthRate" type="number" step="0.01" min="0" max="10" value="${esc(STATE.doc.settings.orthographyDefaults?.penaltyPerFault??0.10)}"/></label><label>Copias exigidas por falta<input class="text-field" name="orthCopies" type="number" step="1" min="1" max="1000" value="${esc(STATE.doc.settings.orthographyDefaults?.repetitions??30)}"/></label><label>Devolución al entregar<select name="orthRecoverable"><option value="true">Sí</option><option value="false">No</option></select></label></div><p class="hint">La nota original no se pierde. La penalización se aplica después de convertir a /10; al marcar Entregadas se restaura la nota íntegra.</p></div></div></details><label class="activity-weight">Peso relativo de la actividad<input name="weight" class="text-field" type="number" min="0.01" max="1000" step="any" value="1"/></label></div><p class="modal-error" role="alert"></p><div class="modal-actions"><button type="button" class="btn" id="cancel-activity">Cancelar</button><button type="submit" class="btn primary">Crear actividad</button></div></form>`;
+  const form=$('#activity-form',dialog),selector=$('#activity-kind',form);
+  const toggle=()=>{
+    const k=selector.value;
+    $('#activity-new-rubric',form).classList.toggle('hidden',k!=='__new');
+    $('#activity-import-rubric',form).classList.toggle('hidden',k!=='__import');
+    $('#activity-numeric-options',form).classList.toggle('hidden',!!k);
+    $('#activity-orthography',form).classList.toggle('hidden',!!k);
+  };
+  selector.addEventListener('change',toggle);toggle();
+  const categoryInput=form.elements.categoryId,orthSelector=form.elements.orthEnabled;
+  const syncCategory=()=>{
+    const category=STATE.doc.categories.find(c=>c.id===categoryInput.value);
+    const isExam=category?.name?.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()==='examenes';
+    orthSelector.value=isExam&&STATE.doc.settings.orthographyDefaults?.enabledForExams?'true':'false';
+    form.elements.orthRecoverable.value=String(STATE.doc.settings.orthographyDefaults?.refundable??true);
+  };
+  categoryInput.addEventListener('change',syncCategory);syncCategory();
+  let preview=null,previewFile=null;
+  $('#activity-rubric-file',form).onchange=async e=>{
+    preview=null;previewFile=e.target.files[0];
+    if(!previewFile)return;
+    try{preview=await parseRubricFile(previewFile);$('#activity-rubric-preview',form).textContent=`${preview.name}: ${preview.criteria.length} criterios. Se importarán junto con la actividad.`;$('.modal-error',form).textContent='';}
+    catch(err){preview=null;$('.modal-error',form).textContent=err.message;}
+  };
+  $('#cancel-activity',form).onclick=()=>dialog.close();
+  form.onsubmit=async e=>{
+    e.preventDefault();const v=Object.fromEntries(new FormData(form));
+    const kind=v.kind;
+    try{
+      let draft=null;
+      if(kind==='__new')draft={name:String(v.rubricName??'').trim(),criteria:parseRubricText(v.rubricRows)};
+      if(kind==='__import'){
+        const file=$('#activity-rubric-file',form).files[0];
+        if(!file)throw new Error('Selecciona un Excel, CSV o JSON de rúbrica.');
+        draft=file===previewFile&&preview?preview:await parseRubricFile(file);
+      }
+      const actionName=String(v.name).trim();if(!actionName)throw new Error('Introduce un nombre.');
+      const btn=form.querySelector('[type=submit]');btn.disabled=true;
+      try{
+        await commit(d=>{
+          let rubricId=!kind||kind==='__new'||kind==='__import'?null:kind;
+          if(draft)rubricId=createRubric(d,draft.name,draft.criteria).id;
+          const orthography=rubricId?null:{enabled:v.orthEnabled==='true',penaltyPerFault:parseScore(v.orthRate),repetitions:Number(v.orthCopies),refundable:v.orthRecoverable==='true'};
+          addAssessment(d,{name:actionName,groupId:STATE.groupId,periodId:STATE.periodId,categoryId:v.categoryId,maxScore:rubricId?10:Number(v.maxScore),weight:Number(v.weight),convertToTen:rubricId?true:v.convertToTen==='true',rubricId,orthography});
+        },'Crear actividad');
+        dialog.close();toast('Actividad añadida al cuaderno.');
+      }finally{btn.disabled=false;}
+    }catch(err){$('.modal-error',form).textContent=err.message;}
+  };
+  dialog.showModal();form.querySelector('[name=name]')?.focus();
+}
+function bindCommon(){
+  $('#toggle-navigation')?.addEventListener('click',()=>{
+    STATE.navCollapsed=!STATE.navCollapsed;
+    $('.shell')?.classList.toggle('nav-collapsed',STATE.navCollapsed);
+    $('#toggle-navigation')?.setAttribute('aria-expanded',String(!STATE.navCollapsed));
+    try{localStorage.setItem('cuaderno-docente-nav-collapsed',STATE.navCollapsed?'yes':'no');}catch{}
+  });
+  $('#theme-select')?.addEventListener('change',e=>{
+    const theme=e.target.value;
+    if(!['light','dark','oled'].includes(theme))return;
+    STATE.theme=theme;
+    try{localStorage.setItem('cuaderno-docente-theme',theme);}catch{}
+    applyTheme();
+  });
+  $('#open-notebook')?.addEventListener('click',()=>$('#open-notebook-file').click());
+  $('#open-notebook-file')?.addEventListener('change',async e=>{try{const f=e.target.files[0];e.target.value='';if(f)await restoreBackup(f);}catch(err){fail(err);}});
+  $('#close-notebook')?.addEventListener('click',()=>closeNotebook().catch(fail));
+  $('#lock').onclick=()=>enqueueMutation(()=>{if(STATE.saveError)throw new Error('Exporta el intento cifrado si está disponible antes de cerrar.');showUnlock(false);}).catch(fail);
+  $('#undo-change')?.addEventListener('click',()=>navigateHistory('undo').catch(fail));
+  $('#redo-change')?.addEventListener('click',()=>navigateHistory('redo').catch(fail));
+  document.querySelectorAll('[data-course-level][data-course-subject]').forEach(button=>{
+    // Las propiedades asignadas mediante CSSOM respetan la CSP del HTML autonomo.
+    const level=button.dataset.courseLevel,subject=button.dataset.courseSubject;
+    button.style.setProperty('--course-accent',level==='legacy'?'#927B59':colorFor(level,subject));
+    button.onclick=()=>{
+    const {courseLevel:level,courseSubject:subject}=button.dataset;
+    if(level===STATE.level&&subject===STATE.subject)return;
+    if(level==='legacy'?!STATE.doc.groups.some(g=>g.level===null&&g.subject===subject):!validSubject(level,subject))return;
+    setSubjectChoice(level,subject);
+    [...document.querySelectorAll('[data-course-level][data-course-subject]')]
+      .find(b=>b.dataset.courseLevel===level&&b.dataset.courseSubject===subject)?.focus({preventScroll:true});
+    };
+  });
+  $('#group-select').onchange=e=>{STATE.groupId=e.target.value;STATE.competencyVersion='auto';render();};
+  document.querySelectorAll('[data-focus-original]').forEach(button=>button.onclick=()=>{
+    const pair=button.dataset.focusOriginal;
+    const fields=[...document.querySelectorAll('input[data-assessment][data-student]')];
+    const input=fields.find(f=>f.dataset.assessment+':'+f.dataset.student===pair);
+    input?.focus();input?.select();
+  });
+  document.querySelectorAll('[data-period-choice]').forEach(b=>{
+    b.onclick=()=>{STATE.periodId=b.dataset.periodChoice;STATE.tab='cuaderno';render();};
+    b.ondblclick=event=>{event.preventDefault();renamePeriodFromTab(b.dataset.periodChoice);};
+  });
+  document.querySelectorAll('[data-rename-period]').forEach(b=>b.onclick=()=>renamePeriodFromTab(b.dataset.renamePeriod));
+  $('[data-final-choice]')?.addEventListener('click',()=>{STATE.tab='final';render();});
+  $('#accent-select')?.addEventListener('change',e=>commit(d=>setSubjectAccent(d,STATE.level,STATE.subject,e.target.value)).catch(fail));
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{if(STATE.tab==='alumno'&&b.dataset.tab!=='alumno')STATE.studentId=null;if(b.dataset.tab==='curriculo'&&currentGroup()?.subject==='Latín II')STATE.curriculumVersion=officialCompetenciesForGroup(currentGroup(),STATE.competencyVersion)?.version||'2022';STATE.tab=b.dataset.tab;render();});
+  $('#edit-group')?.addEventListener('click',openGroupTools);
+
+  $('#new-group').onclick=()=>{
+    if(!validSubject(STATE.level,STATE.subject))return toast('Selecciona primero un curso y asignatura.');
+    fieldsModal(`Nuevo grupo · ${STATE.subject}`,[{id:'name',label:'Nombre del grupo',value:'Grupo A'},{id:'course',label:'Curso escolar',value:'2026-2027'}],async v=>{
+      let group;await commit(d=>{group=addGroup(d,v.name,STATE.subject,v.course,STATE.level);});STATE.groupId=group.id;render();
+    },`Asignatura: ${COURSE_SUBJECTS[STATE.level].label} · ${STATE.subject}.`);
+  };
+  $('#classify-group')?.addEventListener('click',()=>fieldsModal('Clasificar grupo anterior',[{id:'pair',label:'Curso y asignatura',type:'select',options:pairOptions()}],async v=>{
+    const [level,subject]=v.pair.split(':');const groupId=STATE.groupId;
+    await commit(d=>classifyGroup(d,groupId,level,subject));STATE.level=level;STATE.subject=subject;STATE.groupId=groupId;render();
+  },'No se modificará ningún alumno, actividad o calificación.'));
+  $('#new-period')?.addEventListener('click',()=>fieldsModal('Nuevo periodo',[{id:'name',label:'Nombre del periodo',value:`${STATE.doc.periods.length+1}.ª evaluación`}],async v=>{let p;await commit(d=>{p=addPeriod(d,v.name);});STATE.periodId=p.id;STATE.tab='cuaderno';render();}));
+  $('#new-assessment')?.addEventListener('click',openAssessmentCreator);
+  $('#new-recovery').onclick=()=>{
+    const candidates=allAssessments().filter(a=>!a.recoveryOf&&!STATE.doc.assessments.some(x=>x.recoveryOf===a.id));
+    if(!candidates.length)return toast('Primero crea una actividad sin recuperación vinculada.');
+    fieldsModal('Nueva recuperación',[{id:'name',label:'Nombre',value:'Recuperación'},{id:'recoveryOf',label:'Actividad de origen',type:'select',options:candidates.map(a=>({value:a.id,label:a.name}))},{id:'recoveryMode',label:'Cómo sustituye la nota',type:'select',options:[{value:'higher',label:'Solo si mejora la original'},{value:'replace',label:'Sustituir siempre'}]},{id:'maxScore',label:'Puntuación máxima',type:'number',value:10,min:0.01,max:1000,step:'any'}],async v=>commit(d=>{
+      const source=d.assessments.find(a=>a.id===v.recoveryOf);
+      addAssessment(d,{name:v.name,groupId:STATE.groupId,periodId:STATE.periodId,categoryId:source.categoryId,maxScore:Number(v.maxScore),weight:source.weight,convertToTen:source.convertToTen,recoveryOf:v.recoveryOf,recoveryMode:v.recoveryMode,orthography:source.orthography??null});
+    }));
+  };
+  $('#csv-import').onclick=()=>$('#csv-file').click();
+  $('#csv-file').onchange=async e=>{
+    const file=e.target.files[0],group=currentGroup();if(!file||!group)return;
+    try{
+      const names=namesFromCsv(await file.text());
+      if(!window.confirm(`Importar ${names.length} alumnos a ${group.name}? No se fusionan automáticamente duplicados.`))return;
+      await commit(d=>names.forEach(name=>addStudent(d,group.id,name)));
+      toast(`${names.length} alumnos importados localmente.`);
+    }catch(err){fail(err);}finally{e.target.value='';}
+  };
+}
+function openGroupTools(){
+  const g=currentGroup();if(!g)return;
+  dialog.innerHTML=`<div class="modal-inner"><h2>Gestión de grupo</h2><p class="subtitle">${esc(g.name)} · ${esc(g.course)}. Los cambios conservan los IDs, las notas y los cálculos.</p><div class="tool-actions"><button type="button" class="btn primary" id="rename-group-btn">Editar nombre y curso escolar</button></div><div class="modal-actions"><button type="button" class="btn" id="close-group-tools">Cerrar</button></div></div>`;
+  $('#close-group-tools',dialog).onclick=()=>dialog.close();
+  $('#rename-group-btn',dialog).onclick=()=>{dialog.close();fieldsModal('Editar grupo',[{id:'name',label:'Nombre',value:g.name},{id:'course',label:'Curso escolar (año académico)',value:g.course}],async v=>commit(d=>updateGroupInfo(d,g.id,v.name,v.course)));};
+  dialog.showModal();
+}
+function renamePeriodFromTab(id){
+  const p=STATE.doc.periods.find(p=>p.id===id);if(!p)return;
+  fieldsModal(`Renombrar ${p.name}`,[{id:'name',label:'Nombre del período',value:p.name}],async v=>{
+    await commit(d=>renamePeriod(d,id,v.name));
+  },'Las actividades, calificaciones y ponderaciones conservarán sus identificadores.');
+  // La organización anterior se mantiene sin un botón adicional fuera de la barra.
+  const actions=$('.modal-actions',dialog),periods=[...STATE.doc.periods].sort((a,b)=>a.order-b.order),i=periods.findIndex(x=>x.id===id);
+  for(const [step,label] of [[-1,'↑ Anterior'],[1,'↓ Siguiente']]){
+    const b=document.createElement('button');b.type='button';b.className='btn small';b.textContent=label;b.disabled=i+step<0||i+step>=periods.length;
+    b.onclick=async()=>{
+      if(!window.confirm('Reordenar los períodos afecta a las reglas que dependen de la última evaluación. ¿Continuar?'))return;
+      dialog.close();try{await commit(d=>movePeriod(d,id,step),'Reordenar períodos');}catch(err){fail(err);}
+    };actions.prepend(b);
+  }
+}
+function openPeriodTools(){
+  const p=currentPeriod();if(!p)return;
+  dialog.innerHTML=`<div class="modal-inner"><h2>Gestión de periodos</h2><p class="subtitle">${esc(p.name)}. Cambiar el orden también puede afectar a la regla «última evaluación» de la nota anual.</p><div class="tool-actions"><button type="button" class="btn primary" id="rename-period-btn">Renombrar periodo</button><button type="button" class="btn" data-move-period="-1">↑ Anterior</button><button type="button" class="btn" data-move-period="1">↓ Siguiente</button></div><div class="modal-actions"><button type="button" class="btn" id="close-period-tools">Cerrar</button></div></div>`;
+  $('#close-period-tools',dialog).onclick=()=>dialog.close();
+  $('#rename-period-btn',dialog).onclick=()=>{dialog.close();fieldsModal('Renombrar periodo',[{id:'name',label:'Nombre del periodo',value:p.name}],async v=>commit(d=>renamePeriod(d,p.id,v.name)));};
+  dialog.querySelectorAll('[data-move-period]').forEach(b=>b.onclick=async()=>{if(!window.confirm('El orden de los periodos interviene en las reglas de última evaluación. ¿Continuar?'))return;dialog.close();try{await commit(d=>movePeriod(d,p.id,Number(b.dataset.movePeriod)),'Reordenar periodos');}catch(err){fail(err);}});
+  dialog.showModal();
+}
+function openStudentTools(studentId){
+  const student=STATE.doc.students.find(s=>s.id===studentId&&s.groupId===STATE.groupId);if(!student)return;
+  const n=STATE.doc.grades.filter(g=>g.studentId===studentId).length;
+  dialog.innerHTML=`<div class="modal-inner"><h2>${esc(student.name)}</h2><p class="subtitle">${n} calificaciones registradas en todos los periodos.</p><div class="tool-actions"><button class="btn primary" id="rename-student-btn">Editar nombre o código</button><button class="btn" data-move-student="-1">↑ Subir</button><button class="btn" data-move-student="1">↓ Bajar</button><button class="btn warn" id="remove-student-btn">Eliminar alumno y sus notas</button></div><div class="modal-actions"><button class="btn" id="close-student-tools">Cerrar</button></div></div>`;
+  $('#close-student-tools',dialog).onclick=()=>dialog.close();
+  $('#rename-student-btn',dialog).onclick=()=>{dialog.close();fieldsModal('Editar alumno',[{id:'name',label:'Nombre o código',value:student.name}],async v=>commit(d=>renameStudent(d,studentId,v.name)));};
+  dialog.querySelectorAll('[data-move-student]').forEach(b=>b.onclick=async()=>{dialog.close();try{await commit(d=>moveStudent(d,studentId,Number(b.dataset.moveStudent)),'Reordenar alumno');}catch(err){fail(err);}});
+  $('#remove-student-btn',dialog).onclick=async()=>{
+    if(!window.confirm(`Eliminar a «${student.name}», sus ${n} notas y las sustituciones manuales de evaluación final. Podrás deshacerlo en esta sesión. ¿Continuar?`))return;
+    dialog.close();try{await commit(d=>removeStudent(d,studentId),'Eliminar alumno y notas');if(STATE.studentId===studentId)STATE.studentId=null;toast('Alumno eliminado. Usa Deshacer para recuperarlo.');}catch(err){fail(err);}
+  };
+  dialog.showModal();
+}
+/** Desde una columna se usa automáticamente el año académico del grupo, sin mezclar calendarios. */
+async function openPlannerExam(assessmentId=null){
+ const group=currentGroup();if(!group)return toast('Selecciona primero un grupo.');
+ try{
+  const name=group.course.trim();let year=STATE.doc.planner.years.find(y=>y.name===name);
+  if(!year){
+   const parsed=/^(\d{4})-(\d{4})$/.exec(name);
+   if(!parsed||Number(parsed[2])!==Number(parsed[1])+1)throw new Error('Configura primero el año académico correspondiente desde Planificador.');
+   const start=`${parsed[1]}-09-01`,end=`${parsed[2]}-06-30`;
+   await commit(d=>addAcademicYear(d,{name,start,end}),'Crear calendario para el curso del grupo');
+   year=activeYear(STATE.doc);
+  }else if(activeYear(STATE.doc).id!==year.id){
+   await commit(d=>setActiveYear(d,year.id),'Seleccionar calendario del grupo');
+  }
+  if(STATE.plannerDate<year.start||STATE.plannerDate>year.end)STATE.plannerDate=localToday()>=year.start&&localToday()<=year.end?localToday():year.start;
+  STATE.plannerEventRequest={assessmentId,groupId:group.id,date:STATE.plannerDate};
+  STATE.tab='planificador';render();
+ }catch(error){fail(error);}
+}
+/** Editor de examen: conserva la nota bruta y presenta la calificación efectiva /10. */
+function openOrthographyGrade(studentId,assessmentId){
+  const assessment=STATE.doc.assessments.find(a=>a.id===assessmentId);
+  const student=STATE.doc.students.find(s=>s.id===studentId&&s.groupId===assessment?.groupId);
+  if(!student||!assessment?.orthography?.enabled)return toast('La penalización no está disponible en esta actividad.');
+  const current=STATE.doc.grades.find(g=>g.studentId===studentId&&g.assessmentId===assessmentId);
+  const config=assessment.orthography;
+  dialog.innerHTML=`<form class="modal-inner orthography-dialog" id="orthography-form"><h2 id="modal-heading">${esc(assessment.name)}</h2><p class="subtitle">${esc(student.name)}${current?.notSubmitted?' · No presentado':''} · La nota sin faltas se conserva por separado.</p><div class="modal-fields"><label>Nota original sin faltas (sobre ${esc(rawFmt(assessment.maxScore))})<input class="text-field" id="orth-base" type="text" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="8,50" value="${current&&!current.notSubmitted?esc(rawFmt(current.score)):''}"/></label><label>Número de faltas<input class="text-field" id="orth-count" type="number" min="0" max="1000" step="1" value="${current?.orthographyFaults??0}"/></label><div class="orthography-preview" role="status" aria-live="polite"><div class="cardline"><span>Penalización</span><strong id="orth-discount">—</strong></div><div class="cardline"><strong>Nota que computa /10</strong><span id="orth-effective" class="grade-chip">—</span></div></div><label class="orthography-delivered"><input id="orth-delivered" type="checkbox" ${current?.orthographyDelivered?'checked':''}/> <strong>Entregadas</strong> — faltas copiadas ${esc(config.repetitions)} veces cada una</label><p class="hint">${config.refundable?'Al marcar «Entregadas», se restaura automáticamente la nota sin penalización.':'En este examen, la devolución de la nota está desactivada.'} Se descuentan ${esc(rawFmt(config.penaltyPerFault))} puntos por falta sobre diez (mínimo 0).</p></div><div class="modal-error" role="alert"></div><div class="modal-actions"><button class="btn" type="button" id="cancel-orthography">Cancelar</button><button class="btn primary" type="submit">Guardar nota</button></div></form>`;
+  const form=$('#orthography-form',dialog),base=$('#orth-base',form),count=$('#orth-count',form),delivered=$('#orth-delivered',form),discount=$('#orth-discount',form),effective=$('#orth-effective',form);
+  const refresh=()=>{
+    const faults=Number(count.value);
+    const validFaults=/^\d{1,4}$/.test(count.value)&&faults<=1000;
+    delivered.disabled=!config.refundable||!validFaults||faults===0||!base.value.trim();
+    if(delivered.disabled)delivered.checked=false;
+    let val;
+    try{val=base.value.trim()===''?null:parseScore(base.value);if(val!==null&&(val<0||val>assessment.maxScore))throw new Error('Nota fuera de escala.');}catch{val=null;}
+    if(val===null||!validFaults){effective.textContent='—';discount.textContent='—';effective.removeAttribute('data-grade-value');effective.style.removeProperty('--grade-bg');effective.style.removeProperty('--grade-fg');return;}
+    const candidate={score:val,orthographyFaults:faults,orthographyDelivered:delivered.checked};
+    const result=effectiveAssessmentScore(STATE.doc,assessment,candidate),deduct=orthographyPenalty(assessment,candidate);
+    discount.textContent=deduct?`−${penaltyFmt(deduct)}`:'0,00';
+    effective.textContent=gradeFmt(result);effective.dataset.gradeValue=String(result);paintGrades(form);
+  };
+  base.addEventListener('input',refresh);
+  count.addEventListener('input',()=>{delivered.checked=false;refresh();});
+  delivered.addEventListener('change',refresh);
+  $('#cancel-orthography',form).onclick=()=>dialog.close();
+  form.onsubmit=async e=>{
+    e.preventDefault();const submit=$('[type=submit]',form);submit.disabled=true;
+    try{await commit(d=>setOrthographyGrade(d,studentId,assessmentId,{score:base.value.trim(),faults:count.value,delivered:delivered.checked}),'Calificar examen con faltas');dialog.close();}
+    catch(err){$('.modal-error',form).textContent=err.message;submit.disabled=false;}
+  };
+  refresh();dialog.showModal();base.focus();
+}
+function openAssessmentTools(id){
+  const a=STATE.doc.assessments.find(x=>x.id===id);if(!a)return;
+  const grades=STATE.doc.grades.filter(g=>g.assessmentId===id).length;
+  dialog.innerHTML=`<div class="modal-inner"><h2 id="modal-heading">${esc(a.name)}</h2><p class="subtitle">${grades} notas registradas · ${a.recoveryOf?'Recuperación':'Actividad normal'}</p><div class="tool-actions"><button class="btn" id="edit-assessment">Editar datos</button><button class="btn" id="move-left">← Mover a la izquierda</button><button class="btn" id="move-right">Mover a la derecha →</button><button class="btn" id="plan-assessment">▣ Programar examen</button><button class="btn warn" id="delete-assessment">Eliminar actividad</button></div><div class="modal-actions"><button class="btn primary" id="dismiss-tools">Cerrar</button></div></div>`;
+  $('#dismiss-tools',dialog).onclick=()=>dialog.close();
+  $('#edit-assessment',dialog).onclick=()=>{
+    dialog.close();fieldsModal('Editar actividad',[{id:'name',label:'Nombre',value:a.name},{id:'categoryId',label:'Categoría',type:'select',value:a.categoryId,options:visibleCategories().map(c=>({value:c.id,label:c.name}))},{id:'maxScore',label:'Nota máxima',type:'number',value:a.maxScore,min:0.01,max:1000,step:'any'},{id:'convertToTen',label:'Conversión para cálculos',type:'select',value:String(a.convertToTen),options:[{value:'true',label:'Convertir a 0–10'},{value:'false',label:'Usar nota bruta'}]},{id:'rubricId',required:false,label:'Tipo de evaluación',type:'select',value:a.rubricId||'',options:[{value:'',label:'Nota numérica'},...STATE.doc.rubrics.map(r=>({value:r.id,label:'Rúbrica: '+r.name}))]},{id:'weight',label:'Peso relativo de la actividad',type:'number',value:a.weight,min:0.01,max:1000,step:'any'},
+      {id:'orthEnabled',label:'Penalización por faltas',type:'select',value:String(a.orthography?.enabled??false),options:[{value:'false',label:'Desactivada'},{value:'true',label:'Activada'}]},
+      {id:'orthRate',label:'Puntos por falta (sobre 10)',type:'number',value:a.orthography?.penaltyPerFault??STATE.doc.settings.orthographyDefaults?.penaltyPerFault??0.1,min:0,max:10,step:'0.01'},
+      {id:'orthCopies',label:'Copias exigidas por falta',type:'number',value:a.orthography?.repetitions??STATE.doc.settings.orthographyDefaults?.repetitions??30,min:1,max:1000,step:'1'},
+      {id:'orthRecoverable',label:'Recuperar nota al entregar',type:'select',value:String(a.orthography?.refundable??true),options:[{value:'true',label:'Sí'},{value:'false',label:'No'}]}],async v=>{
+      const newMax=v.rubricId?10:Number(v.maxScore),newConvert=v.rubricId?true:v.convertToTen==='true';
+      if(grades&&(newMax!==a.maxScore||newConvert!==a.convertToTen)&&!window.confirm(`Esta columna tiene ${grades} notas. Cambiar la escala o conversión modificará las medias calculadas, aunque se conserven las puntuaciones originales. ¿Continuar?`))return;
+      const orthography={enabled:v.orthEnabled==='true',penaltyPerFault:parseScore(v.orthRate),repetitions:Number(v.orthCopies),refundable:v.orthRecoverable==='true'};
+      if(a.orthography?.enabled&&!orthography.enabled&&STATE.doc.grades.some(g=>g.assessmentId===a.id&&g.orthographyFaults>0)&&!window.confirm('Esta columna tiene faltas registradas. Se conservarán, pero dejarán de descontar mientras la penalización esté desactivada. ¿Continuar?'))return;
+      if(a.orthography?.enabled&&orthography.enabled&&a.orthography.penaltyPerFault!==orthography.penaltyPerFault&&
+        STATE.doc.grades.some(g=>g.assessmentId===a.id&&g.orthographyFaults>0&&!g.orthographyDelivered)&&
+        !window.confirm('Cambiar el descuento por falta recalculará todas las notas de este examen que tengan faltas pendientes, sin modificar las notas originales. ¿Confirmas el cambio?'))return;
+      // Nunca desmarcar automáticamente entregas de alumnos al cambiar una
+      // preferencia del examen. Revisarlas es una decisión individual del docente.
+      if(!orthography.refundable&&STATE.doc.grades.some(g=>g.assessmentId===a.id&&g.orthographyDelivered))
+        throw new Error('Hay faltas marcadas como entregadas. Desmárcalas individualmente, si procede, antes de desactivar la devolución. No se ha modificado ninguna entrega ni nota.');
+      await commit(d=>updateAssessment(d,a.id,{name:v.name,categoryId:v.categoryId,maxScore:newMax,weight:Number(v.weight),convertToTen:newConvert,rubricId:v.rubricId||null,orthography}));
+    });
+  };
+  $('#move-left',dialog).onclick=async()=>{dialog.close();try{await commit(d=>moveAssessment(d,id,-1));}catch(err){fail(err);}};
+  $('#move-right',dialog).onclick=async()=>{dialog.close();try{await commit(d=>moveAssessment(d,id,1));}catch(err){fail(err);}};
+  $('#plan-assessment',dialog).onclick=()=>{dialog.close();openPlannerExam(id);};
+  $('#delete-assessment',dialog).onclick=async()=>{
+    if(!window.confirm(`Eliminar «${a.name}» y sus ${grades} calificaciones. Podrás deshacerlo durante esta sesión. ¿Continuar?`))return;
+    dialog.close();try{await commit(d=>removeAssessment(d,id),'Eliminar actividad');toast('Actividad eliminada.');}catch(err){fail(err);}
+  };
+  dialog.showModal();
+}
+function openItacaStudentRule(studentId){
+  const student=STATE.doc.students.find(s=>s.id===studentId&&s.groupId===STATE.groupId);
+  if(!student)return;
+  const periodId=STATE.periodId,groupId=STATE.groupId;
+  const before=overallGrade(STATE.doc,studentId,groupId,periodId);
+  const selected=itacaStudentRule(STATE.doc,studentId,periodId);
+  const options=[['general',`Aplicar norma general (${ITACA_OPTIONS.find(([key])=>key===itacaGroupRule(STATE.doc,groupId))?.[1]})`],...ITACA_OPTIONS];
+  dialog.innerHTML=`<form class="modal-inner" id="itaca-student-form"><h2 id="modal-heading">Nota Ítaca · ${esc(student.name)}</h2><p class="subtitle">${esc(currentPeriod().name)}. La media permanece inalterada; solo cambia la nota de presentación para Ítaca.</p><label>Regla individual<select name="itacaRule">${options.map(([key,label])=>opt(key,label,selected)).join('')}</select></label><div class="cardline"><span>Media original</span><strong>${gradeChip(before)}</strong></div><div class="cardline"><span>Nota Ítaca</span><strong id="itaca-preview">${itacaChip(STATE.doc,studentId,groupId,periodId)}</strong></div><div class="modal-actions"><button type="button" class="btn" id="itaca-cancel">Cancelar</button><button class="btn primary" type="submit">Guardar</button></div></form>`;
+  const form=$('#itaca-student-form',dialog);
+  form.elements.itacaRule.onchange=()=>{
+    const sample=structuredClone(STATE.doc);
+    setItacaStudentRule(sample,studentId,periodId,form.elements.itacaRule.value);
+    $('#itaca-preview',dialog).innerHTML=itacaChip(sample,studentId,groupId,periodId);
+  };
+  $('#itaca-cancel',dialog).onclick=()=>dialog.close();
+  form.onsubmit=async e=>{e.preventDefault();try{
+    const rule=form.elements.itacaRule.value;
+    await commit(d=>setItacaStudentRule(d,studentId,periodId,rule),'Redondeo individual Nota Ítaca');
+    if(dialog.open)dialog.close();
+  }catch(err){fail(err);}};
+  dialog.showModal();
+}
+function bindNotebook(){
+  $('#itaca-general-rule')?.addEventListener('change',e=>{
+    const groupId=STATE.groupId;
+    commit(doc=>setItacaGroupRule(doc,groupId,e.target.value),'Redondeo general Nota Ítaca').catch(fail);
+  });
+  document.querySelectorAll('[data-itaca-student]').forEach(button=>button.onclick=()=>openItacaStudentRule(button.dataset.itacaStudent));
+  $('#copy-structure')?.addEventListener('click',openCopyActivities);
+  $('#schedule-exam')?.addEventListener('click',()=>openPlannerExam());
+  document.querySelectorAll('[data-view-student]').forEach(b=>b.onclick=()=>{STATE.studentId=b.dataset.viewStudent;STATE.tab='alumno';render();});
+  document.querySelectorAll('[data-edit-student]').forEach(b=>b.onclick=()=>openStudentTools(b.dataset.editStudent));
+  document.querySelectorAll('[data-rubric-grade]').forEach(b=>b.onclick=()=>openRubricGrade(b.dataset.rubricStudent,b.dataset.rubricGrade));
+  document.querySelectorAll('[data-orthography-grade]').forEach(b=>b.onclick=()=>openOrthographyGrade(b.dataset.orthographyStudent,b.dataset.orthographyGrade));
+  document.querySelectorAll('[data-aj-student]').forEach(button=>button.onclick=async()=>{
+    const {ajStudent:studentId,ajAssessment:assessmentId}=button.dataset;
+    const enabled=button.getAttribute('aria-pressed')!=='true';
+    const scroller=$('.table-scroller'),left=scroller?.scrollLeft||0,top=scroller?.scrollTop||0;
+    button.disabled=true;
+    try{await commit(doc=>setPendingJustified(doc,studentId,assessmentId,enabled),enabled?'Marcar ausencia justificada pendiente':'Reactivar nota anterior');}
+    catch(error){fail(error);}
+    finally{const table=$('.table-scroller');if(table){table.scrollLeft=left;table.scrollTop=top;}}
+  });
+  document.querySelectorAll('[data-np-student]').forEach(button=>button.onclick=async()=>{
+    const {npStudent:studentId,npAssessment:assessmentId}=button.dataset;
+    const enabled=button.getAttribute('aria-pressed')!=='true';
+    const scroller=$('.table-scroller');
+    const left=scroller.scrollLeft,top=scroller.scrollTop;
+    button.disabled=true;
+    try{
+      await commit(d=>{
+        const grade=d.grades.find(g=>g.studentId===studentId&&g.assessmentId===assessmentId);
+        if(enabled&&grade&&!grade.notSubmitted&&!window.confirm('¿Sustituir la calificación registrada por «No presentado»? Podrás deshacer el cambio en esta sesión.'))return;
+        setNotSubmitted(d,studentId,assessmentId,enabled);
+      },enabled?'Marcar no presentado':'Quitar no presentado');
+    }catch(err){fail(err);}
+    finally{
+      button.disabled=false;
+      const replacement=[...document.querySelectorAll('[data-np-student]')].find(b=>b.dataset.npStudent===studentId&&b.dataset.npAssessment===assessmentId);
+      if(replacement){const table=$('.table-scroller');table.scrollLeft=left;table.scrollTop=top;replacement.focus({preventScroll:true});}
+    }
+  });
+  $('#new-student').onclick=()=>fieldsModal('Añadir alumno',[{id:'name',label:'Nombre o código del alumno',value:''}],async v=>commit(d=>addStudent(d,STATE.groupId,v.name)));
+  document.querySelectorAll('[data-edit]').forEach(button=>button.onclick=()=>openAssessmentTools(button.dataset.edit));
+  const restoreFocus=(studentId,assessmentId,move=0,left=0,top=0)=>{
+    const scroller=$('.table-scroller');if(scroller){scroller.scrollLeft=left;scroller.scrollTop=top;}
+    const students=allStudents(),at=students.findIndex(s=>s.id===studentId);
+    const targetId=students[Math.max(0,Math.min(students.length-1,at+move))]?.id;
+    const next=[...document.querySelectorAll('[data-student][data-assessment]')].find(input=>input.dataset.student===targetId&&input.dataset.assessment===assessmentId);
+    if(next){next.focus();next.select();}
+  };
+  document.querySelectorAll('[data-student][data-assessment]').forEach(field=>{
+    let move=0;
+    field.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){
+        e.preventDefault();move=e.shiftKey?-1:1;
+        if(field.value===field.defaultValue){restoreFocus(field.dataset.student,field.dataset.assessment,move,$('.table-scroller')?.scrollLeft||0,$('.table-scroller')?.scrollTop||0);}
+        else field.blur();
+      }
+    });
+    field.addEventListener('change',async()=>{
+      const scroller=$('.table-scroller'),left=scroller?.scrollLeft||0,top=scroller?.scrollTop||0;
+      try{await commit(d=>setGrade(d,field.dataset.student,field.dataset.assessment,field.value.trim()===''?null:field.value.trim().replace(',','.')),'Editar nota');
+        restoreFocus(field.dataset.student,field.dataset.assessment,move,left,top);
+      }catch(err){fail(err);render();restoreFocus(field.dataset.student,field.dataset.assessment,0,left,top);}
+    });
+  });
+  document.querySelectorAll('[data-explain]').forEach(b=>b.onclick=()=>{
+    const s=STATE.doc.students.find(s=>s.id===b.dataset.explain);
+    const breakdown=calculationBreakdown(STATE.doc,s.id,STATE.groupId,STATE.periodId);
+    const sum=breakdown.reduce((total,x)=>total+x.weight,0);
+    const details=breakdown.map(x=>`<div class="explain-section"><div class="cardline"><div><strong>${esc(x.category)}</strong><div class="hint">${x.weight} % · ${esc(RULE_LABELS[x.rule]||x.rule)}${x.individualRule!=='general'?' · Excepción individual':''}</div><button class="btn small" type="button" data-set-individual-rule="${esc(x.categoryId||'')}">⚙ Regla individual</button></div><div class="value">${gradeChip(x.grade)}</div></div>${x.evidence.map(e=>`<div class="evidence-row"><span>${esc(e.name)}${e.originalNotSubmitted?' <span class="np-badge">NP</span>':''}${e.recoveryName?` <span class="hint">(${e.recoveryNotSubmitted?'recuperación: NP':'recuperada a '+gradeFmt(e.recovery)})</span>`:''}</span><span>${gradeChip(e.value)} ${x.used.includes(e)?'✓':'·'}</span></div>`).join('')||'<p class="hint">Sin calificaciones</p>'}</div>`).join('');
+    showInfo('Cálculo de '+s.name,`<p class="subtitle">${esc(currentPeriod().name)} · Sin redondeos intermedios · ✓ evidencia utilizada</p>${Math.abs(sum-100)>1e-8?'<p class="note">Los porcentajes no suman 100: nota final no disponible.</p>':''}${periodCalculationWarnings(STATE.doc,s.id,STATE.groupId,STATE.periodId).map(w=>`<p class="warning-calculation">⚠ ${esc(w)}</p>`).join('')}${details}<div class="cardline"><strong>Nota final</strong><strong class="value">${gradeChip(overallGrade(STATE.doc,s.id,STATE.groupId,STATE.periodId))}</strong></div>`);
+    dialog.querySelectorAll('[data-set-individual-rule]').forEach(btn=>btn.addEventListener('click',()=>openIndividualRule(s.id,btn.dataset.setIndividualRule)));
+  });
+}
+const INDIVIDUAL_LABELS={general:'Aplicar regla general del grupo',np_mean:'Media obligatoria si un NP computa como cero',mean:'Media aritmética siempre',last:'Última actividad sustitutiva (aunque baje la nota)'};
+/** Previsualizar con copia independiente; la configuración solo se guarda al confirmar. */
+function openIndividualRule(studentId,categoryId){
+  const student=STATE.doc.students.find(s=>s.id===studentId&&s.groupId===STATE.groupId);
+  const category=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).find(c=>c.id===categoryId);
+  if(!student||!category)return;
+  const oldRule=individualCategoryRule(STATE.doc,studentId,categoryId,STATE.periodId);
+  const before=categoryGrade(STATE.doc,studentId,categoryId,STATE.groupId,STATE.periodId);
+  dialog.innerHTML=`<form class="modal-inner" id="individual-rule-form"><span class="eyebrow">EXCEPCIÓN DE CÁLCULO INDIVIDUAL</span><h2 id="modal-heading">${esc(category.name)} · ${esc(student.name)}</h2><p class="subtitle">${esc(currentPeriod().name)}. No cambia las calificaciones originales ni la regla de otros alumnos.</p><label>Regla para este alumno<select id="individual-rule-select">${Object.entries(INDIVIDUAL_LABELS).map(([k,label])=>opt(k,label,oldRule)).join('')}</select></label><div class="section-note" id="individual-rule-note"></div><div class="cardline"><span>Nota actual</span><strong>${gradeChip(before)}</strong></div><div class="cardline"><span>Nota con la regla seleccionada</span><strong id="individual-rule-preview">—</strong></div><p class="hint">El cálculo se hace sobre las notas que computan. NP cuenta como 0; AJ no computa. La última actividad pendiente no sustituye las notas anteriores. Las recuperaciones vinculadas mantienen su funcionamiento independiente.</p><p class="modal-error" role="alert"></p><div class="modal-actions"><button type="button" class="btn" id="cancel-individual-rule">Cancelar</button><button type="submit" class="btn primary" id="save-individual-rule">Guardar regla</button></div></form>`;
+  paintGrades(dialog);
+  const preview=()=>{
+    const selected=$('#individual-rule-select',dialog).value;
+    try{
+      const sample=structuredClone(STATE.doc);
+      setIndividualCategoryRule(sample,studentId,categoryId,STATE.periodId,selected);
+      const result=categoryEvidence(sample,studentId,categoryId,STATE.groupId,STATE.periodId);
+      $('#individual-rule-preview',dialog).innerHTML=gradeChip(result.grade);
+      $('#individual-rule-note',dialog).textContent=selected==='np_mean'
+        ?(result.npTriggered?'NP computable detectado: se aplica la media incluyendo cero.':'No hay un NP computable: se conserva la regla del grupo.')
+        :selected==='last'&&result.evidence.length&&result.used.length>1
+          ?'La última actividad está sin calificar o pendiente: se conserva la media de las evaluadas.'
+          :selected==='general'?'Se aplicará la configuración habitual de la categoría.':'Esta excepción solo modifica el cálculo de este alumno en esta categoría y evaluación.';
+      paintGrades(dialog);$('#save-individual-rule',dialog).disabled=selected===oldRule;
+    }catch(error){$('.modal-error',dialog).textContent=error.message;$('#save-individual-rule',dialog).disabled=true;}
+  };
+  $('#individual-rule-select',dialog).addEventListener('change',preview);
+  $('#cancel-individual-rule',dialog).onclick=()=>dialog.close();
+  $('#individual-rule-form',dialog).onsubmit=async event=>{
+    event.preventDefault();const button=$('#save-individual-rule',dialog);button.disabled=true;
+    try{const selectedRule=$('#individual-rule-select',dialog).value;await commit(doc=>setIndividualCategoryRule(doc,studentId,categoryId,STATE.periodId,selectedRule),'Regla individual de categoría');if(dialog.open)dialog.close();}
+    catch(error){$('.modal-error',dialog).textContent=error.message;button.disabled=false;}
+  };
+  preview();if(!dialog.open)dialog.showModal();
+}
+function openIndividualRuleDirectory(){
+  const students=allStudents(),categories=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId);
+  if(!students.length||!categories.length)return toast('Necesitas al menos un alumno y una categoría.');
+  dialog.innerHTML=`<form class="modal-inner" id="individual-rule-directory"><h2 id="modal-heading">Reglas individuales · ${esc(currentPeriod().name)}</h2><p class="subtitle">Selecciona un alumno y una categoría. Se conserva siempre la regla general para los demás alumnos.</p><label>Alumno<select name="student">${students.map(s=>opt(s.id,s.name,students[0].id)).join('')}</select></label><label>Categoría<select name="category">${categories.map(c=>opt(c.id,c.name,categories[0].id)).join('')}</select></label><div class="modal-actions"><button class="btn" type="button" id="cancel-individual-directory">Cancelar</button><button class="btn primary" type="submit">Configurar regla…</button></div></form>`;
+  $('#cancel-individual-directory',dialog).onclick=()=>dialog.close();
+  $('#individual-rule-directory',dialog).onsubmit=e=>{e.preventDefault();const fields=new FormData(e.currentTarget);openIndividualRule(fields.get('student'),fields.get('category'));};
+  dialog.showModal();
+}
+function bindRules(){
+  document.querySelectorAll('[data-category-color]').forEach(field=>field.onchange=()=>commit(d=>setCategoryColumnColor(d,field.dataset.categoryColor,field.value),'Color de categoría').catch(fail));
+  document.querySelectorAll('[data-category-color-reset]').forEach(button=>button.onclick=()=>commit(d=>setCategoryColumnColor(d,button.dataset.categoryColorReset,null),'Eliminar color de categoría').catch(fail));
+  $('#individual-rules')?.addEventListener('click',openIndividualRuleDirectory);
+  document.querySelectorAll('[data-delete-category]').forEach(b=>b.onclick=async()=>{
+    const category=STATE.doc.categories.find(c=>c.id===b.dataset.deleteCategory);
+    if(!category)return;
+    if(!window.confirm(`Retirar «${category.name}» de este grupo? No se eliminarán actividades ni notas de otras asignaturas. Debe estar vacía en todas las evaluaciones del grupo.`))return;
+    try{await commit(d=>removeCategoryFromGroup(d,STATE.groupId,category.id),'Retirar categoría del grupo');}catch(err){fail(err);}
+  });
+  $('#new-category').onclick=()=>fieldsModal('Nueva categoría',[{id:'name',label:'Nombre'},{id:'weight',label:'Porcentaje predeterminado (revisa que la suma sea 100)',type:'number',value:0,min:0,max:100,step:'any'}],async v=>commit(d=>addCategory(d,v.name,Number(v.weight),'mean',STATE.groupId)));
+  document.querySelectorAll('[data-periodweight]').forEach(field=>field.onchange=async()=>{try{await commit(d=>setPeriodCategory(d,STATE.groupId,STATE.periodId,field.dataset.periodweight,{weight:Number(field.value)}));}catch(err){fail(err);render();}});
+  document.querySelectorAll('[data-periodrule]').forEach(field=>field.onchange=async()=>{try{await commit(d=>setPeriodCategory(d,STATE.groupId,STATE.periodId,field.dataset.periodrule,{rule:field.value}));}catch(err){fail(err);render();}});
+  document.querySelectorAll('[data-bestcount]').forEach(field=>field.onchange=async()=>{try{await commit(d=>setPeriodCategory(d,STATE.groupId,STATE.periodId,field.dataset.bestcount,{bestCount:Number(field.value)}));}catch(err){fail(err);render();}});
+  $('#reset-rules').onclick=async()=>{if(window.confirm('Restablecer los porcentajes y reglas de este grupo y periodo a los valores predeterminados?'))try{await commit(d=>resetPeriodCategories(d,STATE.groupId,STATE.periodId));}catch(err){fail(err);}};
+  $('#copy-rules').onclick=async()=>{const source=$('#source-period').value;if(!source)return toast('Selecciona un periodo de origen.');if(!window.confirm('Sobrescribir las reglas de este periodo con las del periodo seleccionado?'))return;
+    try{await commit(d=>copyPeriodCategories(d,STATE.groupId,source,STATE.periodId));}catch(err){fail(err);}
+  };
+}
+function bindCompetencies(){
+  $('#new-competency')?.addEventListener('click',()=>fieldsModal('Nueva competencia personalizada',[{id:'name',label:'Nombre de la competencia'}],async v=>commit(d=>addCompetency(d,v.name,STATE.groupId))));
+  $('#comp-curr-version')?.addEventListener('change',e=>{STATE.competencyVersion=e.target.value;render();});
+  document.querySelectorAll('[data-comp][data-linkcat], [data-official][data-linkcat]').forEach(input=>input.onchange=async e=>{
+    const weight=Number(e.target.value),categoryId=e.target.dataset.linkcat,code=e.target.dataset.official;
+    if(!Number.isFinite(weight)||weight<0||weight>1000){fail(new Error('Peso competencial fuera de rango.'));render();return;}
+    try{await commit(d=>{
+      let id=e.target.dataset.comp;
+      if(code){
+        const catalogue=officialCompetenciesForGroup(d.groups.find(g=>g.id===STATE.groupId),STATE.competencyVersion);
+        const found=catalogue?.competencias.find(c=>c.key===code);
+        if(!found)throw new Error('Competencia oficial no disponible.');
+        let stored=linkedOfficialCompetency(d,STATE.groupId,code);
+        if(!stored&&weight!==0)stored=addCompetency(d,`${found.code} · ${found.enunciado}`,STATE.groupId,code);
+        if(!stored)return;
+        id=stored.id;
+      }
+      setCompetencyLink(d,id,categoryId,weight===0?null:weight);
+    },'Vincular competencia y categoría');}
+    catch(err){fail(err);render();}
+  });
+}
+
+function bindSettings(){
+  $('#save-orth-defaults')?.addEventListener('click',async()=>{
+    try{
+      const enabledForExams=$('#orth-default-on').checked;
+      const penaltyPerFault=parseScore($('#orth-default-rate').value);
+      const repetitions=Number($('#orth-default-copies').value);
+      const refundable=$('#orth-default-refundable').checked;
+      await commit(d=>setOrthographyDefaults(d,{enabledForExams,penaltyPerFault,repetitions,refundable}),'Preferencias de faltas');
+      toast('Valores predeterminados guardados para nuevos exámenes.');
+    }catch(err){fail(err);}
+  });
+  document.querySelectorAll('[data-accent]').forEach(input=>input.onchange=e=>{
+    const [level,subject]=e.target.dataset.accent.split(':');
+    commit(d=>setSubjectAccent(d,level,subject,e.target.value)).catch(fail);
+  });
+  $('#reset-accents').onclick=async()=>{
+    if(!window.confirm('¿Restablecer los cinco colores de acento?'))return;
+    try{await commit(d=>{d.settings.subjectAccents={...SUBJECT_COLORS};d.updatedAt=new Date().toISOString();});}catch(e){fail(e);}
+  };
+  $('#decimals').onchange=e=>commit(d=>{d.settings.decimals=Number(e.target.value);d.updatedAt=new Date().toISOString();}).catch(fail);
+  $('#rounding').onchange=e=>commit(d=>{d.settings.rounding=e.target.value;d.updatedAt=new Date().toISOString();}).catch(fail);
+  $('#check-reload').onclick=async()=>{
+    try{
+      await STATE.mutationQueue;await STATE.saveQueue;
+      if(STATE.saveError)throw STATE.saveError;
+      const current=await readEnvelope(STATE.db);
+      if(!current||!sameEnvelope(current,STATE.envelope))throw new Error('La copia guardada no coincide con la versión abierta. Cierra y vuelve a abrir esta pestaña.');
+      const probe=await makeReloadProbe(current);
+      // No almacenar ni el sobre ni el contenido; únicamente su huella temporal.
+      sessionStorage.setItem(RELOAD_PROBE_KEY,JSON.stringify(probe));
+      window.location.reload();
+    }catch(err){fail(new Error('La prueba de recarga no se ha iniciado: '+err.message));}
+  };
+  $('#check-offline').onclick=async()=>{
+    const el=$('#offline-result');el.textContent='Comprobando recursos…';
+    try{
+      if(!('serviceWorker' in navigator)||!('caches' in window))throw new Error('Este navegador no dispone de las API necesarias.');
+      const registration=await navigator.serviceWorker.getRegistration('./');
+      if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
+      const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
+      const cache=await caches.open('cuaderno-docente-static-v120-dev');
+      const missing=[];
+      for(const path of expected)if(!await cache.match(path))missing.push(path);
+      el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
+    }catch(err){el.textContent='No verificado: '+err.message;}
+  };
+  $('#backup-download').onclick=async()=>{
+
+    try{
+      await STATE.mutationQueue;await STATE.saveQueue;
+      if(!STATE.envelope)throw new Error('No hay datos guardados para exportar.');
+      if(!sameEnvelope(await readEnvelope(STATE.db),STATE.envelope))throw new Error('Otra pestaña modificó el cuaderno. No se descargará una copia potencialmente desactualizada. Vuelve a abrir la aplicación.');
+      downloadEncryptedEnvelope(STATE.envelope,'CuadernoDocente-'+new Date().toISOString().slice(0,10)+'.cdoc');
+      toast('Copia cifrada preparada para descargar.');
+    }catch(err){fail(err);}
+  };
+  $('#backup-draft')?.addEventListener('click',()=>downloadEncryptedEnvelope(STATE.failedEnvelope,'CuadernoDocente-intento-sin-guardar.cdoc'));
+  $('#backup-verify').onclick=()=>$('#backup-verify-file').click();
+  $('#backup-verify-file').onchange=async e=>{try{if(e.target.files[0])await verifyBackup(e.target.files[0]);}catch(err){fail(err);}e.target.value='';};
+  $('#backup-restore').onclick=()=>$('#backup-file').click();
+  $('#backup-recover')?.addEventListener('click',()=>recoverPreviousVersion().catch(fail));
+  $('#backup-download-recovery')?.addEventListener('click',()=>downloadRecovery().catch(fail));
+  $('#backup-file').onchange=async e=>{try{const f=e.target.files[0];e.target.value='';if(f)await restoreBackup(f);}catch(err){fail(err);}};
+}
+window.addEventListener('keydown',event=>{
+  if(!STATE.doc||dialog.open||STATE.tab==='alumno'&&STATE.studentId||!(event.ctrlKey||event.metaKey)||event.altKey)return;
+  if(event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
+  const key=event.key.toLowerCase();
+  if(key==='z'||key==='y'){
+    const direction=key==='y'||event.shiftKey?'redo':'undo';
+    if(!STATE.history[direction==='undo'?'past':'future'].length)return;
+    event.preventDefault();navigateHistory(direction).catch(fail);
+  }
+});
+window.addEventListener('online',()=>toast('Conexión disponible. El cuaderno sigue guardándose localmente.'));
+init();
