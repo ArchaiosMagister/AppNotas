@@ -1,4 +1,4 @@
-import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor,categoryColumnColor} from './src/model.js';
+import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
 import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,itacaGrade} from './src/calculations.js';
 import {studentsFromCsv} from './src/csv.js';
 import {parseRubricText} from './src/rubric-import.js';
@@ -782,6 +782,14 @@ function render(){
 function renderNotebook(){
   const assessments=allAssessments(),students=allStudents();
   const visibleIds=new Set(assessments.map(a=>a.id));
+  const gradeObservationsByPair=new Map((STATE.doc.gradeObservations??[]).map(note=>[note.studentId+'|'+note.assessmentId,note]));
+  const observationButton=(studentId,assessmentId)=>{
+    const note=gradeObservationsByPair.get(studentId+'|'+assessmentId);
+    const student=STATE.doc.students.find(s=>s.id===studentId);
+    const activity=STATE.doc.assessments.find(a=>a.id===assessmentId);
+    const label=note?'Editar observación':'Añadir observación';
+    return `<button type="button" class="grade-observation-button ${note?'has-observation':''}" data-observation-student="${esc(studentId)}" data-observation-assessment="${esc(assessmentId)}" aria-label="${label} de ${esc(student?.name||'alumno')} en ${esc(activity?.name||'actividad')}" title="${label}">${note?'● ':''}Obs.</button>`;
+  };
   const gradesByStudent=new Map();
   for(const grade of STATE.doc.grades){
     if(!visibleIds.has(grade.assessmentId))continue;
@@ -799,19 +807,19 @@ function renderNotebook(){
     const ajButton=`<button type="button" class="aj-button ${g?.pendingJustified?'active':''}" data-aj-student="${esc(s.id)}" data-aj-assessment="${esc(a.id)}" aria-pressed="${!!g?.pendingJustified}" aria-label="${g?.pendingJustified?'Quitar':'Marcar'} ausencia justificada pendiente: ${esc(s.name)} · ${esc(a.name)}" title="${g?.pendingJustified?'Reactivar calificación anterior':'Pendiente por ausencia justificada (no computa)'}">AJ</button>`;
     const npButton=`<button type="button" class="np-button" data-np-student="${esc(s.id)}" data-np-assessment="${esc(a.id)}" aria-pressed="${!!g?.notSubmitted}" aria-label="${npLabel}: ${esc(s.name)} · ${esc(a.name)}" title="${npLabel}">NP</button>`;
     if(a.rubricId){const score=g?recordedScore(STATE.doc,a,g):null;
-      return `<td${categoryCell(a)}><button class="rubric-grade-button" type="button" data-rubric-grade="${esc(a.id)}" data-rubric-student="${esc(s.id)}" aria-label="Evaluar ${esc(s.name)} en ${esc(a.name)} con rúbrica">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?'Editar':g?gradeChip(score):'Evaluar'}<small>/10</small></button>${npButton}${ajButton}</td>`;
+      return `<td${categoryCell(a)}><button class="rubric-grade-button" type="button" data-rubric-grade="${esc(a.id)}" data-rubric-student="${esc(s.id)}" aria-label="Evaluar ${esc(s.name)} en ${esc(a.name)} con rúbrica">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?'Editar':g?gradeChip(score):'Evaluar'}<small>/10</small></button>${npButton}${ajButton}${observationButton(s.id,a.id)}</td>`;
     }
     if(a.orthography?.enabled){
       const value=g?effectiveAssessmentScore(STATE.doc,a,g):null;
       const faults=g?.orthographyFaults??0;
       const amount=g?orthographyPenalty(a,g):0;
       const note=g?`<small class="orthography-meta">Original: ${esc(rawFmt(g.score))}/${esc(rawFmt(a.maxScore))}${faults?` · ${g.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(amount))} (${faults} faltas)`}`:''}</small>`:'<small class="orthography-meta">Nota, faltas y entrega</small>';
-      return `<td${categoryCell(a)}><button class="orthography-grade-button" type="button" data-orthography-grade="${esc(a.id)}" data-orthography-student="${esc(s.id)}" aria-label="Corregir ${esc(s.name)} en ${esc(a.name)}: nota, faltas y entrega">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?'Editar':g?gradeChip(value):'<strong>+ Nota</strong>'}${g?.notSubmitted||g?.pendingJustified?'':note}</button>${npButton}${ajButton}</td>`;
+      return `<td${categoryCell(a)}><button class="orthography-grade-button" type="button" data-orthography-grade="${esc(a.id)}" data-orthography-student="${esc(s.id)}" aria-label="Corregir ${esc(s.name)} en ${esc(a.name)}: nota, faltas y entrega">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?'Editar':g?gradeChip(value):'<strong>+ Nota</strong>'}${g?.notSubmitted||g?.pendingJustified?'':note}</button>${npButton}${ajButton}${observationButton(s.id,a.id)}</td>`;
     }
     const isTenScale=a.maxScore===10||a.convertToTen;
     const converted=g&&!g.notSubmitted&&!g.pendingJustified&&isTenScale?normalizedScore(g.score,a.maxScore,a.convertToTen):null;
     const showConverted=g&&!g.notSubmitted&&!g.pendingJustified&&a.convertToTen&&a.maxScore!==10;
-    return `<td${categoryCell(a)}><div class="grade-entry ${showConverted?'converted-entry':''}">${showConverted?`<button type="button" class="converted-primary" data-focus-original="${esc(a.id)}:${esc(s.id)}" aria-label="Nota sobre diez: ${esc(gradeFmt(converted))}; editar nota original">${gradeChip(converted)}</button><small class="original-score">(<input class="note-input original-note-input" type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota original de ${esc(s.name)} en ${esc(a.name)}, sobre ${esc(rawFmt(a.maxScore))}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${esc(rawFmt(g.score))}"/> /${esc(rawFmt(a.maxScore))})</small>`:`<input class="note-input ${converted!==null?'grade-colored':''}" ${converted!==null?gradeStyle(converted):''} type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota de ${esc(s.name)} en ${esc(a.name)}" placeholder="${g?.pendingJustified?'AJ':g?.notSubmitted?'NP':'—'}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${g&&!g.notSubmitted&&!g.pendingJustified?esc(rawFmt(g.score)):''}"/>`}</div>${npButton}${ajButton}</td>`;
+    return `<td${categoryCell(a)}><div class="grade-entry ${showConverted?'converted-entry':''}">${showConverted?`<button type="button" class="converted-primary" data-focus-original="${esc(a.id)}:${esc(s.id)}" aria-label="Nota sobre diez: ${esc(gradeFmt(converted))}; editar nota original">${gradeChip(converted)}</button><small class="original-score">(<input class="note-input original-note-input" type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota original de ${esc(s.name)} en ${esc(a.name)}, sobre ${esc(rawFmt(a.maxScore))}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${esc(rawFmt(g.score))}"/> /${esc(rawFmt(a.maxScore))})</small>`:`<input class="note-input ${converted!==null?'grade-colored':''}" ${converted!==null?gradeStyle(converted):''} type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota de ${esc(s.name)} en ${esc(a.name)}" placeholder="${g?.pendingJustified?'AJ':g?.notSubmitted?'NP':'—'}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${g&&!g.notSubmitted&&!g.pendingJustified?esc(rawFmt(g.score)):''}"/>`}</div>${npButton}${ajButton}${observationButton(s.id,a.id)}</td>`;
   }).join('')}<td class="final-col"><button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip(overallGrade(STATE.doc,s.id,STATE.groupId,STATE.periodId))}</button></td><td class="itaca-col"><button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc,s.id,STATE.groupId,STATE.periodId)}${itacaStudentRule(STATE.doc,s.id,STATE.periodId)!=='general'?'<span class="itaca-exception" title="Excepción individual">*</span>':''}</button></td></tr>`).join('');
   const sum=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).reduce((s,c)=>s+c.weight,0);
   const problems=students.flatMap(st=>periodCalculationWarnings(STATE.doc,st.id,STATE.groupId,STATE.periodId)).filter(v=>v.includes('sin conversión'));
@@ -964,6 +972,48 @@ function bindRubrics(){
     catch(err){fail(err);}finally{e.target.value='';}
   };
 }
+/** Una observación es un dato independiente de la puntuación. Puede existir
+ * incluso si se borró la nota o si el alumno figura como NP/AJ. */
+function openGradeObservation(studentId,assessmentId){
+  const student=STATE.doc.students.find(s=>s.id===studentId);
+  const activity=STATE.doc.assessments.find(a=>a.id===assessmentId);
+  if(!student||!activity||student.groupId!==activity.groupId)return;
+  const saved=getGradeObservation(STATE.doc,studentId,assessmentId);
+  const scroller=$('.table-scroller');
+  const scroll={x:window.scrollX,y:window.scrollY,left:scroller?.scrollLeft??0,top:scroller?.scrollTop??0};
+  dialog.innerHTML=`<form class="modal-inner grade-observation-dialog" id="grade-observation-form">
+    <h2 id="modal-heading">Observación de calificación</h2>
+    <p class="subtitle"><strong>${esc(student.name)}</strong> · ${esc(activity.name)}</p>
+    <label for="grade-observation-text">Observación (máximo 1500 caracteres)</label>
+    <textarea id="grade-observation-text" class="text-field" rows="6" maxlength="1500" placeholder="Ej.: Realizó el examen otro día.">${esc(saved?.text||'')}</textarea>
+    <label class="grade-observation-visibility"><input type="checkbox" id="grade-observation-visible" ${saved?.visibleToStudent?'checked':''}/> Mostrar también en el modo alumno</label>
+    <p class="hint">Privada por defecto. Puedes escribir antes de calificar o modificar la nota sin perder este comentario. Dejar el texto vacío y guardar elimina la observación.</p>
+    <p class="modal-error" role="alert"></p>
+    <div class="modal-actions"><button type="button" class="btn" id="cancel-grade-observation">Cancelar</button><button type="submit" class="btn primary" id="save-grade-observation">Guardar observación</button></div>
+  </form>`;
+  const form=$('#grade-observation-form',dialog),text=$('#grade-observation-text',form),checkbox=$('#grade-observation-visible',form);
+  $('#cancel-grade-observation',form).onclick=()=>dialog.close();
+  form.onsubmit=async e=>{
+    e.preventDefault();
+    const button=$('#save-grade-observation',form);
+    button.disabled=true;
+    try{
+      await commit(d=>setGradeObservation(d,studentId,assessmentId,text.value,checkbox.checked),'Editar observación de calificación');
+      if(dialog.open)dialog.close();
+      const restore=()=>{
+        const table=$('.table-scroller');
+        if(table){table.scrollLeft=scroll.left;table.scrollTop=scroll.top;}
+        window.scrollTo(scroll.x,scroll.y);
+      };
+      restore();requestAnimationFrame(restore);
+    }catch(error){
+      $('.modal-error',form).textContent=error.message;
+      button.disabled=false;
+    }
+  };
+  dialog.showModal();
+  text.focus({preventScroll:true});
+}
 function openRubricGrade(studentId,assessmentId){
   const student=STATE.doc.students.find(s=>s.id===studentId),assessment=STATE.doc.assessments.find(a=>a.id===assessmentId);
   if(!student||!assessment?.rubricId)return;
@@ -1044,6 +1094,8 @@ function renderStudentView(){
     }).join('')}</div></details>`;
   };
   const renderActivity=(a,categoryName='')=>{
+    const observation=getGradeObservation(STATE.doc,student.id,a.id);
+    const visibleObservation=observation?.visibleToStudent?`<details class="student-assessment-observation"><summary>Observación del profesor</summary><p>${esc(observation.text)}</p></details>`:'';
     const grade=STATE.doc.grades.find(g=>g.studentId===student.id&&g.assessmentId===a.id);
     const effective=grade?effectiveAssessmentScore(STATE.doc,a,grade):null;
     const orthography=a.orthography?.enabled&&grade;
@@ -1052,7 +1104,7 @@ function renderStudentView(){
       :a.rubricId?`${gradeChip(recordedScore(STATE.doc,a,grade))} /10 (rúbrica)`
       :a.convertToTen&&a.maxScore!==10?`${gradeChip(normalizedScore(grade.score,a.maxScore,true))}<small class="student-original">(${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))})</small>`
       :a.maxScore===10?gradeChip(grade.score):`<span class="student-raw">${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))}</span>`;
-    return `<div class="student-assessment-block student-category-tinted" data-column-category="${esc(a.categoryId)}"><div class="student-assessment"><span>${esc(a.name)}${categoryName?`<small class="student-activity-category">${esc(categoryName)}</small>`:''}</span><strong>${shown}</strong></div>${renderRubricBreakdown(a,grade)}</div>`;
+    return `<div class="student-assessment-block student-category-tinted" data-column-category="${esc(a.categoryId)}"><div class="student-assessment"><span>${esc(a.name)}${categoryName?`<small class="student-activity-category">${esc(categoryName)}</small>`:''}</span><strong>${shown}</strong></div>${renderRubricBreakdown(a,grade)}${visibleObservation}</div>`;
   };
   return `<section class="panel panel-pad student-privacy"><div class="student-detail-head"><div><span class="eyebrow">VISOR INDIVIDUAL</span><h2 id="student-view-title" tabindex="-1">${esc(student.name)}</h2><p class="subtitle">${esc(currentGroup().name)}${student.originGroup?' · Grupo de procedencia: '+esc(student.originGroup):''} · Solo aparecen las calificaciones de este alumno.</p></div><div class="student-navigation" role="group" aria-label="Cambiar de alumno"><button class="btn" type="button" id="previous-student" ${previous?'':'disabled'} aria-label="Alumno anterior">← Anterior</button><span class="student-position" aria-label="Alumno ${position+1} de ${students.length}">${position+1} de ${students.length}</span><button class="btn" type="button" id="next-student" ${next?'':'disabled'} aria-label="Alumno siguiente">Siguiente →</button></div><button class="btn primary" id="hide-student">Volver al listado</button></div></section>${periods.map((p,index)=>{
     const cats=effectiveCategories(STATE.doc,STATE.groupId,p.id);
@@ -1463,6 +1515,7 @@ function bindNotebook(){
   $('#schedule-exam')?.addEventListener('click',()=>openPlannerExam());
   document.querySelectorAll('[data-view-student]').forEach(b=>b.onclick=()=>{STATE.studentId=b.dataset.viewStudent;STATE.tab='alumno';render();});
   document.querySelectorAll('[data-edit-student]').forEach(b=>b.onclick=()=>openStudentTools(b.dataset.editStudent));
+  document.querySelectorAll('[data-observation-student]').forEach(b=>b.onclick=()=>openGradeObservation(b.dataset.observationStudent,b.dataset.observationAssessment));
   document.querySelectorAll('[data-rubric-grade]').forEach(b=>b.onclick=()=>openRubricGrade(b.dataset.rubricStudent,b.dataset.rubricGrade));
   document.querySelectorAll('[data-orthography-grade]').forEach(b=>b.onclick=()=>openOrthographyGrade(b.dataset.orthographyStudent,b.dataset.orthographyGrade));
   document.querySelectorAll('[data-aj-student]').forEach(button=>button.onclick=async()=>{
@@ -1701,7 +1754,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v128-dev');
+      const cache=await caches.open('cuaderno-docente-static-v129-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

@@ -84,6 +84,16 @@ En **Ajustes y copias** se distingue entre exportar un archivo portátil y **rea
 
 La copia histórica .cdoc se conserva como opción de rescate, separada del archivo portátil .cuaderno. El sistema **no realiza copias externas automáticas** sin intervención del usuario.
 
+## Observaciones individuales por calificación
+
+Cada casilla de calificación (normal, examen con penalización ortográfica o rúbrica) incluye un botón **«Obs.»**. Puedes escribir un comentario libre de hasta **1500 caracteres** sobre el alumno y esa actividad, por ejemplo «Realizó el examen en otra fecha» o «Llegó tarde». El indicador queda resaltado cuando existe comentario. Las observaciones son **independientes de la nota**: no modifican medias, porcentajes, Nota Ítaca ni resultados, y permanecen al cambiar o borrar una nota, marcar NP/AJ o modificar una rúbrica. También pueden anotarse antes de calificar.
+
+Para usarlo en iPad: abre **Cuaderno de notas**, busca la casilla correspondiente al alumno y la actividad, pulsa **Obs.**, escribe el comentario y guarda. El botón resaltado indica que existe una observación. Puedes pulsarlo de nuevo para editarla; **guardar el texto vacío la elimina**.
+
+Por privacidad, cada observación es **solo docente de forma predeterminada**. Si marcas expresamente **«Mostrar también en el modo alumno»**, aparece en un desplegable de solo lectura debajo de esa actividad en la ficha del alumno correspondiente. No se muestran observaciones privadas ni las de otros alumnos. Las observaciones son texto plano escapado (no ejecutan HTML), sin sugerencias automáticas y con saltos de línea preservados.
+
+Se guardan **cifradas dentro del cuaderno y de sus copias .cuaderno**. Los cuadernos antiguos sin observaciones siguen siendo compatibles. Al eliminar el alumno o la actividad se eliminan sus comentarios vinculados. El botón de deshacer permite recuperar cambios durante la sesión; se recomiendan copias cifradas verificadas antes de cambios importantes.
+
 ## Colores de categoría también en el modo alumno
 
 El **Modo alumno** utiliza los mismos colores que el cuaderno docente para los bloques y actividades de cada evaluación. Con el orden **Por categoría**, se tiñe el bloque de la categoría y se destaca cada actividad; con órdenes **del cuaderno, alfabético o últimas primero**, se colorea cada actividad según su categoría, aunque estén intercaladas. Los colores personalizados se comparten automáticamente y no se configuran dos veces.
