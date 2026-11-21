@@ -84,6 +84,12 @@ En **Ajustes y copias** se distingue entre exportar un archivo portátil y **rea
 
 La copia histórica .cdoc se conserva como opción de rescate, separada del archivo portátil .cuaderno. El sistema **no realiza copias externas automáticas** sin intervención del usuario.
 
+## Colores de categoría también en el modo alumno
+
+El **Modo alumno** utiliza los mismos colores que el cuaderno docente para los bloques y actividades de cada evaluación. Con el orden **Por categoría**, se tiñe el bloque de la categoría y se destaca cada actividad; con órdenes **del cuaderno, alfabético o últimas primero**, se colorea cada actividad según su categoría, aunque estén intercaladas. Los colores personalizados se comparten automáticamente y no se configuran dos veces.
+
+La nota numérica mantiene sus colores semánticos por rango; las rúbricas y los detalles desplegables conservan su lectura. En oscuro se usan fondos suaves y en OLED permanece el negro, con bandas coloreadas. Todo es visual: no cambia notas, competencias, pesos ni datos personales.
+
 ## Colores de columnas por categoría
 
 En **Cuaderno de notas**, todas las actividades de una misma categoría comparten color en su **cabecera y celdas**: Exámenes (azul), Trabajos (ámbar) y Actitud (verde) de forma predeterminada. Las categorías personalizadas reciben un color estable según su nombre. La correspondencia no depende de que las columnas estén juntas ni de la evaluación.
