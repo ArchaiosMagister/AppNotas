@@ -84,6 +84,14 @@ En **Ajustes y copias** se distingue entre exportar un archivo portátil y **rea
 
 La copia histórica .cdoc se conserva como opción de rescate, separada del archivo portátil .cuaderno. El sistema **no realiza copias externas automáticas** sin intervención del usuario.
 
+## Colores de columnas por categoría
+
+En **Cuaderno de notas**, todas las actividades de una misma categoría comparten color en su **cabecera y celdas**: Exámenes (azul), Trabajos (ámbar) y Actitud (verde) de forma predeterminada. Las categorías personalizadas reciben un color estable según su nombre. La correspondencia no depende de que las columnas estén juntas ni de la evaluación.
+
+Los colores se personalizan desde **Cálculos → Color de columnas**. **Color predeterminado** restablece el tono de esa categoría (no deja la columna sin identificar); el cambio se guarda cifrado con el cuaderno. Los colores de nota por rango 0–10 se mantienen en los chips y entradas y **no se sustituyen por el color de categoría**.
+
+Los temas claro y oscuro utilizan fondos de columna diferenciados; el tema OLED conserva los fondos negros con bandas verticales y cabeceras coloreadas. Se aplican los colores mediante CSSOM para respetar la política de seguridad CSP, sin estilos HTML bloqueados.
+
 ## Modo alumno y estabilidad de la PWA en iPad
 
 - **Evaluaciones plegables** en el visor de cada alumno, con orden de actividades configurable por evaluación (categoría, orden del cuaderno, alfabético o últimas primero).
