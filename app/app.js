@@ -1478,27 +1478,51 @@ function bindNotebook(){
     {id:'originGroup',label:'Grupo de procedencia (p. ej., 1.º A)',value:'',maxlength:60,required:false}
   ],async v=>commit(d=>addStudent(d,STATE.groupId,{firstName:v.firstName,lastName:v.lastName,originGroup:v.originGroup})),'El grupo de procedencia es una etiqueta para las sesiones de evaluación; no separa las calificaciones de la optativa.');
   document.querySelectorAll('[data-edit]').forEach(button=>button.onclick=()=>openAssessmentTools(button.dataset.edit));
-  const restoreFocus=(studentId,assessmentId,move=0,left=0,top=0)=>{
-    const scroller=$('.table-scroller');if(scroller){scroller.scrollLeft=left;scroller.scrollTop=top;}
+  // Conservar ambos desplazamientos en el iPad. commit() reconstruye toda
+  // la tabla y focus() sin preventScroll desplaza la página hacia arriba.
+  const snapshotGradeScroll=()=>{
+    const table=$('.table-scroller');
+    return {x:window.scrollX,y:window.scrollY,left:table?.scrollLeft||0,top:table?.scrollTop||0};
+  };
+  const restoreGradeScroll=position=>{
+    const table=$('.table-scroller');
+    if(table){table.scrollLeft=position.left;table.scrollTop=position.top;}
+    window.scrollTo(position.x,position.y);
+  };
+  const restoreFocus=(studentId,assessmentId,move=0,position=snapshotGradeScroll())=>{
     const students=allStudents(),at=students.findIndex(s=>s.id===studentId);
     const targetId=students[Math.max(0,Math.min(students.length-1,at+move))]?.id;
-    const next=[...document.querySelectorAll('[data-student][data-assessment]')].find(input=>input.dataset.student===targetId&&input.dataset.assessment===assessmentId);
-    if(next){next.focus();next.select();}
+    const next=[...document.querySelectorAll('input[data-student][data-assessment]')]
+      .find(input=>input.dataset.student===targetId&&input.dataset.assessment===assessmentId);
+    // Evitar el scroll implícito de focus() en Safari iPadOS.
+    if(next){next.focus({preventScroll:true});next.select();}
+    restoreGradeScroll(position);
+    // Tras cerrar o mover el teclado, WebKit puede ajustar el viewport en el
+    // fotograma siguiente. No desplazar la tabla ni saltar al principio.
+    requestAnimationFrame(()=>{restoreGradeScroll(position);requestAnimationFrame(()=>restoreGradeScroll(position));});
   };
   document.querySelectorAll('[data-student][data-assessment]').forEach(field=>{
-    let move=0;
+    let move=0,positionAtEnter=null;
     field.addEventListener('keydown',e=>{
       if(e.key==='Enter'){
         e.preventDefault();move=e.shiftKey?-1:1;
-        if(field.value===field.defaultValue){restoreFocus(field.dataset.student,field.dataset.assessment,move,$('.table-scroller')?.scrollLeft||0,$('.table-scroller')?.scrollTop||0);}
-        else field.blur();
+        positionAtEnter=snapshotGradeScroll();
+        if(field.value===field.defaultValue){
+          restoreFocus(field.dataset.student,field.dataset.assessment,move,positionAtEnter);
+          positionAtEnter=null;
+        }else field.blur();
       }
     });
     field.addEventListener('change',async()=>{
-      const scroller=$('.table-scroller'),left=scroller?.scrollLeft||0,top=scroller?.scrollTop||0;
-      try{await commit(d=>setGrade(d,field.dataset.student,field.dataset.assessment,field.value.trim()===''?null:field.value.trim().replace(',','.')),'Editar nota');
-        restoreFocus(field.dataset.student,field.dataset.assessment,move,left,top);
-      }catch(err){fail(err);render();restoreFocus(field.dataset.student,field.dataset.assessment,0,left,top);}
+      const position=positionAtEnter||snapshotGradeScroll();
+      positionAtEnter=null;
+      try{
+        await commit(d=>setGrade(d,field.dataset.student,field.dataset.assessment,field.value.trim()===''?null:field.value.trim().replace(',','.')),'Editar nota');
+        restoreFocus(field.dataset.student,field.dataset.assessment,move,position);
+      }catch(err){
+        fail(err);render();
+        restoreFocus(field.dataset.student,field.dataset.assessment,0,position);
+      }finally{move=0;}
     });
   });
   document.querySelectorAll('[data-explain]').forEach(b=>b.onclick=()=>{
