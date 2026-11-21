@@ -52,6 +52,15 @@ replace_exact(
 )
 ui.write_text(source, encoding="utf-8")
 
+# Asegurar que las instalaciones PWA no reutilizan el módulo antiguo en caché.
+sw = root / "sw.js"
+sw_source = sw.read_text(encoding="utf-8")
+old_cache = "const CACHE='cuaderno-docente-static-v119-dev';"
+new_cache = "const CACHE='cuaderno-docente-static-v119-agenda-audit-20261121';"
+if sw_source.count(old_cache) != 1:
+    raise SystemExit("No se reconoce la versión de caché de la PWA")
+sw.write_text(sw_source.replace(old_cache, new_cache), encoding="utf-8")
+
 # Actualizar el manifiesto del paquete extraído, sin tocar el ZIP original.
 newlines = []
 changed = 0
@@ -71,5 +80,4 @@ if not changed:
     raise SystemExit("El manifiesto no contiene el módulo modificado")
 manifest.write_text("".join(newlines), encoding="utf-8")
 print("Aplicadas cuatro correcciones de agenda e iCalendar; hashes actualizados:", changed)
-print("Configuración original del service worker:")
-print((root / "sw.js").read_text(encoding="utf-8")[:1500])
+print("Nueva caché PWA: cuaderno-docente-static-v119-agenda-audit-20261121")
