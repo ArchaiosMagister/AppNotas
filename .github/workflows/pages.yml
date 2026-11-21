@@ -42,6 +42,10 @@ jobs:
       - name: Validar JavaScript reparado
         working-directory: _release/CuadernoDocente_v1.19-prepublicacion
         run: node --check src/planner-ui.js
+      - name: Probar cuatro correcciones y actualización PWA
+        env:
+          CUADERNO_ROOT: _release/CuadernoDocente_v1.19-prepublicacion
+        run: node --test scripts/audit-v119.test.mjs
       - name: Ejecutar 362 pruebas automatizadas
         working-directory: _release/CuadernoDocente_v1.19-prepublicacion
         run: npm test
