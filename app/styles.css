@@ -1065,3 +1065,40 @@ html[data-theme="oled"] .student-period .student-category.student-category-tinte
   .student-period .student-category.student-category-tinted{padding:8px 10px}
   .student-period .student-assessment-block.student-category-tinted{padding:6px 8px}
 }
+
+
+/* Observaciones por alumno y actividad. Mantener el indicador visible sin
+ * confundirlo con el color numérico de la calificación ni con NP/AJ. */
+.grade-table .grade-observation-button{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:48px;min-height:29px;padding:4px 7px;margin:4px 2px 0;
+  font-size:11px;font-weight:760;line-height:1.2;white-space:nowrap;
+  color:var(--muted);background:transparent;border:1px dashed var(--line);
+  border-radius:7px;cursor:pointer;
+}
+.grade-table .grade-observation-button.has-observation{
+  background:color-mix(in srgb,var(--accent) 12%,var(--surface));
+  border:1px solid var(--accent);color:var(--ink);
+}
+.grade-table .grade-observation-button:hover,
+.grade-table .grade-observation-button:focus-visible{
+  border-color:var(--accent);color:var(--ink);outline:2px solid var(--accent);outline-offset:1px;
+}
+.grade-observation-dialog{display:grid;gap:11px}
+.grade-observation-dialog>label:not(.grade-observation-visibility){font-size:13px;font-weight:750}
+.grade-observation-dialog textarea{display:block;min-height:124px;width:100%;resize:vertical;font:inherit;line-height:1.55;white-space:pre-wrap}
+.grade-observation-visibility{display:flex;align-items:flex-start;gap:9px;padding:9px 0;font-size:13px;font-weight:680;color:var(--ink)}
+.grade-observation-visibility input[type=checkbox]{width:18px;height:18px;flex-shrink:0}
+.student-assessment-observation{
+  margin:8px 0 12px;padding:9px 12px;border-radius:9px;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);
+}
+.student-assessment-observation>summary{font-size:12px;font-weight:760;cursor:pointer}
+.student-assessment-observation>p{
+  margin:8px 0 2px;font-size:12px;line-height:1.55;
+  white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;
+}
+html[data-theme="dark"] .student-assessment-observation{background:var(--raised)}
+html[data-theme="oled"] .student-assessment-observation{background:#000!important;border-color:var(--line)}
+html[data-theme="oled"] .grade-table .grade-observation-button.has-observation{background:#000;color:var(--ink);border-color:var(--accent)}
+@media(max-width:650px){.grade-table .grade-observation-button{min-height:34px;padding:6px 7px}.grade-observation-dialog textarea{font-size:16px}}
