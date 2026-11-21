@@ -1,5 +1,5 @@
 name: Validar rediseño B móvil y iPad (temporal)
-# Pruebas funcionales verdes; para navegador emplear Ubuntu 24.04 compatible con Playwright
+# Chromium detectó visibilidad docente en modo alumno; comprobar corrección con CSS prioritario
 on:
   push:
     branches: [feat/responsive-interface-reorganization-20261121]
