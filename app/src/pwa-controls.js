@@ -9,3 +9,13 @@ export function installInstructions(ua='',platform=''){
 export function mayReloadForUpdate(state){
   return !state.saveError&&!state.pending&&!state.saving&&!state.updateReloading;
 }
+
+/** Consulta del almacenamiento del origen: nunca reemplaza una copia cifrada externa. */
+export async function storagePersistence(storage,request=false){
+  const method=request?'persist':'persisted';
+  if(!storage||typeof storage[method]!=='function')return 'unsupported';
+  try{
+    const granted=await storage[method]();
+    return granted===true?'persistent':granted===false?'best-effort':'unavailable';
+  }catch{return 'unavailable';}
+}
