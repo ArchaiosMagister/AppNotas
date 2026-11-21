@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialNotebook,assertModel,setGrade} from '../src/model.js';
+import {initialNotebook,emptyNotebook,assertModel,setGrade} from '../src/model.js';
 import {createVault,unlockVault,seal,saltFromEnvelope} from '../src/vault.js';
 import {readEnvelope,readRecoveryEnvelope,writeEnvelope,replaceEnvelopeWithRecovery,swapRecoveryEnvelope,sameEnvelope,readExportReceipt,recordExportReceipt} from '../src/storage.js';
 import {overallGrade} from '../src/calculations.js';
+import {ensureBookMetadata,createPortableCopy,readBackupFile,compareBookVersions} from '../src/cuaderno.js';
 
 /** IndexedDB determinista: snapshot por transacción, commit solo en oncomplete.
  * Si se aborta, ni main ni pre-restore se modifican (no representa un navegador real). */
@@ -187,4 +188,52 @@ test('v1.17: error de almacenamiento al registrar copia no destruye el cuaderno 
  await assert.rejects(recordExportReceipt(db,receipt,old.envelope),/Simulación de fallo/);
  assert.equal(await readExportReceipt(db),null);
  assert(sameEnvelope(await readEnvelope(db),old.envelope));
+});
+
+
+test('inicio desde cero: reiniciar con copia portátil auténtica conserva rescate y permite recuperar todas las notas',async()=>{
+ const password='Frase cifrada de reinicio con copias 2026';
+ const initial=initialNotebook();ensureBookMetadata(initial);assertModel(initial);
+ const previous=await createVault(password,initial),db=simulatedDb();
+ await writeEnvelope(db,previous.envelope,null);
+ const salt=saltFromEnvelope(previous.envelope);
+ const portable=await createPortableCopy(initial,previous.key,salt);
+ const bytes=JSON.stringify(portable.file);
+ const reopened=await readBackupFile({size:bytes.length,text:async()=>bytes},password);
+ assert.equal(compareBookVersions(initial,reopened.doc),'same');
+ assert.equal(JSON.stringify(initial),JSON.stringify(reopened.doc));
+ const blank=emptyNotebook();ensureBookMetadata(blank);assertModel(blank);
+ const replacement=await seal(blank,previous.key,salt);
+ const rescue=await replaceEnvelopeWithRecovery(db,replacement,previous.envelope);
+ assert(sameEnvelope(rescue.envelope,previous.envelope));
+ assert(sameEnvelope(await readEnvelope(db),replacement));
+ const unlocked=await unlockVault(password,replacement);
+ assert.deepEqual(unlocked.doc.groups,[]);
+ assert.deepEqual(unlocked.doc.grades,[]);
+ const recovered=await unlockVault(password,(await readRecoveryEnvelope(db)).envelope);
+ assert.deepEqual(recovered.doc,initial);
+ const before=initial.grades.map(g=>g.score);
+ await swapRecoveryEnvelope(db,replacement,rescue);
+ assert.deepEqual((await unlockVault(password,await readEnvelope(db))).doc.grades.map(g=>g.score),before);
+});
+
+test('reinicio protegido: fallo en transacción o nueva escritura simultánea deja el cuaderno original intacto',async()=>{
+ const password='Frase de reinicio para transacción segura 2026';
+ const initial=initialNotebook();ensureBookMetadata(initial);
+ const previous=await createVault(password,initial);
+ const blank=emptyNotebook();ensureBookMetadata(blank);
+ const replacement=await seal(blank,previous.key,saltFromEnvelope(previous.envelope));
+ const db=simulatedDb();await writeEnvelope(db,previous.envelope,null);
+ const original=db.snapshot();
+ db.failNextTransactionAtPut(2);
+ await assert.rejects(replaceEnvelopeWithRecovery(db,replacement,previous.envelope),/Simulación de fallo/);
+ assert.deepEqual(db.snapshot(),original);
+ assert.equal(await readRecoveryEnvelope(db),null);
+ const modified=structuredClone(initial);
+ modified.title='Versión reciente';
+ const newer=await seal(modified,previous.key,saltFromEnvelope(previous.envelope));
+ await writeEnvelope(db,newer,previous.envelope);
+ await assert.rejects(replaceEnvelopeWithRecovery(db,replacement,previous.envelope),{code:'ENVELOPE_CONFLICT'});
+ assert(sameEnvelope(await readEnvelope(db),newer));
+ assert.equal(await readRecoveryEnvelope(db),null);
 });
