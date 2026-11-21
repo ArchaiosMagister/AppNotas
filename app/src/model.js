@@ -48,6 +48,33 @@ export function setOrthographyDefaults(doc,patch){
   if(typeof next.enabledForExams!=='boolean'||!validOrthographyConfig({enabled:true,refundable:next.refundable,repetitions:next.repetitions,penaltyPerFault:next.penaltyPerFault}))throw new Error('Configuración de faltas inválida.');
   doc.settings.orthographyDefaults=next;doc.updatedAt=now();return next;
 }
+
+/** Preferencia por grupo de la asignatura. Se aplica a todos los exámenes
+ * con penalización activa y a los nuevos, sin eliminar las faltas ya anotadas.
+ * Si existe una entrega ya concedida, no se puede retirar retroactivamente. */
+export function groupOrthographyRefundable(doc,groupId){
+  const group=doc.groups.find(g=>g.id===groupId);
+  if(!group)throw new Error('Grupo inexistente.');
+  return group.orthographyRefundable??doc.settings.orthographyDefaults.refundable;
+}
+export function setGroupOrthographyRefundable(doc,groupId,refundable){
+  const group=doc.groups.find(g=>g.id===groupId);
+  if(!group||typeof refundable!=='boolean')throw new Error('Configuración de devolución por faltas inválida.');
+  const targets=doc.assessments.filter(a=>a.groupId===groupId&&a.orthography?.enabled);
+  if(!refundable&&targets.some(a=>doc.grades.some(grade=>grade.assessmentId===a.id&&grade.orthographyDelivered)))
+    throw new Error('Hay faltas ya entregadas en este grupo. Revisa esas calificaciones antes de desactivar la devolución; no se ha modificado nada.');
+  if(group.orthographyRefundable===refundable&&targets.every(a=>a.orthography.refundable===refundable))return doc;
+  const stamp=now();
+  group.orthographyRefundable=refundable;group.updatedAt=stamp;
+  for(const a of targets){
+    if(a.orthography.refundable!==refundable){
+      a.orthography={...a.orthography,refundable};
+      a.updatedAt=stamp;
+    }
+  }
+  doc.updatedAt=stamp;return doc;
+}
+
 export const COURSE_SUBJECTS = Object.freeze({
   '4eso': Object.freeze({label:'4.º ESO',subjects:['Latín 4.º']}),
   '1bach': Object.freeze({label:'1.º Bachillerato',subjects:['Latín I','Griego I']}),
@@ -142,6 +169,7 @@ export function assertModel(doc) {
   if(!Array.isArray(doc.gradingProfiles))throw new Error('Faltan perfiles de evaluación.');
   assertPlanner(doc);
   if(!doc.groups.every(g=>(g.itacaRounding===undefined||ITACA_ROUNDING.includes(g.itacaRounding))))throw new Error('Regla general de Nota Ítaca inválida.');
+  if(!doc.groups.every(g=>g.orthographyRefundable===undefined||typeof g.orthographyRefundable==='boolean'))throw new Error('Regla de devolución por faltas del grupo inválida.');
   if(!doc.students.every(s=>s.itacaRoundingOverrides===undefined||(
     s.itacaRoundingOverrides&&typeof s.itacaRoundingOverrides==='object'&&!Array.isArray(s.itacaRoundingOverrides)&&
     Object.entries(s.itacaRoundingOverrides).every(([periodId,rule])=>doc.periods.some(p=>p.id===periodId)&&ITACA_ROUNDING.includes(rule))
@@ -566,7 +594,7 @@ export function addAssessment(doc,{name,groupId,periodId,categoryId,maxScore=10,
     const category=doc.categories.find(c=>c.id===categoryId);
     const defaults={...ORTHOGRAPHY_DEFAULTS,...doc.settings.orthographyDefaults};
     orthography=category?.name?.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()==='examenes'&&defaults.enabledForExams&&!rubricId&&convertToTen
-      ?{enabled:true,penaltyPerFault:defaults.penaltyPerFault,repetitions:defaults.repetitions,refundable:defaults.refundable}:null;
+      ?{enabled:true,penaltyPerFault:defaults.penaltyPerFault,repetitions:defaults.repetitions,refundable:doc.groups.find(g=>g.id===groupId)?.orthographyRefundable??defaults.refundable}:null;
   }
   if(orthography!==null&&(!validOrthographyConfig(orthography)||orthography.enabled&&(rubricId||!convertToTen)))throw new Error('Penalización ortográfica no compatible con esta actividad.');
   const order=Math.max(-1,...doc.assessments.filter(x=>x.groupId===groupId&&x.periodId===periodId).map(x=>x.order))+1;
