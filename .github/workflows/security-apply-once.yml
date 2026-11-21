@@ -1,0 +1,50 @@
+name: Aplicar aviso y prueba de persistencia (un único uso)
+on:
+  push:
+    branches: [security/storage-retention-audit-20261121]
+    paths: [.github/workflows/security-apply-once.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.repository == 'ArchaiosMagister/AppNotas' && github.ref == 'refs/heads/security/storage-retention-audit-20261121'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener rama de seguridad
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Aplicar mejora y recalcular manifiesto íntegro
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/harden_storage_once.py
+          python3 scripts/harden_storage_once.py
+          ( cd app && sha256sum --check MANIFEST_SHA256.txt >/dev/null )
+      - name: Verificar scripts
+        run: |
+          node --check app/app.js
+          node --check app/src/pwa-controls.js
+          node --check app/sw.js
+      - name: Probar guardado y regresiones
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd app && npm test)
+          CUADERNO_ROOT=app node --test scripts/audit-v119.test.mjs
+      - name: Guardar cambios únicamente en rama de seguridad
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- app/app.js app/src/pwa-controls.js app/sw.js app/MANIFEST_SHA256.txt
+          git diff --cached --stat
+          git diff --cached --quiet && { echo "No se han aplicado cambios"; exit 1; }
+          git commit -m "security: mostrar estado de persistencia y aviso de origen compartido"
+          git push origin HEAD:security/storage-retention-audit-20261121
