@@ -1,4 +1,5 @@
 name: Actualizar manifiesto y probar política de copias (uso único)
+# Segunda revisión: coherencia de caché entre app y SW
 on:
   push:
     branches: [feat/backup-assurance-20261121]
