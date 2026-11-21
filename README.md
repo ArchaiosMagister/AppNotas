@@ -80,6 +80,14 @@ En **Ajustes y copias** se distingue entre exportar un archivo portátil y **rea
 
 La copia histórica .cdoc se conserva como opción de rescate, separada del archivo portátil .cuaderno. El sistema **no realiza copias externas automáticas** sin intervención del usuario.
 
+## Crear un cuaderno vacío y reiniciar de forma segura
+
+En una instalación sin datos, se puede elegir entre **Crear cuaderno vacío** (tres evaluaciones y categorías básicas, sin alumnos ni notas) y **Crear cuaderno de demostración** (ocho alumnos ficticios). Ambas opciones requieren contraseña y cifran el contenido solo en el dispositivo.
+
+Para reiniciar un cuaderno ya existente, entrar en **Ajustes y copias → Empezar de cero**. Es obligatorio seleccionar y descifrar un archivo .cuaderno que corresponda exactamente a la última revisión, y escribir **REINICIAR**. La sustitución y el punto único de rescate cifrado se registran en una sola transacción, sin modificar otros dispositivos ni carpetas externas.
+
+Guía paso a paso para iPad: [Empezar desde cero](docs/EMPEZAR_DESDE_CERO_IPAD.md).
+
 ## Paquete histórico y reproducibilidad
 
 El ZIP original v1.19 sigue disponible sin cambios en `releases/v1.19/part_*.b64`, con SHA-256:
