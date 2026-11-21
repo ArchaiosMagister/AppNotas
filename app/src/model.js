@@ -156,6 +156,19 @@ export function assertModel(doc) {
   const has = key => new Set(doc[key].map(x=>x.id));
   const gs = has('groups'), ps = has('periods'), cs = has('categories'), ss=has('students'), as=has('assessments'), rs=has('rubrics');
   if(doc.students.some(x=>!gs.has(x.groupId))) throw new Error('Estudiante sin grupo válido.');
+  if(doc.students.some(student=>{
+    if(typeof student.name!=='string'||!student.name.trim()||student.name.length>150)return true;
+    if(student.originGroup!==undefined&&(typeof student.originGroup!=='string'||student.originGroup.length>60))return true;
+    const hasFirst=student.firstName!==undefined,hasLast=student.lastName!==undefined;
+    if(hasFirst!==hasLast)return true;
+    if(hasFirst){
+      if(typeof student.firstName!=='string'||typeof student.lastName!=='string'||!student.firstName.trim()||!student.lastName.trim()||
+        student.firstName!==student.firstName.trim()||student.lastName!==student.lastName.trim()||
+        student.firstName.length>80||student.lastName.length>100||
+        student.name!==`${student.lastName}, ${student.firstName}`)return true;
+    }
+    return false;
+  }))throw new Error('Identidad o grupo de procedencia de alumno inválidos.');
   if(doc.assessments.some(x=>!gs.has(x.groupId)||!ps.has(x.periodId)||!cs.has(x.categoryId)||!Number.isFinite(x.maxScore)||!(x.maxScore>0)||!Number.isFinite(x.weight)||!(x.weight>0)||x.weight>1000||x.maxScore>1000||!Number.isInteger(x.order)||x.order<0||typeof x.convertToTen!=='boolean'||(x.rubricId!==null&&x.rubricId!==undefined&&(!rs.has(x.rubricId)||x.maxScore!==10||!x.convertToTen)))) throw new Error('Actividad con referencia, escala o ponderación inválida.');
   for(const a of doc.assessments){
     if(a.orthography!==undefined&&a.orthography!==null){
@@ -420,10 +433,56 @@ export function addPeriod(doc,name){
   doc.periods.push(mark({id:uid(),name:name.trim(),order:doc.periods.length,createdAt:now()})); doc.updatedAt=now();
   return doc.periods.at(-1);
 }
-export function addStudent(doc,groupId,name){
-  const n=name.trim();if(!n)throw new Error('Introduce el nombre o código del alumno.');
+/** El grupo de procedencia identifica la tutoría/clase, NO el grupo de la asignatura.
+ * Mantener name por compatibilidad con cálculos, importaciones y copias anteriores.
+ * No se intenta separar automáticamente un nombre histórico desconocido. */
+export function studentIdentity(input){
+  if(typeof input==='string'){
+    const name=input.trim();
+    if(!name||name.length>150)throw new Error('Nombre o código de alumno inválido.');
+    return {name};
+  }
+  if(!input||typeof input!=='object'||Array.isArray(input)||
+    Object.keys(input).some(key=>!['firstName','lastName','originGroup','name'].includes(key)))
+    throw new Error('Datos de alumno inválidos.');
+  const originGroup=String(input.originGroup??'').trim();
+  if(originGroup.length>60)throw new Error('La etiqueta del grupo supera 60 caracteres.');
+  const firstName=String(input.firstName??'').trim(),lastName=String(input.lastName??'').trim();
+  if(firstName||lastName||Object.hasOwn(input,'firstName')||Object.hasOwn(input,'lastName')){
+    if(!firstName||!lastName||firstName.length>80||lastName.length>100||`${lastName}, ${firstName}`.length>150)
+      throw new Error('Introduce nombre y apellidos válidos (máximo 150 caracteres en total).');
+    return {name:`${lastName}, ${firstName}`,firstName,lastName,originGroup};
+  }
+  const name=String(input.name??'').trim();
+  if(!name||name.length>150)throw new Error('Nombre o código de alumno inválido.');
+  return {name,originGroup};
+}
+export const STUDENT_SORT_MODES=Object.freeze(['surname','firstName','originGroup','manual']);
+const studentCollator=new Intl.Collator('es',{sensitivity:'base',numeric:true});
+/** Orden de presentación: nunca reescribe ni renumera notas/alumnos. */
+export function sortStudents(students,mode='surname'){
+  if(!STUDENT_SORT_MODES.includes(mode))throw new Error('Modo de ordenación inválido.');
+  const ordered=[...students];
+  const by=(a,b)=>studentCollator.compare(a,b);
+  const surname=s=>s.lastName||s.name||'';
+  const given=s=>s.firstName||s.name||'';
+  const stable=(a,b)=>(a.order??0)-(b.order??0)||by(a.id,b.id);
+  return ordered.sort((a,b)=>{
+    if(mode==='manual')return stable(a,b);
+    if(mode==='originGroup'){
+      const ga=a.originGroup||'',gb=b.originGroup||'';
+      if(!ga&&gb)return 1;
+      if(ga&&!gb)return -1;
+      const diff=by(ga,gb);if(diff)return diff;
+    }
+    if(mode==='firstName')return by(given(a),given(b))||by(surname(a),surname(b))||stable(a,b);
+    return by(surname(a),surname(b))||by(given(a),given(b))||stable(a,b);
+  });
+}
+export function addStudent(doc,groupId,identity){
   if(!doc.groups.some(g=>g.id===groupId))throw new Error('Grupo inexistente.');
-  const student=mark({id:uid(),groupId,name:n,order:doc.students.filter(s=>s.groupId===groupId).length,createdAt:now()});
+  const fields=studentIdentity(identity);
+  const student=mark({id:uid(),groupId,...fields,order:doc.students.filter(s=>s.groupId===groupId).length,createdAt:now()});
   doc.students.push(student);doc.updatedAt=now();return student;
 }
 export function addCategory(doc,name,weight=0,rule='mean',ownerGroupId=null){
@@ -737,11 +796,19 @@ export function setFinalOverride(doc,studentId,periodId,score){
 
 
 // Ediciones de gestión: no cambian IDs ni referencias a calificaciones.
-export function renameStudent(doc,studentId,name){
+/** Edición de identidad: preserva ID, notas, curso y excepciones individuales. */
+export function updateStudentIdentity(doc,studentId,identity){
   const student=doc.students.find(s=>s.id===studentId);
-  const value=String(name??'').trim();
-  if(!student||!value||value.length>150)throw new Error('Nombre o código de alumno inválido.');
-  student.name=value;student.updatedAt=doc.updatedAt=now();return student;
+  if(!student)throw new Error('Alumno inexistente.');
+  const fields=studentIdentity(identity);
+  if('firstName' in fields){student.firstName=fields.firstName;student.lastName=fields.lastName;}
+  else{delete student.firstName;delete student.lastName;}
+  student.name=fields.name;
+  if('originGroup' in fields)student.originGroup=fields.originGroup;
+  student.updatedAt=doc.updatedAt=now();return student;
+}
+export function renameStudent(doc,studentId,name){
+  return updateStudentIdentity(doc,studentId,name);
 }
 export function moveStudent(doc,studentId,direction){
   if(![-1,1].includes(direction))throw new Error('Dirección inválida.');
