@@ -65,6 +65,11 @@ for target in cache_files:
     cache_updates += contents.count(old_cache)
     target.write_text(contents.replace(old_cache, new_cache), encoding="utf-8")
 if cache_updates < 2:
+    print("REFERENCIAS DE CACHÉ QUE REQUIEREN AJUSTE:")
+    for path in [root / "app.js", *(root / "src").glob("*.js")]:
+        for index, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if "v119-dev" in line or "cuaderno-docente-static" in line:
+                print(path.relative_to(root), index, line[:350])
     raise SystemExit("No se han actualizado SW y comprobador offline")
 
 # Actualizar el manifiesto del paquete extraído, sin tocar el ZIP original.
