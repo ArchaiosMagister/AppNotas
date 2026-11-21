@@ -84,6 +84,14 @@ En **Ajustes y copias** se distingue entre exportar un archivo portátil y **rea
 
 La copia histórica .cdoc se conserva como opción de rescate, separada del archivo portátil .cuaderno. El sistema **no realiza copias externas automáticas** sin intervención del usuario.
 
+## Reorganización de interfaz para iPad y móvil
+
+La navegación muestra cuatro accesos prioritarios: **Cuaderno**, **Modo alumno**, **Agenda** y **Evaluación final**. Las herramientas de **Cálculos, Competencias, Currículo y Rúbricas** siguen disponibles desde «Gestión académica». **Ajustes y copias** se mantiene separado y visible.
+
+Las funciones existentes se redistribuyen sin alterar su comportamiento: selector plegable de asignatura, selector de grupo visible, «Opciones de grupo» para CSV/recuperaciones/configuración, **+ Alumno** y **+ Actividad** en primer plano y «Más acciones» para programar/copiar actividades. La cabecera mantiene estado de guardado y Bloquear; «Herramientas» reúne tema, abrir/cerrar cuaderno, PWA y deshacer/rehacer.
+
+Diseño probado para escritorio, iPad vertical/horizontal y teléfonos de 320–430 px; el ancho extra de la tabla de notas sigue desplazándose dentro de la tabla, con alumnos fijados a la izquierda. Los datos locales, copias cifradas, reglas de cálculo, Ítaca y paleta por curso/categoría no cambian. [Detalle de la reorganización y criterios de aceptación](docs/REDISENO_INTERFAZ_RESPONSIVE_2026-11-21.md).
+
 ## Observaciones individuales por calificación
 
 Cada casilla de calificación (normal, examen con penalización ortográfica o rúbrica) incluye un botón **«Obs.»**. Puedes escribir un comentario libre de hasta **1500 caracteres** sobre el alumno y esa actividad, por ejemplo «Realizó el examen en otra fecha» o «Llegó tarde». El indicador queda resaltado cuando existe comentario. Las observaciones son **independientes de la nota**: no modifican medias, porcentajes, Nota Ítaca ni resultados, y permanecen al cambiar o borrar una nota, marcar NP/AJ o modificar una rúbrica. También pueden anotarse antes de calificar.
