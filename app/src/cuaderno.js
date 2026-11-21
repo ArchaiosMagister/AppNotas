@@ -57,6 +57,21 @@ export function bookStatus(doc,receipt){
   if(receipt?.version===1&&receipt.bookId===p.bookId&&receipt.head===p.head&&iso(receipt.exportedAt))return 'exported';
   return receipt?.bookId===p.bookId?'modified':'unverified';
 }
+/** Política informativa; solo una lectura real de un archivo descifrado puede sellar
+ * verifiedAt. Un selector de guardado no garantiza que una nube lo haya retenido. */
+export const BACKUP_REVIEW_DAYS=7;
+export function backupProtection(doc,receipt,now=Date.now()){
+  const state=bookStatus(doc,receipt);
+  if(state==='unverified')return 'missing';
+  const timestamp=typeof receipt?.verifiedAt==='string'&&iso(receipt.verifiedAt)
+    ?Date.parse(receipt.verifiedAt):NaN;
+  const verified=Number.isFinite(now)&&Number.isFinite(timestamp)&&timestamp<=now&&timestamp>0;
+  if(state==='modified')return verified?'modified':'modified-unchecked';
+  if(!verified)return 'unchecked';
+  if(now-timestamp>BACKUP_REVIEW_DAYS*86_400_000)return 'aged';
+  return 'current';
+}
+
 export async function createPortableCopy(doc,key,salt,date=new Date()){
   assertModel(doc);validateBookMetadata(doc);
   if(!key||!(salt instanceof Uint8Array))throw new Error('Desbloquea el cuaderno para crear una copia.');
