@@ -106,15 +106,15 @@ export function parseScore(value){
   return parsed;
 }
 
-export function initialNotebook() {
+export function initialNotebook({empty=false}={}) {
   const group = mark({id: uid(), name: 'Latín I · A', course: '2026-2027', level:'1bach', subject: 'Latín I', createdAt: now()});
   const period = mark({id: uid(), name: '1.ª evaluación', order: 0, createdAt: now()});
   const otherPeriods = [1,2].map((order)=>mark({id:uid(),name:`${order+1}.ª evaluación`,order,createdAt:now()}));
   const e = mark({id: uid(), name: 'Exámenes', weight: 60, rule: 'latest_if_highest', bestCount:2, createdAt: now()});
   const t = mark({id: uid(), name: 'Trabajos', weight: 30, rule: 'mean', bestCount:2, createdAt: now()});
   const a = mark({id: uid(), name: 'Actitud', weight: 10, rule: 'mean', bestCount:2, createdAt: now()});
-  const students = Array.from({length: 8}, (_,i) => mark({id: uid(), groupId:group.id, name:`Alumno ${String(i+1).padStart(2,'0')}`, order:i, createdAt: now()}));
-  const assessments = [
+  const students = empty?[]:Array.from({length: 8}, (_,i) => mark({id: uid(), groupId:group.id, name:`Alumno ${String(i+1).padStart(2,'0')}`, order:i, createdAt: now()}));
+  const assessments = empty?[]:[
     {name:'Examen UD1',categoryId:e.id,maxScore:10,weight:1,convertToTen:true,rubricId:null,order:0},
     {name:'Examen UD2',categoryId:e.id,maxScore:10,weight:1,convertToTen:true,rubricId:null,order:1},
     {name:'Trabajo 1',categoryId:t.id,maxScore:10,weight:1,convertToTen:true,rubricId:null,order:2},
@@ -125,9 +125,12 @@ export function initialNotebook() {
     [5,6,8,7],[7,6,7.5,8],[8.5,8.5,9,9],[3,5,6,7]
   ];
   const grades = students.flatMap((s,i)=>assessments.map((p,j)=>mark({id:uid(),studentId:s.id,assessmentId:p.id,score:matrix[i][j],createdAt:now()})));
-  const competencies = [mark({id:uid(),name:'CE1 · Interpretación de textos',links:[{categoryId:e.id,weight:70},{categoryId:t.id,weight:30}],createdAt:now()})];
-  return {schemaVersion:SCHEMA_VERSION,planner:createPlanner(group.course),gradingProfiles:[],individualCategoryRules:[],rubrics:[],finalConfigs:[],finalOverrides:[],id:uid(),title:'CuadernoDocente',createdAt:now(),updatedAt:now(),settings:{decimals:2,rounding:'half-up',orthographyDefaults:{...ORTHOGRAPHY_DEFAULTS},subjectAccents:{...SUBJECT_COLORS}},groups:[group],periods:[period,...otherPeriods],categories:[e,t,a],students,assessments,grades,competencies};
+  const competencies = empty?[]:[mark({id:uid(),name:'CE1 · Interpretación de textos',links:[{categoryId:e.id,weight:70},{categoryId:t.id,weight:30}],createdAt:now()})];
+  return {schemaVersion:SCHEMA_VERSION,planner:createPlanner(group.course),gradingProfiles:[],individualCategoryRules:[],rubrics:[],finalConfigs:[],finalOverrides:[],id:uid(),title:'CuadernoDocente',createdAt:now(),updatedAt:now(),settings:{decimals:2,rounding:'half-up',orthographyDefaults:{...ORTHOGRAPHY_DEFAULTS},subjectAccents:{...SUBJECT_COLORS}},groups:empty?[]:[group],periods:[period,...otherPeriods],categories:[e,t,a],students,assessments,grades,competencies};
 }
+
+/** Cuaderno sin datos de demostración: conserva solo tres evaluaciones y categorías base. */
+export function emptyNotebook(){return initialNotebook({empty:true});}
 
 export function assertModel(doc) {
   if (!doc || doc.schemaVersion !== SCHEMA_VERSION) throw new Error('Versión de datos incompatible. No se ha modificado el cuaderno.');
