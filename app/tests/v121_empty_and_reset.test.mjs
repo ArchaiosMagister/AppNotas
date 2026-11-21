@@ -62,6 +62,7 @@ test('interfaz: inicio ofrece vacío y demostración, y reinicio exige copia exa
   assert(js.includes("$('#reset-notebook-phrase',dialog).value!=='REINICIAR'"));
   assert(js.includes('replaceEnvelopeWithRecovery(STATE.db,replacement,previousEnvelope)'));
   assert(js.includes('await readEnvelope(STATE.db),previousEnvelope'));
-  assert(js.includes("caches.open('cuaderno-docente-static-v123-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v123-dev'"));
+  const cache=sw.match(/const CACHE='(cuaderno-docente-static-v\d+-dev)'/)?.[1];
+  assert(cache,'El service worker debe usar una caché versionada');
+  assert(js.includes("caches.open('"+cache+"')"),'La comprobación offline debe usar la misma caché');
 });

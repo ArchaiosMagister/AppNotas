@@ -59,3 +59,27 @@ export function namesFromCsv(text){
   if(names.some(n=>n.length>150))throw new Error('Uno de los nombres supera 150 caracteres.');
   return names;
 }
+
+
+/** CSV optativo: «apellidos;nombre;grupo» para registros completos.
+ * CSV anterior «nombre» se importa como etiqueta histórica sin adivinar apellidos. */
+export function studentsFromCsv(text){
+  const rows=parseCsv(text);
+  const headers=rows[0].map(x=>x.trim().toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' '));
+  const locate=names=>headers.findIndex(h=>names.includes(h));
+  const given=locate(['nombre','alumno','alumna','estudiante','name']);
+  const surname=locate(['apellidos','apellido','surname','last name','last_name']);
+  const origin=locate(['grupo','grupo de procedencia','grupo origen','clase','grupo tutor','tutoria','grupo_tutoria','origin group']);
+  if(given<0)throw new Error('El CSV necesita una columna «nombre». Puedes añadir «apellidos» y «grupo».');
+  const entries=rows.slice(1).map((row,i)=>{
+    const firstName=(row[given]||'').trim(),lastName=surname<0?'':(row[surname]||'').trim();
+    const originGroup=origin<0?'':(row[origin]||'').trim();
+    if(!firstName||(surname>=0&&!lastName))throw new Error(`La fila ${i+2} necesita nombre y apellidos. No se ha importado ningún alumno.`);
+    if(firstName.length>150||lastName.length>100||originGroup.length>60||
+       (surname>=0&&`${lastName}, ${firstName}`.length>150))
+      throw new Error(`La fila ${i+2} excede la longitud permitida. No se ha importado ningún alumno.`);
+    return surname>=0?{firstName,lastName,originGroup}:{name:firstName,originGroup};
+  });
+  if(!entries.length)throw new Error('No se han encontrado alumnos.');
+  return entries;
+}
