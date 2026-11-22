@@ -168,3 +168,28 @@ test('v164: acciones de iPhone e iPad crecen para llenar filas y no degradan tac
   '@media(pointer:coarse)'
  ])assert(css164.includes(token),token);
 });
+
+test('v165: Herramientas y navegación primaria comparten eje y filas internas',()=>{
+ const css165=css.slice(css.indexOf('/* v165 · Alineación geométrica'));
+ assert(css165.includes('grid-template-rows:19px minmax(26px,auto)'));
+ assert(css165.includes('.tabs .academic-disclosure>summary .nav-glyph'));
+ assert(css165.includes('.tabs .academic-disclosure>summary .nav-text'));
+ assert(css165.includes('display:flex;flex:none;align-items:center;justify-content:center'));
+ assert(css165.includes('min-height:68px'));
+ assert(css165.includes('@media(max-width:640px)'));
+});
+test('v165: el tamaño de las notas principales es 16px, sin agrandar valores secundarios',()=>{
+ const c=css.slice(css.indexOf('/* v165 · Alineación geométrica'));
+ for(const token of [
+  '.grade-table tbody td .grade-chip{',
+  'font-size:16px;line-height:1.2;min-width:64px',
+  '.grade-table tbody td .note-input:not(.original-note-input){',
+  '.grade-table tbody td .converted-score .grade-chip{',
+  '.grade-table tbody td .final-period-cell .hint .grade-chip{',
+  '.grade-table tbody td .original-note-input{font-size:12px}',
+  '.grade-table tbody td.final-col .score-button,',
+  '.grade-table tbody td.itaca-col .itaca-edit{'
+ ])assert(c.includes(token),token);
+ assert(app.includes('const gradeChip='));
+ assert(app.includes('function itacaChip('));
+});
