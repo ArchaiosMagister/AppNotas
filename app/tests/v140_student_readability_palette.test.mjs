@@ -52,7 +52,7 @@ test('la cabecera de Griego conserva sus variantes, pero el acento de los contro
 
 test('fichas individuales y tarjetas de evaluaciones quedan más estrechas que el área de trabajo',async()=>{
   const css=await read('styles.css');
-  const patch=css.slice(css.indexOf('/* v140 · Modo alumno:'));
+  const patch=css.slice(css.indexOf('/* v140 · Modo alumno:'),css.indexOf('/* v141 · Centrado horizontal'));
   assert(patch.startsWith('/* v140 · Modo alumno:'));
   assert(patch.includes('.student-privacy,details.student-period,.student-final-summary{'));
   assert(patch.includes('max-width:880px'));
@@ -68,7 +68,7 @@ test('fichas individuales y tarjetas de evaluaciones quedan más estrechas que e
 
 test('los rótulos de actividades y categorías aumentan de tamaño, son negrita y quedan junto a la nota',async()=>{
   const css=await read('styles.css');
-  const patch=css.slice(css.indexOf('/* v140 · Modo alumno:'));
+  const patch=css.slice(css.indexOf('/* v140 · Modo alumno:'),css.indexOf('/* v141 · Centrado horizontal'));
   assert(patch.includes('.student-period .student-assessment{'));
   assert(patch.includes('justify-content:flex-start'));
   assert(patch.includes('gap:5px 12px'));
@@ -111,7 +111,7 @@ test('los controles y datos del modo alumno siguen presentes, sin exponer a otro
 
 test('el visor sigue legible con pantalla estrecha, claro, oscuro y OLED',async()=>{
   const css=await read('styles.css');
-  const patch=css.slice(css.indexOf('/* v140 · Modo alumno:'));
+  const patch=css.slice(css.indexOf('/* v140 · Modo alumno:'),css.indexOf('/* v141 · Centrado horizontal'));
   assert(patch.includes('@media(max-width:700px)'));
   assert(patch.includes('@media(max-width:540px)'));
   assert(patch.includes('flex-direction:row;flex-wrap:wrap;align-items:center'));
