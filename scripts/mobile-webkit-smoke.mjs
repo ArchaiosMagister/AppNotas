@@ -39,6 +39,11 @@ async function audit(engine,name){
   await page.locator('[data-create-mode="demo"]').click();
   await page.locator('.nav-primary [data-tab="cuaderno"]').waitFor({timeout:30000});
   assert((await page.locator('.course-choice').count())>=4,'Debe haber materias visibles');
+  // El último botón puede pertenecer a una materia aún sin grupo: recordar el
+  // grupo inicial de demostración para probar las acciones del cuaderno.
+  const defaultCourse=await page.locator('.course-choice[aria-pressed="true"]').evaluate(node=>({
+   level:node.dataset.courseLevel,subject:node.dataset.courseSubject
+  }));
 
   for(const size of [
     {width:320,height:700},{width:375,height:812},{width:390,height:844},
@@ -163,6 +168,8 @@ async function audit(engine,name){
    }
    await page.locator('.nav-primary [data-tab="cuaderno"]').click();
    assert(await page.locator('.class-toolbar').isVisible());
+   await page.locator('.course-choice[data-course-level="'+defaultCourse.level+
+    '"][data-course-subject="'+defaultCourse.subject+'"]').click();
    if(size.width<=650){
     const actions=await page.evaluate(()=>{
      const primary=[...document.querySelectorAll('.notebook-primary-actions>.btn')].map(n=>n.getBoundingClientRect());
