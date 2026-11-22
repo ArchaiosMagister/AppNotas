@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {initialNotebook,assertModel} from '../src/model.js';
 import {overallGrade,finalGrade} from '../src/calculations.js';
-import {activeYear,saveHoliday,saveEvent,calendarEventIcs,addAcademicYear} from '../src/planner.js';
+import {activeYear,saveHoliday,saveEvent,saveSlot,saveTimetableBand,saveException,deletePlannerItem,calendarEventIcs,addAcademicYear} from '../src/planner.js';
 import {parsePatioXlsx,extractPatioRotation,previewPatioRotation,addPatioRotationEvents} from '../src/patio-rotation.js';
 import {ensureBookMetadata,markBookChange,createPortableCopy,readBackupFile} from '../src/cuaderno.js';
 import {createVault,saltFromEnvelope} from '../src/vault.js';
@@ -245,4 +245,22 @@ test('un Excel dañado o desmesurado se rechaza sin tocar el cuaderno',async()=>
  await assert.rejects(parsePatioXlsx(new ArrayBuffer(3_000_001),{zipLibrary:fakeWorkbook(),Parser:FakeParser}),/3 MB/);
  await assert.rejects(parsePatioXlsx(new ArrayBuffer(8),{zipLibrary:{loadAsync:async()=>{throw Error('corrupto');}},Parser:FakeParser}),/No se ha podido abrir/);
  assert.deepEqual(doc,before);
+});
+
+
+test('modificar franja o mover clase mantiene inicio y fin de eventos y calendarios',()=>{
+ const {doc,group,student,period}=base(),mean=overallGrade(doc,student.id,group.id,period.id);
+ const band=saveTimetableBand(doc,{label:'Franja excepcional',start:'16:00',end:'16:40',kind:'lesson'});
+ const slot=saveSlot(doc,{day:0,start:band.start,end:band.end,type:'class',groupId:group.id,bandId:band.id});
+ const event=saveEvent(doc,{type:'exam',title:'Examen vinculado',date:'2026-11-23',groupId:group.id,slotId:slot.id});
+ assert.deepEqual([event.time,event.endTime],['16:00','16:40']);
+ saveTimetableBand(doc,{id:band.id,label:band.label,kind:'lesson',start:'16:30',end:'17:20'});
+ assert.deepEqual([event.time,event.endTime],['16:30','17:20']);
+ const moved=saveException(doc,{date:'2026-11-23',slotId:slot.id,type:'move',start:'18:00',end:'18:30'});
+ assert.deepEqual([event.time,event.endTime],['18:00','18:30']);
+ assert(calendarEventIcs(event).includes('DTEND:20261123T183000'));
+ deletePlannerItem(doc,'exceptions',moved.id);
+ assert.deepEqual([event.time,event.endTime],['16:30','17:20']);
+ assert.equal(overallGrade(doc,student.id,group.id,period.id),mean);
+ assertModel(doc);
 });
