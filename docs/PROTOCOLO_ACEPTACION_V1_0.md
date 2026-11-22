@@ -1,24 +1,24 @@
 # Protocolo de aceptación de AppNotas v1.0
 
-**Ámbito:** prueba de usuario con **datos estrictamente ficticios** sobre la vista previa de Cloudflare asociada a la PR #24. La versión estable y los cuadernos reales no deben modificarse durante la validación.
+**Ámbito:** prueba de usuario con **datos estrictamente ficticios** sobre la vista previa de Cloudflare asociada a la PR de integración v1.0. La versión estable y los cuadernos reales no deben modificarse durante la validación.
 
 **Autorización de almacenamiento:** el usuario comunica autorización de su centro para guardar cuadernos y copias **exclusivamente en local**, sin servicios de almacenamiento en nube. Cloudflare Pages distribuye código, no guarda notas ni copias. El sistema operativo puede ofrecer destinos sincronizados: **seleccionar solo «En mi iPad», «En mi iPhone», carpeta local de ordenador o USB sin sincronización**.
 
 ## 1. Portada y sesión de evaluación — iPad / Safari
 
-1. Abrir la **URL de vista previa de la PR #24**, no la de producción. **No importar un cuaderno con datos reales.**
+1. Abrir la **URL de vista previa de la PR de integración v1.0**, no la de producción. **No importar un cuaderno con datos reales.**
 2. Pulsar **«¿Cómo funciona?»**, desplazarse hasta el final, cerrar el diálogo y comprobar que permite volver al inicio.
 3. Crear un cuaderno de **demostración** con una contraseña de prueba de al menos 12 caracteres. Anotarla solo para la prueba.
 4. Comprobar que existen los cinco botones predeterminados y que la elección de una materia y grupo no altera otra.
 5. Abrir el **Modo sesión de evaluación**, seleccionar un alumno ficticio y revisar la legibilidad, todas las notas y la navegación anterior/siguiente. Comprobar que en el visor individual **no aparecen los datos de otros alumnos**.
-6. En el cuaderno, cambiar una nota ficticia; marcar y desmarcar **NP** y comprobar que puede sustituirse de nuevo por un número. Probar «Herramientas», «Opciones de grupo» y «Más acciones», verificando que ningún menú queda tapado.
+6. En el cuaderno, cambiar una nota ficticia; marcar y desmarcar **NP** y comprobar que puede sustituirse de nuevo por un número. Probar «Herramientas», «Materias y grupos» y «Más acciones», verificando que ningún menú queda tapado.
 7. Repetir visualmente en **Claro**, **Oscuro** y **OLED**, incluido iPad en vertical y horizontal.
 
 **Aceptar si:** todos los controles responden al toque, ningún texto o botón queda recortado y el visor muestra solo el alumno elegido.
 
 ## 2. Catálogo de materias y horario — iPad / Safari
 
-1. Abrir «Opciones de grupo» → **«Gestionar materias»**.
+1. Abrir «Materias y grupos» → **«Gestionar materias»**.
 2. Añadir **Historia** en 1.º Bachillerato. Elegir un color, crearle un grupo y comprobar que las demás materias originales continúan.
 3. Intentar retirar Historia **mientras tiene grupo**: debe impedirlo y conservar sus datos. Añadir una segunda materia sin grupos y retirarla: debe desaparecer sin afectar a Historia.
 4. En **Agenda → Horario**, revisar las siete horas y los patios, especialmente 10:45–11:15 y 14:00–14:20.

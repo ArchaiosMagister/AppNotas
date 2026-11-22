@@ -1,3 +1,5 @@
+> **Actualización de integración (22/11/2026):** la rama `release/v1.0-integration-20261122` reúne la PR #24 (horario, materias, guía y niveles), la PR #25 (media aritmética y currículo agrupado) y la corrección de menú/botones de la PR #26. La escala de adquisición **1 = alta, 4 = no adquirida** sustituye expresamente la equivalencia lineal anterior. La validación manual de dispositivo y copia offline sigue pendiente. Este documento recoge la auditoría original, no una certificación de la versión integrada.
+
 # Auditoría previa a AppNotas v1.0 — 22 de noviembre de 2026
 
 ## Decisión

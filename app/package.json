@@ -1,9 +1,9 @@
 {
   "name": "cuaderno-docente",
-  "version": "1.19.0-dev.1",
+  "version": "1.0.0-rc.1",
   "private": true,
   "type": "module",
-  "description": "Prototipo PWA offline-first de calificaciones con datos cifrados y ficticios",
+  "description": "Cuaderno de calificaciones y agenda offline-first con almacenamiento cifrado local",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "start": "node server.mjs",

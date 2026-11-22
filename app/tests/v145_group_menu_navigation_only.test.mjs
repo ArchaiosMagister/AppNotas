@@ -54,8 +54,8 @@ test('los botones son accesibles en iPad, móvil, oscuro y OLED',()=>{
 });
 test('caché PWA renovada y sincronizada: no se modifica IndexedDB',()=>{
   const app=read('app.js'),sw=read('sw.js');
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v144-dev'"));
-  assert(app.includes("caches.open('cuaderno-docente-static-v144-dev')"));
+  assert(sw.includes("const CACHE='cuaderno-docente-static-v146-dev'"));
+  assert(app.includes("caches.open('cuaderno-docente-static-v146-dev')"));
   assert(!app.includes('indexedDB.deleteDatabase'));
   assert(!sw.includes('indexedDB.deleteDatabase'));
 });
