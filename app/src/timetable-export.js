@@ -1,14 +1,9 @@
 /** Exportación local del horario semanal: no consulta la red ni lee calificaciones. */
-import {scheduleBands,slotsForMode,activeScheduleMode,SLOT_TYPES} from './planner.js';
+import {scheduleBands,slotsForMode,activeScheduleMode,SLOT_TYPES,plannerSlotColor} from './planner.js';
 
 const dayNames=['Lunes','Martes','Miércoles','Jueves','Viernes'];
-const validColor=c=>typeof c==='string'&&/^#[0-9A-Fa-f]{6}$/.test(c);
 const xml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'' :'&apos;'}[c]));
-const palette=(doc,slot)=>{
- const group=doc.groups.find(g=>g.id===slot.groupId);
- const subjectColor=group&&doc.settings?.subjectAccents?.[group.level+':'+group.subject];
- return validColor(subjectColor)?subjectColor:validColor(slot.color)?slot.color:'#69788B';
-};
+const palette=(_doc,slot)=>plannerSlotColor(slot);
 const slotLabel=(doc,s)=>{
  const g=doc.groups.find(x=>x.id===s.groupId);
  return s.type==='class'?(g?[g.subject,g.name].filter(Boolean).join(' · '):s.label):(s.label||SLOT_TYPES[s.type]);

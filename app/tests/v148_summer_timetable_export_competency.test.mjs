@@ -175,7 +175,7 @@ test('UI accesible, formularios, exportación offline y criterios de CE al ponde
  assert(ui.includes('id="plan-summer-toggle"'));
  assert(ui.includes('role="switch"'));
  assert(ui.includes('setSummerSchedule(d,enabled)'));
- assert(ui.includes("id:'color',label:'Color de actividad sin grupo"));
+ assert(ui.includes("id:'color',label:'Color de esta sesión"));
  assert(ui.includes('id="plan-export-word"')&&ui.includes('id="plan-export-pdf"'));
  assert(ui.includes("timetableWordBlob(d,yr,window.JSZip)"));
  assert(ui.includes("timetablePdfBytes(d,yr)"));

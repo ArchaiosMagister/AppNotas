@@ -31,6 +31,15 @@ export const SUMMER_TIMETABLE_BANDS=Object.freeze([
 ].map(row=>Object.freeze(row)));
 export const activeScheduleMode=y=>y?.summerEnabled===true?'summer':'regular';
 export const slotScheduleMode=s=>s?.scheduleMode==='summer'?'summer':'regular';
+/** Paleta verde oscuro EXCLUSIVA de la agenda: nunca lee acentos académicos. */
+export const PLANNER_COLORS=Object.freeze({
+ class:'#245C49',guardia:'#357246',familias:'#37695A',
+ complementaria:'#526D40',departamento:'#456F5F',
+ jefatura:'#385C4B',otro:'#57785A'
+});
+export const plannerSlotColor=s=>
+ typeof s?.color==='string'&&/^#[0-9a-f]{6}$/i.test(s.color)
+ ?s.color.toUpperCase():(PLANNER_COLORS[s?.type]||PLANNER_COLORS.class);
 /** Compatibilidad con la vista previa de verano que terminaba a las 13:00.
  * La ampliación solo se aplica a su plantilla exacta; una 7.ª hora
  * eliminada deliberadamente en la versión nueva no reaparece. */
@@ -50,6 +59,8 @@ export const scheduleBands=(y,mode=activeScheduleMode(y))=>{
 };
 export const slotsForMode=(y,mode=activeScheduleMode(y))=>
  (y?.slots||[]).filter(s=>slotScheduleMode(s)===mode);
+export const weeklySlotCount=(year,groupId,mode=activeScheduleMode(year))=>
+ slotsForMode(year,mode).filter(s=>s.type==='class'&&s.groupId===groupId).length;
 const cloneBands=()=>DEFAULT_TIMETABLE_BANDS.map(b=>({...b}));
 const cloneSummerBands=()=>SUMMER_TIMETABLE_BANDS.map(b=>({...b}));
 /** El primer cambio a verano copia asignaciones sin reutilizar sus IDs.
@@ -73,6 +84,10 @@ export function setSummerSchedule(doc,enabled){
       seen.has(s.day+'|'+to.id))continue;
    clones.push({...s,id:uid(),scheduleMode:'summer',start:to.start,end:to.end,bandId:to.id});
    seen.add(s.day+'|'+to.id);
+  }
+  for(const group of doc.groups.filter(g=>g.weeklyHours!==undefined)){
+    if(weeklySlotCount(y,group.id,'summer')+clones.filter(s=>s.type==='class'&&s.groupId===group.id).length>group.weeklyHours)
+      throw new Error('Horario de verano: las clases copiadas superan el límite semanal de '+group.subject+' · '+group.name+'.');
   }
   y.slots.push(...clones);y.summerInitialized=true;
  }
@@ -175,6 +190,10 @@ export function saveSlot(doc,{id=null,day,start,end,type,groupId=null,label='',r
  const y=activeYear(doc),mode=activeScheduleMode(y),kind=trimmed(type,20);if(!Object.hasOwn(SLOT_TYPES,kind))throw new Error('Tipo de sesión inválido.');
  if(!Number.isInteger(Number(day))||Number(day)<0||Number(day)>4)throw new Error('El horario es de lunes a viernes.');checkTime(start,end);checkGroup(doc,groupId);
  if(kind==='class'&&!groupId&&!String(label).trim())throw new Error('Selecciona un grupo o indica una asignatura manual.');
+ const assignedGroup=kind==='class'&&groupId?doc.groups.find(g=>g.id===groupId):null;
+ if(assignedGroup?.weeklyHours!==undefined&&
+    weeklySlotCount(y,groupId,mode)-Number(y.slots.some(s=>s.id===id&&s.type==='class'&&s.groupId===groupId&&slotScheduleMode(s)===mode))>=assignedGroup.weeklyHours)
+   throw new Error('Límite semanal de '+assignedGroup.subject+' · '+assignedGroup.name+': '+assignedGroup.weeklyHours+' sesiones. Edita otra clase o amplía el límite.');
  if(kind!=='class'&&groupId)throw new Error('Solo las clases pueden asociarse a grupos.');
  if(String(label).length>150||typeof room!=='string'||room.length>60)throw new Error('El nombre o el aula son demasiado largos.');
  if(typeof color!=='string'||(color!==''&&!/^#[0-9a-f]{6}$/i.test(color)))throw new Error('Color de horario inválido.');
@@ -282,7 +301,7 @@ export function carryLesson(doc,id){
  lesson.done=false;lesson.planned='';lesson.updatedAt=stamp();doc.updatedAt=stamp();return obj;
 }
 export function findExamSlots(y,groupId,date){return daySessions(y,date).filter(s=>s.type==='class'&&s.groupId===groupId&&s.exception?.type!=='cancel'&&s.exception?.type!=='replace');}
-export function saveEvent(doc,{id=null,date,type,title,groupId=null,assessmentId=null,slotId=null,time='',endTime='',notes='',periodId=null}){
+export function saveEvent(doc,{id=null,date,type,title,groupId=null,assessmentId=null,slotId=null,time='',endTime='',notes='',periodId=null,originGroup=null}){
  const y=activeYear(doc);needDate(y,date);if(!Object.hasOwn(EVENT_TYPES,type))throw new Error('Tipo de evento inválido.');checkGroup(doc,groupId);
  if(time&&!timeValid(time))throw new Error('Hora del evento inválida.');
  if(endTime&&(!time&&!slotId||!timeValid(endTime)))throw new Error('Hora final del evento inválida.');
@@ -291,9 +310,13 @@ export function saveEvent(doc,{id=null,date,type,title,groupId=null,assessmentId
   const group=doc.groups.find(g=>g.id===groupId);
   if(!group||group.course!==y.name||!doc.periods.some(p=>p.id===periodId)||!time||slotId||assessmentId)
     throw new Error('La sesión de evaluación requiere grupo del curso, trimestre y hora manual.');
-  if(y.events.some(e=>e.id!==id&&e.type==='evaluation'&&e.groupId===groupId&&e.periodId===periodId))
-    throw new Error('Este grupo ya tiene una sesión programada para esa evaluación. Edita la existente.');
- }else if(periodId!==null)throw new Error('Solo las sesiones de evaluación pueden vincularse a un trimestre.');
+  if(originGroup!==null&&(typeof originGroup!=='string'||!originGroup.trim()||originGroup!==originGroup.trim()||originGroup.length>60))
+    throw new Error('Grupo de procedencia inválido.');
+  if(y.events.some(e=>e.id!==id&&e.type==='evaluation'&&e.groupId===groupId&&e.periodId===periodId&&
+    (e.originGroup||'')===(originGroup||'')))
+    throw new Error('Este subgrupo ya tiene una sesión programada para esa evaluación. Edita la existente.');
+ }else if(periodId!==null||originGroup!==null)
+  throw new Error('Solo las sesiones de evaluación pueden vincularse a un trimestre o subgrupo.');
  let slot=null;if(slotId){slot=y.slots.find(s=>s.id===slotId);if(!slot||slot.day!==weekday(date)||isHoliday(y,date)||y.exceptions.some(e=>e.date===date&&e.slotId===slotId&&['cancel','replace'].includes(e.type)))throw new Error('Esta sesión no está disponible en esa fecha.');if(slot.type==='class'&&slot.groupId!==groupId)throw new Error('El grupo y la sesión no coinciden.');
   if(type==='exam'&&slot.type!=='class')throw new Error('Un examen solo se puede vincular a una sesión de clase. Indica una hora manual para una convocatoria excepcional.');}
  if(assessmentId){const a=doc.assessments.find(a=>a.id===assessmentId);if(!a||type!=='exam'||a.groupId!==groupId)throw new Error('La actividad del cuaderno no corresponde a este examen.');if(y.events.some(e=>e.id!==id&&e.assessmentId===assessmentId))throw new Error('El examen ya está programado en este curso. Edita su fecha en lugar de duplicarlo.');}
@@ -301,10 +324,11 @@ export function saveEvent(doc,{id=null,date,type,title,groupId=null,assessmentId
  const actualStart=slot?(move?.start||slot.start):time,actualEnd=endTime||(slot?(move?.end||slot.end):'');
  if(actualEnd&&(!actualStart||!timeValid(actualEnd)||actualEnd<=actualStart))
   throw new Error('La hora final debe ser posterior al inicio.');
- const obj={id:id||uid(),date,type,title:trimmed(title,150),groupId:groupId||null,assessmentId:assessmentId||null,slotId:slotId||null,time:actualStart,...(actualEnd?{endTime:actualEnd}:{}),notes:String(notes).trim(),...(type==='evaluation'?{periodId}:{})};
+ const obj={id:id||uid(),date,type,title:trimmed(title,150),groupId:groupId||null,assessmentId:assessmentId||null,slotId:slotId||null,time:actualStart,...(actualEnd?{endTime:actualEnd}:{}),notes:String(notes).trim(),...(type==='evaluation'?{periodId,...(originGroup?{originGroup}:{})}:{})};
  const old=y.events.find(e=>e.id===id);if(id&&!old)throw new Error('Evento inexistente.');
  if(old){Object.assign(old,obj);if(type!=='patio')delete old.patioRotationSource;
-  if(type!=='evaluation')delete old.periodId;
+  if(type!=='evaluation'){delete old.periodId;delete old.originGroup;}
+  else if(!originGroup)delete old.originGroup;
   if(!actualEnd)delete old.endTime;
  }else y.events.push(obj);
  doc.updatedAt=stamp();return old||obj;
@@ -312,11 +336,14 @@ export function saveEvent(doc,{id=null,date,type,title,groupId=null,assessmentId
 
 /** Una convocatoria por grupo y evaluación del curso académico activo.
  * Son citas de agenda, no calificaciones ni actas de evaluación. */
-export function saveEvaluationSession(doc,{id=null,groupId,periodId,date,time,notes=''}){
+export function saveEvaluationSession(doc,{id=null,groupId,periodId,date,time,notes='',originGroup=null}){
  const period=doc.periods.find(p=>p.id===periodId),group=doc.groups.find(g=>g.id===groupId);
  if(!period||!group)throw new Error('Selecciona un grupo y una evaluación válidos.');
- return saveEvent(doc,{id,groupId,periodId,date,time,notes,type:'evaluation',
-  title:period.name+' · '+group.name});
+ if(originGroup!==null&&!doc.students.some(s=>s.groupId===groupId&&s.originGroup===originGroup)&&
+     !activeYear(doc).events.some(e=>e.id===id&&e.originGroup===originGroup))
+  throw new Error('El subgrupo no está asignado a ningún alumno de esta optativa.');
+ return saveEvent(doc,{id,groupId,periodId,date,time,notes,type:'evaluation',originGroup,
+  title:period.name+' · '+group.name+(originGroup?' · '+originGroup:'')});
 }
 /** VEVENT individual, sin cuentas ni red: las horas son flotantes/locales
  * y el calendario de destino elegirá su propia zona horaria.
@@ -371,8 +398,12 @@ export function assertPlanner(doc){if(!doc.planner)return true;const p=doc.plann
   if(!uniquePairs(y.exceptions,e=>`${e.date}|${e.slotId}`)||
      !uniquePairs(y.lessons.filter(l=>l.slotId),l=>`${l.date}|${l.slotId}`)||
      !uniquePairs(y.events.filter(e=>e.assessmentId),e=>e.assessmentId)||
-     !uniquePairs(y.events.filter(e=>e.type==='evaluation'),e=>e.groupId+'|'+e.periodId))
+     !uniquePairs(y.events.filter(e=>e.type==='evaluation'),e=>e.groupId+'|'+e.periodId+'|'+(e.originGroup||'')))
     throw new Error('Agenda duplicada: revisa excepciones, clases y exámenes vinculados.');
+  for(const group of doc.groups.filter(g=>g.weeklyHours!==undefined)){
+   if(['regular','summer'].some(mode=>weeklySlotCount(y,group.id,mode)>group.weeklyHours))
+     throw new Error('Horario con más clases que las horas semanales del grupo '+group.name+'.');
+  }
   for(const s of y.slots){if(!Number.isInteger(s.day)||s.day<0||s.day>4||!Object.hasOwn(SLOT_TYPES,s.type)||!timeValid(s.start)||!timeValid(s.end)||s.end<=s.start||(s.groupId&&!doc.groups.some(g=>g.id===s.groupId))||(s.type==='class'&&!s.groupId&&!s.label)||(s.type!=='class'&&s.groupId)||
   s.room!==undefined&&(typeof s.room!=='string'||s.room.length>60)||
   s.scheduleMode!==undefined&&!['regular','summer'].includes(s.scheduleMode)||
@@ -384,8 +415,9 @@ export function assertPlanner(doc){if(!doc.planner)return true;const p=doc.plann
   for(const e of y.events){if(!Object.hasOwn(EVENT_TYPES,e.type)||!e.title||(e.time&&!timeValid(e.time))||
     (e.endTime!==undefined&&(!timeValid(e.endTime)||!e.time||e.endTime<=e.time))||
     (e.patioRotationSource!==undefined&&(e.type!=='patio'||e.patioRotationSource!=='xlsx-first-break-v1'))||(e.slotId&&y.slots.find(s=>s.id===e.slotId)?.type==='class'&&y.slots.find(s=>s.id===e.slotId)?.groupId!==e.groupId)||(e.assessmentId&&(e.type!=='exam'||!doc.assessments.some(a=>a.id===e.assessmentId&&a.groupId===e.groupId)))||
-    (e.type==='evaluation'&&(!e.groupId||!e.periodId||!e.time||e.slotId||e.assessmentId||!doc.periods.some(p=>p.id===e.periodId)||!doc.groups.some(g=>g.id===e.groupId&&g.course===y.name)))||
-    (e.type!=='evaluation'&&e.periodId!==undefined&&e.periodId!==null))
+    (e.type==='evaluation'&&(!e.groupId||!e.periodId||!e.time||e.slotId||e.assessmentId||!doc.periods.some(p=>p.id===e.periodId)||!doc.groups.some(g=>g.id===e.groupId&&g.course===y.name)||
+      (e.originGroup!==undefined&&(typeof e.originGroup!=='string'||!e.originGroup.trim()||e.originGroup!==e.originGroup.trim()||e.originGroup.length>60))))||
+    (e.type!=='evaluation'&&(e.periodId!==undefined&&e.periodId!==null||e.originGroup!==undefined)))
     throw new Error('Evento inválido.');}
   for(const l of y.lessons){if(typeof l.planned!=='string'||typeof l.done!=='boolean'||typeof l.actual!=='string')throw new Error('Plan de clase inválido.');}
   for(const t of y.tasks){if(!inYear(y,isoDate(t.dueDate))||!t.title||typeof t.done!=='boolean'||(t.groupId&&!doc.groups.some(g=>g.id===t.groupId)))throw new Error('Tarea inválida.');}

@@ -7,7 +7,7 @@ import {overallGrade,finalGrade} from '../src/calculations.js';
 
 const read=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
 
-test('los cinco colores originales de cada materia se utilizan sin migraciones ni sustituciones visuales',async()=>{
+test('la paleta vigente se usa en la interfaz sin alterar el cuaderno',async()=>{
   const source=await read('app.js');
   const a=source.indexOf('function colorFor(level,subject){');
   const b=source.indexOf('function contrastFor(',a);
@@ -17,7 +17,7 @@ test('los cinco colores originales de cada materia se utilizan sin migraciones n
     STATE:{doc},SUBJECT_COLORS,subjectKey:(level,subject)=>level+':'+subject
   });
   const original={
-    '4eso:Latín 4.º':'#EAB308',
+    '4eso:Latín 4.º':'#B43F60',
     '1bach:Latín I':'#F59E0B',
     '1bach:Griego I':'#0284C7',
     '2bach:Latín II':'#EA580C',

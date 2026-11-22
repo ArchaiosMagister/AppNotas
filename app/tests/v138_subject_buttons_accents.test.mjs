@@ -49,10 +49,10 @@ test('grupos: botones solo cuando hay varios y su elección no altera datos',asy
   for(const student of doc.students)overallGrade(doc,student.id,g.id,doc.periods[0].id);
   assert.deepEqual(doc,copy);
 });
-test('se conservan exactamente los cinco colores originales de acento',async()=>{
+test('los cinco acentos se conservan salvo el contraste renovado de Latín 4.º',async()=>{
   const doc=initialNotebook(),{colorFor}=await palette(doc);
   const expected={
-    '4eso:Latín 4.º':'#EAB308',
+    '4eso:Latín 4.º':'#B43F60',
     '1bach:Latín I':'#F59E0B',
     '2bach:Latín II':'#EA580C',
     '1bach:Griego I':'#0284C7',

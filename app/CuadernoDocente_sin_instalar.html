@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#11243f">
 <meta name="description" content="CuadernoDocente v1.19 autónomo de pruebas. Solo para pruebas con datos ficticios.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rMfkFFWoB2W1/Zx+4bgHim0WC7vKRVrq6FTeZclH1Z4=' 'sha256-Cfv+ukz0n+KNUrEZPccApVB4NofbtI1TH+uOb2BhiRo='; style-src 'sha256-yQhKmdVtlURHvu7YABYZAYF32T/qDagtnsvoQGQrJs8='; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rMfkFFWoB2W1/Zx+4bgHim0WC7vKRVrq6FTeZclH1Z4=' 'sha256-7bUSo9vSYNO2kNyQVyOfPO8LJTBagbjiyD53M7YqzHQ='; style-src 'sha256-QSuKyWhggPgexT1/6/pkUAriTlA8bgdmb2hd4w3IPao='; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20128%20128%22%20role%3D%22img%22%20aria-label%3D%22CuadernoDocente%20%C2%B7%20columna%20cl%C3%A1sica%22%3E%0A%20%20%3Crect%20width%3D%22128%22%20height%3D%22128%22%20rx%3D%2227%22%20fill%3D%22%23263246%22%2F%3E%0A%20%20%3Crect%20x%3D%225%22%20y%3D%225%22%20width%3D%22118%22%20height%3D%22118%22%20rx%3D%2223%22%20fill%3D%22none%22%20stroke%3D%22%23a88b60%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M27%2037h74m-68%207h62M40%2050v45m24-45v45m24-45v45M27%20100h74m-68-5h62%22%20stroke%3D%22%23f4e4c8%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M30%2035c5-14%2017-19%2034-19s29%205%2034%2019M47%2036h34%22%20fill%3D%22none%22%20stroke%3D%22%23cbaa79%22%20stroke-width%3D%225%22%20stroke-linecap%3D%22round%22%2F%3E%0A%3C%2Fsvg%3E%0A">
 <title>CuadernoDocente · v1.19 · sin instalar</title>
 <style>:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#1a2d46;background:#f3f6fb;font-synthesis:none;--navy:#142845;--line:#e1e7f0;--ink:#152a47;--muted:#697b93;--blue:#326ed6;--surface:#fff;--green:#0f866a;--danger:#c53548}
@@ -2952,6 +2952,56 @@ html[data-theme="oled"] .patio-preview-table thead{background:#000}
  .patio-import-modal #patio-import-form .modal-fields{grid-template-columns:1fr}
  .patio-import-modal .modal-actions button{flex:1 1 130px}
 }
+
+
+/* Materias optativas: la tarjeta muestra siempre su(s) grupo(s).
+ * El color del horario es independiente de los acentos de esta sección. */
+.class-toolbar .course-switch .course-choice{
+  flex-direction:column;justify-content:center;align-items:center;gap:4px;
+  min-height:72px;padding:9px 8px;
+}
+.class-toolbar .course-switch .course-choice .course-name{display:block}
+.course-choice .course-group-caption{
+  display:block;font:700 11.5px/1.35 var(--app-humanist,system-ui);
+  color:var(--ink);opacity:.9;overflow-wrap:anywhere;text-align:center;
+  max-width:100%;
+}
+.course-choice[aria-pressed="true"] .course-group-caption{opacity:1}
+.class-toolbar .course-choice[aria-pressed="true"]{border-top-color:var(--course-accent)}
+.planner-weekly-limits{display:flex;flex-wrap:wrap;gap:8px;padding:8px 2px 10px}
+.planner-weekly-counter{
+  display:inline-flex;gap:4px;align-items:center;font-size:12px;line-height:1.4;
+  border:1px solid var(--line);border-radius:10px;
+  padding:7px 10px;background:var(--raised);color:var(--ink)
+}
+.planner-weekly-counter strong{font-variant-numeric:tabular-nums}
+.planner-weekly-counter.at-limit{border-color:#427957}
+.planner-patio-panel{display:grid;gap:18px}
+.planner-patio-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.planner-patio-heading h3{font-size:18px;color:var(--ink)}
+.planner-patio-month{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface)}
+.planner-patio-month h4{margin:0 0 10px;color:var(--ink);font-size:15px;text-transform:capitalize}
+.planner-patio-entry{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  padding:12px 0;border-top:1px solid var(--line);
+}
+.planner-patio-entry strong{font-variant-numeric:tabular-nums}
+.planner-patio-entry p{margin:5px 0;color:var(--ink);font-size:13px;font-weight:750}
+.planner-patio-entry small{display:block;white-space:pre-line;color:var(--muted);line-height:1.5;font-size:12px}
+.planner-patio-entry-actions{display:flex;flex-wrap:wrap;gap:6px;flex:none}
+@media(max-width:640px){
+ .class-toolbar .course-switch .course-choice{min-height:76px}
+ .course-choice .course-group-caption{font-size:11.5px}
+ .planner-patio-entry{flex-direction:column}
+ .planner-patio-entry-actions{width:100%}
+ .planner-patio-entry-actions button{flex:1}
+}
+html[data-theme="oled"] .planner-weekly-counter,
+html[data-theme="oled"] .planner-patio-month{background:#000}
+
+/* Botón opcional: la barra de ordenación se comparte con el modo alumno. */
+.origin-manage-tools{display:flex;justify-content:flex-end;gap:8px;padding:4px 15px 9px;border-bottom:1px solid var(--line);background:var(--surface)}
+html[data-theme="oled"] .origin-manage-tools{background:#000}
 </style>
 </head><body>
 <div id="app"><div class="loading-screen"><span class="spinner"></span><strong>CuadernoDocente</strong><p>Preparando el cuaderno local…</p></div></div>
@@ -4202,9 +4252,11 @@ function render() {
     // Cada boton corresponde a una materia concreta, no solo a una etapa:
     // elegir entre Latin y Griego nunca depende de un segundo desplegable.
     const courseChoices = [...(0, model_js_1.catalogForNotebook)(STATE.doc).flatMap(({ level, label, subjects }) => subjects.map(subject => ({
-            level, subject, subjectName: subject, stage: label
+            level, subject, subjectName: subject, stage: label,
+            groupNames: STATE.doc.groups.filter(g => g.level === level && g.subject === subject).map(g => g.name)
         }))), ...[...new Set(STATE.doc.groups.filter(g => g.level === null).map(g => g.subject))].map(subject => ({
-            level: 'legacy', subject, subjectName: subject || 'Sin asignatura', stage: 'Sin clasificar'
+            level: 'legacy', subject, subjectName: subject || 'Sin asignatura', stage: 'Sin clasificar',
+            groupNames: STATE.doc.groups.filter(g => g.level === null && g.subject === subject).map(g => g.name)
         }))];
     const subjectLabel = STATE.subject || 'Sin asignatura';
     const levelLabel = model_js_1.COURSE_SUBJECTS[STATE.level]?.label || 'Sin clasificar';
@@ -4224,7 +4276,7 @@ function render() {
 </div></header><main class="content"><div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level, STATE.subject)])} · CUADERNO ACADÉMICO · v1.0</div><h1>${esc(subjectLabel)} <span class="muted-slash">/</span> ${esc(group?.name || 'Sin grupo')}</h1><p class="subtitle">${esc(levelLabel)} · ${esc(group?.course || 'Curso escolar por configurar')} · ${esc(period?.name || '')} · Almacenamiento cifrado local</p></div><span class="demo-tag">⚠ Copias solo en almacenamiento local</span></div><p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo">
   <div class="selectors">
     <div class="course-switch" role="group" aria-label="Seleccionar asignatura">
-      <div class="course-buttons">${courseChoices.map(x => `<button type="button" class="btn course-choice" data-course-level="${esc(x.level)}" data-course-subject="${esc(x.subject)}" aria-pressed="${STATE.level === x.level && STATE.subject === x.subject}" title="${esc(x.stage)}"><strong class="course-name">${esc(x.subjectName)}</strong></button>`).join('')}</div>
+      <div class="course-buttons">${courseChoices.map(x => `<button type="button" class="btn course-choice" data-course-level="${esc(x.level)}" data-course-subject="${esc(x.subject)}" aria-pressed="${STATE.level === x.level && STATE.subject === x.subject}" title="${esc(x.stage)}"><strong class="course-name">${esc(x.subjectName)}</strong><small class="course-group-caption" title="${esc(x.groupNames.join(' · ') || 'Sin grupo creado')}">${esc(x.groupNames.length ? x.groupNames.join(' · ') : 'Sin grupo · crear grupo')}</small></button>`).join('')}</div>
     </div>
     ${matching.length > 1 ? `<div class="group-switch" role="group" aria-label="Seleccionar grupo de ${esc(subjectLabel)}"><span class="group-switch-label">Grupos</span><div class="group-buttons">${matching.map(x => `<button type="button" class="btn group-choice" data-group-choice="${esc(x.id)}" aria-pressed="${x.id === STATE.groupId}">${esc(x.name)}</button>`).join('')}</div></div>` : ''}
   </div>
@@ -4339,7 +4391,7 @@ function renderNotebook() {
     }).join('')}<td class="final-col"><button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip((0, calculations_js_1.overallGrade)(STATE.doc, s.id, STATE.groupId, STATE.periodId))}</button></td><td class="itaca-col"><button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc, s.id, STATE.groupId, STATE.periodId)}${(0, model_js_1.itacaStudentRule)(STATE.doc, s.id, STATE.periodId) !== 'general' ? '<span class="itaca-exception" title="Excepción individual">*</span>' : ''}</button></td></tr>`).join('');
     const sum = (0, model_js_1.effectiveCategories)(STATE.doc, STATE.groupId, STATE.periodId).reduce((s, c) => s + c.weight, 0);
     const problems = students.flatMap(st => (0, calculations_js_1.periodCalculationWarnings)(STATE.doc, st.id, STATE.groupId, STATE.periodId)).filter(v => v.includes('sin conversión'));
-    return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><div class="notebook-heading-kicker">TABULAE · EVALUACIÓN</div><strong>Calificaciones</strong><p>Pulsa o toca ⓘ en la cabecera de cada columna para ver la media y los aprobados de la clase. Introduce notas con hasta dos decimales. NP cuenta como cero; AJ marca una ausencia justificada pendiente que no computa. En los exámenes con faltas recuperables, pulsa la calificación para editar nota original, faltas y entrega. «⋯» configura una columna.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><button class="btn" id="notebook-calculations" type="button" data-academic-quick="calculos" title="Configurar porcentajes y reglas de evaluación">∑ Cálculos</button><button class="btn" id="notebook-competencies" type="button" data-academic-quick="competencias" title="Consultar niveles de adquisición competencial">◎ Competencias</button><details class="notebook-more-actions"><summary>Más acciones <span aria-hidden="true">⌄</span></summary><div class="notebook-more-panel"><button class="btn" id="copy-structure">⇉ Copiar actividades</button><button class="btn" id="schedule-exam">▣ Programar examen</button></div></details></div></div><div class="student-order-bar">${studentSortControls()}</div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key, label]) => opt(key, label, (0, model_js_1.itacaGroupRule)(STATE.doc, STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period', STATE.periodId, 'nota final de la evaluación')}</span></th><th class="itaca-col">Nota Ítaca <small>/10 · clic para excepción</small></th></tr></thead><tbody>${rows || `<tr><td colspan="${assessments.length + 3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum - 100) > 1e-8 ? '⚠ Porcentajes de este periodo: ' + sum + ' %. Corrige la suma para calcular la nota.' : 'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length ? `<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>` : ''}</span></div></section><div class="legend"><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></div>`;
+    return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><div class="notebook-heading-kicker">TABULAE · EVALUACIÓN</div><strong>Calificaciones</strong><p>Pulsa o toca ⓘ en la cabecera de cada columna para ver la media y los aprobados de la clase. Introduce notas con hasta dos decimales. NP cuenta como cero; AJ marca una ausencia justificada pendiente que no computa. En los exámenes con faltas recuperables, pulsa la calificación para editar nota original, faltas y entrega. «⋯» configura una columna.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><button class="btn" id="notebook-calculations" type="button" data-academic-quick="calculos" title="Configurar porcentajes y reglas de evaluación">∑ Cálculos</button><button class="btn" id="notebook-competencies" type="button" data-academic-quick="competencias" title="Consultar niveles de adquisición competencial">◎ Competencias</button><details class="notebook-more-actions"><summary>Más acciones <span aria-hidden="true">⌄</span></summary><div class="notebook-more-panel"><button class="btn" id="copy-structure">⇉ Copiar actividades</button><button class="btn" id="schedule-exam">▣ Programar examen</button></div></details></div></div><div class="student-order-bar">${studentSortControls()}</div><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key, label]) => opt(key, label, (0, model_js_1.itacaGroupRule)(STATE.doc, STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period', STATE.periodId, 'nota final de la evaluación')}</span></th><th class="itaca-col">Nota Ítaca <small>/10 · clic para excepción</small></th></tr></thead><tbody>${rows || `<tr><td colspan="${assessments.length + 3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum - 100) > 1e-8 ? '⚠ Porcentajes de este periodo: ' + sum + ' %. Corrige la suma para calcular la nota.' : 'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length ? `<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>` : ''}</span></div></section><div class="legend"><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></div>`;
 }
 const ITACA_OPTIONS = [['half', 'Redondear desde ,5'], ['seven', 'Redondear desde ,7'], ['none', 'No redondear']];
 const RULE_LABELS = { mean: 'Media aritmética', weighted_mean: 'Media ponderada por actividad', highest: 'Mejor nota', best_n: 'Media de las N mejores', last: 'Última evaluada', latest_if_highest: 'Última si iguala o supera la mejor; si no, media' };
@@ -5101,12 +5153,16 @@ function bindCommon() {
     $('#new-group').onclick = () => {
         if (!(0, model_js_1.validSubject)(STATE.level, STATE.subject, STATE.doc))
             return toast('Selecciona primero un curso y asignatura.');
-        fieldsModal(`Nuevo grupo · ${STATE.subject}`, [{ id: 'name', label: 'Nombre del grupo', value: 'Grupo A' }, { id: 'course', label: 'Curso escolar', value: '2026-2027' }], async (v) => {
+        fieldsModal(`Nuevo grupo · ${STATE.subject}`, [
+            { id: 'name', label: 'Nombre del grupo de la asignatura', value: 'Grupo A' },
+            { id: 'course', label: 'Curso escolar', value: (0, planner_js_1.activeYear)(STATE.doc)?.name || '2026-2027' },
+            { id: 'weeklyHours', label: 'Horas semanales (opcional; límite para el horario)', type: 'number', value: '', min: 1, max: 30, required: false }
+        ], async (v) => {
             let group;
-            await commit(d => { group = (0, model_js_1.addGroup)(d, v.name, STATE.subject, v.course, STATE.level); });
+            await commit(d => { group = (0, model_js_1.addGroup)(d, v.name, STATE.subject, v.course, STATE.level, v.weeklyHours); });
             STATE.groupId = group.id;
             render();
-        }, `Asignatura: ${model_js_1.COURSE_SUBJECTS[STATE.level].label} · ${STATE.subject}.`);
+        }, `Asignatura: ${model_js_1.COURSE_SUBJECTS[STATE.level].label} · ${STATE.subject}. El grupo se verá bajo su materia y podrá reunir alumnos de varias tutorías.`);
     };
     $('#classify-group')?.addEventListener('click', () => fieldsModal('Clasificar grupo anterior', [{ id: 'pair', label: 'Curso y asignatura', type: 'select', options: pairOptions() }], async (v) => {
         const [level, ...parts] = v.pair.split(':');
@@ -5153,9 +5209,16 @@ function openGroupTools() {
     const g = currentGroup();
     if (!g)
         return;
-    dialog.innerHTML = `<div class="modal-inner"><h2>Gestión de grupo</h2><p class="subtitle">${esc(g.name)} · ${esc(g.course)}. Los cambios conservan los IDs, las notas y los cálculos.</p><div class="tool-actions"><button type="button" class="btn primary" id="rename-group-btn">Editar nombre y curso escolar</button><button type="button" class="btn" id="group-orth-refund-btn">Devolución de faltas: ${(0, model_js_1.groupOrthographyRefundable)(STATE.doc, g.id) ? 'Sí' : 'No'}</button></div><p class="hint">Se aplica a las actividades con penalización de este grupo y a los exámenes nuevos. No altera otros grupos ni las notas originales.</p><div class="modal-actions"><button type="button" class="btn" id="close-group-tools">Cerrar</button></div></div>`;
+    dialog.innerHTML = `<div class="modal-inner"><h2>Gestión de grupo</h2><p class="subtitle">${esc(g.name)} · ${esc(g.course)}. Los cambios conservan los IDs, las notas y los cálculos.</p><div class="tool-actions"><button type="button" class="btn primary" id="rename-group-btn">Editar nombre y curso escolar</button><button type="button" class="btn" id="group-weekly-hours">Horas semanales: ${g.weeklyHours ?? 'Sin límite'}</button><button type="button" class="btn" id="group-orth-refund-btn">Devolución de faltas: ${(0, model_js_1.groupOrthographyRefundable)(STATE.doc, g.id) ? 'Sí' : 'No'}</button></div><p class="hint">Se aplica a las actividades con penalización de este grupo y a los exámenes nuevos. No altera otros grupos ni las notas originales.</p><div class="modal-actions"><button type="button" class="btn" id="close-group-tools">Cerrar</button></div></div>`;
     $('#close-group-tools', dialog).onclick = () => dialog.close();
     $('#rename-group-btn', dialog).onclick = () => { dialog.close(); fieldsModal('Editar grupo', [{ id: 'name', label: 'Nombre', value: g.name }, { id: 'course', label: 'Curso escolar (año académico)', value: g.course }], async (v) => commit(d => (0, model_js_1.updateGroupInfo)(d, g.id, v.name, v.course))); };
+    $('#group-weekly-hours', dialog).onclick = () => {
+        dialog.close();
+        fieldsModal('Horas semanales · ' + g.subject + ' · ' + g.name, [
+            { id: 'weeklyHours', label: 'Máximo de clases por semana (1–30)', type: 'number',
+                value: g.weeklyHours ?? '', min: 1, max: 30, required: false }
+        ], async (values) => commit(d => (0, model_js_1.setGroupWeeklyHours)(d, g.id, values.weeklyHours), 'Límite semanal del grupo'), 'Deja vacío para no limitar. Se cuentan las clases por separado en el horario ordinario y el de verano. No se permite un máximo inferior a las sesiones ya guardadas.');
+    };
     $('#group-orth-refund-btn', dialog).onclick = () => {
         dialog.close();
         fieldsModal('Devolución de nota por faltas · ' + g.name, [
@@ -5210,6 +5273,28 @@ function openPeriodTools() {
         fail(err);
     } });
     dialog.showModal();
+}
+/** Editar las tutorías de procedencia conjuntamente, conservando grupos,
+ * notas, observaciones y pertenencia a la materia optativa. */
+function openOriginGroupsManager() {
+    const group = currentGroup();
+    if (!group)
+        return;
+    const students = (0, model_js_1.sortStudents)(STATE.doc.students.filter(s => s.groupId === group.id), 'surname');
+    if (!students.length) {
+        toast('Añade primero alumnos a la asignatura.');
+        return;
+    }
+    fieldsModal('Procedencias · ' + group.subject + ' · ' + group.name, students.map(student => ({
+        id: 'origin-' + student.id, label: student.name + ' · tutoría de procedencia',
+        value: student.originGroup || '', maxlength: 60, required: false
+    })), async (values) => {
+        await commit(doc => (0, model_js_1.setStudentOriginGroups)(doc, group.id, students.map(student => ({
+            studentId: student.id, originGroup: values['origin-' + student.id] || ''
+        }))), 'Gestionar grupos de procedencia');
+        if (STATE.studentSort !== 'originGroup')
+            setStudentSort('originGroup');
+    }, 'Ejemplos: 1.º BACH A, 1.º BACH B. En Agenda podrás programar sesiones de evaluación diferentes por tutoría. No se crean nuevos cuadernos ni se alteran calificaciones.');
 }
 function openStudentTools(studentId) {
     const student = STATE.doc.students.find(s => s.id === studentId && s.groupId === STATE.groupId);
@@ -5427,6 +5512,7 @@ function openItacaStudentRule(studentId) {
     dialog.showModal();
 }
 function bindNotebook() {
+    $('#manage-origin-groups')?.addEventListener('click', openOriginGroupsManager);
     $('#itaca-general-rule')?.addEventListener('change', e => {
         const groupId = STATE.groupId;
         commit(doc => (0, model_js_1.setItacaGroupRule)(doc, groupId, e.target.value), 'Redondeo general Nota Ítaca').catch(fail);
@@ -5807,7 +5893,7 @@ function bindSettings() {
             if (!registration?.active)
                 throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
             const expected = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './src/pwa-controls.js', './src/model.js', './src/cuaderno.js', './src/planner.js', './src/planner-ui.js', './src/timetable-export.js', './src/patio-rotation.js', './src/attitude-template.js', './src/rubric-xlsx.js', './vendor/jszip.min.js', './src/calculations.js', './src/statistics.js', './src/csv.js', './src/rubric-import.js', './src/rubric-ui.js', './src/history.js', './src/vault.js', './src/storage.js', './src/diagnostics.js', './src/curriculum-data.js', './src/official-competencies.js', './data/curriculos/gr1y2-nuevo.pdf', './data/curriculos/lat1y2-nuevo.pdf', './data/curriculos/lat4.pdf', './data/curriculos/lat2-2022.pdf'];
-            const cache = await caches.open('cuaderno-docente-static-v149-dev');
+            const cache = await caches.open('cuaderno-docente-static-v150-dev');
             const missing = [];
             for (const path of expected)
                 if (!await cache.match(path))
@@ -6815,6 +6901,8 @@ exports.updateStudentIdentity = updateStudentIdentity;
 exports.renameStudent = renameStudent;
 exports.moveStudent = moveStudent;
 exports.removeStudent = removeStudent;
+exports.setGroupWeeklyHours = setGroupWeeklyHours;
+exports.setStudentOriginGroups = setStudentOriginGroups;
 exports.updateGroupInfo = updateGroupInfo;
 exports.renamePeriod = renamePeriod;
 exports.movePeriod = movePeriod;
@@ -6953,7 +7041,7 @@ exports.COURSE_SUBJECTS = Object.freeze({
 });
 // Estos valores solo se aplican por defecto. El usuario puede elegir otros colores.
 exports.SUBJECT_COLORS = Object.freeze({
-    '4eso:Latín 4.º': '#EAB308', // amarillo
+    '4eso:Latín 4.º': '#B43F60', // granate frambuesa, distinto del ámbar de Latín I
     '1bach:Latín I': '#F59E0B', // ámbar
     '1bach:Griego I': '#0284C7', // azul celeste
     '2bach:Latín II': '#EA580C', // naranja
@@ -7099,6 +7187,8 @@ function assertModel(doc) {
     }
     if (!Array.isArray(doc.gradingProfiles))
         throw new Error('Faltan perfiles de evaluación.');
+    if (!doc.groups.every(g => g.weeklyHours === undefined || (Number.isInteger(g.weeklyHours) && g.weeklyHours >= 1 && g.weeklyHours <= 30)))
+        throw new Error('Horas semanales del grupo inválidas.');
     (0, planner_js_1.assertPlanner)(doc);
     if (!doc.groups.every(g => (g.itacaRounding === undefined || exports.ITACA_ROUNDING.includes(g.itacaRounding))))
         throw new Error('Regla general de Nota Ítaca inválida.');
@@ -7335,9 +7425,16 @@ function recordedScore(doc, assessment, grade) {
 const validBestCount = n => Number.isInteger(n) && n >= 1 && n <= 100;
 function migrateNotebook(input) {
     if (input?.schemaVersion === exports.SCHEMA_VERSION) {
-        if (!input.planner) {
+        // Solo cambia el antiguo color PREDETERMINADO de Latín 4.º.
+        // Los colores distintos, elegidos por el docente, permanecen intactos.
+        const previous = input.settings?.subjectAccents?.['4eso:Latín 4.º'];
+        const updateDefault = typeof previous === 'string' && previous.toUpperCase() === '#EAB308';
+        if (!input.planner || updateDefault) {
             const doc = structuredClone(input);
-            doc.planner = (0, planner_js_1.createPlanner)(doc.groups?.[0]?.course);
+            if (!doc.planner)
+                doc.planner = (0, planner_js_1.createPlanner)(doc.groups?.[0]?.course);
+            if (updateDefault)
+                doc.settings.subjectAccents['4eso:Latín 4.º'] = exports.SUBJECT_COLORS['4eso:Latín 4.º'];
             assertModel(doc);
             return { doc, migrated: true };
         }
@@ -7467,11 +7564,14 @@ function copyPeriodCategories(doc, groupId, sourcePeriodId, targetPeriodId) {
     for (const c of effectiveCategories(doc, groupId, sourcePeriodId))
         setPeriodCategory(doc, groupId, targetPeriodId, c.id, { weight: c.weight, rule: c.rule, bestCount: c.bestCount ?? 2 });
 }
-function addGroup(doc, name, subject = 'Latín I', course = '2026-2027', level = levelForSubject(subject)) {
+function addGroup(doc, name, subject = 'Latín I', course = '2026-2027', level = levelForSubject(subject), weeklyHours = null) {
     const n = name.trim();
     if (!n || !validSubject(level, subject, doc) || !course?.trim())
         throw new Error('Introduce grupo, curso y una asignatura compatible.');
-    doc.groups.push(mark({ id: uid(), name: n, subject, level, course: course.trim(), createdAt: now() }));
+    const weekly = weeklyHours === null || weeklyHours === '' ? null : Number(weeklyHours);
+    if (weekly !== null && (!Number.isInteger(weekly) || weekly < 1 || weekly > 30))
+        throw new Error('Las horas semanales deben estar entre 1 y 30.');
+    doc.groups.push(mark({ id: uid(), name: n, subject, level, course: course.trim(), ...(weekly !== null ? { weeklyHours: weekly } : {}), createdAt: now() }));
     doc.updatedAt = now();
     const group = doc.groups.at(-1);
     if (level === '2bach' && ['Latín II', 'Griego II'].includes(subject))
@@ -8158,6 +8258,52 @@ function removeStudent(doc, studentId) {
     } });
     doc.updatedAt = now();
 }
+/** Límite por grupo optativo, separado entre horario ordinario y verano.
+ * Rechazar reducciones que dejarían el horario existente inconsistente. */
+function setGroupWeeklyHours(doc, groupId, value) {
+    const group = doc.groups.find(g => g.id === groupId);
+    if (!group)
+        throw new Error('Grupo inexistente.');
+    const hours = value === null || value === undefined || value === '' ? null : Number(value);
+    if (hours !== null && (!Number.isInteger(hours) || hours < 1 || hours > 30))
+        throw new Error('Indica entre 1 y 30 horas semanales o deja el campo vacío.');
+    if (hours !== null && doc.planner?.years.some(y => ['regular', 'summer'].some(mode => (0, planner_js_1.weeklySlotCount)(y, groupId, mode) > hours)))
+        throw new Error('El horario ya tiene más sesiones que el nuevo límite. Revisa antes las clases asignadas.');
+    if (hours === null)
+        delete group.weeklyHours;
+    else
+        group.weeklyHours = hours;
+    group.updatedAt = doc.updatedAt = now();
+    return group;
+}
+/** Asignar la tutoría de procedencia a varios alumnos sin moverlos ni tocar notas. */
+function setStudentOriginGroups(doc, groupId, assignments) {
+    if (!doc.groups.some(g => g.id === groupId) || !Array.isArray(assignments) || assignments.length > 2000)
+        throw new Error('Grupo o listado de procedencias inválidos.');
+    const ids = new Set();
+    const entries = assignments.map(a => {
+        const student = doc.students.find(s => s.id === a?.studentId && s.groupId === groupId);
+        if (!student || ids.has(student.id) || typeof a.originGroup !== 'string')
+            throw new Error('Alumno o grupo de procedencia inválido.');
+        const origin = a.originGroup.trim();
+        if (origin.length > 60 || /[<>\x00-\x1f]/.test(origin))
+            throw new Error('Nombre del subgrupo inválido (máximo 60 caracteres).');
+        ids.add(student.id);
+        return { student, origin };
+    });
+    const time = now();
+    let changed = false;
+    for (const { student, origin } of entries) {
+        if ((student.originGroup || '') === origin)
+            continue;
+        student.originGroup = origin;
+        student.updatedAt = time;
+        changed = true;
+    }
+    if (changed)
+        doc.updatedAt = time;
+    return doc;
+}
 function updateGroupInfo(doc, groupId, name, course) {
     const group = doc.groups.find(g => g.id === groupId);
     const n = String(name ?? '').trim(), c = String(course ?? '').trim();
@@ -8519,11 +8665,7 @@ const pickGroup = (doc, y) => [...doc.groups].sort((a, b) => Number(b.course ===
     .map(g => ({ value: g.id, label: `${g.subject} · ${g.name}${g.course === y.name ? '' : ' · ' + g.course}` }));
 const action = (txt, attrs, cls = 'btn small') => `<button type="button" class="${cls}" ${attrs}>${txt}</button>`;
 const isColor = value => typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value);
-const slotColor = (doc, s) => {
-    const group = doc.groups.find(g => g.id === s.groupId);
-    const accent = group && doc.settings?.subjectAccents?.[group.level + ':' + group.subject];
-    return isColor(accent) ? accent : isColor(s.color) ? s.color : '#64748B';
-};
+const slotColor = (_doc, slot) => (0, planner_js_1.plannerSlotColor)(slot);
 const slotStyle = (doc, s) => 'style="--planner-color:' + esc(slotColor(doc, s)) + '"';
 /** Horario con filas fijas editables y celdas táctiles por día. Si existen
  * sesiones anteriores sin franja, se siguen mostrando por separado. */
@@ -8541,7 +8683,15 @@ function renderTimetableGrid(doc, y) {
         return `<tr><th scope="row" class="planner-timetable-band ${b.kind === 'break' ? 'planner-timetable-break' : ''}"><strong>${esc(b.label)}</strong><span>${esc(b.start)}–${esc(b.end)}</span>${action('Editar franja', `data-edit-band="${esc(b.id)}" aria-label="Editar horas de ${esc(b.label)}"`, 'planner-timetable-band-edit')}</th>${cells}</tr>`;
     }).join('');
     const extras = active.filter(slot => !paired.has(slot.id));
+    const limits = doc.groups.filter(g => g.course === y.name && g.weeklyHours !== undefined)
+        .map(g => {
+        const count = (0, planner_js_1.weeklySlotCount)(y, g.id);
+        return '<span class="planner-weekly-counter ' + (count === g.weeklyHours ? 'at-limit' : '') + '">' +
+            esc(g.subject + ' · ' + g.name) + ': <strong>' + count + '/' + g.weeklyHours +
+            ' sesiones</strong></span>';
+    }).join('');
     return `<div class="planner-timetable-tools"><label class="planner-summer-switch"><input type="checkbox" id="plan-summer-toggle" role="switch" ${(0, planner_js_1.activeScheduleMode)(y) === 'summer' ? 'checked' : ''}/><span>Horario de verano</span></label><p class="hint">En verano: siete clases de 45 minutos, primer patio de 30 minutos y salida a las 13:45, sin segundo patio. Ambos horarios se conservan por separado. Toca una casilla para asignar una sola clase o actividad; pulsa la existente para editarla.</p><div class="planner-export-actions">${action('Word · horario', 'id="plan-export-word"', 'btn small planner-word-action')}${action('PDF · horario', 'id="plan-export-pdf"', 'btn small planner-pdf-action')}${action('+ Añadir franja', 'id="plan-add-band"')}</div></div>
+ ${limits ? '<div class="planner-weekly-limits" aria-label="Horas semanales configuradas">' + limits + '</div>' : ''}
  <div class="planner-timetable-scroll" role="region" aria-label="Horario semanal personalizable" tabindex="0"><table class="planner-timetable"><thead><tr><th scope="col">Franja</th>${longDays.map(day => `<th scope="col">${esc(day)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
  ${extras.length ? `<section class="planner-extra-sessions"><h3>Otras sesiones guardadas</h3><p class="hint">Estas sesiones anteriores o de horario especial se conservan fuera de las franjas predeterminadas.</p><div class="planner-extra-list">${extras.map(slot => `<div class="planner-schedule-item"><div><small>${esc(longDays[slot.day])} · ${esc(slot.start)}–${esc(slot.end)}</small><strong>${esc(labels(doc, slot))}</strong>${slot.room ? `<small>Aula: ${esc(slot.room)}</small>` : ''}</div>${action('Editar', `data-edit-slot="${esc(slot.id)}"`)}</div>`).join('')}</div></section>` : ''}`;
 }
@@ -8567,25 +8717,54 @@ const eventCard = (doc, e, y) => {
 const taskCard = (doc, t) => `<div class="planner-event"><div><strong>${t.done ? '✓ ' : ''}${esc(t.title)}</strong>${t.notes ? `<small>${esc(t.notes)}</small>` : ''}</div>${action(t.done ? 'Reabrir' : 'Completar', `data-toggle-task="${esc(t.id)}"`)}${action('Editar', `data-edit-task="${esc(t.id)}"`)}</div>`;
 /** Un calendario de convocatorias por grupo y trimestre, independiente de las notas.
  * Solo se ofrecen los grupos adscritos al curso académico activo. */
+/** Apartado propio de guardias en la navegación de Agenda: sin duplicar
+ * los eventos que ya están en día, semana y calendario exportado. */
+function renderPatioPanel(y) {
+    const records = y.events.filter(e => e.type === 'patio').slice().sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+    const months = [...new Set(records.map(e => e.date.slice(0, 7)))];
+    return '<div class="planner-patio-panel"><div class="planner-patio-heading">' +
+        '<div><h3>Guardias de patio</h3><p class="hint">Asignaciones semanales, zona habitual y alternativa para lluvia o viento. Puedes importar el Excel tras indicar hasta cuándo generar.</p></div>' +
+        action('Importar rotación de Excel', 'id="plan-import-patio-panel"', 'btn primary') + '</div>' +
+        (records.length ? months.map(month => '<section class="planner-patio-month"><h4>' +
+            esc(new Date(month + '-01T12:00:00Z').toLocaleDateString('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' })) + '</h4>' +
+            records.filter(e => e.date.startsWith(month)).map(e => '<div class="planner-patio-entry"><div><strong>' + esc(e.date) + ' · ' + esc((e.time || '') + (e.endTime ? '–' + e.endTime : '')) + '</strong>' +
+                '<p>' + esc(e.title) + '</p><small>' + esc(e.notes || '') + '</small></div>' +
+                '<div class="planner-patio-entry-actions">' + action('Editar', 'data-edit-event="' + esc(e.id) + '"') +
+                action('Calendario', 'data-export-event="' + esc(e.id) + '"') + '</div></div>').join('') +
+            '</section>').join('') :
+            '<p class="hint">Sin guardias incorporadas. Utiliza «Importar rotación de Excel» para revisar las zonas y fechas antes de guardarlas.</p>') +
+        '</div>';
+}
 function evaluationOverview(doc, y) {
     const groups = doc.groups.filter(g => g.course === y.name), periods = [...doc.periods].sort((a, b) => a.order - b.order);
-    const total = groups.length * periods.length;
-    const scheduled = y.events.filter(e => e.type === 'evaluation' && groups.some(g => g.id === e.groupId)).length;
-    let html = '';
-    for (const group of groups)
-        for (const period of periods) {
-            const event = y.events.find(e => e.type === 'evaluation' && e.groupId === group.id && e.periodId === period.id);
-            const attrs = 'data-eval-group="' + esc(group.id) + '" data-eval-period="' + esc(period.id) + '"';
-            html += '<div class="planner-evaluation-row"><strong>' + esc(group.subject + ' · ' + group.name) + '</strong>' +
-                '<span>' + esc(period.name) + '</span><span class="planner-evaluation-when">' +
-                (event ? esc(event.date + ' · ' + event.time) : 'Sin programar') + '</span>' +
-                action(event ? 'Editar fecha y hora' : 'Programar', attrs) +
-                (event ? action('Añadir a calendario', 'data-export-event="' + esc(event.id) + '"') : '') + '</div>';
-        }
+    let html = '', total = 0;
+    for (const group of groups) {
+        const origins = [...new Set([
+                ...doc.students.filter(s => s.groupId === group.id).map(s => s.originGroup || ''),
+                ...y.events.filter(e => e.type === 'evaluation' && e.groupId === group.id).map(e => e.originGroup || '')
+            ])].filter(Boolean).sort((a, b) => a.localeCompare(b, 'es', { numeric: true, sensitivity: 'base' }));
+        // Si hay procedencias, cada tutoría dispone de convocatoria propia; la cita
+        // general anterior se mantiene visible para no perder una reunión ya guardada.
+        const hadGeneral = y.events.some(e => e.type === 'evaluation' && e.groupId === group.id && !e.originGroup);
+        const missing = doc.students.some(s => s.groupId === group.id && !s.originGroup);
+        const variants = origins.length ? (hadGeneral || missing ? ['', ...origins] : origins) : [''];
+        for (const period of periods)
+            for (const origin of variants) {
+                total++;
+                const event = y.events.find(e => e.type === 'evaluation' && e.groupId === group.id && e.periodId === period.id && (e.originGroup || '') === origin);
+                const attrs = 'data-eval-group="' + esc(group.id) + '" data-eval-period="' + esc(period.id) + '" data-eval-origin="' + esc(origin) + '"';
+                const label = origin ? ' · ' + origin : ' · grupo completo';
+                html += '<div class="planner-evaluation-row"><strong>' + esc(group.subject + ' · ' + group.name) + '</strong>' +
+                    '<span>' + esc(period.name + label) + '</span><span class="planner-evaluation-when">' +
+                    (event ? esc(event.date + ' · ' + event.time) : 'Sin programar') + '</span>' +
+                    action(event ? 'Editar fecha y hora' : 'Programar', attrs) +
+                    (event ? action('Añadir a calendario', 'data-export-event="' + esc(event.id) + '"') : '') + '</div>';
+            }
+    }
+    const scheduled = y.events.filter(e => e.type === 'evaluation').length;
     return '<details id="plan-evaluations" class="panel panel-pad planner-evaluations"><summary>' +
-        'Sesiones de evaluación por grupo y trimestre · ' + scheduled + '/' + total + ' programadas</summary>' +
-        '<p class="hint">Elige fecha y hora de cada convocatoria. Son citas docentes, no se modifican las calificaciones.' +
-        ' Puedes exportar cada cita a tu calendario sin compartir el cuaderno.</p>' +
+        'Sesiones de evaluación por grupo, subgrupo y trimestre · ' + scheduled + '/' + total + ' programadas</summary>' +
+        '<p class="hint">Las optativas comparten notas por materia, pero cada tutoría de procedencia puede tener distinta convocatoria. Para añadir o cambiar subgrupos utiliza «Gestionar procedencias» en Cuaderno.</p>' +
         (html || '<p class="hint">Todavía no hay grupos de este curso académico.</p>') + '</details>';
 }
 function renderPlanner(doc, ui) {
@@ -8599,6 +8778,8 @@ function renderPlanner(doc, ui) {
     if (mode === 'schedule') {
         body = renderTimetableGrid(doc, y);
     }
+    else if (mode === 'patio')
+        body = renderPatioPanel(y);
     else if (mode === 'day')
         body = dayItems(doc, y, focus);
     else if (mode === 'week')
@@ -8607,9 +8788,9 @@ function renderPlanner(doc, ui) {
         body = `<div class="planner-month">${shortDays.map(day => `<div class="planner-month-head">${day}</div>`).join('')}${Array.from({ length: 42 }, (_, i) => { const d = (0, planner_js_1.addDays)(gridStart, i), holiday = (0, planner_js_1.isHoliday)(y, d), events = y.events.filter(e => e.date === d), tasks = y.tasks.filter(t => t.dueDate === d), all = events.length + tasks.length; return `<button type="button" class="planner-month-cell ${d.slice(0, 7) === focus.slice(0, 7) ? '' : 'outside'} ${d === (0, planner_js_1.localToday)() ? 'today' : ''} ${holiday ? 'holiday' : ''}" data-go-date="${d}"><strong>${Number(d.slice(8))}</strong>${holiday ? `<small>✦ ${esc(holiday.name)}</small>` : ''}${events.slice(0, 2).map(e => `<span class="planner-month-dot">${esc(e.title)}</span>`).join('')}${tasks.length ? `<span class="planner-month-task">${tasks.length} tarea(s)</span>` : ''}${all > 2 ? `<span class="planner-more">+${all - 2}</span>` : ''}</button>`; }).join('')}</div>`;
     }
     return `<div class="planner-view"><section class="panel panel-pad planner-intro"><div><div class="planner-eyebrow">Agenda docente · planificación personal</div><h2>Mi planificador</h2><p class="subtitle">Tu horario, exámenes, clases previstas y días no lectivos. El diario de clase es opcional y no altera las notas.</p></div><div class="planner-year-chooser"><label>Curso académico<select id="plan-year">${doc.planner.years.map(x => `<option value="${esc(x.id)}" ${x.id === y.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>${action('Fechas', `id="plan-edit-year"`)}${action('+ Curso', `id="plan-new-year"`)}</div></section>
- <section class="panel panel-pad planner-controls"><div class="planner-view-tabs">${[['day', 'Hoy / día'], ['week', 'Semana'], ['month', 'Mes'], ['schedule', 'Horario base']].map(([k, t]) => `<button type="button" class="planner-view-btn ${mode === k ? 'active' : ''}" data-plan-mode="${k}" aria-pressed="${mode === k}">${t}</button>`).join('')}</div><div class="planner-date-controls">${action('‹', `id="plan-prev"`)}<input type="date" id="plan-date" value="${esc(focus)}" aria-label="Fecha mostrada"/>${action('Hoy', `id="plan-today"`)}${action('›', `id="plan-next"`)}</div><p class="hint">${esc(y.start)} a ${esc(y.end)} · ${numberClasses} sesiones de clase en el horario · ${count} eventos</p>${tools}</section>
+ <section class="panel panel-pad planner-controls"><div class="planner-view-tabs">${[['day', 'Hoy / día'], ['week', 'Semana'], ['month', 'Mes'], ['schedule', 'Horario base'], ['patio', 'Guardias de patio']].map(([k, t]) => `<button type="button" class="planner-view-btn ${mode === k ? 'active' : ''}" data-plan-mode="${k}" aria-pressed="${mode === k}">${t}</button>`).join('')}</div><div class="planner-date-controls">${action('‹', `id="plan-prev"`)}<input type="date" id="plan-date" value="${esc(focus)}" aria-label="Fecha mostrada"/>${action('Hoy', `id="plan-today"`)}${action('›', `id="plan-next"`)}</div><p class="hint">${esc(y.start)} a ${esc(y.end)} · ${numberClasses} sesiones de clase en el horario · ${count} eventos</p>${tools}</section>
  ${evaluationOverview(doc, y)}
- <section class="panel panel-pad planner-content"><div class="planner-content-head"><h2>${mode === 'schedule' ? 'Horario semanal' + ((0, planner_js_1.activeScheduleMode)(y) === 'summer' ? ' · verano' : ' · ordinario') : mode === 'week' ? 'Semana del ' + dayText(start) : mode === 'month' ? new Date(monthStart + 'T12:00:00Z').toLocaleDateString('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'Agenda del día'}</h2>${mode === 'schedule' ? '<p class="hint">El horario se repite de lunes a viernes, excepto festivos y cambios puntuales.</p>' : ''}</div>${body}</section>
+ <section class="panel panel-pad planner-content"><div class="planner-content-head"><h2>${mode === 'schedule' ? 'Horario semanal' + ((0, planner_js_1.activeScheduleMode)(y) === 'summer' ? ' · verano' : ' · ordinario') : mode === 'patio' ? 'Guardias rotatorias' : mode === 'week' ? 'Semana del ' + dayText(start) : mode === 'month' ? new Date(monthStart + 'T12:00:00Z').toLocaleDateString('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'Agenda del día'}</h2>${mode === 'schedule' ? '<p class="hint">El horario se repite de lunes a viernes, excepto festivos y cambios puntuales.</p>' : ''}</div>${body}</section>
  <section class="panel panel-pad planner-bottom"><div><h3>Festivos y vacaciones</h3>${y.holidays.length ? y.holidays.slice().sort((a, b) => a.start.localeCompare(b.start)).map(h => `<div class="planner-simple-row"><span>✦ ${esc(h.name)} · ${esc(h.start)}${h.end === h.start ? '' : ' — ' + esc(h.end)}</span>${action('Editar', `data-edit-holiday="${esc(h.id)}"`)}</div>`).join('') : '<p class="hint">Todavía no has señalado días no lectivos.</p>'}</div><div><h3>Tareas docentes pendientes</h3>${y.tasks.filter(t => !t.done).sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, 12).map(t => taskCard(doc, t)).join('') || '<p class="hint">Sin tareas pendientes.</p>'}</div></section>
  ${action('Exportar agenda a calendario (.ics)', `id="plan-export-ics"`)} ${action('Imprimir calendario', `id="plan-print"`)}<p class="hint">El registro de trabajo realizado solo se guarda cuando lo marcas o escribes expresamente. Todo forma parte de la misma copia cifrada .cdoc.</p></div>`;
 }
@@ -8624,11 +8805,8 @@ function bindPlanner(doc, ui, ctx) {
         redraw();
     };
     const dateNow = () => ui.plannerDate || (0, planner_js_1.localToday)();
-    all('[data-plan-group]').forEach(el => { const g = doc.groups.find(x => x.id === el.dataset.planGroup); if (g) {
-        const c = doc.settings.subjectAccents[`${g.level}:${g.subject}`];
-        if (c)
-            el.style.setProperty('--planner-color', c);
-    } });
+    // Los colores del horario provienen exclusivamente de la sesión, no de la materia.
+    // No sobreescribir --planner-color tras renderizar las tarjetas.
     all('[data-plan-mode]').forEach(b => b.onclick = () => { ui.plannerMode = b.dataset.planMode; if (ui.plannerMode === 'day')
         ui.plannerDate = (0, planner_js_1.localToday)(); redraw(); });
     $('#plan-year').onchange = e => ctx.commit(d => (0, planner_js_1.setActiveYear)(d, e.target.value), 'Cambiar curso del planificador').then(() => { const current = (0, planner_js_1.activeYear)(ctx.getDoc()); ui.plannerDate = current.start; redraw(); }).catch(ctx.fail);
@@ -8690,14 +8868,15 @@ function bindPlanner(doc, ui, ctx) {
     $('#plan-add-event').onclick = () => eventModal({ date: dateNow() });
     $('#plan-show-evaluations').onclick = () => { const overview = $('#plan-evaluations'); overview.open = true; overview.scrollIntoView({ block: 'nearest' }); };
     $('#plan-import-patio').onclick = () => patioImportModal();
-    all('[data-eval-group]').forEach(b => b.onclick = () => evaluationModal(b.dataset.evalGroup, b.dataset.evalPeriod));
+    $('#plan-import-patio-panel')?.addEventListener('click', () => patioImportModal());
+    all('[data-eval-group]').forEach(b => b.onclick = () => evaluationModal(b.dataset.evalGroup, b.dataset.evalPeriod, b.dataset.evalOrigin || ''));
     all('[data-add-event]').forEach(b => b.onclick = () => eventModal({ date: b.dataset.addEvent }));
     all('[data-edit-event]').forEach(b => b.onclick = () => {
         const event = y.events.find(e => e.id === b.dataset.editEvent);
         if (!event)
             return;
         if (event.type === 'evaluation')
-            evaluationModal(event.groupId, event.periodId);
+            evaluationModal(event.groupId, event.periodId, event.originGroup || '');
         else
             eventModal({ event });
     });
@@ -8761,11 +8940,11 @@ function bindPlanner(doc, ui, ctx) {
             { id: 'groupId', label: 'Clase del cuaderno (opcional)', type: 'select', required: false, value: s?.groupId || '', options: groupOptions() },
             { id: 'label', label: 'Otra asignatura / actividad (si no eliges clase)', required: false, value: s?.label || (linked?.kind === 'break' ? 'Patio' : '') },
             { id: 'room', label: 'Aula (opcional)', required: false, value: s?.room || '', maxlength: 60 },
-            { id: 'color', label: 'Color de actividad sin grupo (guardias, otras materias...)', type: 'color', required: false, value: isColor(s?.color) ? s.color : '#64748B' }
+            { id: 'color', label: 'Color de esta sesión (independiente del acento de asignatura)', type: 'color', required: false, value: (0, planner_js_1.plannerSlotColor)(s || { type: linked?.kind === 'break' ? 'otro' : 'class' }) }
         ], v => ctx.commit(d => {
             const validBand = linked && v.start === linked.start && v.end === linked.end ? linked.id : null;
             (0, planner_js_1.saveSlot)(d, { ...v, id: s?.id || null, groupId: v.groupId || null, bandId: validBand });
-        }, 'Configurar horario'), 'Solo se permite una clase o actividad por franja. Puedes elegir colores para guardias y actividades sin grupo. Los cambios en este horario no alteran el otro.');
+        }, 'Configurar horario'), 'Una sesión por franja. El color es propio del horario (paleta verde oscuro). Cada grupo optativo puede tener un límite de horas semanales; los horarios ordinario y de verano se cuentan por separado.');
         if (s) {
             const button = document.createElement('button');
             button.className = 'btn warn';
@@ -8941,21 +9120,21 @@ function bindPlanner(doc, ui, ctx) {
         };
         ctx.dialog.showModal();
     }
-    function evaluationModal(groupId, periodId) {
+    function evaluationModal(groupId, periodId, origin = '') {
         const current = (0, planner_js_1.activeYear)(ctx.getDoc()), group = ctx.getDoc().groups.find(g => g.id === groupId && g.course === current.name);
         const period = ctx.getDoc().periods.find(p => p.id === periodId);
         if (!group || !period) {
             ctx.fail(new Error('Grupo o evaluación ya no disponibles en este curso.'));
             return;
         }
-        const existing = current.events.find(e => e.type === 'evaluation' && e.groupId === groupId && e.periodId === periodId);
+        const existing = current.events.find(e => e.type === 'evaluation' && e.groupId === groupId && e.periodId === periodId && (e.originGroup || '') === origin);
         const today = dateNow(), date = existing?.date || (today >= current.start && today <= current.end ? today : current.start);
-        ctx.fieldsModal('Sesión de evaluación · ' + group.name + ' · ' + period.name, [
+        ctx.fieldsModal('Sesión de evaluación · ' + group.name + (origin ? ' · ' + origin : '') + ' · ' + period.name, [
             { id: 'date', label: 'Día de la sesión', type: 'date', value: date },
             { id: 'time', label: 'Hora de inicio', type: 'time', value: existing?.time || '15:30' },
             { id: 'notes', label: 'Lugar o indicaciones (opcional)', required: false, value: existing?.notes || '', maxlength: 1000 }
         ], values => ctx.commit(d => (0, planner_js_1.saveEvaluationSession)(d, {
-            id: existing?.id || null, groupId, periodId, ...values
+            id: existing?.id || null, groupId, periodId, originGroup: origin || null, ...values
         }), 'Programar sesión de evaluación'), 'La convocatoria aparecerá en las vistas de día, semana y mes. Su hora no depende de las clases del horario.');
         if (existing)
             delButton('events', existing.id);
@@ -9059,7 +9238,7 @@ function bindPlanner(doc, ui, ctx) {
 "src/planner.js":function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.daySessions = exports.daySlots = exports.isHoliday = exports.timeValid = exports.localToday = exports.addDays = exports.weekday = exports.EXCEPTION_TYPES = exports.EVENT_TYPES = exports.slotsForMode = exports.scheduleBands = exports.slotScheduleMode = exports.activeScheduleMode = exports.SUMMER_TIMETABLE_BANDS = exports.DEFAULT_TIMETABLE_BANDS = exports.SLOT_TYPES = void 0;
+exports.daySessions = exports.daySlots = exports.isHoliday = exports.timeValid = exports.localToday = exports.addDays = exports.weekday = exports.EXCEPTION_TYPES = exports.EVENT_TYPES = exports.weeklySlotCount = exports.slotsForMode = exports.scheduleBands = exports.plannerSlotColor = exports.PLANNER_COLORS = exports.slotScheduleMode = exports.activeScheduleMode = exports.SUMMER_TIMETABLE_BANDS = exports.DEFAULT_TIMETABLE_BANDS = exports.SLOT_TYPES = void 0;
 exports.setSummerSchedule = setSummerSchedule;
 exports.saveTimetableBand = saveTimetableBand;
 exports.removeTimetableBand = removeTimetableBand;
@@ -9120,6 +9299,15 @@ const activeScheduleMode = y => y?.summerEnabled === true ? 'summer' : 'regular'
 exports.activeScheduleMode = activeScheduleMode;
 const slotScheduleMode = s => s?.scheduleMode === 'summer' ? 'summer' : 'regular';
 exports.slotScheduleMode = slotScheduleMode;
+/** Paleta verde oscuro EXCLUSIVA de la agenda: nunca lee acentos académicos. */
+exports.PLANNER_COLORS = Object.freeze({
+    class: '#245C49', guardia: '#357246', familias: '#37695A',
+    complementaria: '#526D40', departamento: '#456F5F',
+    jefatura: '#385C4B', otro: '#57785A'
+});
+const plannerSlotColor = s => typeof s?.color === 'string' && /^#[0-9a-f]{6}$/i.test(s.color)
+    ? s.color.toUpperCase() : (exports.PLANNER_COLORS[s?.type] || exports.PLANNER_COLORS.class);
+exports.plannerSlotColor = plannerSlotColor;
 /** Compatibilidad con la vista previa de verano que terminaba a las 13:00.
  * La ampliación solo se aplica a su plantilla exacta; una 7.ª hora
  * eliminada deliberadamente en la versión nueva no reaparece. */
@@ -9141,6 +9329,8 @@ const scheduleBands = (y, mode = (0, exports.activeScheduleMode)(y)) => {
 exports.scheduleBands = scheduleBands;
 const slotsForMode = (y, mode = (0, exports.activeScheduleMode)(y)) => (y?.slots || []).filter(s => (0, exports.slotScheduleMode)(s) === mode);
 exports.slotsForMode = slotsForMode;
+const weeklySlotCount = (year, groupId, mode = (0, exports.activeScheduleMode)(year)) => (0, exports.slotsForMode)(year, mode).filter(s => s.type === 'class' && s.groupId === groupId).length;
+exports.weeklySlotCount = weeklySlotCount;
 const cloneBands = () => exports.DEFAULT_TIMETABLE_BANDS.map(b => ({ ...b }));
 const cloneSummerBands = () => exports.SUMMER_TIMETABLE_BANDS.map(b => ({ ...b }));
 /** El primer cambio a verano copia asignaciones sin reutilizar sus IDs.
@@ -9166,6 +9356,10 @@ function setSummerSchedule(doc, enabled) {
                 continue;
             clones.push({ ...s, id: uid(), scheduleMode: 'summer', start: to.start, end: to.end, bandId: to.id });
             seen.add(s.day + '|' + to.id);
+        }
+        for (const group of doc.groups.filter(g => g.weeklyHours !== undefined)) {
+            if ((0, exports.weeklySlotCount)(y, group.id, 'summer') + clones.filter(s => s.type === 'class' && s.groupId === group.id).length > group.weeklyHours)
+                throw new Error('Horario de verano: las clases copiadas superan el límite semanal de ' + group.subject + ' · ' + group.name + '.');
         }
         y.slots.push(...clones);
         y.summerInitialized = true;
@@ -9322,6 +9516,10 @@ function saveSlot(doc, { id = null, day, start, end, type, groupId = null, label
     checkGroup(doc, groupId);
     if (kind === 'class' && !groupId && !String(label).trim())
         throw new Error('Selecciona un grupo o indica una asignatura manual.');
+    const assignedGroup = kind === 'class' && groupId ? doc.groups.find(g => g.id === groupId) : null;
+    if (assignedGroup?.weeklyHours !== undefined &&
+        (0, exports.weeklySlotCount)(y, groupId, mode) - Number(y.slots.some(s => s.id === id && s.type === 'class' && s.groupId === groupId && (0, exports.slotScheduleMode)(s) === mode)) >= assignedGroup.weeklyHours)
+        throw new Error('Límite semanal de ' + assignedGroup.subject + ' · ' + assignedGroup.name + ': ' + assignedGroup.weeklyHours + ' sesiones. Edita otra clase o amplía el límite.');
     if (kind !== 'class' && groupId)
         throw new Error('Solo las clases pueden asociarse a grupos.');
     if (String(label).length > 150 || typeof room !== 'string' || room.length > 60)
@@ -9515,7 +9713,7 @@ function carryLesson(doc, id) {
     return obj;
 }
 function findExamSlots(y, groupId, date) { return (0, exports.daySessions)(y, date).filter(s => s.type === 'class' && s.groupId === groupId && s.exception?.type !== 'cancel' && s.exception?.type !== 'replace'); }
-function saveEvent(doc, { id = null, date, type, title, groupId = null, assessmentId = null, slotId = null, time = '', endTime = '', notes = '', periodId = null }) {
+function saveEvent(doc, { id = null, date, type, title, groupId = null, assessmentId = null, slotId = null, time = '', endTime = '', notes = '', periodId = null, originGroup = null }) {
     const y = activeYear(doc);
     needDate(y, date);
     if (!Object.hasOwn(exports.EVENT_TYPES, type))
@@ -9531,11 +9729,14 @@ function saveEvent(doc, { id = null, date, type, title, groupId = null, assessme
         const group = doc.groups.find(g => g.id === groupId);
         if (!group || group.course !== y.name || !doc.periods.some(p => p.id === periodId) || !time || slotId || assessmentId)
             throw new Error('La sesión de evaluación requiere grupo del curso, trimestre y hora manual.');
-        if (y.events.some(e => e.id !== id && e.type === 'evaluation' && e.groupId === groupId && e.periodId === periodId))
-            throw new Error('Este grupo ya tiene una sesión programada para esa evaluación. Edita la existente.');
+        if (originGroup !== null && (typeof originGroup !== 'string' || !originGroup.trim() || originGroup !== originGroup.trim() || originGroup.length > 60))
+            throw new Error('Grupo de procedencia inválido.');
+        if (y.events.some(e => e.id !== id && e.type === 'evaluation' && e.groupId === groupId && e.periodId === periodId &&
+            (e.originGroup || '') === (originGroup || '')))
+            throw new Error('Este subgrupo ya tiene una sesión programada para esa evaluación. Edita la existente.');
     }
-    else if (periodId !== null)
-        throw new Error('Solo las sesiones de evaluación pueden vincularse a un trimestre.');
+    else if (periodId !== null || originGroup !== null)
+        throw new Error('Solo las sesiones de evaluación pueden vincularse a un trimestre o subgrupo.');
     let slot = null;
     if (slotId) {
         slot = y.slots.find(s => s.id === slotId);
@@ -9557,7 +9758,7 @@ function saveEvent(doc, { id = null, date, type, title, groupId = null, assessme
     const actualStart = slot ? (move?.start || slot.start) : time, actualEnd = endTime || (slot ? (move?.end || slot.end) : '');
     if (actualEnd && (!actualStart || !(0, exports.timeValid)(actualEnd) || actualEnd <= actualStart))
         throw new Error('La hora final debe ser posterior al inicio.');
-    const obj = { id: id || uid(), date, type, title: trimmed(title, 150), groupId: groupId || null, assessmentId: assessmentId || null, slotId: slotId || null, time: actualStart, ...(actualEnd ? { endTime: actualEnd } : {}), notes: String(notes).trim(), ...(type === 'evaluation' ? { periodId } : {}) };
+    const obj = { id: id || uid(), date, type, title: trimmed(title, 150), groupId: groupId || null, assessmentId: assessmentId || null, slotId: slotId || null, time: actualStart, ...(actualEnd ? { endTime: actualEnd } : {}), notes: String(notes).trim(), ...(type === 'evaluation' ? { periodId, ...(originGroup ? { originGroup } : {}) } : {}) };
     const old = y.events.find(e => e.id === id);
     if (id && !old)
         throw new Error('Evento inexistente.');
@@ -9565,8 +9766,12 @@ function saveEvent(doc, { id = null, date, type, title, groupId = null, assessme
         Object.assign(old, obj);
         if (type !== 'patio')
             delete old.patioRotationSource;
-        if (type !== 'evaluation')
+        if (type !== 'evaluation') {
             delete old.periodId;
+            delete old.originGroup;
+        }
+        else if (!originGroup)
+            delete old.originGroup;
         if (!actualEnd)
             delete old.endTime;
     }
@@ -9577,12 +9782,15 @@ function saveEvent(doc, { id = null, date, type, title, groupId = null, assessme
 }
 /** Una convocatoria por grupo y evaluación del curso académico activo.
  * Son citas de agenda, no calificaciones ni actas de evaluación. */
-function saveEvaluationSession(doc, { id = null, groupId, periodId, date, time, notes = '' }) {
+function saveEvaluationSession(doc, { id = null, groupId, periodId, date, time, notes = '', originGroup = null }) {
     const period = doc.periods.find(p => p.id === periodId), group = doc.groups.find(g => g.id === groupId);
     if (!period || !group)
         throw new Error('Selecciona un grupo y una evaluación válidos.');
-    return saveEvent(doc, { id, groupId, periodId, date, time, notes, type: 'evaluation',
-        title: period.name + ' · ' + group.name });
+    if (originGroup !== null && !doc.students.some(s => s.groupId === groupId && s.originGroup === originGroup) &&
+        !activeYear(doc).events.some(e => e.id === id && e.originGroup === originGroup))
+        throw new Error('El subgrupo no está asignado a ningún alumno de esta optativa.');
+    return saveEvent(doc, { id, groupId, periodId, date, time, notes, type: 'evaluation', originGroup,
+        title: period.name + ' · ' + group.name + (originGroup ? ' · ' + originGroup : '') });
 }
 /** VEVENT individual, sin cuentas ni red: las horas son flotantes/locales
  * y el calendario de destino elegirá su propia zona horaria.
@@ -9675,8 +9883,12 @@ function assertPlanner(doc) {
         if (!uniquePairs(y.exceptions, e => `${e.date}|${e.slotId}`) ||
             !uniquePairs(y.lessons.filter(l => l.slotId), l => `${l.date}|${l.slotId}`) ||
             !uniquePairs(y.events.filter(e => e.assessmentId), e => e.assessmentId) ||
-            !uniquePairs(y.events.filter(e => e.type === 'evaluation'), e => e.groupId + '|' + e.periodId))
+            !uniquePairs(y.events.filter(e => e.type === 'evaluation'), e => e.groupId + '|' + e.periodId + '|' + (e.originGroup || '')))
             throw new Error('Agenda duplicada: revisa excepciones, clases y exámenes vinculados.');
+        for (const group of doc.groups.filter(g => g.weeklyHours !== undefined)) {
+            if (['regular', 'summer'].some(mode => (0, exports.weeklySlotCount)(y, group.id, mode) > group.weeklyHours))
+                throw new Error('Horario con más clases que las horas semanales del grupo ' + group.name + '.');
+        }
         for (const s of y.slots) {
             if (!Number.isInteger(s.day) || s.day < 0 || s.day > 4 || !Object.hasOwn(exports.SLOT_TYPES, s.type) || !(0, exports.timeValid)(s.start) || !(0, exports.timeValid)(s.end) || s.end <= s.start || (s.groupId && !doc.groups.some(g => g.id === s.groupId)) || (s.type === 'class' && !s.groupId && !s.label) || (s.type !== 'class' && s.groupId) ||
                 s.room !== undefined && (typeof s.room !== 'string' || s.room.length > 60) ||
@@ -9703,8 +9915,9 @@ function assertPlanner(doc) {
             if (!Object.hasOwn(exports.EVENT_TYPES, e.type) || !e.title || (e.time && !(0, exports.timeValid)(e.time)) ||
                 (e.endTime !== undefined && (!(0, exports.timeValid)(e.endTime) || !e.time || e.endTime <= e.time)) ||
                 (e.patioRotationSource !== undefined && (e.type !== 'patio' || e.patioRotationSource !== 'xlsx-first-break-v1')) || (e.slotId && y.slots.find(s => s.id === e.slotId)?.type === 'class' && y.slots.find(s => s.id === e.slotId)?.groupId !== e.groupId) || (e.assessmentId && (e.type !== 'exam' || !doc.assessments.some(a => a.id === e.assessmentId && a.groupId === e.groupId))) ||
-                (e.type === 'evaluation' && (!e.groupId || !e.periodId || !e.time || e.slotId || e.assessmentId || !doc.periods.some(p => p.id === e.periodId) || !doc.groups.some(g => g.id === e.groupId && g.course === y.name))) ||
-                (e.type !== 'evaluation' && e.periodId !== undefined && e.periodId !== null))
+                (e.type === 'evaluation' && (!e.groupId || !e.periodId || !e.time || e.slotId || e.assessmentId || !doc.periods.some(p => p.id === e.periodId) || !doc.groups.some(g => g.id === e.groupId && g.course === y.name) ||
+                    (e.originGroup !== undefined && (typeof e.originGroup !== 'string' || !e.originGroup.trim() || e.originGroup !== e.originGroup.trim() || e.originGroup.length > 60)))) ||
+                (e.type !== 'evaluation' && (e.periodId !== undefined && e.periodId !== null || e.originGroup !== undefined)))
                 throw new Error('Evento inválido.');
         }
         for (const l of y.lessons) {
@@ -10410,13 +10623,8 @@ exports.timetablePdfBytes = timetablePdfBytes;
 /** Exportación local del horario semanal: no consulta la red ni lee calificaciones. */
 const planner_js_1 = require("./planner.js");
 const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-const validColor = c => typeof c === 'string' && /^#[0-9A-Fa-f]{6}$/.test(c);
 const xml = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&apos;' }[c]));
-const palette = (doc, slot) => {
-    const group = doc.groups.find(g => g.id === slot.groupId);
-    const subjectColor = group && doc.settings?.subjectAccents?.[group.level + ':' + group.subject];
-    return validColor(subjectColor) ? subjectColor : validColor(slot.color) ? slot.color : '#69788B';
-};
+const palette = (_doc, slot) => (0, planner_js_1.plannerSlotColor)(slot);
 const slotLabel = (doc, s) => {
     const g = doc.groups.find(x => x.id === s.groupId);
     return s.type === 'class' ? (g ? [g.subject, g.name].filter(Boolean).join(' · ') : s.label) : (s.label || planner_js_1.SLOT_TYPES[s.type]);
