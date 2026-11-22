@@ -113,6 +113,21 @@ export function competencyGrade(doc,studentId,competencyId,groupId,periodId) {
   const grade=weightedGrade(entries,e=>e.grade,e=>e.weight);
   return grade===null||!isTenGrade(grade)?null:grade;
 }
+/* Media aritmética de competencias ya calculadas: cada CE aporta una sola nota,
+ * sin reutilizar ni sumar los pesos con los que se obtuvo cada una de ellas.
+ * Solo intervienen competencias evaluadas, sin redondeos intermedios ni persistencia. */
+export function competencyArithmeticMean(doc,studentId,competencyIds,groupId,periodId){
+  if(!Array.isArray(competencyIds))throw new Error('Lista de competencias inválida.');
+  if(!doc.students.some(s=>s.id===studentId&&s.groupId===groupId)||!doc.periods.some(p=>p.id===periodId))return null;
+  const values=[...new Set(competencyIds.filter(id=>typeof id==='string'))]
+    .map(id=>competencyGrade(doc,studentId,id,groupId,periodId))
+    .filter(grade=>grade!==null);
+  return mean(values);
+}
+/** Equivalencia lineal continua: 0/10 -> 1/4; 10/10 -> 4/4. */
+export function gradeToFour(scoreTen){
+  return isTenGrade(scoreTen)?1+scoreTen*3/10:null;
+}
 export function roundGrade(n,decimals=2,method='half-up') {
   if(n===null || n===undefined || !Number.isFinite(n))return null;
   if(!Number.isInteger(decimals)||decimals<0||decimals>3)throw new Error('Precisión inválida.');

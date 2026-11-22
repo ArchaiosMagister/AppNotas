@@ -90,6 +90,8 @@ test('niveles de confirmación: importación cotidiana sin bloqueos y riesgo pro
 });
 test('la interfaz revalida la autorización sin depender del aspecto del botón',async()=>{
   const [app,sw]=await Promise.all(['app.js','sw.js'].map(p=>readFile(new URL('../'+p,import.meta.url),'utf8')));
+  const cacheId=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/)?.[1];
+  assert(cacheId&&Number(cacheId.match(/v(\d+)/)?.[1])>=142,'La caché PWA debe tener versión actualizada');
   assert(app.includes('const riskLevel=importRiskLevel(conflict,hasLocal)'));
   assert(app.includes('id="import-risk-accept"'));
   assert(app.includes('Entiendo que voy a sustituir la versión local y que podría perder cambios posteriores'));
@@ -103,8 +105,8 @@ test('la interfaz revalida la autorización sin depender del aspecto del botón'
   assert(app.includes("const identical=conflict==='same'"));
   assert(app.includes("identical?'':"));
   assert(app.includes('await STATE.mutationQueue;await STATE.saveQueue'));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v142-dev'"));
-  assert(app.includes("caches.open('cuaderno-docente-static-v142-dev')"));
+  assert(sw.includes(`const CACHE='${cacheId}'`));
+  assert(app.includes(`caches.open('${cacheId}')`));
 });
 test('contraseña incorrecta y archivo alterado no generan contenido restaurable',async()=>{
   const notebook=initialNotebook();ensureBookMetadata(notebook);

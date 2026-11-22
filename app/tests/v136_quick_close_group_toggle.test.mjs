@@ -119,10 +119,12 @@ test('el modo grupo es compartido por cuaderno y directorio individual; no cambi
 
 test('los controles son accesibles en móvil, en temas oscuros y con servicio PWA renovado',async()=>{
   const [css,sw]=await Promise.all([read('styles.css'),read('sw.js')]);
+  const cacheId=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/)?.[1];
+  assert(cacheId&&Number(cacheId.match(/v(\d+)/)?.[1])>=142,'La caché PWA debe tener versión actualizada');
   assert(css.includes('.topbar .topbar-close-btn'));
   assert(css.includes('.student-group-switch input:focus-visible+.student-group-switch-track'));
   assert(css.includes('.student-group-switch input:checked+.student-group-switch-track'));
   assert(css.includes('.topmeta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))'));
   assert(css.includes('min-height:44px'));
-  assert(sw.includes("cuaderno-docente-static-v142-dev"));
+  assert(sw.includes(`${cacheId}`));
 });
