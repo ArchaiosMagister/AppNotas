@@ -91,12 +91,14 @@ test('la barra de materias conserva los bordes coloreados sin romper móvil, osc
 });
 test('los controles académicos y la PWA siguen intactos',async()=>{
   const [app,sw]=await Promise.all([read('app.js'),read('sw.js')]);
+  const cacheId=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/)?.[1];
+  assert(cacheId&&Number(cacheId.match(/v(\d+)/)?.[1])>=142,'La caché PWA debe tener versión actualizada');
   for(const id of ['new-group','edit-group','csv-import','accent-select','new-student','new-assessment',
     'close-notebook','open-notebook','lock','student-group-mode','student-sort-mode'])
     assert(app.includes('id="'+id+'"'),id);
   assert(app.includes("document.documentElement.style.setProperty('--classic-accent',color)"));
   assert(app.includes("button.style.setProperty('--course-accent',"));
-  assert(app.includes("caches.open('cuaderno-docente-static-v142-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v142-dev'"));
+  assert(app.includes(`caches.open('${cacheId}')`));
+  assert(sw.includes(`const CACHE='${cacheId}'`));
   assert(!app.includes('indexedDB.deleteDatabase'));
 });
