@@ -117,7 +117,20 @@ export function renderPlanner(doc,ui){
  const y=activeYear(doc),mode=ui.plannerMode||'week',focus=ui.plannerDate||localToday();
  const start=addDays(focus,-weekday(focus));const monthStart=focus.slice(0,7)+'-01';const gridStart=addDays(monthStart,-weekday(monthStart));
  const count=y.events.length,numberClasses=slotsForMode(y).filter(s=>s.type==='class').length;
- const tools=`<div class="planner-tools">${action('+ Clase / horario','id="plan-add-slot"','btn primary')}${action('+ Examen o evento','id="plan-add-event"')}${action('Sesiones de evaluación','id="plan-show-evaluations"')}${action('Importar guardias de patio (.xlsx)','id="plan-import-patio"')}${action('+ Trabajo diario','id="plan-add-lesson"')}${action('+ Tarea','id="plan-add-task"')}${action('+ Festivo / vacaciones','id="plan-add-holiday"')}${action('+ Cambio excepcional','id="plan-add-exception"')}</div>`;
+ const tools=`<div class="planner-tools planner-tools-minimal">
+ <details class="planner-create-menu" id="planner-create-menu">
+ <summary class="btn primary" aria-label="Crear un elemento nuevo en la agenda">+ Nuevo <span aria-hidden="true">⌄</span></summary>
+ <div class="planner-create-options" role="group" aria-label="Nuevo elemento">
+ ${action('+ Clase / horario','id="plan-add-slot"')}
+ ${action('+ Examen o evento','id="plan-add-event"')}
+ ${action('+ Trabajo diario','id="plan-add-lesson"')}
+ ${action('+ Tarea','id="plan-add-task"')}
+ ${action('+ Festivo / vacaciones','id="plan-add-holiday"')}
+ ${action('+ Cambio excepcional','id="plan-add-exception"')}
+ ${action('Importar guardias de patio (.xlsx)','id="plan-import-patio"')}
+ </div></details>
+ ${action('Sesiones de evaluación','id="plan-show-evaluations"','btn small planner-sessions-shortcut')}
+ </div>`;
  let body='';
  if(mode==='schedule'){
   body=renderTimetableGrid(doc,y);
@@ -154,6 +167,13 @@ export function bindPlanner(doc,ui,ctx){
  $('#plan-prev').onclick=()=>ui.plannerMode==='month'?moveMonth(-1):move(ui.plannerMode==='day'?-1:-7);
  $('#plan-next').onclick=()=>ui.plannerMode==='month'?moveMonth(1):move(ui.plannerMode==='day'?1:7);
  all('[data-go-date]').forEach(b=>b.onclick=()=>{ui.plannerDate=b.dataset.goDate;ui.plannerMode='day';redraw();});
+
+  // El menú es solo una envoltura visual: los controles de creación
+ // conservan sus identificadores y controladores originales.
+ const createMenu=$('#planner-create-menu');
+ createMenu?.querySelectorAll('button').forEach(button=>button.addEventListener('click',()=>{
+  createMenu.open=false;
+ }));
  $('#plan-add-slot').onclick=()=>slotModal();all('[data-slot-day]').forEach(b=>b.onclick=()=>slotModal(null,Number(b.dataset.slotDay)));
  all('[data-edit-slot]').forEach(b=>b.onclick=()=>slotModal(y.slots.find(s=>s.id===b.dataset.editSlot)));
  all('[data-band-slot]').forEach(b=>b.onclick=()=>{
