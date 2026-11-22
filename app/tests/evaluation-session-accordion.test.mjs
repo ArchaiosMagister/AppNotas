@@ -31,14 +31,14 @@ test('dos asignaturas con procedencias equivalentes producen solo una propuesta 
  assert.equal(f.doc.tutorships?.length||0,0,'Las sugerencias nunca vinculan por sí solas');
  assertModel(f.doc);
 });
-test('el panel de evaluación aparece una vez y utiliza desplegables anidados, no dos listados',()=>{
+test('las sesiones se agrupan por evaluación con tarjetas pequeñas y acciones directas',()=>{
  const f=fixture(),html=renderEvaluationWorkspace(f.doc,{evaluationWorkspaceTab:'sesiones'});
  assert.equal(html.split('id="plan-evaluations"').length-1,1);
  assert(!html.includes('id="plan-tutorship-sessions"'));
  assert(html.includes('data-eval-switch-tab="tutorias"'));
  assert(renderEvaluationWorkspace(f.doc,{evaluationWorkspaceTab:'tutorias'}).includes('data-eval-confirm-session'));
- assert(html.includes('eval-session-card-heading'));
- assert(html.includes('eval-session-period'));
+ assert(html.includes('eval-period-section'));
+ assert(html.includes('eval-period-small-card'));
  assert(html.includes('data-eval-origin="A"'));
  assert(html.includes('data-eval-origin="1.º BACH A"'));
  const src=readFileSync(path.join(base,'src/planner-ui.js'),'utf8');
@@ -51,7 +51,9 @@ test('se muestran dos convocatorias de Latín y Griego, sin modificarlas ni eleg
  const a=saveEvaluationSession(f.doc,{groupId:f.latin.id,originGroup:'1.º BACH A',periodId:f.period.id,date:'2026-12-18',time:'15:30',notes:'Latín'});
  const b=saveEvaluationSession(f.doc,{groupId:f.greek.id,originGroup:'A',periodId:f.period.id,date:'2026-12-19',time:'16:00',notes:'Griego'});
  const before=structuredClone(f.doc),html=renderEvaluationWorkspace(f.doc,{evaluationWorkspaceTab:'sesiones'});
- assert(html.includes('2 convocatorias con fechas distintas'));
+ assert(html.includes('2026-12-18 · 15:30'));
+ assert(html.includes('2026-12-19 · 16:00'));
+ assert(!html.includes('Convocatoria oficial'),'No debe elegirse una cita automáticamente');
  assert(html.includes('data-export-event="'+a.id+'"'));
  assert(html.includes('data-export-event="'+b.id+'"'));
  assert.deepEqual(f.doc,before);
