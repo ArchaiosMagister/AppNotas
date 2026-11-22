@@ -443,7 +443,7 @@ html[data-theme="oled"] .grade-table tbody tr:nth-child(even) td.final-col{backg
 .planner-schedule-day h3{display:flex;align-items:center;justify-content:space-between;gap:8px}.planner-schedule-item{--planner-color:var(--accent);border-left:4px solid var(--planner-color);background:color-mix(in srgb,var(--planner-color) 10%,var(--surface));padding:10px;border-radius:8px;display:grid;gap:7px;margin:7px 0}.planner-schedule-item div{display:grid;gap:4px;min-width:0}.planner-schedule-item small{font-size:11px;color:var(--muted)}.planner-schedule-item strong{font-size:12px;overflow-wrap:anywhere}.planner-day-add{min-width:30px}
 .planner-bottom{display:grid;grid-template-columns:1fr 1fr;gap:22px}.planner-bottom h3{margin-bottom:8px}.planner-simple-row{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12px}.planner-simple-row span{overflow-wrap:anywhere}.planner-modal-slot{background:var(--accent-soft);padding:12px;border-radius:8px;color:var(--ink);font-weight:720;font-size:12px;margin:0}
 .planner-view .panel{color:var(--ink)}.planner-view .btn:not(.primary){background:var(--surface);color:var(--ink);border-color:var(--line)}.planner-view .btn:not(.primary):hover{background:var(--accent-soft)}
-html[data-theme="dark"] .planner-view,html[data-theme="oled"] .planner-view{--planner-color:#60a5fa}.planner-slot[ data-plan-type="guardia"],.planner-schedule-item[data-plan-type="guardia"]{--planner-color:#7d8896!important}.planner-slot[data-plan-type="familias"],.planner-schedule-item[data-plan-type="familias"]{--planner-color:#12a18f!important}.planner-slot[data-plan-type="departamento"],.planner-schedule-item[data-plan-type="departamento"]{--planner-color:#9673cc!important}
+html[data-theme="dark"] .planner-view,html[data-theme="oled"] .planner-view{--planner-color:#60a5fa}
 @media(max-width:1000px){.planner-week,.planner-schedule{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:640px){.planner-week,.planner-schedule{grid-template-columns:1fr 1fr}.planner-intro,.planner-year-chooser{align-items:start}.planner-month-cell{min-height:68px;padding:4px}.planner-month-cell strong{font-size:12px}.planner-bottom{grid-template-columns:1fr}.planner-tools .btn{flex:1 1 138px}.planner-year-chooser{width:100%}.planner-view .panel-pad{padding:13px}}
 @media(max-width:400px){.planner-week,.planner-schedule{grid-template-columns:1fr}.planner-month-cell{min-height:52px}.planner-month-dot{font-size:9px}.planner-year-chooser select{min-width:145px}}
@@ -2970,8 +2970,22 @@ html[data-theme="oled"] .patio-preview-table thead{background:#000}
 .planner-patio-panel{display:grid;gap:18px}
 .planner-patio-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
 .planner-patio-heading h3{font-size:18px;color:var(--ink)}
-.planner-patio-month{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface)}
-.planner-patio-month h4{margin:0 0 10px;color:var(--ink);font-size:15px;text-transform:capitalize}
+.planner-patio-month{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.planner-patio-month>summary,.planner-patio-week>summary{
+ display:flex;align-items:center;gap:9px;flex-wrap:wrap;cursor:pointer;
+ list-style:none;padding:12px 14px;color:var(--ink);font-weight:750;
+}
+.planner-patio-month>summary::-webkit-details-marker,.planner-patio-week>summary::-webkit-details-marker{display:none}
+.planner-patio-month>summary::before,.planner-patio-week>summary::before{content:'▸';color:var(--accent-text);font-size:15px}
+.planner-patio-month[open]>summary::before,.planner-patio-week[open]>summary::before{content:'▾'}
+.planner-patio-month>summary strong{text-transform:capitalize;font-size:15px}
+.planner-patio-month>summary small,.planner-patio-week>summary small{font-size:12px;color:var(--muted);font-weight:650;margin-left:auto}
+.planner-patio-month>summary:focus-visible,.planner-patio-week>summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.planner-patio-weeks{padding:0 12px 12px;display:grid;gap:8px}
+.planner-patio-week{border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface)}
+.planner-patio-week>summary{background:var(--raised);font-size:13px}
+.planner-patio-entries{padding:0 12px 5px}
+.planner-patio-entries .planner-patio-entry:first-child{border-top:0}
 .planner-patio-entry{
   display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
   padding:12px 0;border-top:1px solid var(--line);
@@ -2988,7 +3002,10 @@ html[data-theme="oled"] .patio-preview-table thead{background:#000}
  .planner-patio-entry-actions button{flex:1}
 }
 html[data-theme="oled"] .planner-weekly-counter,
-html[data-theme="oled"] .planner-patio-month{background:#000}
+html[data-theme="oled"] .planner-patio-month,
+html[data-theme="oled"] .planner-patio-week,
+html[data-theme="oled"] .planner-patio-week>summary{background:#000}
+html[data-theme="oled"] .planner-timetable-assignment{border-left-width:5px}
 
 /* Botón opcional: la barra de ordenación se comparte con el modo alumno. */
 .origin-manage-tools{display:flex;justify-content:flex-end;gap:8px;padding:4px 15px 9px;border-bottom:1px solid var(--line);background:var(--surface)}
