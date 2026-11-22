@@ -4,7 +4,7 @@ import {
  tutorGradeRows,tutorGradeBreakdown,tutorshipLegacyEvents,tutorshipEvent,
  saveTutorshipEvaluation,consolidateTutorshipEvaluation
 } from './evaluation-groups.js';
-import {activeYear,localToday} from './planner.js';
+import {activeYear,localToday,saveEvaluationSession} from './planner.js';
 import {sessionPresentation} from './evaluation-session-presentation.js';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -21,7 +21,7 @@ const checkSources=(doc,tutorship)=>tutorship.sources.map(s=>{
 }).join(' / ');
 /** Una sola relación desplegable: nunca se muestran dos inventarios de
  * sesiones (uno por materia y otro por tutoría) como ocurría antes. */
-export function renderSharedEvaluation(doc,year,ui){
+export function renderSharedEvaluation(doc,year,ui,section='all'){
  const tutors=(doc.tutorships||[]).filter(t=>t.course===year.name);
  const suggestions=suggestStudentLinks(doc,year.name).slice(0,30);
  const families=linkedStudentFamilies(doc,year.name);
@@ -35,12 +35,18 @@ export function renderSharedEvaluation(doc,year,ui){
   '<div class="eval-link-row"><span>'+esc(records.map(s=>groupLabel(doc,s)).join(' / '))+'</span>'+
   records.map(s=>btn('Desvincular de '+s.name,'data-eval-unlink="'+esc(s.id)+'"')).join('')+'</div>').join('');
  const management='<details id="plan-shared-management" class="panel panel-pad eval-shared-management" '+
-  (ui.plannerSharedManagementOpen?'open':'')+'>'+
+  (ui.plannerSharedManagementOpen??(section==='tutorias')?'open':'')+'>'+
   '<summary>Gestionar tutorías y vínculos de alumnos</summary>'+
   '<p class="hint">La identificación de tutorías y alumnos es semiautomática: solo guardamos las asociaciones que confirmes.</p>'+
   '<h3>Alumnos que cursan varias asignaturas</h3>'+suggestionsHtml+
   (familyHtml?'<h4>Vínculos confirmados</h4>'+familyHtml:'')+
   '<h3>Tutorías compartidas</h3>'+
+  '<p class="hint">Confirma las coincidencias sugeridas antes de crear una convocatoria común. No se modifican las fechas ni las calificaciones hasta que tú lo decidas.</p>'+
+  sessionPresentation(doc,year).filter(c=>c.kind==='suggested').map(card=>
+   '<div class="eval-link-row eval-tutor-proposal"><span><strong>'+esc(card.name)+'</strong><small>'+
+   esc([...new Set(card.sources.map(s=>s.group?.subject||''))].join(' · '))+' · Posible coincidencia</small></span>'+
+   btn('Confirmar tutoría común','data-eval-confirm-session="'+esc(card.id)+'"','btn small primary')+'</div>'
+  ).join('')+
   btn('Crear tutoría manualmente','id="plan-manual-tutorship"')+
   (tutors.map(t=>'<div class="eval-link-row"><span><strong>'+esc(t.name)+'</strong> · '+esc(checkSources(doc,t))+'</span>'+
    btn('Añadir asignatura','data-eval-add-source="'+esc(t.id)+'"')+
@@ -112,8 +118,9 @@ export function renderSharedEvaluation(doc,year,ui){
    '</small></span><span class="eval-session-card-meta">'+esc(status)+
    ' · '+total+' '+(total===1?'cita':'citas')+'</span></summary><div class="eval-session-card-body">'+
    (suggested?'<div class="eval-session-recognition"><p>La aplicación ha encontrado las mismas tutorías en '+
-    esc(subtitle)+'. Comprueba que se trata del mismo grupo antes de asociarlas.</p>'+
-    btn('Confirmar tutoría común','data-eval-confirm-session="'+esc(card.id)+'"','btn small primary')+
+    esc(subtitle)+'. Identifícalas desde la pestaña Tutorías antes de unificar sus convocatorias.</p>'+
+    (section==='all'?btn('Confirmar tutoría común','data-eval-confirm-session="'+esc(card.id)+'"','btn small primary'):
+      btn('Revisar en Tutorías','data-eval-switch-tab="tutorias"'))+
     '</div>':'')+
    periods.map(p=>renderPeriod(card,p)).join('')+'</div></details>';
  }).join('');
@@ -127,9 +134,12 @@ export function renderSharedEvaluation(doc,year,ui){
   (cards.some(c=>c.kind==='suggested')?'<p class="eval-suggestion-notice">Hay tutorías de Latín y Griego posiblemente repetidas. '+
    'Abre cada propuesta para confirmarla.</p>':'')+
   (sections||'<p class="hint">Todavía no hay grupos de este curso académico.</p>')+'</details>';
+ if(section==='sesiones')return sessions;
+ if(section==='tutorias')return management;
+ if(section==='notas')return ui.plannerEvaluationView?renderTutorViewer(doc,ui.plannerEvaluationView):'';
  return sessions+management+(ui.plannerEvaluationView?renderTutorViewer(doc,ui.plannerEvaluationView):'');
 }
-function renderTutorViewer(doc,view){
+export function renderTutorViewer(doc,view){
  let data;
  try{data=tutorGradeRows(doc,view.tutorshipId,view.periodId);}catch{return '';}
  const period=doc.periods.find(p=>p.id===view.periodId);
@@ -167,6 +177,27 @@ export function openTutorshipSessionModal(doc,ctx,tutorshipId,periodId){
   {id:'notes',label:'Lugar u observaciones',required:false,value:e?.notes||'',maxlength:1000}
  ],values=>ctx.commit(d=>saveTutorshipEvaluation(d,{tutorshipId:t.id,periodId,...values,id:e?.id||null}),'Programar tutoría compartida'),
  'Una sola convocatoria para todas tus asignaturas de esta tutoría. Las calificaciones permanecen separadas.');
+ ctx.decorateSessionModal?.(e);
+}
+/** Formulario común para la cita de una asignatura, incluso si se abre desde Agenda. */
+export function openGroupEvaluationSessionModal(doc,ctx,groupId,periodId,origin='',dateHint=null){
+ const year=activeYear(doc),group=doc.groups.find(g=>g.id===groupId&&g.course===year.name);
+ const period=doc.periods.find(p=>p.id===periodId);
+ if(!group||!period){ctx.fail(new Error('Grupo o evaluación inexistentes.'));return null;}
+ const existing=year.events.find(e=>e.type==='evaluation'&&e.groupId===groupId&&
+  e.periodId===periodId&&(e.originGroup||'')===origin);
+ const today=dateHint||localToday(),date=existing?.date||(today>=year.start&&today<=year.end?today:year.start);
+ ctx.fieldsModal('Sesión de evaluación · '+group.name+(origin?' · '+origin:'')+' · '+period.name,[
+  {id:'date',label:'Día de la sesión',type:'date',value:date},
+  {id:'time',label:'Hora de inicio',type:'time',value:existing?.time||'15:30'},
+  {id:'endTime',label:'Hora de finalización (opcional)',type:'time',value:existing?.endTime||'',required:false},
+  {id:'notes',label:'Lugar u observaciones',required:false,value:existing?.notes||'',maxlength:1000}
+ ],values=>ctx.commit(d=>saveEvaluationSession(d,{
+  id:existing?.id||null,groupId,periodId,originGroup:origin||null,...values
+ }),'Programar sesión de evaluación'),
+ 'La convocatoria aparecerá también en Agenda. Su hora es independiente del horario de clases.');
+ ctx.decorateSessionModal?.(existing);
+ return existing;
 }
 /** Escucha únicamente los elementos propios de tutorías, sin alterar el planificador. */
 export function bindSharedEvaluation(doc,ui,ctx,exportEvent){
@@ -276,9 +307,14 @@ export function bindSharedEvaluation(doc,ui,ctx,exportEvent){
  });
  all('[data-eval-open-tutor]').forEach(button=>button.onclick=()=>{
   ui.plannerEvaluationView={tutorshipId:button.dataset.evalOpenTutor,periodId:button.dataset.evalPeriod};
+  if(ui.tab==='evaluaciones')ui.evaluationWorkspaceTab='notas';
   redraw();
  });
- by('#plan-close-evaluation')?.addEventListener('click',()=>{ui.plannerEvaluationView=null;redraw();});
+ by('#plan-close-evaluation')?.addEventListener('click',()=>{
+  ui.plannerEvaluationView=null;
+  if(ui.tab==='evaluaciones')ui.evaluationWorkspaceTab='sesiones';
+  redraw();
+ });
  all('[data-eval-tutor-export]').forEach(button=>button.onclick=()=>
   exportEvent(activeYear(ctx.getDoc()).events.find(e=>e.id===button.dataset.evalTutorExport)));
  all('[data-eval-detail-student]').forEach(button=>button.onclick=()=>{
