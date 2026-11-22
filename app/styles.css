@@ -1997,3 +1997,118 @@ html[data-theme="oled"] .class-toolbar .group-choice[aria-pressed="true"]{
 }
 /* Los colores son variantes de presentación; no cambian los indicadores
    semánticos de las notas ni los tonos de advertencia y error. */
+
+
+/* v139 · Tipografía humanista común para latín y griego.
+   Usa familias locales (Mac/iPad/Windows) y alternativas legibles sin red.
+   Cabeceras editoriales clásicas, datos académicos con cifras claras. */
+:root{
+  --app-humanist:"Avenir Next",Avenir,"Optima","Gill Sans","Trebuchet MS",system-ui,sans-serif;
+  --classical-heading:"Palatino Linotype",Palatino,"Baskerville","Iowan Old Style",Georgia,serif;
+  --serif:var(--classical-heading);
+  font-family:var(--app-humanist);
+}
+body,button,input,select,textarea,dialog{
+  font-family:var(--app-humanist);
+}
+h1,h2,h3,h4,.brand-copy strong,.tabs .nav-text,.panel-header strong,
+.student-mode-title,.course-choice .course-name,.planner-date-heading,.headrow .eyebrow{
+  font-family:var(--classical-heading);
+}
+h1,h2,h3,h4{font-weight:650;letter-spacing:-.012em}
+.brand-copy strong{font-weight:560}
+.tabs .nav-text{letter-spacing:.005em}
+.headrow .eyebrow{font-size:11px;letter-spacing:.12em}
+.grade-table,.grade-table input,.grade-table button,
+.grade-table th,.grade-table td,.stats-table,
+.number-field,.student-position{
+  font-family:var(--app-humanist);
+  font-variant-numeric:tabular-nums lining-nums;
+}
+.grade-table th{font-weight:740}
+.grade-table td.name-col,.student-directory-choice{
+  font-family:var(--app-humanist);
+  letter-spacing:.005em;
+}
+.student-mode-title{font-size:16px;font-weight:700}
+@media(max-width:640px){
+  .tabs .nav-text{letter-spacing:0}
+  .grade-table{font-size:12.5px}
+}
+/* Dos acentos de Grecia perceptibles incluso fuera de los botones:
+   Griego I azul egeo luminoso; Griego II azul real más profundo.
+   Conservar el mismo lenguaje clásico en ambas asignaturas. */
+html[data-course-skin="attica"][data-course-variant="griego-i"]{
+  --attica-banner-start:#8cc5e1;
+  --attica-banner-end:#a3d5eb;
+  --attica-banner-finish:#76b5d5;
+  --attica-title:#215a83;
+  --attica-line:#83b5d5;
+  --attica-button:#428eb9;
+  --attica-selected:#d9eef9;
+  --attica-table-final:#e2f2fc;
+  --attica-highlight:#ebf6fc;
+}
+html[data-course-skin="attica"][data-course-variant="griego-ii"]{
+  --attica-banner-start:#5e91c5;
+  --attica-banner-end:#77a8d4;
+  --attica-banner-finish:#4b7fb5;
+  --attica-title:#173f78;
+  --attica-line:#6b9dcc;
+  --attica-button:#2e70ad;
+  --attica-selected:#d4e5f8;
+  --attica-table-final:#d5e8fa;
+  --attica-highlight:#e3effa;
+}
+html[data-theme="light"][data-course-skin="attica"][data-course-variant] .topbar::before{
+  background:linear-gradient(108deg,var(--attica-banner-start),
+    var(--attica-banner-end) 54%,var(--attica-banner-finish));
+  border-bottom:2px solid var(--attica-line);
+}
+html[data-theme="light"][data-course-skin="attica"][data-course-variant] .topbar::after{
+  background:linear-gradient(90deg,var(--attica-line),transparent 76%);
+}
+html[data-theme="light"][data-course-skin="attica"][data-course-variant] .brand,
+html[data-theme="light"][data-course-skin="attica"][data-course-variant] .headrow h1{
+  color:var(--attica-title);
+}
+html[data-theme="light"][data-course-skin="attica"][data-course-variant] .brand-mark{
+  color:var(--attica-title);
+  border-color:var(--attica-line);
+  background:var(--attica-highlight);
+}
+html[data-theme="light"][data-course-skin="attica"][data-course-variant] .topmeta .lock-btn{
+  background:var(--attica-button);
+  border-color:var(--attica-button);color:#fff;
+}
+html[data-theme="light"][data-course-skin="attica"][data-course-variant] .topmeta .lock-btn:hover{
+  background:var(--attica-title);border-color:var(--attica-title);color:#fff;
+}
+html[data-theme="light"][data-course-skin="attica"][data-course-variant] .headrow{
+  border-bottom-color:var(--attica-line);
+}
+html[data-theme="light"][data-course-skin="attica"][data-course-variant] .headrow::after{
+  background:linear-gradient(90deg,var(--attica-line),transparent);
+}
+html[data-theme="light"][data-course-skin="attica"][data-course-variant] .tabs .tab.active{
+  background:var(--attica-selected);
+  border-left-color:var(--attica-button);
+}
+html[data-theme="light"][data-course-skin="attica"][data-course-variant] .grade-table th.final-col{
+  background:var(--attica-table-final)!important;
+}
+html[data-theme="light"][data-course-skin="attica"][data-course-variant] .grade-table td.final-col{
+  color:var(--attica-title);
+}
+html[data-theme="light"][data-course-skin="attica"][data-course-variant] .student-mode-title{
+  color:var(--attica-title);
+}
+html[data-theme="dark"][data-course-variant="griego-i"]{
+  --navy:#172d3f;--bronze:#92bfd9;
+}
+html[data-theme="dark"][data-course-variant="griego-ii"]{
+  --navy:#17233e;--bronze:#7da7db;
+}
+/* OLED permanece negro, sin banners luminosos. Se conserva el contraste
+   de los botones y la diferencia de acentos personalizados. */
+html[data-theme="oled"][data-course-variant] .topbar::before{background:#000!important}
