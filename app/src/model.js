@@ -271,7 +271,7 @@ export function assertModel(doc) {
   // la validación debe aceptar las mismas equivalencias que el vinculador.
   const canonicalTutoringName=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
     .toLocaleLowerCase('es').replace(/bachillerato/g,'bach').replace(/1\.?[º°ª]/g,'1').replace(/2\.?[º°ª]/g,'2')
-    .replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
+    .replace(/[^a-z0-9]+/g,' ').trim().replace(/([12])bach/g,'$1 bach').replace(/\s+/g,' ');
   const shared=new Map();
   for(const s of doc.students.filter(s=>s.personId)){
     const g=doc.groups.find(g=>g.id===s.groupId);
