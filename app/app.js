@@ -13,6 +13,7 @@ import {CURRICULA} from './src/curriculum-data.js';
 import {officialCompetenciesForGroup,groupCompetencies,linkedOfficialCompetency,curriculumCompetenciesWithCriteria} from './src/official-competencies.js';
 import {ensurePlanner,localToday,activeYear,setActiveYear,addAcademicYear} from './src/planner.js';
 import {renderPlanner,bindPlanner} from './src/planner-ui.js';
+import {openStudentLinksManager} from './src/student-link-ui.js';
 import {assessmentClassStatistics,periodClassStatistics,finalClassStatistics,categoryClassStatistics,competencyClassStatistics} from './src/statistics.js';
 
 import {installInstructions,mayReloadForUpdate,storagePersistence} from './src/pwa-controls.js';
@@ -927,6 +928,7 @@ function render(){
       <div class="group-actions-panel">
         <button class="btn small" id="new-group" ${STATE.level==='legacy'?'disabled':''}>+ Crear grupo</button>
         <button class="btn small" id="manage-subjects">Gestionar materias</button>
+        <button type="button" class="btn primary student-link-toolbar-action" id="manage-shared-students" title="Relacionar fichas de una misma persona que cursa dos asignaturas">Vincular alumnos entre asignaturas</button>
         <button class="btn small" id="edit-group" ${hasGroup?'':'disabled'} title="Editar nombre y curso escolar del grupo">⋯ Gestionar grupo</button>
         ${STATE.level==='legacy'?'':`<label class="color-select-label">Color de acento<input id="accent-select" type="color" value="${esc(color)}" aria-label="Color de acento para ${esc(subjectLabel)}"/></label>`}
         ${group?.level===null?'<button class="btn" id="classify-group">Clasificar grupo</button>':''}
@@ -1549,6 +1551,10 @@ function bindCommon(){
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{if(STATE.tab==='alumno'&&b.dataset.tab!=='alumno')STATE.studentId=null;if(b.dataset.tab==='curriculo'&&currentGroup()?.subject==='Latín II')STATE.curriculumVersion=officialCompetenciesForGroup(currentGroup(),STATE.competencyVersion)?.version||'2022';STATE.tab=b.dataset.tab;render();});
   $('#edit-group')?.addEventListener('click',openGroupTools);
   $('#manage-subjects')?.addEventListener('click',openSubjectsManager);
+   $('#manage-shared-students')?.addEventListener('click',()=>openStudentLinksManager({
+     dialog,getDoc:()=>STATE.doc,commit,toast,fail,groupId:STATE.groupId,
+     defaultYear:activeYear(STATE.doc).name
+   }));
 
   function openSubjectsManager(){
     const list=catalogForNotebook(STATE.doc).flatMap(({level,label,subjects})=>subjects.map(subject=>({level,label,subject})));
@@ -2067,7 +2073,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v152-dev');
+      const cache=await caches.open('cuaderno-docente-static-v153-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

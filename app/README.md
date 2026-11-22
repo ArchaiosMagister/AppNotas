@@ -1,3 +1,14 @@
+## Vincular alumnos entre asignaturas (acceso docente)
+En la barra superior abre **Materias y grupos → Vincular alumnos entre asignaturas**.
+
+- Elige el curso académico y dos grupos de **materias diferentes** de la misma etapa.
+- Busca y selecciona un alumno en cada grupo, aunque su nombre esté escrito de manera diferente.
+- Confirma expresamente que son la misma persona. Se mantiene cada ficha, actividad, nota y regla de evaluación.
+- Revisa también «Coincidencias sugeridas» (propuestas sin vinculación automática) y «Vínculos confirmados» (permite desvincular).
+- Si se rechaza una vinculación por tutorías incompatibles, comprueba las etiquetas de procedencia de ambos alumnos en Cuaderno → Gestionar procedencias.
+
+Los vínculos se guardan solamente en el cuaderno local cifrado. Antes de probar con datos reales, exporta y verifica una copia cifrada. En Agenda se mantiene la configuración de tutorías y sesiones de evaluación.
+
 > **Versión experimental v1.19:** instalación y actualización PWA, Nota Ítaca y color por categoría. Ver [informe de prepublicación](RESULTADOS_PREPUBLICACION_V119.md). **No publicada aún.**
 
 # CuadernoDocente v1.17 — Tabularium (copias portátiles, prepublicación local)
