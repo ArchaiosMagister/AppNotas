@@ -17,9 +17,48 @@ export const DEFAULT_TIMETABLE_BANDS=Object.freeze([
  {id:'patio-2',label:'Segundo patio',start:'14:00',end:'14:20',kind:'break'},
  {id:'hora-7',label:'7.ª hora',start:'14:20',end:'15:15',kind:'lesson'}
 ].map(row=>Object.freeze(row)));
-export const scheduleBands=y=>(Array.isArray(y?.bands)?y.bands:DEFAULT_TIMETABLE_BANDS).slice()
+/** Horario de verano: 6 horas de 45 min + primer patio intacto de 30 min.
+ * Entrada a las 08:00 y salida a las 13:00. No hay segundo patio ni 7.ª hora. */
+export const SUMMER_TIMETABLE_BANDS=Object.freeze([
+ {id:'hora-1',label:'1.ª hora',start:'08:00',end:'08:45',kind:'lesson'},
+ {id:'hora-2',label:'2.ª hora',start:'08:45',end:'09:30',kind:'lesson'},
+ {id:'hora-3',label:'3.ª hora',start:'09:30',end:'10:15',kind:'lesson'},
+ {id:'patio-1',label:'Primer patio',start:'10:15',end:'10:45',kind:'break'},
+ {id:'hora-4',label:'4.ª hora',start:'10:45',end:'11:30',kind:'lesson'},
+ {id:'hora-5',label:'5.ª hora',start:'11:30',end:'12:15',kind:'lesson'},
+ {id:'hora-6',label:'6.ª hora',start:'12:15',end:'13:00',kind:'lesson'}
+].map(row=>Object.freeze(row)));
+export const activeScheduleMode=y=>y?.summerEnabled===true?'summer':'regular';
+export const slotScheduleMode=s=>s?.scheduleMode==='summer'?'summer':'regular';
+export const scheduleBands=(y,mode=activeScheduleMode(y))=>
+ (mode==='summer'?(Array.isArray(y?.summerBands)?y.summerBands:SUMMER_TIMETABLE_BANDS)
+ : (Array.isArray(y?.bands)?y.bands:DEFAULT_TIMETABLE_BANDS)).slice()
  .sort((a,b)=>a.start.localeCompare(b.start)||a.end.localeCompare(b.end));
+export const slotsForMode=(y,mode=activeScheduleMode(y))=>
+ (y?.slots||[]).filter(s=>slotScheduleMode(s)===mode);
 const cloneBands=()=>DEFAULT_TIMETABLE_BANDS.map(b=>({...b}));
+const cloneSummerBands=()=>SUMMER_TIMETABLE_BANDS.map(b=>({...b}));
+/** El primer cambio a verano copia asignaciones sin reutilizar sus IDs.
+ * Los horarios y exámenes ordinarios quedan intactos y pueden recuperarse. */
+export function setSummerSchedule(doc,enabled){
+ const y=activeYear(doc);
+ if(typeof enabled!=='boolean')throw new Error('Selecciona un horario válido.');
+ if(enabled&&!y.summerInitialized){
+  const summerBands=scheduleBands(y,'summer'),ordinary=scheduleBands(y,'regular');
+  const seen=new Set(slotsForMode(y,'summer').map(s=>s.day+'|'+s.bandId));
+  const clones=[];
+  for(const s of slotsForMode(y,'regular')){
+   const from=ordinary.find(b=>b.id===s.bandId)||ordinary.find(b=>b.start===s.start&&b.end===s.end);
+   const to=from&&summerBands.find(b=>b.id===from.id);
+   if(!to||seen.has(s.day+'|'+to.id))continue;
+   clones.push({...s,id:uid(),scheduleMode:'summer',start:to.start,end:to.end,bandId:to.id});
+   seen.add(s.day+'|'+to.id);
+  }
+  y.slots.push(...clones);y.summerInitialized=true;
+ }
+ y.summerEnabled=enabled;
+ doc.updatedAt=stamp();return activeScheduleMode(y);
+}
 const checkedBands=bands=>{
  if(!Array.isArray(bands)||!bands.length||bands.length>30)throw new Error('El horario necesita entre 1 y 30 franjas.');
  const ids=new Set();
@@ -33,15 +72,15 @@ const checkedBands=bands=>{
  return rows;
 };
 export function saveTimetableBand(doc,{id=null,label,start,end,kind='lesson'}){
- const y=activeYear(doc),before=scheduleBands(y),existing=before.find(b=>b.id===id);
+ const y=activeYear(doc),mode=activeScheduleMode(y),before=scheduleBands(y),existing=before.find(b=>b.id===id);
  if(id&&!existing)throw new Error('La franja no existe.');
  const band={id:id||uid(),label:trimmed(label,70),start,end,kind};
  const next=checkedBands(existing?before.map(b=>b.id===id?band:b):[...before,band]);
  // Validar todo ANTES de modificar el cuaderno. Las sesiones vinculadas
  // conservan su clase, aula y eventos al cambiar los tiempos de la franja.
- y.bands=next;
+ if(mode==='summer')y.summerBands=next;else y.bands=next;
  if(existing&&(existing.start!==start||existing.end!==end)){
-  for(const slot of y.slots.filter(s=>s.bandId===id)){
+  for(const slot of y.slots.filter(s=>slotScheduleMode(s)===mode&&s.bandId===id)){
    slot.start=start;slot.end=end;
    y.events.filter(e=>e.slotId===slot.id).forEach(e=>{
     e.time=y.exceptions.find(x=>x.slotId===slot.id&&x.date===e.date&&x.type==='move')?.start||start;
@@ -53,8 +92,10 @@ export function saveTimetableBand(doc,{id=null,label,start,end,kind='lesson'}){
 export function removeTimetableBand(doc,id){
  const y=activeYear(doc),bands=scheduleBands(y);
  if(!bands.some(b=>b.id===id))throw new Error('Franja inexistente.');
- if(y.slots.some(s=>s.bandId===id))throw new Error('Retira primero las clases asignadas a esta franja.');
- y.bands=checkedBands(bands.filter(b=>b.id!==id));doc.updatedAt=stamp();
+ if(slotsForMode(y).some(s=>s.bandId===id))throw new Error('Retira primero las clases asignadas a esta franja.');
+ const next=checkedBands(bands.filter(b=>b.id!==id));
+ if(activeScheduleMode(y)==='summer')y.summerBands=next;else y.bands=next;
+ doc.updatedAt=stamp();
 }
 export const EVENT_TYPES=Object.freeze({exam:'Examen',task:'Tarea',meeting:'Reunión',other:'Otro evento'});
 export const EXCEPTION_TYPES=Object.freeze({cancel:'Clase cancelada',replace:'Actividad sustituta',move:'Cambio de hora'});
@@ -71,7 +112,7 @@ export const localToday=()=>{const d=new Date();return `${d.getFullYear()}-${Str
 export const timeValid=v=>typeof v==='string'&&hm.test(v);
 function yearRange(label){const match=/^(\d{4})-(\d{4})$/.exec(label||'');const y=match?Number(match[1]):new Date().getFullYear();return {start:`${y}-09-01`,end:`${y+1}-06-30`};}
 export function createPlanner(course='2026-2027'){
- const name=/^\d{4}-\d{4}$/.test(course)?course:'2026-2027';const year={id:uid(),name,...yearRange(name),bands:cloneBands(),slots:[],events:[],lessons:[],holidays:[],exceptions:[],tasks:[]};
+ const name=/^\d{4}-\d{4}$/.test(course)?course:'2026-2027';const year={id:uid(),name,...yearRange(name),bands:cloneBands(),summerBands:cloneSummerBands(),summerEnabled:false,summerInitialized:false,slots:[],events:[],lessons:[],holidays:[],exceptions:[],tasks:[]};
  return {activeYearId:year.id,years:[year]};
 }
 export function ensurePlanner(doc){if(!doc.planner)doc.planner=createPlanner(doc.groups[0]?.course);return doc.planner;}
@@ -83,7 +124,10 @@ export function addAcademicYear(doc,{name,start,end,copyFrom=null}){
  if(p.years.some(y=>y.name===n))throw new Error('Ese curso académico ya existe.');
  const source=p.years.find(y=>y.id===copyFrom);
  if(copyFrom&&!source)throw new Error('Curso de referencia inexistente.');
- const y={id:uid(),name:n,start,end,bands:source?structuredClone(scheduleBands(source)):cloneBands(),slots:[],events:[],lessons:[],holidays:[],exceptions:[],tasks:[]};
+ const y={id:uid(),name:n,start,end,bands:source?structuredClone(scheduleBands(source,'regular')):cloneBands(),
+ summerBands:source?structuredClone(scheduleBands(source,'summer')):cloneSummerBands(),
+ summerEnabled:source?.summerEnabled===true,summerInitialized:source?.summerInitialized===true,
+ slots:[],events:[],lessons:[],holidays:[],exceptions:[],tasks:[]};
  if(source)y.slots=source.slots.map(s=>{const old=doc.groups.find(g=>g.id===s.groupId);const replacement=old&&doc.groups.find(g=>g.course===n&&g.subject===old.subject&&g.name===old.name);return {...s,id:uid(),groupId:replacement?.id||null,label:replacement?'':(s.label||[old?.subject,old?.name].filter(Boolean).join(' · '))};});
  p.years.push(y);p.activeYearId=y.id;doc.updatedAt=stamp();return y;
 }
@@ -104,19 +148,24 @@ const inYear=(y,date)=>date>=y.start&&date<=y.end;
 const needDate=(y,date)=>{isoDate(date);if(!inYear(y,date))throw new Error('La fecha está fuera del curso académico.');return date;};
 const checkGroup=(doc,groupId)=>{if(groupId&&!doc.groups.some(g=>g.id===groupId))throw new Error('Grupo inexistente.');};
 const checkTime=(start,end)=>{if(!timeValid(start)||!timeValid(end)||end<=start)throw new Error('Indica horas válidas, con fin posterior al inicio.');};
-export function saveSlot(doc,{id=null,day,start,end,type,groupId=null,label='',room='',bandId=null}){
- const y=activeYear(doc),kind=trimmed(type,20);if(!Object.hasOwn(SLOT_TYPES,kind))throw new Error('Tipo de sesión inválido.');
+export function saveSlot(doc,{id=null,day,start,end,type,groupId=null,label='',room='',bandId=null,color=''}){
+ const y=activeYear(doc),mode=activeScheduleMode(y),kind=trimmed(type,20);if(!Object.hasOwn(SLOT_TYPES,kind))throw new Error('Tipo de sesión inválido.');
  if(!Number.isInteger(Number(day))||Number(day)<0||Number(day)>4)throw new Error('El horario es de lunes a viernes.');checkTime(start,end);checkGroup(doc,groupId);
  if(kind==='class'&&!groupId&&!String(label).trim())throw new Error('Selecciona un grupo o indica una asignatura manual.');
  if(kind!=='class'&&groupId)throw new Error('Solo las clases pueden asociarse a grupos.');
  if(String(label).length>150||typeof room!=='string'||room.length>60)throw new Error('El nombre o el aula son demasiado largos.');
+ if(typeof color!=='string'||(color!==''&&!/^#[0-9a-f]{6}$/i.test(color)))throw new Error('Color de horario inválido.');
+ const existing=y.slots.find(s=>s.id===id);if(id&&!existing)throw new Error('Sesión inexistente.');
+ if(existing&&slotScheduleMode(existing)!==mode)throw new Error('Esa sesión pertenece al otro horario.');
+ // Solo una sesión por franja y día, incluidas asignaciones sin franja.
+ if(y.slots.some(s=>s.id!==id&&s.day===Number(day)&&slotScheduleMode(s)===mode&&start<s.end&&end>s.start))
+  throw new Error('Esta franja ya tiene una clase o actividad. Edita la existente.');
  if(bandId!==null){
   const band=scheduleBands(y).find(b=>b.id===bandId);
   if(!band||band.start!==start||band.end!==end)throw new Error('La sesión debe corresponder a su franja horaria.');
  }
- const record={id:id||uid(),day:Number(day),start,end,type:kind,groupId:groupId||null,label:String(label).trim(),room:room.trim(),...(bandId?{bandId}:{})};
- const existing=y.slots.find(s=>s.id===id);if(id&&!existing)throw new Error('Sesión inexistente.');
- // Horas iguales pueden coincidir (guardias compartidas, docencia simultánea); se muestran separadas.
+ const record={id:id||uid(),day:Number(day),start,end,type:kind,groupId:groupId||null,label:String(label).trim(),room:room.trim(),
+ scheduleMode:mode,...(color?{color:color.toUpperCase()}:{}),...(bandId?{bandId}:{})};
  if(existing){
   // Si la sesión cambia de día o de grupo, no se deben mover retrospectivamente planes ni exámenes.
   if(existing.day!==record.day||existing.groupId!==record.groupId){
@@ -138,7 +187,7 @@ export function removeSlot(doc,id){const y=activeYear(doc),s=y.slots.find(s=>s.i
  y.exceptions=y.exceptions.filter(x=>x.slotId!==id);
  doc.updatedAt=stamp();}
 export const isHoliday=(y,date)=>y.holidays.find(h=>date>=h.start&&date<=h.end)||null;
-export const daySlots=(y,date)=>{isoDate(date);const day=weekday(date);if(day>4||!inYear(y,date)||isHoliday(y,date))return [];return y.slots.filter(s=>s.day===day).sort((a,b)=>a.start.localeCompare(b.start)||a.end.localeCompare(b.end));};
+export const daySlots=(y,date)=>{isoDate(date);const day=weekday(date);if(day>4||!inYear(y,date)||isHoliday(y,date))return [];return slotsForMode(y).filter(s=>s.day===day).sort((a,b)=>a.start.localeCompare(b.start)||a.end.localeCompare(b.end));};
 export const daySessions=(y,date)=>daySlots(y,date).map(slot=>{const exception=y.exceptions.find(e=>e.date===date&&e.slotId===slot.id);return {...slot,exception,effectiveStart:exception?.type==='move'?exception.start:slot.start,effectiveEnd:exception?.type==='move'?exception.end:slot.end};});
 export function saveHoliday(doc,{id=null,name,start,end=start}){const y=activeYear(doc);needDate(y,start);needDate(y,end);if(end<start)throw new Error('El festivo termina antes de comenzar.');const obj={id:id||uid(),name:trimmed(name,120),start,end};const old=y.holidays.find(x=>x.id===id);if(id&&!old)throw new Error('Festivo inexistente.');if(old)Object.assign(old,obj);else y.holidays.push(obj);doc.updatedAt=stamp();return obj;}
 export function saveException(doc,{id=null,date,slotId,type,label='',start='',end=''}){const y=activeYear(doc);needDate(y,date);const slot=y.slots.find(s=>s.id===slotId);if(!slot||weekday(date)!==slot.day)throw new Error('Selecciona una sesión que corresponda al día.');if(isHoliday(y,date))throw new Error('Ese día ya está marcado como no lectivo.');if(!Object.hasOwn(EXCEPTION_TYPES,type))throw new Error('Cambio excepcional inválido.');if(type==='move')checkTime(start,end);if(type==='replace')trimmed(label,150);const other=y.exceptions.find(x=>x.date===date&&x.slotId===slotId&&x.id!==id);if(other)throw new Error('Ya existe un cambio para esa sesión.'); const obj={id:id||uid(),date,slotId,type,label:String(label).trim(),start:type==='move'?start:'',end:type==='move'?end:''};const old=y.exceptions.find(x=>x.id===id);if(id&&!old)throw new Error('Cambio inexistente.');
@@ -220,7 +269,9 @@ const unique=a=>Array.isArray(a)&&a.every(x=>x&&typeof x.id==='string')&&new Set
 export function assertPlanner(doc){if(!doc.planner)return true;const p=doc.planner;if(!Array.isArray(p.years)||!p.years.length||!unique(p.years)||!p.years.some(y=>y.id===p.activeYearId))throw new Error('Planificador inválido.');
  for(const y of p.years){isoDate(y.start);isoDate(y.end);if(y.start>=y.end||typeof y.name!=='string'||!y.name.trim())throw new Error('Curso académico inválido.');
   if(!['slots','events','lessons','holidays','exceptions','tasks'].every(k=>unique(y[k])))throw new Error('Elementos del planificador inválidos.');
-  checkedBands(scheduleBands(y));
+  checkedBands(scheduleBands(y,'regular'));checkedBands(scheduleBands(y,'summer'));
+  if(y.summerEnabled!==undefined&&typeof y.summerEnabled!=='boolean')throw new Error('Modo de verano inválido.');
+  if(y.summerInitialized!==undefined&&typeof y.summerInitialized!=='boolean')throw new Error('Inicialización del horario de verano inválida.');
   // Invariantes que la interfaz impone al editar también deben comprobarse
   // al restaurar una copia: evita eventos o planes ambiguos por duplicación.
   const uniquePairs=(items,key)=>new Set(items.map(key)).size===items.length;
@@ -230,7 +281,9 @@ export function assertPlanner(doc){if(!doc.planner)return true;const p=doc.plann
     throw new Error('Agenda duplicada: revisa excepciones, clases y exámenes vinculados.');
   for(const s of y.slots){if(!Number.isInteger(s.day)||s.day<0||s.day>4||!Object.hasOwn(SLOT_TYPES,s.type)||!timeValid(s.start)||!timeValid(s.end)||s.end<=s.start||(s.groupId&&!doc.groups.some(g=>g.id===s.groupId))||(s.type==='class'&&!s.groupId&&!s.label)||(s.type!=='class'&&s.groupId)||
   s.room!==undefined&&(typeof s.room!=='string'||s.room.length>60)||
-  s.bandId!==undefined&&(!scheduleBands(y).some(b=>b.id===s.bandId&&b.start===s.start&&b.end===s.end)))throw new Error('Horario inválido.');}
+  s.scheduleMode!==undefined&&!['regular','summer'].includes(s.scheduleMode)||
+  s.color!==undefined&&(typeof s.color!=='string'||!/^#[0-9a-f]{6}$/i.test(s.color))||
+  s.bandId!==undefined&&(!scheduleBands(y,slotScheduleMode(s)).some(b=>b.id===s.bandId&&b.start===s.start&&b.end===s.end)))throw new Error('Horario inválido.');}
   for(const h of y.holidays){isoDate(h.start);isoDate(h.end);if(h.start>h.end||!inYear(y,h.start)||!inYear(y,h.end)||!h.name)throw new Error('Festivo inválido.');}
   for(const x of y.exceptions){if(!inYear(y,isoDate(x.date))||!y.slots.some(s=>s.id===x.slotId&&s.day===weekday(x.date))||!Object.hasOwn(EXCEPTION_TYPES,x.type)||(x.type==='move'&&(!timeValid(x.start)||!timeValid(x.end)||x.end<=x.start)))throw new Error('Cambio de horario inválido.');}
   for(const item of [...y.events,...y.lessons]){if(!inYear(y,isoDate(item.date))||(item.groupId&&!doc.groups.some(g=>g.id===item.groupId))||(item.slotId&&!y.slots.some(s=>s.id===item.slotId&&s.day===weekday(item.date))))throw new Error('Agenda de clase inválida.');}
