@@ -143,7 +143,8 @@ test('Ítaca: falta de rúbrica o AJ bloquea por precaución; periodo siguiente 
 test('Ítaca: aprobado de la categoría Actitud y excepciones personales no eluden el requisito',()=>{
  const {d,group,period,student,category,rubric,activity}=attitudeFixture();
  const [first,second]=rubric.criteria;
- allTheSame(d,student,group,period,6.9);
+ for(const base of d.assessments.filter(a=>a.groupId===group.id&&a.periodId===period.id&&!a.rubricId))
+  setGrade(d,student.id,base.id,6.9);
  setRubricGrade(d,student.id,activity.id,{[first.id]:0,[second.id]:0});
  const base=overallGrade(d,student.id,group.id,period.id);
  assert(base>6.5&&base<7);
