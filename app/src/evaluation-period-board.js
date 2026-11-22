@@ -30,7 +30,7 @@ function periodCard(doc,year,period,card){
   const event=tutorshipEvent(doc,t.id,period.id);
   const previous=tutorshipLegacyEvents(doc,t.id,period.id);
   status=previous.length&&!event?'Pendiente de unificar':event?'Programada':'Sin programar';
-  details=eventDetails(event);
+  details=previous.length&&!event?'<div class="eval-period-unscheduled">Sin convocatoria común</div>':eventDetails(event);
   if(previous.length){
    extra='<p class="eval-period-caution">'+
     (event?'Hay convocatorias anteriores pendientes de revisar.':
