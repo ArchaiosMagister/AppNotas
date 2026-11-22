@@ -1,5 +1,6 @@
 import {SLOT_TYPES,EVENT_TYPES,EXCEPTION_TYPES,activeYear,localToday,weekday,addDays,daySlots,daySessions,isHoliday,findExamSlots,saveSlot,removeSlot,saveEvent,saveLesson,carryLesson,saveHoliday,saveTask,saveException,deletePlannerItem,setActiveYear,addAcademicYear,updateAcademicYear,scheduleBands,saveTimetableBand,removeTimetableBand,setSummerSchedule,activeScheduleMode,slotsForMode,saveEvaluationSession,calendarEventIcs} from './planner.js';
 import {timetableRows,timetableFileBase,timetableWordBlob,timetablePdfBytes} from './timetable-export.js';
+import {parsePatioXlsx,previewPatioRotation,addPatioRotationEvents} from './patio-rotation.js';
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const shortDays=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
@@ -86,7 +87,7 @@ export function renderPlanner(doc,ui){
  const y=activeYear(doc),mode=ui.plannerMode||'week',focus=ui.plannerDate||localToday();
  const start=addDays(focus,-weekday(focus));const monthStart=focus.slice(0,7)+'-01';const gridStart=addDays(monthStart,-weekday(monthStart));
  const count=y.events.length,numberClasses=slotsForMode(y).filter(s=>s.type==='class').length;
- const tools=`<div class="planner-tools">${action('+ Clase / horario','id="plan-add-slot"','btn primary')}${action('+ Examen o evento','id="plan-add-event"')}${action('Sesiones de evaluación','id="plan-show-evaluations"')}${action('+ Trabajo diario','id="plan-add-lesson"')}${action('+ Tarea','id="plan-add-task"')}${action('+ Festivo / vacaciones','id="plan-add-holiday"')}${action('+ Cambio excepcional','id="plan-add-exception"')}</div>`;
+ const tools=`<div class="planner-tools">${action('+ Clase / horario','id="plan-add-slot"','btn primary')}${action('+ Examen o evento','id="plan-add-event"')}${action('Sesiones de evaluación','id="plan-show-evaluations"')}${action('Importar guardias de patio (.xlsx)','id="plan-import-patio"')}${action('+ Trabajo diario','id="plan-add-lesson"')}${action('+ Tarea','id="plan-add-task"')}${action('+ Festivo / vacaciones','id="plan-add-holiday"')}${action('+ Cambio excepcional','id="plan-add-exception"')}</div>`;
  let body='';
  if(mode==='schedule'){
   body=renderTimetableGrid(doc,y);
@@ -155,6 +156,7 @@ export function bindPlanner(doc,ui,ctx){
  });
  $('#plan-add-event').onclick=()=>eventModal({date:dateNow()});
  $('#plan-show-evaluations').onclick=()=>{const overview=$('#plan-evaluations');overview.open=true;overview.scrollIntoView({block:'nearest'});};
+ $('#plan-import-patio').onclick=()=>patioImportModal();
  all('[data-eval-group]').forEach(b=>b.onclick=()=>evaluationModal(b.dataset.evalGroup,b.dataset.evalPeriod));
  all('[data-add-event]').forEach(b=>b.onclick=()=>eventModal({date:b.dataset.addEvent}));
  all('[data-edit-event]').forEach(b=>b.onclick=()=>{
@@ -249,6 +251,84 @@ export function bindPlanner(doc,ui,ctx){
   if(existing){const bar=ctx.dialog.querySelector('.modal-actions');const deletion=document.createElement('button');deletion.type='button';deletion.className='btn warn';deletion.textContent='Eliminar';deletion.onclick=async()=>{if(!window.confirm('Eliminar esta anotación de clase?'))return;ctx.dialog.close();try{await ctx.commit(d=>deletePlannerItem(d,'lessons',existing.id),'Eliminar planificación');}catch(e){ctx.fail(e);}};bar.prepend(deletion);
    if(existing.slotId&&!existing.done){const carry=document.createElement('button');carry.type='button';carry.className='btn';carry.textContent='→ Siguiente clase';carry.onclick=async()=>{try{await ctx.commit(d=>carryLesson(d,existing.id),'Trasladar planificación a próxima clase');ctx.dialog.close();ctx.toast('Plan trasladado a la siguiente sesión lectiva.');}catch(e){ctx.dialog.querySelector('.modal-error').textContent=e.message;}};bar.prepend(carry);}
   }
+  ctx.dialog.showModal();
+ }
+
+
+ /** El Excel se procesa en memoria, solo se guardan las fechas y las zonas
+  * confirmadas; ni el archivo ni los nombres del resto del profesorado salen del iPad. */
+ function patioImportModal(){
+  const book=ctx.getDoc(),year=activeYear(book),today=localToday();
+  const initial=today<year.start?year.start:today>year.end?year.start:today;
+  ctx.dialog.innerHTML='<div class="modal-inner patio-import-modal">'+
+   '<h2 id="modal-heading">Importar guardias rotatorias de patio</h2>'+
+   '<p class="subtitle">Se analiza el Excel en este dispositivo. El marcador identifica exclusivamente tus días de guardia; no se guardarán los nombres de otros docentes.</p>'+
+   '<form id="patio-import-form"><div class="modal-fields">'+
+    '<label>Excel de guardias (.xlsx)<input class="text-field" id="patio-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required></label>'+
+    '<label>Marcador de tus guardias en el Excel<input class="text-field" id="patio-marker" maxlength="80" required value="yo"></label>'+
+    '<label>Generar desde<input class="text-field" id="patio-from" type="date" min="'+esc(year.start)+'" max="'+esc(year.end)+'" value="'+esc(initial)+'" required></label>'+
+    '<label>Hasta (elige la fecha final del curso)<input class="text-field" id="patio-to" type="date" min="'+esc(year.start)+'" max="'+esc(year.end)+'" required></label>'+
+    '<label>Inicio del horario de verano (opcional)<input class="text-field" id="patio-summer" type="date" min="'+esc(year.start)+'" max="'+esc(year.end)+'"></label>'+
+    '<label class="patio-holiday-control"><input id="patio-skip" type="checkbox" checked> Omitir festivos y vacaciones marcados en esta agenda</label>'+
+   '</div>'+
+   '<p class="hint">La rotación avanza por semanas naturales incluso durante las vacaciones. El horario ordinario usa el primer patio habitual y la fecha opcional de verano cambia a su franja correspondiente. Las guardias existentes no se sobrescriben.</p>'+
+   '<p class="hint">El archivo no determina automáticamente todas las vacaciones ni la fecha de fin de curso: revisa ambos datos.</p>'+
+   '<div class="modal-error" id="patio-import-error" role="alert"></div>'+
+   '<div class="modal-actions"><button type="button" class="btn" id="patio-cancel">Cancelar</button>'+
+   '<button type="submit" class="btn" id="patio-preview">Revisar asignaciones</button>'+
+   '<button type="button" class="btn primary" id="patio-apply" disabled>Confirmar e incorporar</button></div></form>'+
+   '<div id="patio-preview-results" aria-live="polite" hidden></div></div>';
+  const $p=id=>ctx.dialog.querySelector('#'+id),form=$p('patio-import-form');
+  const error=$p('patio-import-error'),out=$p('patio-preview-results'),apply=$p('patio-apply');
+  let prepared=null;
+  const reset=()=>{prepared=null;apply.disabled=true;out.hidden=true;out.innerHTML='';error.textContent='';};
+  for(const input of form.querySelectorAll('input'))input.addEventListener('change',reset);
+  $p('patio-cancel').onclick=()=>ctx.dialog.close();
+  const options=()=>({from:$p('patio-from').value,to:$p('patio-to').value,
+   summerFrom:$p('patio-summer').value,skipHolidays:$p('patio-skip').checked});
+  form.onsubmit=async event=>{
+   event.preventDefault();reset();const button=$p('patio-preview');button.disabled=true;
+   try{
+    const file=$p('patio-file').files[0];
+    if(!file||!/\.xlsx$/i.test(file.name)||file.size>3_000_000)throw new Error('Selecciona un Excel .xlsx de hasta 3 MB.');
+    const template=await parsePatioXlsx(await file.arrayBuffer(),{marker:$p('patio-marker').value});
+    const config=options(),preview=previewPatioRotation(ctx.getDoc(),template,config);
+    prepared={template,config,preview};
+    const days=['Lunes','Martes','Miércoles','Jueves','Viernes'];
+    const details=preview.entries.map(item=>
+     '<tr><td>'+esc(item.date)+' · '+esc(days[item.day])+'</td>'+
+     '<td>'+esc(item.start+'–'+item.end)+'</td><td>'+esc(item.zone)+'</td>'+
+     '<td>'+esc(item.rainZone)+'</td>'+
+     '<td>'+esc(item.existingId?'Ya programada':'Nueva')+'</td></tr>').join('');
+    out.hidden=false;
+    out.innerHTML='<h3>Vista previa de la rotación</h3>'+
+     '<p class="hint">Primer lunes del Excel: '+esc(template.firstMonday)+
+     '. Desplazamiento: '+esc(template.shift)+' puestos por semana; ciclo de '+
+     esc(template.cycleWeeks)+' semanas. Días asignados: '+
+     esc(preview.weekdays.map(d=>days[d]).join(', '))+'.</p>'+
+     '<p><strong>'+esc(preview.entries.length-preview.existing)+' guardias nuevas</strong>'+
+     ' · '+esc(preview.existing)+' ya programadas (no se sobrescribirán)'+
+     ' · '+esc(preview.excluded)+' fechas omitidas por festivos.</p>'+
+     (preview.secondCount?'<p class="hint">Atención: tu marcador aparece también en el segundo patio; esas guardias NO se importan con este formato.</p>':'')+
+     '<div class="patio-preview-scroll"><table class="patio-preview-table"><thead><tr>'+
+     '<th>Fecha</th><th>Hora</th><th>Zona habitual</th><th>Con lluvia o viento</th><th>Resultado</th>'+
+     '</tr></thead><tbody>'+details+'</tbody></table></div>'+
+     '<p class="hint">Comprueba las zonas, las vacaciones y el último día del curso antes de incorporar. Los datos se guardarán cifrados con tu cuaderno.</p>';
+    apply.disabled=preview.entries.length===preview.existing;
+   }catch(err){error.textContent=err.message||'No se ha podido interpretar la rotación.';}
+   finally{button.disabled=false;}
+  };
+  apply.onclick=async()=>{
+   if(!prepared)return;
+   if(!window.confirm('¿Incorporar las guardias revisadas a la agenda del cuaderno cifrado? No se sustituirá ninguna guardia existente.'))return;
+   apply.disabled=true;
+   try{
+    const {template,config}=prepared;
+    await ctx.commit(d=>addPatioRotationEvents(d,previewPatioRotation(d,template,config)),'Importar guardias rotatorias de patio');
+    ctx.dialog.close();
+    ctx.toast('Guardias incorporadas. Revisa la agenda y verifica una copia cifrada del cuaderno.');
+   }catch(err){error.textContent=err.message;apply.disabled=false;}
+  };
   ctx.dialog.showModal();
  }
 
