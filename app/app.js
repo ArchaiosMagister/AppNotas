@@ -407,15 +407,32 @@ function setSubjectChoice(level,subject){
   STATE.groupId=groupsForSubject()[0]?.id||null;
   render();
 }
-function colorFor(level,subject){return STATE.doc.settings.subjectAccents[subjectKey(level,subject)]||SUBJECT_COLORS[subjectKey(level,subject)]||'#F59E0B';}
+/** Restaurar los acentos originales de cada materia, incluidos los personalizados.
+ * El rediseño clásico no sustituye los colores almacenados del docente. */
+function colorFor(level,subject){
+  const key=subjectKey(level,subject);
+  return STATE.doc.settings.subjectAccents[key]||SUBJECT_COLORS[key]||'#F59E0B';
+}
 function contrastFor(hex){
   const vals=[1,3,5].map(pos=>parseInt(hex.slice(pos,pos+2),16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);
   return vals[0]*.2126+vals[1]*.7152+vals[2]*.0722>.179?'#000000':'#FFFFFF';
 }
+/** Tres identidades visuales por materia, independientes de notas y preferencias. */
+function classicalSkinFor(level,subject){
+  if(subject==='Griego I'||subject==='Griego II')return 'attica';
+  if(subject==='Latín II')return 'tabularium';
+  return 'marmorea'; // Latín I, Latín 4.º y cursos heredados.
+}
+const CLASSICAL_SKIN_TITLES={marmorea:'SCHOLA MARMOREA',tabularium:'TABULARIUM',attica:'ACADEMIA ATTICA'};
 function applyTheme(){
   document.documentElement.dataset.theme=STATE.theme;
+  document.documentElement.dataset.courseSkin=classicalSkinFor(STATE.level,STATE.subject);
+  // El carácter visual griego se distingue también en cabecera, bordes y tablas.
+  // No se guarda en el cuaderno: es únicamente un estado de presentación.
+  document.documentElement.dataset.courseVariant=STATE.subject==='Griego II'?'griego-ii':STATE.subject==='Griego I'?'griego-i':'latin';
   const color=colorFor(STATE.level,STATE.subject);
   document.documentElement.style.setProperty('--accent',color);
+  document.documentElement.style.setProperty('--classic-accent',color);
   document.documentElement.style.setProperty('--accent-ink',contrastFor(color));
 }
 const pairOptions=()=>Object.entries(COURSE_SUBJECTS).flatMap(([level,x])=>x.subjects.map(subject=>({value:subjectKey(level,subject),label:`${x.label} · ${subject}`})));
@@ -823,17 +840,16 @@ function render(){
   // Cada boton corresponde a una materia concreta, no solo a una etapa:
   // elegir entre Latin y Griego nunca depende de un segundo desplegable.
   const courseChoices=[...Object.entries(COURSE_SUBJECTS).flatMap(([level,entry])=>entry.subjects.map(subject=>({
-    level,subject,subjectName:subject.startsWith('Griego')?'Griego':'Latín',stage:entry.label
+    level,subject,subjectName:subject,stage:entry.label
   }))), ...[...new Set(STATE.doc.groups.filter(g=>g.level===null).map(g=>g.subject))].map(subject=>({
     level:'legacy',subject,subjectName:subject||'Sin asignatura',stage:'Sin clasificar'
   }))];
-  const choices=matching.map(x=>opt(x.id,x.name,STATE.groupId)).join('');
   const subjectLabel=STATE.subject||'Sin asignatura';
   const levelLabel=COURSE_SUBJECTS[STATE.level]?.label||'Sin clasificar';
   const hasGroup=!!STATE.groupId;
   const color=STATE.level==='legacy'?'#F59E0B':colorFor(STATE.level,STATE.subject);
   unbindClassStats();
-  root.innerHTML=`<div class="shell ${STATE.tab==='alumno'&&STATE.studentId?'student-focus':''} ${STATE.navCollapsed?'nav-collapsed':''}"><header class="topbar"><div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h30M12 16h24M15 19v17m9-17v17m9-17v17M9 39h30M12 36h24M12 12c1-5 6-8 12-8s11 3 12 8"/><path d="M19 12h10"/></svg></div><div class="brand-copy"><strong>CuadernoDocente</strong><small>Tabularium · Agenda y evaluación</small></div></div><div class="topmeta"><span class="pill security-pill" title="Cuaderno guardado cifrado en el dispositivo">🔒 Cifrado local</span><span id="save-status" role="status" class="pill status ok">Guardado cifrado</span>
+  root.innerHTML=`<div class="shell ${STATE.tab==='alumno'&&STATE.studentId?'student-focus':''} ${STATE.navCollapsed?'nav-collapsed':''}"><header class="topbar"><div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h30M12 16h24M15 19v17m9-17v17m9-17v17M9 39h30M12 36h24M12 12c1-5 6-8 12-8s11 3 12 8"/><path d="M19 12h10"/></svg></div><div class="brand-copy"><strong>AppNotas</strong><small>CuadernoDocente · Agenda y evaluación</small></div></div><div class="topmeta"><span class="pill security-pill" title="Cuaderno guardado cifrado en el dispositivo">🔒 Cifrado local</span><span id="save-status" role="status" class="pill status ok">Guardado cifrado</span>
   <button type="button" class="btn topbar-close-btn" id="close-notebook" title="Guardar una copia cifrada y cerrar el cuaderno">Cerrar cuaderno</button><details class="header-tools" data-shell-disclosure="tools" ${workspaceDisclosures.tools?'open':''}><summary aria-label="Abrir herramientas de la aplicación">Herramientas <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
     <div class="header-tools-panel">
       <div class="header-tools-heading">Apariencia</div><label class="theme-picker">Tema <select id="theme-select" aria-label="Modo de apariencia">${[['light','Claro'],['dark','Oscuro'],['oled','OLED']].map(([k,v])=>opt(k,v,STATE.theme)).join('')}</select></label>
@@ -843,19 +859,18 @@ function render(){
     </div>
   </details>
   <button class="lock-btn" id="lock">Bloquear</button>
-</div></header><main class="content"><div class="headrow"><div><div class="eyebrow">TABULARIUM · CUADERNO ACADÉMICO · V1.19</div><h1>${esc(subjectLabel)} <span class="muted-slash">/</span> ${esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${esc(levelLabel)} · ${esc(group?.course||'Curso escolar por configurar')} · ${esc(period?.name||'')} · Datos ficticios</p></div><span class="demo-tag">⚠ No introducir datos personales reales</span></div><p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo">
+</div></header><main class="content"><div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level,STATE.subject)])} · CUADERNO ACADÉMICO · V1.19</div><h1>${esc(subjectLabel)} <span class="muted-slash">/</span> ${esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${esc(levelLabel)} · ${esc(group?.course||'Curso escolar por configurar')} · ${esc(period?.name||'')} · Datos ficticios</p></div><span class="demo-tag">⚠ No introducir datos personales reales</span></div><p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo">
   <div class="selectors">
-    <details class="course-picker course-disclosure" data-shell-disclosure="course" ${workspaceDisclosures.course?'open':''}>
-      <summary><span class="course-picker-label">Asignatura</span><span class="course-selection"><strong>${esc(subjectLabel)}</strong><small>${esc(levelLabel)}</small><span class="disclosure-chevron" aria-hidden="true">⌄</span></span></summary>
-      <div class="course-buttons" role="group" aria-label="Cambiar curso y asignatura">${courseChoices.map(x=>`<button type="button" class="btn course-choice" data-course-level="${esc(x.level)}" data-course-subject="${esc(x.subject)}" aria-pressed="${STATE.level===x.level&&STATE.subject===x.subject}"><strong class="course-name">${esc(x.subjectName)}</strong><span class="course-stage">${esc(x.stage)}</span></button>`).join('')}</div>
-    </details>
-    <label class="current-group-label"><span class="group-picker-label">Grupo</span><select id="group-select" ${matching.length?'':'disabled'}>${matching.length?choices:'<option value="">Sin grupos</option>'}</select></label>
-    <button class="btn small" id="new-group" ${STATE.level==='legacy'?'disabled':''}>+ Grupo</button>
+    <div class="course-switch" role="group" aria-label="Seleccionar asignatura">
+      <div class="course-buttons">${courseChoices.map(x=>`<button type="button" class="btn course-choice" data-course-level="${esc(x.level)}" data-course-subject="${esc(x.subject)}" aria-pressed="${STATE.level===x.level&&STATE.subject===x.subject}" title="${esc(x.stage)}"><strong class="course-name">${esc(x.subjectName)}</strong></button>`).join('')}</div>
+    </div>
+    ${matching.length>1?`<div class="group-switch" role="group" aria-label="Seleccionar grupo de ${esc(subjectLabel)}"><span class="group-switch-label">Grupos</span><div class="group-buttons">${matching.map(x=>`<button type="button" class="btn group-choice" data-group-choice="${esc(x.id)}" aria-pressed="${x.id===STATE.groupId}">${esc(x.name)}</button>`).join('')}</div></div>`:''}
   </div>
   <div class="actions class-more-actions">
     <details class="group-actions-disclosure" data-shell-disclosure="group" ${workspaceDisclosures.group?'open':''}>
       <summary>Opciones de grupo <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
       <div class="group-actions-panel">
+        <button class="btn small" id="new-group" ${STATE.level==='legacy'?'disabled':''}>+ Crear grupo</button>
         <button class="btn small" id="edit-group" ${hasGroup?'':'disabled'} title="Editar nombre y curso escolar del grupo">⋯ Gestionar grupo</button>
         ${STATE.level==='legacy'?'':`<label class="color-select-label">Color de acento<input id="accent-select" type="color" value="${esc(color)}" aria-label="Color de acento para ${esc(subjectLabel)}"/></label>`}
         ${group?.level===null?'<button class="btn" id="classify-group">Clasificar grupo</button>':''}
@@ -1228,7 +1243,7 @@ function renderStudentView(){
       :`<div class="student-activity-list">${ordered.map(a=>renderActivity(a,cats.find(c=>c.id===a.categoryId)?.name||'')).join('')||'<p class="hint">Sin actividades en esta evaluación.</p>'}</div>`;
     const opened=STATE.studentPeriodOpen[p.id]??index===0;
     return `<details class="panel panel-pad student-period" data-student-period="${esc(p.id)}" ${opened?'open':''}><summary class="student-period-summary"><span class="student-period-name">${esc(p.name)}</span><div class="student-period-grades"><span class="student-period-grade"><span class="student-period-grade-label">Media</span><strong class="student-score">${gradeChip(overallGrade(STATE.doc,student.id,STATE.groupId,p.id))} / 10</strong></span><span class="student-period-grade student-period-itaca"><span class="student-period-grade-label">Ítaca</span><strong class="student-score">${itacaChip(STATE.doc,student.id,STATE.groupId,p.id)}</strong></span></div></summary><div class="student-period-body"><label class="student-period-order-label">Orden de las actividades<select data-student-period-order="${esc(p.id)}" aria-label="Orden de actividades de ${esc(p.name)}">${STUDENT_ACTIVITY_SORT_OPTIONS.map(([key,label])=>opt(key,label,mode)).join('')}</select></label>${content}</div></details>`;
-  }).join('')}<section class="panel panel-pad"><div class="section-title-row"><strong>Evaluación final del curso</strong><strong class="student-score">${gradeChip(finalGrade(STATE.doc,student.id,STATE.groupId))} / 10</strong></div></section>`;
+  }).join('')}<section class="panel panel-pad student-final-summary"><div class="section-title-row"><strong>Evaluación final del curso</strong><strong class="student-score">${gradeChip(finalGrade(STATE.doc,student.id,STATE.groupId))} / 10</strong></div></section>`;
 }
 function bindStudentView(){
   document.querySelectorAll('[data-student-period]').forEach(details=>details.addEventListener('toggle',()=>{
@@ -1409,7 +1424,15 @@ function bindCommon(){
       .find(b=>b.dataset.courseLevel===level&&b.dataset.courseSubject===subject)?.focus({preventScroll:true});
     };
   });
-  $('#group-select').onchange=e=>{STATE.groupId=e.target.value;STATE.competencyVersion='auto';render();};
+  document.querySelectorAll('[data-group-choice]').forEach(button=>{
+    button.onclick=()=>{
+      const groupId=button.dataset.groupChoice;
+      if(groupId===STATE.groupId||!groupsForSubject().some(g=>g.id===groupId))return;
+      STATE.groupId=groupId;STATE.competencyVersion='auto';
+      render();
+      [...document.querySelectorAll('[data-group-choice]')].find(x=>x.dataset.groupChoice===groupId)?.focus({preventScroll:true});
+    };
+  });
   document.querySelectorAll('[data-focus-original]').forEach(button=>button.onclick=()=>{
     const pair=button.dataset.focusOriginal;
     const fields=[...document.querySelectorAll('input[data-assessment][data-student]')];
@@ -1871,7 +1894,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v136-dev');
+      const cache=await caches.open('cuaderno-docente-static-v141-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

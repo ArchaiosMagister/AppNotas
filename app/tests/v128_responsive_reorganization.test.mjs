@@ -58,7 +58,7 @@ test('cabecera y barra de grupo reorganizadas conservan todas las acciones exist
     'id="save-status"','id="theme-select"','id="open-notebook"',
     'id="close-notebook"','id="undo-change"','id="redo-change"',
     'id="lock"','data-shell-disclosure="tools"',
-    'data-shell-disclosure="course"','id="group-select"',
+    'class="course-switch"','class="group-switch"',
     'id="new-group"','data-shell-disclosure="group"',
     'id="edit-group"','id="csv-import"','id="csv-file"',
     'id="new-recovery"','id="accent-select"',
@@ -68,7 +68,9 @@ test('cabecera y barra de grupo reorganizadas conservan todas las acciones exist
     'renderFinalEvaluation()', 'renderNavigation()'
   ];
   for(const item of required)assert(view.includes(item),'Falta '+item);
-  assert(view.includes('courseChoices.map('),'El selector mantiene todos los cursos');
+  assert(view.includes('courseChoices.map('),'Los botones mantienen todos los cursos');
+  assert(!view.includes('id="group-select"'));
+  assert(!view.includes('data-shell-disclosure="course"'));
   assert(js.includes("document.querySelectorAll('[data-shell-disclosure]')"));
   assert(js.includes("document.querySelectorAll('[data-course-level][data-course-subject]')"));
   assert(js.includes("document.querySelectorAll('[data-tab]')"));
@@ -103,7 +105,7 @@ test('responsive: teléfono estrecho, teléfonos grandes, iPad y escritorio mant
   for(const breakpoint of ['@media(max-width:1120px)','@media(max-width:900px)','@media(max-width:640px)','@media(max-width:360px)'])
     assert(css.includes(breakpoint),'No está diseñado '+breakpoint);
   for(const selector of [
-    '.header-tools-panel','.course-disclosure','.group-actions-disclosure',
+    '.header-tools-panel','.course-switch','.group-actions-disclosure',
     '.nav-primary','.nav-secondary','.nav-academic-links',
     '.notebook-more-actions','.notebook-more-panel',
     '.grade-table th.name-col','.student-period-summary',
@@ -131,8 +133,8 @@ test('rediseño no modifica cálculos: el cuaderno de demostración conserva sus
 
 test('SW y aplicación usan una misma nueva caché sin borrar IndexedDB',async()=>{
   const [app,sw]=await Promise.all([read('app.js'),read('sw.js')]);
-  assert(app.includes("caches.open('cuaderno-docente-static-v136-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v136-dev'"));
+  assert(app.includes("caches.open('cuaderno-docente-static-v141-dev')"));
+  assert(sw.includes("const CACHE='cuaderno-docente-static-v141-dev'"));
   assert(!sw.includes('indexedDB.deleteDatabase'));
   assert(!app.includes('indexedDB.deleteDatabase'));
 });

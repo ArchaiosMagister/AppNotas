@@ -14,16 +14,20 @@ test('cada curso y asignatura forma una opción válida e independiente',()=>{
  assert.equal(new Set(pairs.map(x=>subjectKey(x.level,x.subject))).size,5);
  for(const {level,subject} of pairs){assert.ok(validSubject(level,subject));assert.match(SUBJECT_COLORS[subjectKey(level,subject)],/^#[0-9A-F]{6}$/i);}
 });
-test('el selector cambia materia y curso juntos, conservando el grupo anterior por materia',()=>{
+test('los botones cambian materia y curso juntos, conservando los grupos por materia',()=>{
  assert.match(app,/data-course-level=/);
  assert.match(app,/data-course-subject=/);
  assert.match(app,/STATE\.level===x\.level&&STATE\.subject===x\.subject/);
  assert.match(app,/setSubjectChoice\(level,subject\)/);
  assert.doesNotMatch(app,/<select id="subject-select"/);
+ assert.doesNotMatch(app,/<select id="group-select"/);
+ assert.match(app,/class="course-switch"/);
+ assert.match(app,/data-group-choice=/);
  assert.match(app,/g\.level===null&&g\.subject===subject/);
 });
 test('botones accesibles y grandes, acentos CSSOM compatibles con la política CSP',()=>{
  assert.match(css,/course-choice\{[\s\S]*?min-height:69px/);
+ assert.match(css,/v138 · Selección directa de materia/);
  assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
  assert.match(css,/course-choice:focus-visible/);
  assert.match(app,/button\.style\.setProperty\('--course-accent'/);
