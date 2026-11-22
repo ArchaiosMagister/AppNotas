@@ -169,7 +169,7 @@ test('subgrupos A y B del mismo grupo optativo tienen citas distintas en una eva
  assert.equal(y.events.length,2);
  assert(a.title.includes('1.º BACH A'));
  assert(b.title.includes('1.º BACH B'));
- assert(calendarEventIcs(a).includes('BACH A'));
+ assert(calendarEventIcs(a).replace(/\r\n /g,'').includes('BACH A'));
  const before=structuredClone(d);
  assert.throws(()=>saveEvaluationSession(d,{groupId:g.id,periodId:p.id,originGroup:'1.º BACH A',date:'2026-12-22',time:'15:30'}),/ya tiene/);
  assert.deepEqual(d,before);
