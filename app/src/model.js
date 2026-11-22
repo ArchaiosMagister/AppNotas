@@ -524,7 +524,7 @@ export function addGroup(doc,name,subject='Latín I',course='2026-2027',level=le
   if(!n||!validSubject(level,subject,doc)||!course?.trim())throw new Error('Introduce grupo, curso y una asignatura compatible.');
   doc.groups.push(mark({id:uid(),name:n,subject,level,course:course.trim(),createdAt:now()}));doc.updatedAt=now();
   const group=doc.groups.at(-1);
-  if(level==='2bach')configureSecondBachGroup(doc,group);
+  if(level==='2bach'&&['Latín II','Griego II'].includes(subject))configureSecondBachGroup(doc,group);
   return group;
 }
 /** Plantilla editable de 2.º Bachillerato; no añade notas ni afecta a otros grupos. */
