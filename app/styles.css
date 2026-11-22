@@ -2277,3 +2277,124 @@ details.student-period,
     max-width:100%;
   }
 }
+
+
+/* v142 · Capas coherentes de los desplegables. La banda de resguardo de
+   Safari crea un contexto aislado; sin z-index en su contenedor, los botones
+   y menús de la zona de contenido pueden dibujarse por encima de Herramientas. */
+.topbar{
+  position:relative;
+  z-index:120;
+  overflow:visible;
+}
+.topbar .topmeta{position:relative;z-index:2}
+.topbar .header-tools[open]{z-index:30}
+.topbar .header-tools-panel{
+  z-index:150;
+  overscroll-behavior:contain;
+}
+/* Opciones de grupo: por encima de las materias y de la navegación sticky. */
+.toolbar.class-toolbar:has(.group-actions-disclosure[open]){
+  position:relative;z-index:100;overflow:visible;
+}
+.class-toolbar .class-more-actions:has(.group-actions-disclosure[open]){
+  z-index:2;
+}
+.class-toolbar .group-actions-disclosure[open]{
+  z-index:60;
+}
+/* Más acciones: el .panel estándar tiene overflow:hidden, que recortaba
+   un menú absoluto incluso cuando su propio z-index era muy alto. */
+.panel:has(> .panel-header .notebook-more-actions[open]){
+  position:relative;
+  overflow:visible;
+  z-index:85;
+}
+.panel:has(> .panel-header .notebook-more-actions[open])>.panel-header{
+  position:relative;
+  z-index:2;
+}
+.notebook-more-actions[open]{z-index:60}
+/* La navegación de Gestión académica se expande EN la barra, sin popup.
+   En teléfonos su posición sticky debe seguir siendo inferior a los menús. */
+.tabs:has(.academic-disclosure[open]){z-index:35}
+.class-stat-popover{z-index:180}
+/* NP visible donde normalmente aparece la nota. En entradas normales
+   sigue siendo un input editable: escribir una calificación reactiva la nota.
+   En rúbricas y exámenes ortográficos, pulsar la insignia abre el editor. */
+.grade-table .note-input.np-grade-input{
+  background:#74263f!important;
+  color:#fff!important;
+  border:2px solid #a94b66!important;
+  border-radius:9px;
+  min-height:42px;
+  font-size:18px;
+  font-weight:900;
+  letter-spacing:.065em;
+  box-shadow:0 2px 8px #36111a38;
+}
+.grade-table .note-input.np-grade-input::placeholder{
+  color:#fff!important;
+  opacity:1;
+  font-size:18px;
+  font-weight:900;
+  letter-spacing:.08em;
+}
+.grade-table .note-input.np-grade-input:hover{
+  background:#632035!important;
+  border-color:#d3899f!important;
+}
+.grade-table .note-input.np-grade-input:focus{
+  background:var(--surface)!important;
+  color:var(--ink)!important;
+  border-color:var(--accent)!important;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 28%,transparent);
+}
+.grade-table .note-input.np-grade-input:focus::placeholder{
+  color:var(--muted)!important;
+  opacity:1;
+}
+.grade-table .np-grade-marker{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:65px;
+  min-height:37px;
+  padding:5px 11px;
+  border-radius:9px;
+  background:#74263f;
+  border:2px solid #a94b66;
+  color:#fff;
+  font-family:var(--app-humanist,system-ui,sans-serif);
+  font-size:18px;
+  font-weight:900;
+  letter-spacing:.08em;
+  line-height:1.25;
+  box-shadow:0 2px 8px #36111a38;
+}
+.grade-table .rubric-grade-button:has(.np-grade-marker),
+.grade-table .orthography-grade-button:has(.np-grade-marker){
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;min-height:65px;
+}
+.grade-table .np-edit-hint,
+.grade-table .rubric-grade-button:has(.np-grade-marker)>small{
+  font-size:11px;line-height:1.25;font-weight:750;
+  color:var(--ink)!important;
+  white-space:normal;
+}
+.grade-table .np-button[aria-pressed="true"]{
+  background:color-mix(in srgb,#a94b66 18%,var(--surface));
+  border:1px solid #a94b66;
+  color:var(--ink);
+  font-weight:850;
+}
+html[data-theme="oled"] .grade-table .np-button[aria-pressed="true"]{
+  background:#000!important;border-color:#dc819d;color:#fff;
+}
+@media(max-width:640px){
+  .topbar .header-tools-panel{max-width:min(340px,100%)}
+  .grade-table .np-grade-marker{min-width:60px;font-size:17px}
+  .grade-table .note-input.np-grade-input,
+  .grade-table .note-input.np-grade-input::placeholder{font-size:17px}
+}
