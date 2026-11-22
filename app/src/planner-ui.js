@@ -113,42 +113,6 @@ function renderPatioPanel(y){
   '</div>';
 }
 
-function evaluationOverview(doc,y){
- const groups=doc.groups.filter(g=>g.course===y.name),periods=[...doc.periods].sort((a,b)=>a.order-b.order);
- let html='',total=0;
- for(const group of groups){
-  const origins=[...new Set([
-   ...doc.students.filter(s=>s.groupId===group.id).map(s=>s.originGroup||''),
-   ...y.events.filter(e=>e.type==='evaluation'&&e.groupId===group.id).map(e=>e.originGroup||'')
-  ])].filter(Boolean).sort((a,b)=>a.localeCompare(b,'es',{numeric:true,sensitivity:'base'}));
-  // Si hay procedencias, cada tutoría dispone de convocatoria propia; la cita
-  // general anterior se mantiene visible para no perder una reunión ya guardada.
-  const hadGeneral=y.events.some(e=>e.type==='evaluation'&&e.groupId===group.id&&!e.originGroup);
-  const missing=doc.students.some(s=>s.groupId===group.id&&!s.originGroup);
-  const variants=origins.length?(hadGeneral||missing?['',...origins]:origins):[''];
-  for(const period of periods)for(const origin of variants){
-   // Una procedencia ya incluida en una tutoría común se muestra una sola vez.
-   // Las convocatorias anteriores continúan accesibles en la reconciliación.
-   if((doc.tutorships||[]).some(t=>t.course===y.name&&t.sources.some(s=>
-     s.groupId===group.id&&s.originGroup===origin)))continue;
-   total++;
-   const event=y.events.find(e=>e.type==='evaluation'&&e.groupId===group.id&&e.periodId===period.id&&(e.originGroup||'')===origin);
-   const attrs='data-eval-group="'+esc(group.id)+'" data-eval-period="'+esc(period.id)+'" data-eval-origin="'+esc(origin)+'"';
-   const label=origin?' · '+origin:' · grupo completo';
-   html+='<div class="planner-evaluation-row"><strong>'+esc(group.subject+' · '+group.name)+'</strong>'+
-    '<span>'+esc(period.name+label)+'</span><span class="planner-evaluation-when">'+
-    (event?esc(event.date+' · '+event.time):'Sin programar')+'</span>'+
-    action(event?'Editar fecha y hora':'Programar',attrs)+
-    (event?action('Añadir a calendario','data-export-event="'+esc(event.id)+'"'):'')+'</div>';
-  }
- }
- const scheduled=y.events.filter(e=>e.type==='evaluation').length;
- return '<details id="plan-evaluations" class="panel panel-pad planner-evaluations"><summary>'+
-  'Sesiones de evaluación por grupo, subgrupo y trimestre · '+scheduled+'/'+total+' programadas</summary>'+
-  '<p class="hint">Las optativas comparten notas por materia, pero cada tutoría de procedencia puede tener distinta convocatoria. Para añadir o cambiar subgrupos utiliza «Gestionar procedencias» en Cuaderno.</p>'+
-  (html||(groups.length?'<p class="hint">Las convocatorias asociadas a tutorías compartidas se muestran a continuación.</p>':'<p class="hint">Todavía no hay grupos de este curso académico.</p>'))+'</details>';
-}
-
 export function renderPlanner(doc,ui){
  const y=activeYear(doc),mode=ui.plannerMode||'week',focus=ui.plannerDate||localToday();
  const start=addDays(focus,-weekday(focus));const monthStart=focus.slice(0,7)+'-01';const gridStart=addDays(monthStart,-weekday(monthStart));
@@ -165,7 +129,6 @@ export function renderPlanner(doc,ui){
  }
  return `<div class="planner-view"><section class="panel panel-pad planner-intro"><div><div class="planner-eyebrow">Agenda docente · planificación personal</div><h2>Mi planificador</h2><p class="subtitle">Tu horario, exámenes, clases previstas y días no lectivos. El diario de clase es opcional y no altera las notas.</p></div><div class="planner-year-chooser"><label>Curso académico<select id="plan-year">${doc.planner.years.map(x=>`<option value="${esc(x.id)}" ${x.id===y.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>${action('Fechas',`id="plan-edit-year"`)}${action('+ Curso',`id="plan-new-year"`)}</div></section>
  <section class="panel panel-pad planner-controls"><div class="planner-view-tabs">${[['day','Hoy / día'],['week','Semana'],['month','Mes'],['schedule','Horario base'],['patio','Guardias de patio']].map(([k,t])=>`<button type="button" class="planner-view-btn ${mode===k?'active':''}" data-plan-mode="${k}" aria-pressed="${mode===k}">${t}</button>`).join('')}</div><div class="planner-date-controls">${action('‹',`id="plan-prev"`)}<input type="date" id="plan-date" value="${esc(focus)}" aria-label="Fecha mostrada"/>${action('Hoy',`id="plan-today"`)}${action('›',`id="plan-next"`)}</div><p class="hint">${esc(y.start)} a ${esc(y.end)} · ${numberClasses} sesiones de clase en el horario · ${count} eventos</p>${tools}</section>
- ${evaluationOverview(doc,y)}
  ${renderSharedEvaluation(doc,y,ui)}
  <section class="panel panel-pad planner-content"><div class="planner-content-head"><h2>${mode==='schedule'?'Horario semanal'+(activeScheduleMode(y)==='summer'?' · verano':' · ordinario'):mode==='patio'?'Guardias rotatorias':mode==='week'?'Semana del '+dayText(start):mode==='month'?new Date(monthStart+'T12:00:00Z').toLocaleDateString('es-ES',{month:'long',year:'numeric',timeZone:'UTC'}):'Agenda del día'}</h2>${mode==='schedule'?'<p class="hint">El horario se repite de lunes a viernes, excepto festivos y cambios puntuales.</p>':''}</div>${body}</section>
  <section class="panel panel-pad planner-bottom"><div><h3>Festivos y vacaciones</h3>${y.holidays.length?y.holidays.slice().sort((a,b)=>a.start.localeCompare(b.start)).map(h=>`<div class="planner-simple-row"><span>✦ ${esc(h.name)} · ${esc(h.start)}${h.end===h.start?'':' — '+esc(h.end)}</span>${action('Editar',`data-edit-holiday="${esc(h.id)}"`)}</div>`).join(''):'<p class="hint">Todavía no has señalado días no lectivos.</p>'}</div><div><h3>Tareas docentes pendientes</h3>${y.tasks.filter(t=>!t.done).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,12).map(t=>taskCard(doc,t)).join('')||'<p class="hint">Sin tareas pendientes.</p>'}</div></section>
@@ -225,11 +188,10 @@ export function bindPlanner(doc,ui,ctx){
  });
  $('#plan-add-event').onclick=()=>eventModal({date:dateNow()});
  $('#plan-show-evaluations').onclick=()=>{
-  const shared=(doc.tutorships||[]).some(t=>t.course===y.name);
-  const panel=shared?$('#plan-tutorship-sessions'):$('#plan-evaluations');
+  const panel=$('#plan-evaluations');
   if(!panel)return;
-  if(!shared)panel.open=true;
-  panel.scrollIntoView({block:'nearest'});
+  panel.open=true;ui.plannerEvaluationsOpen=true;
+  panel.scrollIntoView({block:'start',behavior:'smooth'});
  };
  $('#plan-import-patio').onclick=()=>patioImportModal();
  $('#plan-import-patio-panel')?.addEventListener('click',()=>patioImportModal());
