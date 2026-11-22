@@ -203,6 +203,7 @@ export function consolidateTutorshipEvaluation(doc,{tutorshipId,periodId,chosenE
  const copy=prior.map(event=>({tutorshipId,academicYear:y.name,event:structuredClone(event),archivedAt:stamp()}));
  const canonical={...chosen,groupId:null,assessmentId:null,slotId:null,tutorshipId:t.id,
   title:doc.periods.find(p=>p.id===periodId).name+' · '+t.name};
+ delete canonical.originGroup;
  y.events=y.events.filter(e=>!prior.includes(e));y.events.push(canonical);
  doc.evaluationArchive=[...archive,...copy];doc.updatedAt=stamp();return canonical;
 }
