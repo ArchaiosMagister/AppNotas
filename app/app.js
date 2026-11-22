@@ -14,6 +14,7 @@ import {officialCompetenciesForGroup,groupCompetencies,linkedOfficialCompetency,
 import {ensurePlanner,localToday,activeYear,setActiveYear,addAcademicYear} from './src/planner.js';
 import {renderPlanner,bindPlanner} from './src/planner-ui.js';
 import {renderEvaluationWorkspace,bindEvaluationWorkspace} from './src/evaluation-workspace.js';
+import {renderNotebookEvaluationNotice} from './src/notebook-evaluation-notice.js';
 import {openStudentLinksManager} from './src/student-link-ui.js';
 import {assessmentClassStatistics,periodClassStatistics,finalClassStatistics,categoryClassStatistics,competencyClassStatistics} from './src/statistics.js';
 
@@ -881,7 +882,7 @@ function renderAcademicQuickNav(){
 }
 function renderPeriodButtons(){
   const periods=[...STATE.doc.periods].sort((a,b)=>a.order-b.order);
-  return `<nav class="term-bar" aria-label="Evaluación actual"><div class="term-buttons" role="group" aria-label="Períodos">${periods.map(p=>`<span class="term-item ${STATE.tab==='cuaderno'&&STATE.periodId===p.id?'active':''}"><button type="button" class="term-button ${STATE.tab==='cuaderno'&&STATE.periodId===p.id?'active':''}" data-period-choice="${esc(p.id)}" aria-pressed="${STATE.tab==='cuaderno'&&STATE.periodId===p.id}" title="Seleccionar ${esc(p.name)} (doble clic para renombrar)">${esc(p.name)}</button><button type="button" class="term-edit" data-rename-period="${esc(p.id)}" aria-label="Renombrar ${esc(p.name)}" title="Renombrar ${esc(p.name)}">✎</button></span>`).join('')}<button type="button" class="term-add" id="new-period" aria-label="Añadir período" title="Crear período">+ <span>Período</span></button></div><button type="button" class="term-button term-final ${STATE.tab==='final'?'active':''}" data-final-choice="1" aria-pressed="${STATE.tab==='final'}">★ Evaluación final</button></nav>`;
+  return `<nav class="term-bar" aria-label="Evaluación actual"><div class="term-buttons" role="group" aria-label="Períodos">${periods.map(p=>`<span class="term-item ${STATE.tab==='cuaderno'&&STATE.periodId===p.id?'active':''}"><button type="button" class="term-button ${STATE.tab==='cuaderno'&&STATE.periodId===p.id?'active':''}" data-period-choice="${esc(p.id)}" aria-pressed="${STATE.tab==='cuaderno'&&STATE.periodId===p.id}" title="Seleccionar ${esc(p.name)} (doble clic para renombrar)">${esc(p.name)}</button><button type="button" class="term-edit" data-rename-period="${esc(p.id)}" aria-label="Renombrar ${esc(p.name)}" title="Renombrar ${esc(p.name)}">✎</button></span>`).join('')}<button type="button" class="term-add" id="new-period" aria-label="Añadir período" title="Crear período">+ <span>Período</span></button></div><button type="button" class="term-button term-final ${STATE.tab==='final'?'active':''}" data-final-choice="1" aria-pressed="${STATE.tab==='final'}">★ Evaluación final</button></nav>${STATE.tab==='cuaderno'?renderNotebookEvaluationNotice(STATE.doc,STATE.groupId,STATE.periodId):''}`;
 }
 function render(){
   if(!STATE.doc)return;
@@ -1552,6 +1553,31 @@ function bindCommon(){
     b.onclick=()=>{STATE.periodId=b.dataset.periodChoice;STATE.tab='cuaderno';render();};
     b.ondblclick=event=>{event.preventDefault();renamePeriodFromTab(b.dataset.periodChoice);};
   });
+  document.querySelectorAll('[data-notebook-evaluation-open]').forEach(button=>button.onclick=async()=>{
+    const yearId=button.dataset.notebookEvaluationYear;
+    const periodId=button.dataset.notebookEvaluationOpen;
+    const group=currentGroup();
+    const year=STATE.doc.planner?.years.find(y=>y.id===yearId&&y.name===group?.course);
+    if(!year||!STATE.doc.periods.some(p=>p.id===periodId)){
+      toast('No se encuentra esta evaluación en la Agenda del curso.');return;
+    }
+    button.disabled=true;
+    try{
+      // La selección del curso en Agenda es un ajuste persistente; nunca cambia notas.
+      if(activeYear(STATE.doc).id!==year.id)
+        await commit(d=>setActiveYear(d,year.id),'Seleccionar curso de sesiones de evaluación');
+      STATE.evaluationWorkspaceTab='sesiones';
+      STATE.tab='evaluaciones';
+      render();
+      const section=[...document.querySelectorAll('[data-evaluation-section]')]
+        .find(node=>node.dataset.evaluationSection===periodId);
+      if(section){
+        section.setAttribute('tabindex','-1');
+        section.focus({preventScroll:true});
+        section.scrollIntoView({block:'start',behavior:'smooth'});
+      }
+    }catch(error){fail(error);if(button.isConnected)button.disabled=false;}
+  });
   document.querySelectorAll('[data-rename-period]').forEach(b=>b.onclick=()=>renamePeriodFromTab(b.dataset.renamePeriod));
   $('[data-final-choice]')?.addEventListener('click',()=>{STATE.tab='final';render();});
   $('#accent-select')?.addEventListener('change',e=>commit(d=>setSubjectAccent(d,STATE.level,STATE.subject,e.target.value)).catch(fail));
@@ -2085,7 +2111,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v159-dev');
+      const cache=await caches.open('cuaderno-docente-static-v160-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

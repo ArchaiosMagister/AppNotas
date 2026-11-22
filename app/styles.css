@@ -3264,3 +3264,29 @@ html[data-theme="oled"] .eval-period-more-items>.btn:hover,
 html[data-theme="oled"] .eval-period-more-items>.btn:focus-visible{outline:2px solid var(--line)}
 @media(max-width:420px){.eval-period-actions>.eval-period-more{flex:0 0 auto}}
 @media print{.eval-period-more{display:none!important}}
+
+
+/* Cuaderno: fecha/hora de la evaluación seleccionada, sin agrandar los botones. */
+.notebook-eval-notice{display:flex;align-items:baseline;flex-wrap:wrap;gap:5px 9px;
+ margin:-5px 3px 13px;padding:0 7px;min-width:0;font-size:12px;line-height:1.55;color:var(--muted)}
+.notebook-eval-icon{font-size:14px;flex-shrink:0;color:var(--accent-text)}
+.notebook-eval-label{color:var(--ink);font-weight:680}
+.notebook-eval-list{display:inline-flex;flex-wrap:wrap;align-items:baseline;
+ gap:3px 13px;min-width:0;flex:1 1 210px;font-size:inherit;line-height:inherit}
+.notebook-eval-entry{display:inline;min-width:0;overflow-wrap:anywhere}
+.notebook-eval-group{font-weight:700;color:var(--ink)}
+.notebook-eval-warning{color:#986427;font-weight:650}
+.notebook-eval-unset{color:var(--muted)}
+.notebook-eval-open{border:0;border-radius:4px;background:transparent;padding:0;
+ cursor:pointer;font-family:inherit;text-align:left;color:var(--muted)}
+.notebook-eval-open:hover .notebook-eval-entry{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+.notebook-eval-open:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.notebook-eval-direction{font-size:12px;color:var(--accent-text)}
+html[data-theme="dark"] .notebook-eval-warning{color:#e8c08d}
+html[data-theme="oled"] .notebook-eval-warning{color:#f1cf9d}
+html[data-theme="oled"] .notebook-eval-open{background:#000}
+@media(max-width:650px){
+ .notebook-eval-notice{margin:0 2px 12px;padding:0 5px;font-size:11.5px;gap:4px 7px}
+ .notebook-eval-list{flex-basis:100%;padding-left:20px}
+}
+@media print{.notebook-eval-notice{display:none!important}}

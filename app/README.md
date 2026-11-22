@@ -1,3 +1,13 @@
+## Fecha de sesión de evaluación en el cuaderno (PWA v160)
+
+Al abrir **Cuaderno** y elegir un grupo y trimestre aparece una línea discreta inmediatamente **debajo de los botones de 1.ª, 2.ª y 3.ª evaluación**, con la fecha y las horas de la convocatoria guardada. Si el docente cambia de grupo o trimestre, cambia automáticamente el aviso.
+
+La línea es de solo lectura y se puede pulsar para abrir la evaluación correspondiente en **Sesiones de evaluación → Sesiones**. Si el cuaderno pertenece a un año distinto del activo en Agenda, primero se selecciona de forma segura el año del grupo, sin alterar sus calificaciones.
+
+Si hay subgrupos A/B, se muestran por separado; las tutorías compartidas confirmadas muestran su cita común; las coincidencias por confirmar utilizan únicamente las citas de la asignatura seleccionada. Las convocatorias históricas no unificadas se identifican expresamente, sin presentar ninguna fecha como oficial por error. En ausencia de programación se muestra «Sin programar». Cuando el curso no dispone de Agenda, se indica sin reutilizar fechas de otro curso.
+
+El aviso aparece solamente en **Cuaderno**, no en **Evaluación final**. No edita citas ni notas y no cambia el almacenamiento cifrado. Se incluyen pruebas de grupos, trimestres, años académicos, vinculación de tutorías, citas antiguas, accesibilidad y modo sin conexión.
+
 ## Tarjetas de evaluación: controles compactos y estados visuales (v159)
 
 En **Sesiones de evaluación → Sesiones**, la acción principal **Programar sesión**, **Editar sesión** o **Unificar convocatorias** permanece siempre visible en cada tarjeta. Las acciones auxiliares **Calendario** y **Ver notas** se agrupan en un menú nativo **···** con etiqueta accesible. Los subgrupos no confirmados conservan sus controles independientes y su exportación de calendario por asignatura. El menú se cierra al elegir una acción, al pulsar fuera o con Escape; funciona con teclado, ratón y pantalla táctil.
