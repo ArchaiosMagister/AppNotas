@@ -75,13 +75,26 @@ export function linkedStudentFamilies(doc,course){
 }
 /** Cada fuente es un grupo de asignatura + su división A/B, no la asignatura. */
 export function tutoringSources(doc,course){
- const sources=[];
- for(const g of activeGroups(doc,course)){
-  const origins=new Set(doc.students.filter(s=>s.groupId===g.id).map(s=>s.originGroup||''));
+ const groups=activeGroups(doc,course),sources=[];
+ // Ofrecer también una división A/B donde el profesor no imparte una materia:
+ // así se puede representar «no matriculado» sin inventar una calificación.
+ const originsByGroup=new Map(),originsByLevel=new Map();
+ for(const g of groups){
+  const own=new Map();
+  const add=origin=>{const value=String(origin||'').trim(),key=clean(value);if(!own.has(key))own.set(key,value);};
+  for(const s of doc.students.filter(s=>s.groupId===g.id))add(s.originGroup);
   for(const y of doc.planner?.years||[])if(y.name===course)
-   for(const e of y.events||[])if(e.type==='evaluation'&&e.groupId===g.id&&!e.tutorshipId)origins.add(e.originGroup||'');
-  if(!origins.size)origins.add('');
-  for(const originGroup of origins)
+   for(const e of y.events||[])if(e.type==='evaluation'&&e.groupId===g.id&&!e.tutorshipId)add(e.originGroup);
+  originsByGroup.set(g.id,own);
+  const levelKey=g.level||'legacy';
+  if(!originsByLevel.has(levelKey))originsByLevel.set(levelKey,new Map());
+  for(const [key,value] of own)if(value&&!originsByLevel.get(levelKey).has(key))originsByLevel.get(levelKey).set(key,value);
+ }
+ for(const g of groups){
+  const own=new Map(originsByGroup.get(g.id)),shared=originsByLevel.get(g.level||'legacy');
+  if(shared.size<=80)for(const [key,value] of shared)if(!own.has(key))own.set(key,value);
+  if(!own.size)own.set('','');
+  for(const originGroup of own.values())
    sources.push({groupId:g.id,originGroup,label:g.subject+' · '+g.name+(originGroup?' · '+originGroup:' · grupo completo'),level:g.level,course});
  }
  return sources.sort((a,b)=>a.label.localeCompare(b.label,'es',{numeric:true}));
@@ -116,7 +129,6 @@ export function saveTutorship(doc,{id=null,name,sources}){
   if(g.course!==course||identityLevel(g)!==level)throw new Error('Todas las asignaturas de la tutoría deben pertenecer al mismo curso y etapa.');
   const key=sourceKey(g.id,originGroup);
   if(seen.has(key)||taken.has(key))throw new Error('Una procedencia no puede pertenecer a dos tutorías.');
-  if(!tutoringSources(doc,course).some(s=>sourceKey(s.groupId,s.originGroup)===key))throw new Error('La procedencia todavía no tiene alumnos ni convocatoria.');
   seen.add(key);accepted.push({groupId:g.id,originGroup});
  }
  if(existing&&existing.course!==course)throw new Error('No se puede mover una tutoría a otro curso.');
