@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#11243f">
 <meta name="description" content="CuadernoDocente v1.19 autónomo de pruebas. Solo para pruebas con datos ficticios.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rMfkFFWoB2W1/Zx+4bgHim0WC7vKRVrq6FTeZclH1Z4=' 'sha256-Xa6YT266w+KWur0A62ufYN8YQm4EjQXCqR4KPf9v1DI='; style-src 'sha256-lQ2PJS7O2Z76XiHNmzIAovAb1si2blgfwgSrKxaihSE='; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rMfkFFWoB2W1/Zx+4bgHim0WC7vKRVrq6FTeZclH1Z4=' 'sha256-ps+FKjtoDXVfgQoWKOUueYvf50q+1KlbYegFHTpuHn8='; style-src 'sha256-lQ2PJS7O2Z76XiHNmzIAovAb1si2blgfwgSrKxaihSE='; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20128%20128%22%20role%3D%22img%22%20aria-label%3D%22CuadernoDocente%20%C2%B7%20columna%20cl%C3%A1sica%22%3E%0A%20%20%3Crect%20width%3D%22128%22%20height%3D%22128%22%20rx%3D%2227%22%20fill%3D%22%23263246%22%2F%3E%0A%20%20%3Crect%20x%3D%225%22%20y%3D%225%22%20width%3D%22118%22%20height%3D%22118%22%20rx%3D%2223%22%20fill%3D%22none%22%20stroke%3D%22%23a88b60%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M27%2037h74m-68%207h62M40%2050v45m24-45v45m24-45v45M27%20100h74m-68-5h62%22%20stroke%3D%22%23f4e4c8%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M30%2035c5-14%2017-19%2034-19s29%205%2034%2019M47%2036h34%22%20fill%3D%22none%22%20stroke%3D%22%23cbaa79%22%20stroke-width%3D%225%22%20stroke-linecap%3D%22round%22%2F%3E%0A%3C%2Fsvg%3E%0A">
 <title>CuadernoDocente · v1.19 · sin instalar</title>
 <style>:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#1a2d46;background:#f3f6fb;font-synthesis:none;--navy:#142845;--line:#e1e7f0;--ink:#152a47;--muted:#697b93;--blue:#326ed6;--surface:#fff;--green:#0f866a;--danger:#c53548}
@@ -8231,7 +8231,7 @@ function renderTimetableGrid(doc, y) {
         return `<tr><th scope="row" class="planner-timetable-band ${b.kind === 'break' ? 'planner-timetable-break' : ''}"><strong>${esc(b.label)}</strong><span>${esc(b.start)}–${esc(b.end)}</span>${action('Editar franja', `data-edit-band="${esc(b.id)}" aria-label="Editar horas de ${esc(b.label)}"`, 'planner-timetable-band-edit')}</th>${cells}</tr>`;
     }).join('');
     const extras = active.filter(slot => !paired.has(slot.id));
-    return `<div class="planner-timetable-tools"><label class="planner-summer-switch"><input type="checkbox" id="plan-summer-toggle" role="switch" ${(0, planner_js_1.activeScheduleMode)(y) === 'summer' ? 'checked' : ''}/><span>Horario de verano</span></label><p class="hint">En verano: seis clases de 45 minutos, primer patio de 30 minutos y salida a las 13:00. Ambos horarios se conservan por separado. Toca una casilla para asignar una sola clase o actividad; pulsa la existente para editarla.</p><div class="planner-export-actions">${action('Word · horario', 'id="plan-export-word"', 'btn small planner-word-action')}${action('PDF · horario', 'id="plan-export-pdf"', 'btn small planner-pdf-action')}${action('+ Añadir franja', 'id="plan-add-band"')}</div></div>
+    return `<div class="planner-timetable-tools"><label class="planner-summer-switch"><input type="checkbox" id="plan-summer-toggle" role="switch" ${(0, planner_js_1.activeScheduleMode)(y) === 'summer' ? 'checked' : ''}/><span>Horario de verano</span></label><p class="hint">En verano: siete clases de 45 minutos, primer patio de 30 minutos y salida a las 13:45, sin segundo patio. Ambos horarios se conservan por separado. Toca una casilla para asignar una sola clase o actividad; pulsa la existente para editarla.</p><div class="planner-export-actions">${action('Word · horario', 'id="plan-export-word"', 'btn small planner-word-action')}${action('PDF · horario', 'id="plan-export-pdf"', 'btn small planner-pdf-action')}${action('+ Añadir franja', 'id="plan-add-band"')}</div></div>
  <div class="planner-timetable-scroll" role="region" aria-label="Horario semanal personalizable" tabindex="0"><table class="planner-timetable"><thead><tr><th scope="col">Franja</th>${longDays.map(day => `<th scope="col">${esc(day)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
  ${extras.length ? `<section class="planner-extra-sessions"><h3>Otras sesiones guardadas</h3><p class="hint">Estas sesiones anteriores o de horario especial se conservan fuera de las franjas predeterminadas.</p><div class="planner-extra-list">${extras.map(slot => `<div class="planner-schedule-item"><div><small>${esc(longDays[slot.day])} · ${esc(slot.start)}–${esc(slot.end)}</small><strong>${esc(labels(doc, slot))}</strong>${slot.room ? `<small>Aula: ${esc(slot.room)}</small>` : ''}</div>${action('Editar', `data-edit-slot="${esc(slot.id)}"`)}</div>`).join('')}</div></section>` : ''}`;
 }
@@ -8631,8 +8631,8 @@ exports.DEFAULT_TIMETABLE_BANDS = Object.freeze([
     { id: 'patio-2', label: 'Segundo patio', start: '14:00', end: '14:20', kind: 'break' },
     { id: 'hora-7', label: '7.ª hora', start: '14:20', end: '15:15', kind: 'lesson' }
 ].map(row => Object.freeze(row)));
-/** Horario de verano: 6 horas de 45 min + primer patio intacto de 30 min.
- * Entrada a las 08:00 y salida a las 13:00. No hay segundo patio ni 7.ª hora. */
+/** Horario de verano: 7 horas de 45 min + primer patio intacto de 30 min.
+ * Entrada a las 08:00 y salida a las 13:45. No hay segundo patio. */
 exports.SUMMER_TIMETABLE_BANDS = Object.freeze([
     { id: 'hora-1', label: '1.ª hora', start: '08:00', end: '08:45', kind: 'lesson' },
     { id: 'hora-2', label: '2.ª hora', start: '08:45', end: '09:30', kind: 'lesson' },
@@ -8640,15 +8640,31 @@ exports.SUMMER_TIMETABLE_BANDS = Object.freeze([
     { id: 'patio-1', label: 'Primer patio', start: '10:15', end: '10:45', kind: 'break' },
     { id: 'hora-4', label: '4.ª hora', start: '10:45', end: '11:30', kind: 'lesson' },
     { id: 'hora-5', label: '5.ª hora', start: '11:30', end: '12:15', kind: 'lesson' },
-    { id: 'hora-6', label: '6.ª hora', start: '12:15', end: '13:00', kind: 'lesson' }
+    { id: 'hora-6', label: '6.ª hora', start: '12:15', end: '13:00', kind: 'lesson' },
+    { id: 'hora-7', label: '7.ª hora', start: '13:00', end: '13:45', kind: 'lesson' }
 ].map(row => Object.freeze(row)));
 const activeScheduleMode = y => y?.summerEnabled === true ? 'summer' : 'regular';
 exports.activeScheduleMode = activeScheduleMode;
 const slotScheduleMode = s => s?.scheduleMode === 'summer' ? 'summer' : 'regular';
 exports.slotScheduleMode = slotScheduleMode;
-const scheduleBands = (y, mode = (0, exports.activeScheduleMode)(y)) => (mode === 'summer' ? (Array.isArray(y?.summerBands) ? y.summerBands : exports.SUMMER_TIMETABLE_BANDS)
-    : (Array.isArray(y?.bands) ? y.bands : exports.DEFAULT_TIMETABLE_BANDS)).slice()
-    .sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
+/** Compatibilidad con la vista previa de verano que terminaba a las 13:00.
+ * La ampliación solo se aplica a su plantilla exacta; una 7.ª hora
+ * eliminada deliberadamente en la versión nueva no reaparece. */
+const legacySummerTemplate = y => {
+    if (y?.summerBandVersion === 2 || !Array.isArray(y?.summerBands) || y.summerBands.length !== 7)
+        return false;
+    const old = exports.SUMMER_TIMETABLE_BANDS.slice(0, -1);
+    return old.every((b, i) => y.summerBands[i]?.id === b.id &&
+        y.summerBands[i]?.start === b.start && y.summerBands[i]?.end === b.end &&
+        y.summerBands[i]?.kind === b.kind);
+};
+const scheduleBands = (y, mode = (0, exports.activeScheduleMode)(y)) => {
+    const source = mode === 'summer' ? (Array.isArray(y?.summerBands) ? y.summerBands : exports.SUMMER_TIMETABLE_BANDS)
+        : (Array.isArray(y?.bands) ? y.bands : exports.DEFAULT_TIMETABLE_BANDS);
+    const rows = legacySummerTemplate(y) && mode === 'summer'
+        ? [...source, exports.SUMMER_TIMETABLE_BANDS.at(-1)] : source;
+    return rows.slice().sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
+};
 exports.scheduleBands = scheduleBands;
 const slotsForMode = (y, mode = (0, exports.activeScheduleMode)(y)) => (y?.slots || []).filter(s => (0, exports.slotScheduleMode)(s) === mode);
 exports.slotsForMode = slotsForMode;
@@ -8660,14 +8676,20 @@ function setSummerSchedule(doc, enabled) {
     const y = activeYear(doc);
     if (typeof enabled !== 'boolean')
         throw new Error('Selecciona un horario válido.');
-    if (enabled && !y.summerInitialized) {
+    const upgrading = enabled && legacySummerTemplate(y);
+    if (upgrading) {
+        y.summerBands = (0, exports.scheduleBands)(y, 'summer').map(b => ({ ...b }));
+        y.summerBandVersion = 2;
+    }
+    if (enabled && (!y.summerInitialized || upgrading)) {
         const summerBands = (0, exports.scheduleBands)(y, 'summer'), ordinary = (0, exports.scheduleBands)(y, 'regular');
         const seen = new Set((0, exports.slotsForMode)(y, 'summer').map(s => s.day + '|' + s.bandId));
         const clones = [];
         for (const s of (0, exports.slotsForMode)(y, 'regular')) {
             const from = ordinary.find(b => b.id === s.bandId) || ordinary.find(b => b.start === s.start && b.end === s.end);
             const to = from && summerBands.find(b => b.id === from.id);
-            if (!to || seen.has(s.day + '|' + to.id))
+            if (!to || (upgrading && y.summerInitialized && to.id !== 'hora-7') ||
+                seen.has(s.day + '|' + to.id))
                 continue;
             clones.push({ ...s, id: uid(), scheduleMode: 'summer', start: to.start, end: to.end, bandId: to.id });
             seen.add(s.day + '|' + to.id);
@@ -8701,8 +8723,10 @@ function saveTimetableBand(doc, { id = null, label, start, end, kind = 'lesson' 
     const next = checkedBands(existing ? before.map(b => b.id === id ? band : b) : [...before, band]);
     // Validar todo ANTES de modificar el cuaderno. Las sesiones vinculadas
     // conservan su clase, aula y eventos al cambiar los tiempos de la franja.
-    if (mode === 'summer')
+    if (mode === 'summer') {
         y.summerBands = next;
+        y.summerBandVersion = 2;
+    }
     else
         y.bands = next;
     if (existing && (existing.start !== start || existing.end !== end)) {
@@ -8724,8 +8748,10 @@ function removeTimetableBand(doc, id) {
     if ((0, exports.slotsForMode)(y).some(s => s.bandId === id))
         throw new Error('Retira primero las clases asignadas a esta franja.');
     const next = checkedBands(bands.filter(b => b.id !== id));
-    if ((0, exports.activeScheduleMode)(y) === 'summer')
+    if ((0, exports.activeScheduleMode)(y) === 'summer') {
         y.summerBands = next;
+        y.summerBandVersion = 2;
+    }
     else
         y.bands = next;
     doc.updatedAt = stamp();
@@ -8752,7 +8778,7 @@ exports.timeValid = timeValid;
 function yearRange(label) { const match = /^(\d{4})-(\d{4})$/.exec(label || ''); const y = match ? Number(match[1]) : new Date().getFullYear(); return { start: `${y}-09-01`, end: `${y + 1}-06-30` }; }
 function createPlanner(course = '2026-2027') {
     const name = /^\d{4}-\d{4}$/.test(course) ? course : '2026-2027';
-    const year = { id: uid(), name, ...yearRange(name), bands: cloneBands(), summerBands: cloneSummerBands(), summerEnabled: false, summerInitialized: false, slots: [], events: [], lessons: [], holidays: [], exceptions: [], tasks: [] };
+    const year = { id: uid(), name, ...yearRange(name), bands: cloneBands(), summerBands: cloneSummerBands(), summerBandVersion: 2, summerEnabled: false, summerInitialized: false, slots: [], events: [], lessons: [], holidays: [], exceptions: [], tasks: [] };
     return { activeYearId: year.id, years: [year] };
 }
 function ensurePlanner(doc) { if (!doc.planner)
@@ -8773,6 +8799,7 @@ function addAcademicYear(doc, { name, start, end, copyFrom = null }) {
         throw new Error('Curso de referencia inexistente.');
     const y = { id: uid(), name: n, start, end, bands: source ? structuredClone((0, exports.scheduleBands)(source, 'regular')) : cloneBands(),
         summerBands: source ? structuredClone((0, exports.scheduleBands)(source, 'summer')) : cloneSummerBands(),
+        summerBandVersion: 2,
         summerEnabled: source?.summerEnabled === true, summerInitialized: source?.summerInitialized === true,
         slots: [], events: [], lessons: [], holidays: [], exceptions: [], tasks: [] };
     if (source)
@@ -9075,6 +9102,8 @@ function assertPlanner(doc) {
             throw new Error('Modo de verano inválido.');
         if (y.summerInitialized !== undefined && typeof y.summerInitialized !== 'boolean')
             throw new Error('Inicialización del horario de verano inválida.');
+        if (y.summerBandVersion !== undefined && y.summerBandVersion !== 2)
+            throw new Error('Versión del horario de verano inválida.');
         // Invariantes que la interfaz impone al editar también deben comprobarse
         // al restaurar una copia: evita eventos o planes ambiguos por duplicación.
         const uniquePairs = (items, key) => new Set(items.map(key)).size === items.length;
