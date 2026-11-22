@@ -334,7 +334,7 @@ function fieldsModal(title,fields,onSubmit,caption=''){
     const form=e.currentTarget,submit=$('[type=submit]',form);
     const data=Object.fromEntries(new FormData(form));
     submit.disabled=true;
-    try{await onSubmit(data);if(form.isConnected)dialog.close();}
+    try{const accepted=await onSubmit(data);if(accepted!==false&&form.isConnected)dialog.close();}
     catch(err){$('.modal-error',form).textContent=err.message;}
     finally{submit.disabled=false;}
   });
