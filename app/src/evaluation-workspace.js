@@ -1,5 +1,6 @@
 import {activeYear,setActiveYear,calendarEventIcs,deletePlannerItem} from './planner.js';
 import {sessionPresentation} from './evaluation-session-presentation.js';
+import {bindEvaluationCardMenus} from './evaluation-period-board.js';
 import {
  renderSharedEvaluation,bindSharedEvaluation,openGroupEvaluationSessionModal
 } from './evaluation-ui.js';
@@ -76,6 +77,7 @@ function exportEvaluationEvent(event,ctx){
 export function bindEvaluationWorkspace(doc,ui,ctx){
  const $=selector=>document.querySelector(selector),all=selector=>[...document.querySelectorAll(selector)];
  const redraw=()=>ctx.render(),year=activeYear(doc);
+ bindEvaluationCardMenus($('.evaluation-workspace'));
  all('[data-eval-workspace-tab]').forEach(button=>button.onclick=()=>{
   ui.evaluationWorkspaceTab=button.dataset.evalWorkspaceTab;redraw();
  });
