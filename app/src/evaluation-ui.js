@@ -303,7 +303,7 @@ export function bindSharedEvaluation(doc,ui,ctx,exportEvent){
      return {value:e.id,label:e.date+' · '+e.time+' · '+(g?.subject||'')+' · '+(e.originGroup||g?.name||'')};
     })}
   ],v=>{
-   if(!window.confirm('Se creará una sola cita de tutoría. TODAS las convocatorias anteriores quedarán archivadas, con sus fechas y observaciones, en el cuaderno cifrado. ¿Confirmas?'))return;
+   if(!window.confirm('Se creará una sola cita de tutoría. TODAS las convocatorias anteriores quedarán archivadas, con sus fechas y observaciones, en el cuaderno cifrado. ¿Confirmas?'))return false;
    return ctx.commit(d=>consolidateTutorshipEvaluation(d,{tutorshipId:tid,periodId:pid,chosenEventId:v.selected}),'Unificar convocatorias y conservar historial');
   },'Revisa fechas y horas: si no coinciden, elige cuál es la convocatoria correcta. Los originales permanecerán en el historial cifrado.');
  });
