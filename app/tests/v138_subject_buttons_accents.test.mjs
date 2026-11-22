@@ -98,7 +98,7 @@ test('los controles académicos y la PWA siguen intactos',async()=>{
     assert(app.includes('id="'+id+'"'),id);
   assert(app.includes("document.documentElement.style.setProperty('--classic-accent',color)"));
   assert(app.includes("button.style.setProperty('--course-accent',"));
-  assert(app.includes("caches.open('cuaderno-docente-static-v143-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v143-dev'"));
+  assert(app.includes("caches.open('cuaderno-docente-static-v145-dev')"));
+  assert(sw.includes("const CACHE='cuaderno-docente-static-v145-dev'"));
   assert(!app.includes('indexedDB.deleteDatabase'));
 });
