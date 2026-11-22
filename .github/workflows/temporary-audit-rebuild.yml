@@ -1,0 +1,35 @@
+name: Temporary audit: restore self-contained bundle and source manifest
+on:
+  push:
+    branches:
+      - audit/calculos-persistencia-20261122
+    paths:
+      - .github/workflows/temporary-audit-rebuild.yml
+permissions:
+  contents: write
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Rebuild autonomous bundle and verify tests
+        run: |
+          npm install --location=global --no-audit --no-fund typescript@5
+          cd app
+          node --test tests/v149_audit_grade_reactivation_and_backups.test.mjs
+          node tools/build-standalone.mjs
+          cd ..
+          python3 scripts/source_manifest.py --write
+          python3 scripts/source_manifest.py --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/CuadernoDocente_sin_instalar.html app/MANIFEST_SHA256.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "build(auditoría): regenerar paquete autónomo y hashes CSP"
+            git push origin HEAD:refs/heads/audit/calculos-persistencia-20261122
+          fi
