@@ -224,7 +224,13 @@ export function bindPlanner(doc,ui,ctx){
   }catch(error){ctx.fail(error);}
  });
  $('#plan-add-event').onclick=()=>eventModal({date:dateNow()});
- $('#plan-show-evaluations').onclick=()=>{const overview=$('#plan-evaluations');overview.open=true;overview.scrollIntoView({block:'nearest'});};
+ $('#plan-show-evaluations').onclick=()=>{
+  const shared=(doc.tutorships||[]).some(t=>t.course===y.name);
+  const panel=shared?$('#plan-tutorship-sessions'):$('#plan-evaluations');
+  if(!panel)return;
+  if(!shared)panel.open=true;
+  panel.scrollIntoView({block:'nearest'});
+ };
  $('#plan-import-patio').onclick=()=>patioImportModal();
  $('#plan-import-patio-panel')?.addEventListener('click',()=>patioImportModal());
  all('[data-eval-group]').forEach(b=>b.onclick=()=>evaluationModal(b.dataset.evalGroup,b.dataset.evalPeriod,b.dataset.evalOrigin||''));
