@@ -64,12 +64,13 @@ export function renderNotebookEvaluationNotice(doc,groupId,periodId){
   rows.map(row=>'<span class="notebook-eval-entry">'+
     (rows.length>1?'<span class="notebook-eval-group">'+esc(row.name)+':</span> ':'')+
     rowText(row,doc)+'</span>').join('');
- const button=year?'<button type="button" class="notebook-eval-open" data-notebook-evaluation-open="'+
-  esc(periodId)+'" data-notebook-evaluation-year="'+esc(year.id)+
-  '" title="Abrir esta evaluación en Sesiones de evaluación" aria-label="Ver sesiones de '+esc(period.name)+
-  ' en el apartado de evaluaciones">Ver sesiones</button>':'';
+ const content=year?'<button type="button" class="notebook-eval-list notebook-eval-open" '+
+  'data-notebook-evaluation-open="'+esc(periodId)+'" data-notebook-evaluation-year="'+esc(year.id)+
+  '" title="Abrir esta evaluación en Sesiones de evaluación" aria-label="Abrir las convocatorias de '+esc(period.name)+
+  ' en Sesiones de evaluación">'+items+
+  '<span class="notebook-eval-direction" aria-hidden="true">↗</span></button>':
+  '<span class="notebook-eval-list">'+items+'</span>';
  return '<aside class="notebook-eval-notice" aria-label="Fecha de la sesión de evaluación">'+
   '<span class="notebook-eval-icon" aria-hidden="true">◷</span>'+
-  '<span class="notebook-eval-label">'+esc(summary)+'</span>'+
-  '<span class="notebook-eval-list">'+items+'</span>'+button+'</aside>';
+  '<span class="notebook-eval-label">'+esc(summary)+'</span>'+content+'</aside>';
 }
