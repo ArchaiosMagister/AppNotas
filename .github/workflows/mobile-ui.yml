@@ -1,0 +1,37 @@
+name: Comprobación visual táctil iPhone e iPad (WebKit)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/app.js'
+      - 'app/styles.css'
+      - 'app/sw.js'
+      - 'scripts/mobile-webkit-smoke.mjs'
+      - '.github/workflows/mobile-ui.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  touch-layout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar motores de prueba
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium webkit
+      - name: Auditar renderizado iPhone/iPad y gestos táctiles
+        run: node scripts/mobile-webkit-smoke.mjs
+      - name: Guardar capturas solo de alumnado ficticio
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appnotas-ui-mobile
+          path: _ui_mobile/*.png
+          if-no-files-found: ignore
