@@ -18,6 +18,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Rebuild autonomous HTML before integrity tests
+        run: |
+          npm install --location=global --no-audit --no-fund typescript@5
+          node app/tools/build-standalone.mjs
+          python3 scripts/source_manifest.py --write
+          python3 scripts/source_manifest.py --check
       - name: Validate import and encrypted notebook regressions
         working-directory: app
         run: |
@@ -28,11 +34,8 @@ jobs:
           node --check sw.js
           node --test tests/v151_evaluation_calendar_sessions.test.mjs tests/v152_patio_excel_rotation.test.mjs
           npm test
-      - name: Regenerate offline bundle and source inventory
+      - name: Commit validated offline distribution
         run: |
-          npm install --location=global --no-audit --no-fund typescript@5
-          node app/tools/build-standalone.mjs
-          python3 scripts/source_manifest.py --write
           python3 scripts/source_manifest.py --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
