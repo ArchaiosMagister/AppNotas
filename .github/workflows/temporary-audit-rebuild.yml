@@ -21,7 +21,7 @@ jobs:
         run: |
           npm install --location=global --no-audit --no-fund typescript@5
           cd app
-          node --test tests/v149_audit_grade_reactivation_and_backups.test.mjs
+          node --test tests/v149_audit_grade_reactivation_and_backups.test.mjs tests/v150_audit_np_aj_preservation.test.mjs
           node tools/build-standalone.mjs
           cd ..
           python3 scripts/source_manifest.py --write
