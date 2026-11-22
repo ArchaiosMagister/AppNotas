@@ -412,8 +412,16 @@ function contrastFor(hex){
   const vals=[1,3,5].map(pos=>parseInt(hex.slice(pos,pos+2),16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);
   return vals[0]*.2126+vals[1]*.7152+vals[2]*.0722>.179?'#000000':'#FFFFFF';
 }
+/** Tres identidades visuales por materia, independientes de notas y preferencias. */
+function classicalSkinFor(level,subject){
+  if(subject==='Griego I'||subject==='Griego II')return 'attica';
+  if(subject==='Latín II')return 'tabularium';
+  return 'marmorea'; // Latín I, Latín 4.º y cursos heredados.
+}
+const CLASSICAL_SKIN_TITLES={marmorea:'SCHOLA MARMOREA',tabularium:'TABULARIUM',attica:'ACADEMIA ATTICA'};
 function applyTheme(){
   document.documentElement.dataset.theme=STATE.theme;
+  document.documentElement.dataset.courseSkin=classicalSkinFor(STATE.level,STATE.subject);
   const color=colorFor(STATE.level,STATE.subject);
   document.documentElement.style.setProperty('--accent',color);
   document.documentElement.style.setProperty('--accent-ink',contrastFor(color));
@@ -833,7 +841,7 @@ function render(){
   const hasGroup=!!STATE.groupId;
   const color=STATE.level==='legacy'?'#F59E0B':colorFor(STATE.level,STATE.subject);
   unbindClassStats();
-  root.innerHTML=`<div class="shell ${STATE.tab==='alumno'&&STATE.studentId?'student-focus':''} ${STATE.navCollapsed?'nav-collapsed':''}"><header class="topbar"><div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h30M12 16h24M15 19v17m9-17v17m9-17v17M9 39h30M12 36h24M12 12c1-5 6-8 12-8s11 3 12 8"/><path d="M19 12h10"/></svg></div><div class="brand-copy"><strong>CuadernoDocente</strong><small>Tabularium · Agenda y evaluación</small></div></div><div class="topmeta"><span class="pill security-pill" title="Cuaderno guardado cifrado en el dispositivo">🔒 Cifrado local</span><span id="save-status" role="status" class="pill status ok">Guardado cifrado</span>
+  root.innerHTML=`<div class="shell ${STATE.tab==='alumno'&&STATE.studentId?'student-focus':''} ${STATE.navCollapsed?'nav-collapsed':''}"><header class="topbar"><div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h30M12 16h24M15 19v17m9-17v17m9-17v17M9 39h30M12 36h24M12 12c1-5 6-8 12-8s11 3 12 8"/><path d="M19 12h10"/></svg></div><div class="brand-copy"><strong>AppNotas</strong><small>CuadernoDocente · Agenda y evaluación</small></div></div><div class="topmeta"><span class="pill security-pill" title="Cuaderno guardado cifrado en el dispositivo">🔒 Cifrado local</span><span id="save-status" role="status" class="pill status ok">Guardado cifrado</span>
   <button type="button" class="btn topbar-close-btn" id="close-notebook" title="Guardar una copia cifrada y cerrar el cuaderno">Cerrar cuaderno</button><details class="header-tools" data-shell-disclosure="tools" ${workspaceDisclosures.tools?'open':''}><summary aria-label="Abrir herramientas de la aplicación">Herramientas <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
     <div class="header-tools-panel">
       <div class="header-tools-heading">Apariencia</div><label class="theme-picker">Tema <select id="theme-select" aria-label="Modo de apariencia">${[['light','Claro'],['dark','Oscuro'],['oled','OLED']].map(([k,v])=>opt(k,v,STATE.theme)).join('')}</select></label>
@@ -843,7 +851,7 @@ function render(){
     </div>
   </details>
   <button class="lock-btn" id="lock">Bloquear</button>
-</div></header><main class="content"><div class="headrow"><div><div class="eyebrow">TABULARIUM · CUADERNO ACADÉMICO · V1.19</div><h1>${esc(subjectLabel)} <span class="muted-slash">/</span> ${esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${esc(levelLabel)} · ${esc(group?.course||'Curso escolar por configurar')} · ${esc(period?.name||'')} · Datos ficticios</p></div><span class="demo-tag">⚠ No introducir datos personales reales</span></div><p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo">
+</div></header><main class="content"><div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level,STATE.subject)])} · CUADERNO ACADÉMICO · V1.19</div><h1>${esc(subjectLabel)} <span class="muted-slash">/</span> ${esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${esc(levelLabel)} · ${esc(group?.course||'Curso escolar por configurar')} · ${esc(period?.name||'')} · Datos ficticios</p></div><span class="demo-tag">⚠ No introducir datos personales reales</span></div><p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo">
   <div class="selectors">
     <details class="course-picker course-disclosure" data-shell-disclosure="course" ${workspaceDisclosures.course?'open':''}>
       <summary><span class="course-picker-label">Asignatura</span><span class="course-selection"><strong>${esc(subjectLabel)}</strong><small>${esc(levelLabel)}</small><span class="disclosure-chevron" aria-hidden="true">⌄</span></span></summary>
