@@ -28,7 +28,7 @@ export function renderEvaluationWorkspace(doc,ui){
    '<option value="'+esc(p.id)+'"'+(p.id===viewer.periodId?' selected':'')+'>'+esc(p.name)+'</option>').join('')+
    '</select></label></div>':'';
  const body=section==='sesiones'
-  ?renderSharedEvaluation(doc,year,ui,'sesiones')
+  ?renderSharedEvaluation(doc,year,ui,'sesiones',cards)
   :section==='tutorias'
   ?'<div class="eval-workspace-management-top"><h3>Identificación y gestión de tutorías</h3>'+
    '<p class="hint">Confirma las coincidencias entre materias antes de organizar sus reuniones. '+
