@@ -2889,3 +2889,30 @@ html[data-theme="oled"] .planner-summer-switch,html[data-theme="oled"] .comp-lin
  body:has(.planner-timetable) .planner-timetable-tools,
  body:has(.planner-timetable) .planner-export-actions{display:none!important}
 }
+
+
+/* Convocatorias docentes: panel compacto, legible en móvil, oscuro y OLED. */
+.planner-evaluations{margin-block:12px}
+.planner-evaluations summary{cursor:pointer;font-weight:850;color:var(--ink);padding:6px 0;line-height:1.5}
+.planner-evaluations summary:focus-visible{outline:3px solid var(--accent);outline-offset:4px;border-radius:6px}
+.planner-evaluations > .hint{margin:10px 0}
+.planner-evaluation-row{
+ display:grid;grid-template-columns:minmax(150px,1.3fr) minmax(110px,1fr) minmax(150px,1fr) auto auto;
+ gap:10px;align-items:center;padding:11px 4px;border-top:1px solid var(--line);
+}
+.planner-evaluation-row strong{color:var(--ink);overflow-wrap:anywhere}
+.planner-evaluation-when{font-variant-numeric:tabular-nums;color:var(--ink)}
+.planner-evaluation-row .btn{white-space:normal;min-height:38px}
+.planner-week-event-row{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.planner-week-event-row .planner-week-event{flex:1 1 135px}
+.planner-week-event-row > .btn{flex:0 0 auto;font-size:11px}
+html[data-theme="oled"] .planner-evaluations{background:#000}
+@media(max-width:850px){
+ .planner-evaluation-row{grid-template-columns:minmax(100px,1fr) minmax(100px,1fr);gap:7px}
+ .planner-evaluation-when{grid-column:1/-1}
+ .planner-evaluation-row .btn{justify-self:stretch}
+}
+@media(max-width:430px){
+ .planner-evaluation-row{grid-template-columns:1fr 1fr}
+ .planner-evaluation-row strong{grid-column:1/-1}
+}
