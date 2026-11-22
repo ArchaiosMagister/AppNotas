@@ -121,18 +121,58 @@ const PREVIOUS_SUBJECT_COLORS = Object.freeze({
   '2bach:Griego II':'#9A3D70'
 });
 export const subjectKey=(level,subject)=>`${level}:${subject}`;
+/** Catálogo extensible almacenado dentro del mismo cuaderno cifrado.
+ * Los cinco cursos del profesor permanecen como valores iniciales.
+ * Las materias predeterminadas retiradas se ocultan, sin destruir datos. */
+export const catalogForNotebook=doc=>Object.entries(COURSE_SUBJECTS).map(([level,entry])=>({
+ level,label:entry.label,
+ subjects:[
+  ...entry.subjects.filter(name=>!doc?.settings?.hiddenSubjects?.includes(subjectKey(level,name))),
+  ...(doc?.settings?.customSubjects||[]).filter(item=>item.level===level).map(item=>item.subject)
+ ]
+}));
+const existingSubject=(doc,level,subject)=>catalogForNotebook(doc).some(entry=>entry.level===level&&entry.subjects.includes(subject));
+const validSubjectName=subject=>typeof subject==='string'&&subject===subject.trim()&&subject.length>0&&subject.length<=65&&!/[:<>\x00-\x1f]/.test(subject);
+export function addNotebookSubject(doc,level,subject,color='#64748B'){
+ if(!COURSE_SUBJECTS[level]||!validSubjectName(subject)||!/^#[0-9A-Fa-f]{6}$/.test(color))throw new Error('Etapa, nombre o color de la materia no válido.');
+ if(existingSubject(doc,level,subject))throw new Error('Esa materia ya está disponible en esta etapa.');
+ const key=subjectKey(level,subject);
+ const settings=doc.settings;
+ if(COURSE_SUBJECTS[level].subjects.includes(subject)){
+  settings.hiddenSubjects=(settings.hiddenSubjects||[]).filter(item=>item!==key);
+ }else{
+  settings.customSubjects=[...(settings.customSubjects||[]),{level,subject}];
+ }
+ settings.subjectAccents[key]=color.toUpperCase();
+ doc.updatedAt=now();return {level,subject};
+}
+export function removeNotebookSubject(doc,level,subject){
+ if(!existingSubject(doc,level,subject))throw new Error('La materia no está disponible.');
+ if(doc.groups.some(g=>g.level===level&&g.subject===subject))throw new Error('La materia tiene grupos: conserva sus alumnos y notas. Traslada o elimina esos grupos antes de retirarla.');
+ if(catalogForNotebook(doc).reduce((n,item)=>n+item.subjects.length,0)<=1)throw new Error('El cuaderno necesita al menos una materia.');
+ const key=subjectKey(level,subject),settings=doc.settings;
+ if(COURSE_SUBJECTS[level].subjects.includes(subject)){
+  settings.hiddenSubjects=[...(settings.hiddenSubjects||[]),key];
+ }else{
+  settings.customSubjects=(settings.customSubjects||[]).filter(item=>subjectKey(item.level,item.subject)!==key);
+  delete settings.subjectAccents[key];
+ }
+ doc.updatedAt=now();
+}
+export const defaultSubjectAccent=(level,subject)=>SUBJECT_COLORS[subjectKey(level,subject)]||
+ (level==='4eso'?'#B88641':level==='1bach'?'#397DAB':'#7657A8');
 export function levelForSubject(subject){
   return Object.keys(COURSE_SUBJECTS).find(level=>COURSE_SUBJECTS[level].subjects.includes(subject))??null;
 }
-export function validSubject(level,subject){return !!COURSE_SUBJECTS[level]?.subjects.includes(subject);}
+export function validSubject(level,subject,doc=null){return doc?existingSubject(doc,level,subject):!!COURSE_SUBJECTS[level]?.subjects.includes(subject);}
 export function setSubjectAccent(doc,level,subject,color){
   const key=subjectKey(level,subject);
-  if(!validSubject(level,subject)||!/^#[0-9a-fA-F]{6}$/.test(color))throw new Error('Curso, asignatura o color inválidos.');
+  if(!validSubject(level,subject,doc)||!/^#[0-9a-fA-F]{6}$/.test(color))throw new Error('Curso, asignatura o color inválidos.');
   doc.settings.subjectAccents[key]=color.toUpperCase();doc.updatedAt=now();
 }
 export function classifyGroup(doc,id,level,subject){
   const group=doc.groups.find(g=>g.id===id);
-  if(!group||!validSubject(level,subject))throw new Error('Curso o asignatura inválidos.');
+  if(!group||!validSubject(level,subject,doc))throw new Error('Curso o asignatura inválidos.');
   Object.assign(group,{level,subject,legacyUnclassified:false,updatedAt:now()});doc.updatedAt=now();return group;
 }
 
@@ -199,9 +239,18 @@ export function assertModel(doc) {
     Object.entries(s.itacaRoundingOverrides).every(([periodId,rule])=>doc.periods.some(p=>p.id===periodId)&&ITACA_ROUNDING.includes(rule))
   )))throw new Error('Excepciones individuales de Nota Ítaca inválidas.');
   if(!doc.groups.every(g=>(g.hiddenCategoryIds===undefined||(Array.isArray(g.hiddenCategoryIds)&&new Set(g.hiddenCategoryIds).size===g.hiddenCategoryIds.length&&g.hiddenCategoryIds.every(id=>doc.categories.some(c=>c.id===id)&&!doc.assessments.some(a=>a.groupId===g.id&&a.categoryId===id))))&&typeof g.name==='string'&&typeof g.course==='string'&&(
-    validSubject(g.level,g.subject) || (g.level===null&&g.legacyUnclassified===true&&typeof g.subject==='string')
+    validSubject(g.level,g.subject,doc) || (g.level===null&&g.legacyUnclassified===true&&typeof g.subject==='string')
   )))throw new Error('Grupo con curso o asignatura inválidos.');
-  if(!doc.settings || !doc.settings.subjectAccents||Object.keys(SUBJECT_COLORS).some(k=>!/^#[0-9A-Fa-f]{6}$/.test(doc.settings.subjectAccents[k]??''))||Object.keys(doc.settings.subjectAccents).some(k=>!(k in SUBJECT_COLORS)))throw new Error('Colores de asignatura inválidos.');
+  if(!doc.settings||!doc.settings.subjectAccents||Object.keys(SUBJECT_COLORS).some(k=>!/^#[0-9A-Fa-f]{6}$/.test(doc.settings.subjectAccents[k]??'')))throw new Error('Colores de asignatura inválidos.');
+ const custom=doc.settings.customSubjects||[],hidden=doc.settings.hiddenSubjects||[];
+ if(!Array.isArray(custom)||custom.length>100||custom.some(x=>!x||!COURSE_SUBJECTS[x.level]||!validSubjectName(x.subject)||COURSE_SUBJECTS[x.level].subjects.includes(x.subject))||
+    new Set(custom.map(x=>subjectKey(x.level,x.subject))).size!==custom.length||
+    !Array.isArray(hidden)||hidden.some(x=>!Object.hasOwn(SUBJECT_COLORS,x))||new Set(hidden).size!==hidden.length||
+    catalogForNotebook(doc).every(entry=>!entry.subjects.length))throw new Error('Catálogo de materias inválido.');
+ const subjectKeys=new Set([...Object.keys(SUBJECT_COLORS),...custom.map(x=>subjectKey(x.level,x.subject))]);
+ if(Object.entries(doc.settings.subjectAccents).some(([key,color])=>!subjectKeys.has(key)||!/^#[0-9A-Fa-f]{6}$/.test(color))||
+    custom.some(x=>!/^#[0-9A-Fa-f]{6}$/.test(doc.settings.subjectAccents[subjectKey(x.level,x.subject)]??'')))
+  throw new Error('Colores de asignatura inválidos.');
   if(!doc.settings || !Number.isInteger(doc.settings.decimals) || doc.settings.decimals<0 || doc.settings.decimals>3 || !['half-up','floor','ceil'].includes(doc.settings.rounding))throw new Error('Configuración de redondeo inválida.');
   const od=doc.settings.orthographyDefaults;
   if(!od||typeof od.enabledForExams!=='boolean'||!validOrthographyConfig({...od,enabled:true}))throw new Error('Preferencias ortográficas inválidas.');
@@ -472,7 +521,7 @@ export function copyPeriodCategories(doc,groupId,sourcePeriodId,targetPeriodId){
 }
 export function addGroup(doc,name,subject='Latín I',course='2026-2027',level=levelForSubject(subject)){
   const n=name.trim();
-  if(!n||!validSubject(level,subject)||!course?.trim())throw new Error('Introduce grupo, curso y una asignatura compatible.');
+  if(!n||!validSubject(level,subject,doc)||!course?.trim())throw new Error('Introduce grupo, curso y una asignatura compatible.');
   doc.groups.push(mark({id:uid(),name:n,subject,level,course:course.trim(),createdAt:now()}));doc.updatedAt=now();
   const group=doc.groups.at(-1);
   if(level==='2bach')configureSecondBachGroup(doc,group);
