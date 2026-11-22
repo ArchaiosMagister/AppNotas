@@ -99,8 +99,8 @@ test('las notas, identidad de alumno y cálculos mantienen su semántica con cua
 });
 test('la PWA precarga los mismos archivos y usa una caché nueva en SW y aplicación',async()=>{
   const [app,css,sw,index]=await files();
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v140-dev'"));
-  assert(app.includes("caches.open('cuaderno-docente-static-v140-dev')"));
+  assert(sw.includes("const CACHE='cuaderno-docente-static-v141-dev'"));
+  assert(app.includes("caches.open('cuaderno-docente-static-v141-dev')"));
   assert(sw.includes("'./styles.css'"));
   assert(index.includes('href="./styles.css"'));
   assert(index.includes("img-src 'self' data:"));
