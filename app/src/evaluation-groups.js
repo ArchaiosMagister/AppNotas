@@ -6,7 +6,7 @@ const stamp=()=>new Date().toISOString();
 const uid=()=>crypto.randomUUID();
 const clean=value=>String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es')
  .replace(/bachillerato/g,'bach').replace(/1\.?[º°ª]/g,'1').replace(/2\.?[º°ª]/g,'2')
- .replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
+ .replace(/[^a-z0-9]+/g,' ').trim().replace(/([12])bach/g,'$1 bach').replace(/\s+/g,' ');
 const sourceKey=(groupId,originGroup='')=>groupId+'|'+clean(originGroup);
 export const normalizeStudentName=clean;
 const activeGroups=(doc,course)=>doc.groups.filter(g=>g.course===course);
