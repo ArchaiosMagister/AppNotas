@@ -65,6 +65,28 @@ const taskCard=(doc,t)=>`<div class="planner-event"><div><strong>${t.done?'✓ '
 
 /** Un calendario de convocatorias por grupo y trimestre, independiente de las notas.
  * Solo se ofrecen los grupos adscritos al curso académico activo. */
+/** Apartado propio de guardias en la navegación de Agenda: sin duplicar
+ * los eventos que ya están en día, semana y calendario exportado. */
+function renderPatioPanel(y){
+ const records=y.events.filter(e=>e.type==='patio').slice().sort((a,b)=>
+  a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
+ const months=[...new Set(records.map(e=>e.date.slice(0,7)))];
+ return '<div class="planner-patio-panel"><div class="planner-patio-heading">'+
+  '<div><h3>Guardias de patio</h3><p class="hint">Asignaciones semanales, zona habitual y alternativa para lluvia o viento. Puedes importar el Excel tras indicar hasta cuándo generar.</p></div>'+
+  action('Importar rotación de Excel', 'id="plan-import-patio-panel"','btn primary')+'</div>'+
+  (records.length?months.map(month=>
+   '<section class="planner-patio-month"><h4>'+
+   esc(new Date(month+'-01T12:00:00Z').toLocaleDateString('es-ES',{month:'long',year:'numeric',timeZone:'UTC'}))+'</h4>'+
+   records.filter(e=>e.date.startsWith(month)).map(e=>
+    '<div class="planner-patio-entry"><div><strong>'+esc(e.date)+' · '+esc((e.time||'')+(e.endTime?'–'+e.endTime:''))+'</strong>'+
+    '<p>'+esc(e.title)+'</p><small>'+esc(e.notes||'')+'</small></div>'+
+    '<div class="planner-patio-entry-actions">'+action('Editar','data-edit-event="'+esc(e.id)+'"')+
+    action('Calendario','data-export-event="'+esc(e.id)+'"')+'</div></div>').join('')+
+   '</section>').join(''):
+   '<p class="hint">Sin guardias incorporadas. Utiliza «Importar rotación de Excel» para revisar las zonas y fechas antes de guardarlas.</p>')+
+  '</div>';
+}
+
 function evaluationOverview(doc,y){
  const groups=doc.groups.filter(g=>g.course===y.name),periods=[...doc.periods].sort((a,b)=>a.order-b.order);
  let html='',total=0;
@@ -105,15 +127,16 @@ export function renderPlanner(doc,ui){
  let body='';
  if(mode==='schedule'){
   body=renderTimetableGrid(doc,y);
- } else if(mode==='day')body=dayItems(doc,y,focus);
+ } else if(mode==='patio')body=renderPatioPanel(y);
+ else if(mode==='day')body=dayItems(doc,y,focus);
  else if(mode==='week')body=`<div class="planner-week">${Array.from({length:5},(_,i)=>{const d=addDays(start,i),holiday=isHoliday(y,d),events=y.events.filter(e=>e.date===d);return `<section class="planner-weekday"><button type="button" class="planner-date-heading" data-go-date="${d}">${shortDays[i]} <strong>${dayText(d)}</strong></button>${holiday?`<div class="planner-holiday">${esc(holiday.name)}</div>`:''}${daySessions(y,d).map(s=>slotCard(doc,y,d,s,true)).join('')}${events.map(e=>`<div class="planner-week-event-row"><button type="button" class="planner-week-event" data-edit-event="${esc(e.id)}">${isHoliday(y,d)||y.exceptions.some(x=>x.date===d&&x.slotId===e.slotId&&['cancel','replace'].includes(x.type))?'⚠ ':''}${esc(e.time||'')} · ${esc(e.title)}</button>${action('Calendario',`data-export-event="${esc(e.id)}"`,'btn small')}</div>`).join('')}${y.tasks.filter(t=>t.dueDate===d).map(t=>`<button type="button" class="planner-week-task" data-edit-task="${esc(t.id)}">${t.done?'✓ ':'☐ '}${esc(t.title)}</button>`).join('')}${action('+ Nota',`data-add-lesson="${d}"`,'planner-add-note')}</section>`;}).join('')}</div>`;
  else{
   body=`<div class="planner-month">${shortDays.map(day=>`<div class="planner-month-head">${day}</div>`).join('')}${Array.from({length:42},(_,i)=>{const d=addDays(gridStart,i),holiday=isHoliday(y,d),events=y.events.filter(e=>e.date===d),tasks=y.tasks.filter(t=>t.dueDate===d),all=events.length+tasks.length;return `<button type="button" class="planner-month-cell ${d.slice(0,7)===focus.slice(0,7)?'':'outside'} ${d===localToday()?'today':''} ${holiday?'holiday':''}" data-go-date="${d}"><strong>${Number(d.slice(8))}</strong>${holiday?`<small>✦ ${esc(holiday.name)}</small>`:''}${events.slice(0,2).map(e=>`<span class="planner-month-dot">${esc(e.title)}</span>`).join('')}${tasks.length?`<span class="planner-month-task">${tasks.length} tarea(s)</span>`:''}${all>2?`<span class="planner-more">+${all-2}</span>`:''}</button>`;}).join('')}</div>`;
  }
  return `<div class="planner-view"><section class="panel panel-pad planner-intro"><div><div class="planner-eyebrow">Agenda docente · planificación personal</div><h2>Mi planificador</h2><p class="subtitle">Tu horario, exámenes, clases previstas y días no lectivos. El diario de clase es opcional y no altera las notas.</p></div><div class="planner-year-chooser"><label>Curso académico<select id="plan-year">${doc.planner.years.map(x=>`<option value="${esc(x.id)}" ${x.id===y.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>${action('Fechas',`id="plan-edit-year"`)}${action('+ Curso',`id="plan-new-year"`)}</div></section>
- <section class="panel panel-pad planner-controls"><div class="planner-view-tabs">${[['day','Hoy / día'],['week','Semana'],['month','Mes'],['schedule','Horario base']].map(([k,t])=>`<button type="button" class="planner-view-btn ${mode===k?'active':''}" data-plan-mode="${k}" aria-pressed="${mode===k}">${t}</button>`).join('')}</div><div class="planner-date-controls">${action('‹',`id="plan-prev"`)}<input type="date" id="plan-date" value="${esc(focus)}" aria-label="Fecha mostrada"/>${action('Hoy',`id="plan-today"`)}${action('›',`id="plan-next"`)}</div><p class="hint">${esc(y.start)} a ${esc(y.end)} · ${numberClasses} sesiones de clase en el horario · ${count} eventos</p>${tools}</section>
+ <section class="panel panel-pad planner-controls"><div class="planner-view-tabs">${[['day','Hoy / día'],['week','Semana'],['month','Mes'],['schedule','Horario base'],['patio','Guardias de patio']].map(([k,t])=>`<button type="button" class="planner-view-btn ${mode===k?'active':''}" data-plan-mode="${k}" aria-pressed="${mode===k}">${t}</button>`).join('')}</div><div class="planner-date-controls">${action('‹',`id="plan-prev"`)}<input type="date" id="plan-date" value="${esc(focus)}" aria-label="Fecha mostrada"/>${action('Hoy',`id="plan-today"`)}${action('›',`id="plan-next"`)}</div><p class="hint">${esc(y.start)} a ${esc(y.end)} · ${numberClasses} sesiones de clase en el horario · ${count} eventos</p>${tools}</section>
  ${evaluationOverview(doc,y)}
- <section class="panel panel-pad planner-content"><div class="planner-content-head"><h2>${mode==='schedule'?'Horario semanal'+(activeScheduleMode(y)==='summer'?' · verano':' · ordinario'):mode==='week'?'Semana del '+dayText(start):mode==='month'?new Date(monthStart+'T12:00:00Z').toLocaleDateString('es-ES',{month:'long',year:'numeric',timeZone:'UTC'}):'Agenda del día'}</h2>${mode==='schedule'?'<p class="hint">El horario se repite de lunes a viernes, excepto festivos y cambios puntuales.</p>':''}</div>${body}</section>
+ <section class="panel panel-pad planner-content"><div class="planner-content-head"><h2>${mode==='schedule'?'Horario semanal'+(activeScheduleMode(y)==='summer'?' · verano':' · ordinario'):mode==='patio'?'Guardias rotatorias':mode==='week'?'Semana del '+dayText(start):mode==='month'?new Date(monthStart+'T12:00:00Z').toLocaleDateString('es-ES',{month:'long',year:'numeric',timeZone:'UTC'}):'Agenda del día'}</h2>${mode==='schedule'?'<p class="hint">El horario se repite de lunes a viernes, excepto festivos y cambios puntuales.</p>':''}</div>${body}</section>
  <section class="panel panel-pad planner-bottom"><div><h3>Festivos y vacaciones</h3>${y.holidays.length?y.holidays.slice().sort((a,b)=>a.start.localeCompare(b.start)).map(h=>`<div class="planner-simple-row"><span>✦ ${esc(h.name)} · ${esc(h.start)}${h.end===h.start?'':' — '+esc(h.end)}</span>${action('Editar',`data-edit-holiday="${esc(h.id)}"`)}</div>`).join(''):'<p class="hint">Todavía no has señalado días no lectivos.</p>'}</div><div><h3>Tareas docentes pendientes</h3>${y.tasks.filter(t=>!t.done).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,12).map(t=>taskCard(doc,t)).join('')||'<p class="hint">Sin tareas pendientes.</p>'}</div></section>
  ${action('Exportar agenda a calendario (.ics)',`id="plan-export-ics"`)} ${action('Imprimir calendario',`id="plan-print"`)}<p class="hint">El registro de trabajo realizado solo se guarda cuando lo marcas o escribes expresamente. Todo forma parte de la misma copia cifrada .cdoc.</p></div>`;
 }
@@ -172,6 +195,7 @@ export function bindPlanner(doc,ui,ctx){
  $('#plan-add-event').onclick=()=>eventModal({date:dateNow()});
  $('#plan-show-evaluations').onclick=()=>{const overview=$('#plan-evaluations');overview.open=true;overview.scrollIntoView({block:'nearest'});};
  $('#plan-import-patio').onclick=()=>patioImportModal();
+ $('#plan-import-patio-panel')?.addEventListener('click',()=>patioImportModal());
  all('[data-eval-group]').forEach(b=>b.onclick=()=>evaluationModal(b.dataset.evalGroup,b.dataset.evalPeriod,b.dataset.evalOrigin||''));
  all('[data-add-event]').forEach(b=>b.onclick=()=>eventModal({date:b.dataset.addEvent}));
  all('[data-edit-event]').forEach(b=>b.onclick=()=>{
