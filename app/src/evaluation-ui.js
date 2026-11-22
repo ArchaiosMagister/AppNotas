@@ -6,6 +6,7 @@ import {
 } from './evaluation-groups.js';
 import {activeYear,localToday,saveEvaluationSession} from './planner.js';
 import {sessionPresentation} from './evaluation-session-presentation.js';
+import {renderEvaluationPeriodBoard} from './evaluation-period-board.js';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const btn=(name,attr,klass='btn small')=>'<button type="button" class="'+klass+'" '+attr+'>'+esc(name)+'</button>';
@@ -22,6 +23,7 @@ const checkSources=(doc,tutorship)=>tutorship.sources.map(s=>{
 /** Una sola relación desplegable: nunca se muestran dos inventarios de
  * sesiones (uno por materia y otro por tutoría) como ocurría antes. */
 export function renderSharedEvaluation(doc,year,ui,section='all'){
+ if(section==='sesiones')return renderEvaluationPeriodBoard(doc,year);
  const tutors=(doc.tutorships||[]).filter(t=>t.course===year.name);
  const suggestions=suggestStudentLinks(doc,year.name).slice(0,30);
  const families=linkedStudentFamilies(doc,year.name);
