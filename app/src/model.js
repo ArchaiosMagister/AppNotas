@@ -312,6 +312,8 @@ export function assertModel(doc) {
     if(x.notSubmitted!==undefined&&(x.notSubmitted!==true||x.score!==0||x.pendingJustified||x.rubricRatings!==undefined||x.orthographyFaults!==undefined||x.orthographyDelivered!==undefined))throw new Error('Calificación «No presentado» inconsistente.');
     if(x.pendingJustified!==undefined&&x.pendingJustified!==true)throw new Error('Estado de ausencia justificada inválido.');
     if(x.pendingPlaceholder!==undefined&&(!x.pendingJustified||x.pendingPlaceholder!==true||x.score!==0||x.rubricRatings!==undefined||x.orthographyFaults!==undefined||x.orthographyDelivered!==undefined))throw new Error('Ausencia justificada sin nota inconsistente.');
+    if(x.pendingWasNotSubmitted!==undefined&&(x.pendingWasNotSubmitted!==true||!x.pendingJustified||!x.pendingPlaceholder||x.notSubmitted||x.score!==0))
+      throw new Error('Ausencia justificada con NP anterior inconsistente.');
     if(!x.notSubmitted&&!x.pendingPlaceholder&&assessment.rubricId){const rubric=doc.rubrics.find(r=>r.id===assessment.rubricId);if(!Array.isArray(x.rubricRatings)||x.rubricRatings.length!==rubric.criteria.length||new Set(x.rubricRatings.map(r=>r.criterionId)).size!==rubric.criteria.length||rubric.criteria.some(c=>!x.rubricRatings.some(r=>r.criterionId===c.id&&Number.isFinite(r.score)&&r.score>=0&&r.score<=c.maxScore&&(!c.levels||c.levels.some(l=>l.score===r.score))))||!consistentRubricScore(rubric,x))throw new Error('Calificación de rúbrica inconsistente.');}
     else if(x.rubricRatings!==undefined&&!assessment.rubricId)throw new Error('Calificación de rúbrica sin actividad correspondiente.');
     if(x.orthographyFaults!==undefined&&(!Number.isInteger(x.orthographyFaults)||x.orthographyFaults<0||x.orthographyFaults>1000||assessment.rubricId))throw new Error('Número de faltas inválido.');
@@ -797,14 +799,21 @@ export function setPendingJustified(doc,studentId,assessmentId,enabled){
   const previous=doc.grades[index];
   if(enabled){
     if(previous?.pendingJustified)return doc;
-    if(previous?.notSubmitted){doc.grades[index]=mark({id:previous.id,studentId,assessmentId,score:0,pendingJustified:true,pendingPlaceholder:true,createdAt:previous.createdAt});}
+    if(previous?.notSubmitted){
+      // AJ suspende el cero de NP, pero no debe destruirlo: quitar AJ
+      // restaura exactamente el estado NP previo, con su identidad.
+      doc.grades[index]=mark({id:previous.id,studentId,assessmentId,score:0,pendingJustified:true,pendingPlaceholder:true,pendingWasNotSubmitted:true,createdAt:previous.createdAt});
+    }
     else if(previous){doc.grades[index]=mark({...previous,pendingJustified:true});}
     else doc.grades.push(mark({id:uid(),studentId,assessmentId,score:0,pendingJustified:true,pendingPlaceholder:true,createdAt:now()}));
   }else{
     if(!previous?.pendingJustified)return doc;
-    if(previous.pendingPlaceholder)doc.grades.splice(index,1);
-    else{
-      const {pendingJustified,pendingPlaceholder,...unchanged}=previous;
+    if(previous.pendingPlaceholder){
+      if(previous.pendingWasNotSubmitted){
+        doc.grades[index]=mark({id:previous.id,studentId,assessmentId,score:0,notSubmitted:true,createdAt:previous.createdAt});
+      }else doc.grades.splice(index,1);
+    }else{
+      const {pendingJustified,pendingPlaceholder,pendingWasNotSubmitted,...unchanged}=previous;
       doc.grades[index]=mark(unchanged);
     }
   }
@@ -831,7 +840,7 @@ export function setNotSubmitted(doc,studentId,assessmentId,enabled){
   doc.updatedAt=now();return doc;
 }
 function numericGrade(previous,fields){
-  const {notSubmitted,pendingJustified,pendingPlaceholder,...grade}=previous;
+  const {notSubmitted,pendingJustified,pendingPlaceholder,pendingWasNotSubmitted,...grade}=previous;
   return mark({...grade,...fields});
 }
 export function setGrade(doc,studentId,assessmentId,score){
