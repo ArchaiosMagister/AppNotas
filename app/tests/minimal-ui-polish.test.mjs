@@ -120,3 +120,22 @@ test('la mejora estética no cambia notas, evaluaciones ni medias anuales',()=>{
  assert.deepEqual(doc,before);
  assertModel(doc);
 });
+
+test('Evaluaciones no oculta las materias: cabecera consistente entre módulos',()=>{
+ assert(app.includes('class="toolbar class-toolbar" aria-label="Asignatura y grupo"'));
+ assert(!app.includes("STATE.tab==='evaluaciones'?'hidden':''"));
+ assert(app.includes("revealSelectedButton($('.course-buttons')"));
+ assert(app.includes('title="${esc(x.subjectName+\' · \'+x.stage)}"'));
+});
+test('iPhone/iPad: controles de 44 px y scroll horizontal accesible',()=>{
+ const stable=css.slice(css.indexOf('/* v163 · Materias estables'));
+ assert(stable.includes('scroll-snap-type:x proximity'));
+ assert(stable.includes('-webkit-overflow-scrolling:touch'));
+ assert(stable.includes('max-width:min(175px,58vw)'));
+ assert(stable.includes('overflow-wrap:anywhere'));
+ assert(stable.includes('@media(pointer:coarse)'));
+ assert(stable.includes('.eval-workspace-tab{min-height:44px'));
+ assert(stable.includes('.class-toolbar .group-choice{min-height:44px'));
+ assert(stable.includes('.academic-quick-nav .btn'));
+ assert(!stable.includes('@media(max-width:900px)'));
+});
