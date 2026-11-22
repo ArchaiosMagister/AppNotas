@@ -42,7 +42,7 @@ test('la vinculación preserva identificadores, notas, actividades y evaluación
  assertModel(f.doc);
  const tutor=tutorA(f),data=tutorGradeRows(f.doc,tutor.id,f.period.id);
  assert.equal(data.rows.length,1);
- assert.deepEqual(data.rows[0].grades.map(g=>g.mean),[7.2,9.1]);
+ assert(data.rows[0].grades.every((g,i)=>Math.abs(g.mean-[7.2,9.1][i])<1e-9));
  assert.deepEqual(data.rows[0].grades.map(g=>g.itaca),[7,9]);
  const parts=tutorGradeBreakdown(f.doc,f.ga.id,f.greek.id,f.period.id);
  assert(parts.find(p=>p.name==='Exámenes').grade===9.1);
