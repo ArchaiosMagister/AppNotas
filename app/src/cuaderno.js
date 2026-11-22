@@ -47,7 +47,7 @@ export function markBookChange(next,previous){
 export const IMPORT_CONFIRMATION_TEXT='SUSTITUIR';
 export function importRiskLevel(conflict,hasLocal){
   if(!hasLocal)return 0;
-  if(conflict==='newer')return 0;
+  if(conflict==='newer'||conflict==='same')return 0;
   if(conflict==='older'||conflict==='divergent')return 1;
   return 2;
 }
