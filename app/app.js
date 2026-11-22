@@ -434,6 +434,9 @@ const CLASSICAL_SKIN_TITLES={marmorea:'SCHOLA MARMOREA',tabularium:'TABULARIUM',
 function applyTheme(){
   document.documentElement.dataset.theme=STATE.theme;
   document.documentElement.dataset.courseSkin=classicalSkinFor(STATE.level,STATE.subject);
+  // El carácter visual griego se distingue también en cabecera, bordes y tablas.
+  // No se guarda en el cuaderno: es únicamente un estado de presentación.
+  document.documentElement.dataset.courseVariant=STATE.subject==='Griego II'?'griego-ii':STATE.subject==='Griego I'?'griego-i':'latin';
   const color=colorFor(STATE.level,STATE.subject);
   document.documentElement.style.setProperty('--accent',color);
   document.documentElement.style.setProperty('--classic-accent',color);
