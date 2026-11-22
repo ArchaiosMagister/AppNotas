@@ -2242,3 +2242,38 @@ details.student-period{
   .student-period .grade-chip{font-size:16px}
   .student-period-grades{width:100%;margin-left:0;justify-content:flex-start}
 }
+
+
+/* v141 · Centrado horizontal de tarjetas del modo alumno.
+   Mantener la lectura a la izquierda dentro de cada tarjeta y no alterar
+   anchos, calificaciones ni los controles interactivos. */
+.student-directory-grid{
+  justify-content:center;
+}
+.student-privacy,
+details.student-period,
+.student-final-summary{
+  margin-inline:auto;
+}
+.student-period .student-category.student-category-tinted{
+  margin:10px auto;
+}
+.student-period .student-assessment-block.student-category-tinted{
+  margin:5px auto;
+}
+.student-period .student-activity-list{
+  margin-inline:auto;
+}
+.student-period .student-activity-list .student-assessment-block{
+  margin-inline:auto;
+}
+@media(max-width:540px){
+  .student-directory-grid{
+    justify-content:center;
+  }
+  .student-privacy,
+  details.student-period,
+  .student-final-summary{
+    max-width:100%;
+  }
+}
