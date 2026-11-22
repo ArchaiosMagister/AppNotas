@@ -1,5 +1,5 @@
 name: 'Temporary quality gate optativas and agenda'
-# Second pass: correct validation order, iCalendar line folding and PWA cache 150.
+# Final test pass: only artificially corrupt model after valid save, never bypass capped API.
 on:
   push:
     branches:
