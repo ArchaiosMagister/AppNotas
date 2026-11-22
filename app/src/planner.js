@@ -103,7 +103,9 @@ export function saveTimetableBand(doc,{id=null,label,start,end,kind='lesson'}){
   for(const slot of y.slots.filter(s=>slotScheduleMode(s)===mode&&s.bandId===id)){
    slot.start=start;slot.end=end;
    y.events.filter(e=>e.slotId===slot.id).forEach(e=>{
-    e.time=y.exceptions.find(x=>x.slotId===slot.id&&x.date===e.date&&x.type==='move')?.start||start;
+    const moved=y.exceptions.find(x=>x.slotId===slot.id&&x.date===e.date&&x.type==='move');
+    e.time=moved?.start||start;
+    if(e.endTime!==undefined)e.endTime=moved?.end||end;
    });
   }
  }
@@ -194,7 +196,11 @@ export function saveSlot(doc,{id=null,day,start,end,type,groupId=null,label='',r
     y.events.filter(x=>x.slotId===id).forEach(x=>{x.slotId=null;});
     y.exceptions=y.exceptions.filter(x=>x.slotId!==id);
   }else{
-    y.events.filter(x=>x.slotId===id).forEach(x=>{x.time=y.exceptions.find(e=>e.slotId===id&&e.date===x.date&&e.type==='move')?.start||start;});
+    y.events.filter(x=>x.slotId===id).forEach(x=>{
+      const moved=y.exceptions.find(e=>e.slotId===id&&e.date===x.date&&e.type==='move');
+      x.time=moved?.start||start;
+      if(x.endTime!==undefined)x.endTime=moved?.end||end;
+    });
   }
   Object.assign(existing,record);
  }else y.slots.push(record);
@@ -217,10 +223,16 @@ export function saveException(doc,{id=null,date,slotId,type,label='',start='',en
  // «cambio de hora» a «cancelada» quedaba la hora antigua en el calendario.
  if(old?.type==='move'){
    const oldSlot=y.slots.find(s=>s.id===old.slotId);
-   y.events.filter(e=>e.slotId===old.slotId&&e.date===old.date).forEach(e=>{e.time=oldSlot?.start||e.time;});
+   y.events.filter(e=>e.slotId===old.slotId&&e.date===old.date).forEach(e=>{
+     e.time=oldSlot?.start||e.time;
+     if(e.endTime!==undefined&&oldSlot)e.endTime=oldSlot.end;
+   });
  }
  if(old)Object.assign(old,obj);else y.exceptions.push(obj);
- if(type==='move')y.events.filter(e=>e.slotId===slotId&&e.date===date).forEach(e=>{e.time=start;});
+ if(type==='move')y.events.filter(e=>e.slotId===slotId&&e.date===date).forEach(e=>{
+    e.time=start;
+    if(e.endTime!==undefined)e.endTime=end;
+ });
  doc.updatedAt=stamp();return obj;}
 export function saveLesson(doc,{id=null,date,slotId=null,groupId=null,label='',planned='',done=false,actual=''}){
  const y=activeYear(doc);needDate(y,date);checkGroup(doc,groupId);const slot=slotId?y.slots.find(x=>x.id===slotId):null;
@@ -339,7 +351,11 @@ export function saveTask(doc,{id=null,title,dueDate,groupId=null,done=false,note
 export function deletePlannerItem(doc,collection,id){if(!['events','tasks','holidays','exceptions','lessons'].includes(collection))throw new Error('Apartado inválido.');const y=activeYear(doc);if(!y[collection].some(x=>x.id===id))throw new Error('Elemento inexistente.');
  const original=y[collection].find(x=>x.id===id);
  y[collection]=y[collection].filter(x=>x.id!==id);
- if(collection==='exceptions'&&original.type==='move')y.events.filter(x=>x.date===original.date&&x.slotId===original.slotId).forEach(x=>{x.time=y.slots.find(s=>s.id===original.slotId)?.start||x.time;});
+ if(collection==='exceptions'&&original.type==='move')y.events.filter(x=>x.date===original.date&&x.slotId===original.slotId).forEach(x=>{
+   const slot=y.slots.find(s=>s.id===original.slotId);
+   x.time=slot?.start||x.time;
+   if(x.endTime!==undefined&&slot)x.endTime=slot.end;
+ });
  doc.updatedAt=stamp();}
 const unique=a=>Array.isArray(a)&&a.every(x=>x&&typeof x.id==='string')&&new Set(a.map(x=>x.id)).size===a.length;
 export function assertPlanner(doc){if(!doc.planner)return true;const p=doc.planner;if(!Array.isArray(p.years)||!p.years.length||!unique(p.years)||!p.years.some(y=>y.id===p.activeYearId))throw new Error('Planificador inválido.');
