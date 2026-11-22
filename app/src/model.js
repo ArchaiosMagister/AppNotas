@@ -293,7 +293,7 @@ export function assertModel(doc) {
         const g=doc.groups.find(g=>g.id===source?.groupId);
         if(!g||g.course!==t.course||g.level!==t.level||typeof source.originGroup!=='string'||source.originGroup.length>60)
          throw new Error('Procedencia de tutoría incompatible.');
-        const key=g.id+'|'+source.originGroup.normalize('NFD').toLocaleLowerCase('es').trim();
+        const key=g.id+'|'+canonicalTutoringName(source.originGroup);
         if(used.has(key))throw new Error('Procedencia vinculada a varias tutorías.');
         used.add(key);
       }
