@@ -1,4 +1,4 @@
-name: Validar y publicar AppNotas desde fuentes versionadas
+name: Validar AppNotas para Cloudflare Pages
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: appnotas-v119-${{ github.ref }}
+  group: appnotas-cloudflare-ci-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -52,10 +52,10 @@ jobs:
       - name: Ejecutar 366 pruebas de aplicación y seguridad
         working-directory: app
         run: npm test
-      - name: Construir sitio estático único para GitHub Pages y origen HTTPS exclusivo
+      - name: Construir sitio estático exclusivo para Cloudflare Pages
         run: node scripts/build-static-site.mjs
-      - name: Comprobar cabeceras, archivos servidos y migración cifrada entre orígenes
-        run: node --test scripts/dedicated-hosting.test.mjs scripts/backup-origin-migration.test.mjs
+      - name: Comprobar alojamiento único, cabeceras y migración cifrada
+        run: node --test scripts/dedicated-hosting.test.mjs scripts/backup-origin-migration.test.mjs scripts/cloudflare-only.test.mjs
       - name: Empaquetar fuentes versionadas para testers
         if: github.ref == 'refs/heads/main'
         shell: bash
@@ -69,26 +69,3 @@ jobs:
           name: AppNotas-v1.19-fuentes-verificadas
           path: _release/CuadernoDocente_v1.19_fuentes.zip
           if-no-files-found: error
-      - name: Preparar GitHub Pages
-        if: github.ref == 'refs/heads/main'
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: dist
-
-  deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: verify-and-build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Configurar GitHub Pages
-        uses: actions/configure-pages@v5
-      - name: Publicar AppNotas desde fuentes verificadas
-        id: deployment
-        uses: actions/deploy-pages@v4
