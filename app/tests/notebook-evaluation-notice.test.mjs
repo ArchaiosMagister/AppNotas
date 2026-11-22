@@ -137,6 +137,7 @@ test('sin Agenda del curso se muestra aviso neutral, no una cita de otro año',(
 
 test('los nombres de grupo y tutoría son escapados al mostrarse como texto',()=>{
  const f=fixture();
+ addStudent(f.doc,f.latin.id,{name:'Carlos',originGroup:'B'});
  f.latin.name='<em>Grupo</em>';
  f.greek.name='<em>Grupo</em>';
  const html=render(f);
