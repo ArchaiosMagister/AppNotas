@@ -1,4 +1,4 @@
-name: Temporary audit: restore self-contained bundle and source manifest
+name: 'Temporary audit - restore self-contained bundle and source manifest'
 on:
   push:
     branches:
