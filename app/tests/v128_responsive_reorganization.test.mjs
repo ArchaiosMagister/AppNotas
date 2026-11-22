@@ -31,8 +31,8 @@ test('tres accesos principales, tres herramientas y cinco vistas de cuaderno sep
   for(const key of ids)assert(html.includes('data-tab="'+key+'"'));
   assert(html.includes('id="toggle-navigation"'),'La opción de plegar el menú permanece');
   assert(html.includes('aria-label="Trabajo diario"'));
-  assert(html.includes('aria-label="Herramientas académicas"'));
-  assert(html.includes('Herramientas'));
+  assert(html.includes('aria-label="Recursos académicos y ajustes"'));
+  assert(html.includes('Recursos'));
   const secondary=await navigationFor('final');
   for(const key of ['cuaderno','calculos','competencias','final','alumno'])
     assert(secondary.quick.includes('data-academic-quick="'+key+'"'));
@@ -40,7 +40,7 @@ test('tres accesos principales, tres herramientas y cinco vistas de cuaderno sep
   assert(html.includes('aria-current="page"'));
 });
 
-test('el destino activo se marca y Herramientas abre automáticamente el panel secundario',async()=>{
+test('el destino activo se marca y Recursos abre automáticamente el panel secundario',async()=>{
   const main=await navigationFor('alumno');
   assert(main.html.includes('data-tab="cuaderno" class="tab active" aria-current="page"'));
   assert(main.quick.includes('data-academic-quick="alumno"'));
@@ -76,8 +76,7 @@ test('cabecera y barra de grupo reorganizadas conservan todas las acciones exist
     'id="lock"','data-shell-disclosure="tools"',
     'class="course-switch"','class="group-switch"',
     'id="new-group"','data-shell-disclosure="group"',
-    'id="edit-group"','id="csv-import"','id="csv-file"',
-    'id="new-recovery"','id="accent-select"',
+    'id="edit-group"','id="csv-file"','id="accent-select"',
     'renderPeriodButtons()','renderPlanner(STATE.doc,STATE)',
     'renderStudentView()','renderRules()','renderRubrics()',
     'renderCompetencies()','renderCurriculum()','renderSettings()',
@@ -112,7 +111,8 @@ test('en la tabla se conservan notas, NP, AJ, Obs, rúbricas, cambios y navegaci
   assert(js.includes('id="new-period"'));
   assert(js.includes('data-period-choice'));
   assert(js.includes('data-rename-period'));
-  assert(js.includes('data-final-choice'));
+  for(const action of ['csv-import','new-recovery'])assert(table.includes('id="'+action+'"'));
+  assert(!js.includes('data-final-choice'),'Evaluación final tiene un único acceso en las vistas del cuaderno');
 });
 
 test('responsive: teléfono estrecho, teléfonos grandes, iPad y escritorio mantienen todos los controles accesibles',async()=>{

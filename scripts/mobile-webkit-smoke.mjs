@@ -54,6 +54,10 @@ async function audit(engine,name){
    await page.locator('.nav-primary [data-tab="evaluaciones"]').click();
    assert(await page.locator('.class-toolbar').isVisible(),name+' materias ocultas en Evaluaciones');
    assert(await page.getByRole('heading',{name:'Sesiones de evaluación'}).isVisible());
+   assert(await page.locator('.tabs').evaluate(nav=>{
+    const toolbar=document.querySelector('.class-toolbar');
+    return nav.compareDocumentPosition(toolbar)&Node.DOCUMENT_POSITION_FOLLOWING;
+   }),name+' navegación posterior a los controles de materia');
    const geometry=await page.evaluate(()=>{
     const strip=document.querySelector('.course-buttons');
     const subject=strip?.querySelector('.course-choice[aria-pressed="true"]');
@@ -81,7 +85,7 @@ async function audit(engine,name){
      return {bar:rect(bar),cards:cards.map(rect),
       visible:cards.map(c=>getComputedStyle(c).display!=='none')};
     });
-    assert.equal(nav.cards.length,4,'Deben ocupar la barra 3 módulos + Herramientas');
+    assert.equal(nav.cards.length,4,'Deben ocupar la barra 3 módulos + Recursos');
     assert(nav.visible.every(Boolean),name+' hay botones de navegación ocultos');
     const min=Math.min(...nav.cards.map(c=>c.width)),max=Math.max(...nav.cards.map(c=>c.width));
     assert(max-min<=3,name+' botones de navegación con anchuras desiguales: '+JSON.stringify(nav));
@@ -104,15 +108,15 @@ async function audit(engine,name){
     const first=alignment[0],toolsNav=alignment[3];
     assert(alignment.every(el=>Math.abs(el.height-first.height)<=2&&
       Math.abs(el.top-first.top)<=2),
-     name+' Herramientas no comparte altura/fila: '+JSON.stringify(alignment));
+     name+' Recursos no comparte altura/fila: '+JSON.stringify(alignment));
     assert(alignment.every(el=>Math.abs(el.iconTop-first.iconTop)<=2&&
       Math.abs(el.labelTop-first.labelTop)<=2),
      name+' iconos o títulos descentrados: '+JSON.stringify(alignment));
     assert(Math.abs(toolsNav.iconCenter-toolsNav.buttonCenter)<=1.5&&
       Math.abs(toolsNav.labelCenter-toolsNav.buttonCenter)<=1.5,
-     name+' eje de Herramientas desalineado: '+JSON.stringify(toolsNav));
-    assert.equal(toolsNav.labelGrow,'0','Herramientas no debe estirar su título');
-    // Herramientas debe ser un control real y el menú no debe salir del viewport.
+     name+' eje de Recursos desalineado: '+JSON.stringify(toolsNav));
+    assert.equal(toolsNav.labelGrow,'0','Recursos no debe estirar su título');
+    // Recursos debe ser un control real y el menú no debe salir del viewport.
     await page.locator('.tabs .academic-disclosure>summary').click();
     const tools=await page.evaluate(()=>{
      const menu=document.querySelector('.tabs .nav-academic-links');
@@ -120,7 +124,7 @@ async function audit(engine,name){
      return {left:r.left,right:r.right,visible:!!r.width};
     });
     assert(tools.visible&&tools.left>=-2&&tools.right<=size.width+2,
-      name+' panel Herramientas fuera de pantalla '+JSON.stringify(tools));
+      name+' panel Recursos fuera de pantalla '+JSON.stringify(tools));
     await page.locator('.tabs .academic-disclosure>summary').click();
    }
    if(size.width<=650){
@@ -146,6 +150,7 @@ async function audit(engine,name){
    // Elegir la última materia, cambiar de módulo y comprobar scroll horizontal conservado.
    await page.locator('.course-choice').last().click();
    await page.locator('.nav-primary [data-tab="planificador"]').click();
+   assert(!(await page.locator('.class-toolbar').isVisible()),name+' selector de grupo visible en Agenda');
    if(size.width<=1200){
     const agenda=await page.evaluate(()=>{
      const box=q=>{const e=document.querySelector(q);if(!e)return null;const r=e.getBoundingClientRect();
@@ -194,6 +199,32 @@ async function audit(engine,name){
    assert(await page.locator('.class-toolbar').isVisible());
    await page.locator('.course-choice[data-course-level="'+defaultCourse.level+
     '"][data-course-subject="'+defaultCourse.subject+'"]').click();
+   if(size.width===390){
+    const groupMenu=page.locator('.group-actions-disclosure');
+    await groupMenu.locator('summary').click();
+    for(const id of ['#manage-subjects','#edit-group','#manage-shared-students'])
+     assert(await groupMenu.locator(id).isVisible(),name+' falta una acción de materias y grupos: '+id);
+    await groupMenu.locator('summary').click();
+
+    const tableMenu=page.locator('.notebook-more-actions');
+    await tableMenu.locator('summary').click();
+    for(const id of ['#csv-import','#new-recovery','#copy-structure','#schedule-exam'])
+     assert(await tableMenu.locator(id).isVisible(),name+' falta una acción en la tabla: '+id);
+    const chooserPromise=page.waitForEvent('filechooser');
+    await tableMenu.locator('#csv-import').click();
+    const chooser=await chooserPromise;
+    assert.equal(await chooser.element().getAttribute('id'),'csv-file');
+    await tableMenu.locator('#new-recovery').click();
+    assert(await page.getByRole('heading',{name:'Nueva recuperación'}).isVisible());
+    await page.keyboard.press('Escape');
+    await tableMenu.locator('summary').click();
+
+    const finalView=page.getByRole('button',{name:'Evaluación final',exact:true});
+    assert.equal(await finalView.count(),1);
+    await finalView.click();
+    assert(await page.locator('.final-table').isVisible());
+    await page.locator('[data-academic-quick="cuaderno"]').click();
+   }
    // Probar reglas reales sobre una fila de estilos temporal y ficticia:
    // el cálculo de notas y el documento cifrado no se modifican.
    const gradeSizing=await page.evaluate(()=>{
@@ -246,7 +277,7 @@ async function audit(engine,name){
     assert(await page.locator('.grade-cell-actions-dialog').isVisible(),
      name+' menú ⋯ dejó de funcionar');
     await page.locator('#grade-action-close').click();
-    // La configuración se encuentra dentro de «Configuración del grupo».
+    // La configuración se encuentra dentro de «Ítaca y procedencias».
     await page.locator('.notebook-grade-options>summary').click();
     await page.locator('#configure-itaca-attitude').click();
     assert(await page.locator('#itaca-attitude-form').isVisible(),

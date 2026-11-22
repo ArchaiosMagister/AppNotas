@@ -25,10 +25,11 @@ function fixture(){
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 test('acceso permanente en Materias y grupos, independiente de Agenda',()=>{
  const app=readFileSync(path.join(root,'app.js'),'utf8');
- assert.match(app,/<button[^>]*id="manage-shared-students"[^>]*>Vincular alumnos entre asignaturas<\/button>/);
+ assert.match(app,/<button[^>]*id="manage-shared-students"[^>]*>Vincular alumnos<\/button>/);
  assert.match(app,/\$\('#manage-shared-students'\).*openStudentLinksManager/);
  const start=app.indexOf('<div class="group-actions-panel">');
  const html=app.slice(start,app.indexOf('</details>',start));
+ assert(html.includes('aria-labelledby="shared-students-label"'));
  assert(html.includes('id="manage-shared-students"'));
  assert(html.indexOf('id="manage-shared-students"')>html.indexOf('id="manage-subjects"'));
 });
@@ -92,7 +93,7 @@ test('los nombres y los campos de búsqueda escapan contenido HTML no confiable'
 test('la nueva pantalla entra en la PWA offline y su caché coincide con el comprobador',()=>{
  const app=readFileSync(path.join(root,'app.js'),'utf8');
  const worker=readFileSync(path.join(root,'sw.js'),'utf8');
- assert.match(app,/cuaderno-docente-static-v166-dev/);
- assert.match(worker,/cuaderno-docente-static-v166-dev/);
+ assert.match(app,/cuaderno-docente-static-v167-dev/);
+ assert.match(worker,/cuaderno-docente-static-v167-dev/);
  assert(worker.includes("'./src/student-link-ui.js'"));
 });

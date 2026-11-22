@@ -99,11 +99,11 @@ La copia histórica .cdoc se conserva como opción de rescate, separada del arch
 
 ## Reorganización de interfaz para iPad y móvil
 
-La navegación muestra cuatro accesos prioritarios: **Cuaderno**, **Modo alumno**, **Agenda** y **Evaluación final**. Las herramientas de **Cálculos, Competencias, Currículo y Rúbricas** siguen disponibles desde «Gestión académica». **Ajustes y copias** se mantiene separado y visible.
+La navegación principal da acceso a **Cuaderno**, **Agenda**, **Evaluaciones** y **Recursos**. En Recursos están **Currículo**, **Rúbricas** y **Ajustes y copias**. El menú **Aplicación** de la cabecera reúne el tema, la apertura de cuadernos, la instalación, las actualizaciones y el historial de cambios. **Cerrar cuaderno** y **Bloquear** quedan visibles.
 
-Las funciones existentes se redistribuyen sin alterar su comportamiento: botones visibles de las cinco materias, botones contextuales para varios grupos de la misma materia, «Opciones de grupo» para CSV/recuperaciones/configuración, **+ Alumno** y **+ Actividad** en primer plano y «Más acciones» para programar/copiar actividades. La cabecera mantiene estado de guardado, «Cerrar cuaderno» y «Bloquear»; «Herramientas» reúne tema, abrir cuaderno, PWA y deshacer/rehacer.
+En **Cuaderno**, elige la materia y el grupo y pasa de **Notas** a **Cálculos**, **Competencias**, **Evaluación final** o **Vista alumno**. Los períodos aparecen en Notas. **+ Alumno** y **+ Actividad** están junto a **Acciones de la tabla**, donde se importa alumnado por CSV, se crean recuperaciones, se copian actividades y se programan exámenes. **Ítaca y procedencias** reúne los ajustes de redondeo y de tutorías de origen. **Materias y grupos** contiene la gestión de materias, los grupos y la vinculación de alumnado entre asignaturas.
 
-Diseño probado para escritorio, iPad vertical/horizontal y teléfonos de 320–430 px; el ancho extra de la tabla de notas sigue desplazándose dentro de la tabla, con alumnos fijados a la izquierda. Los datos locales, copias cifradas, reglas de cálculo, Ítaca y paleta por curso/categoría no cambian. [Detalle de la reorganización y criterios de aceptación](docs/REDISENO_INTERFAZ_RESPONSIVE_2026-11-21.md).
+**Agenda** usa su propio selector de curso académico. **Evaluaciones** conserva el acceso a las materias y grupos.
 
 ## Observaciones individuales por calificación
 
