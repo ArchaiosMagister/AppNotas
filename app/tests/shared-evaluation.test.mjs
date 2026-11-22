@@ -8,6 +8,7 @@ import {
  saveTutorshipEvaluation,tutorshipEvent,consolidateTutorshipEvaluation,tutorshipLegacyEvents
 } from '../src/evaluation-groups.js';
 import {renderPlanner} from '../src/planner-ui.js';
+import {renderSharedEvaluation} from '../src/evaluation-ui.js';
 
 function fixture(){
  const doc=initialNotebook({empty:true}),latin=addGroup(doc,'1.º BACH','Latín I','2026-2027','1bach');
@@ -123,4 +124,33 @@ test('no se aceptan identidades compartidas manipuladas o doble matrícula de un
  const f=fixture();linkStudentRecords(f.doc,[f.la.id,f.ga.id]);
  f.gb.personId=f.la.personId;
  assert.throws(()=>assertModel(f.doc),/dos veces|incompatibles/);
+});
+
+test('equivalencias gráficas de procedencia conservan la vinculación y validan el cuaderno',()=>{
+ const f=fixture();
+ f.la.originGroup='1º Bach A';
+ f.ga.originGroup='1.º Bachillerato A';
+ const personId=linkStudentRecords(f.doc,[f.la.id,f.ga.id]);
+ assert.equal(f.ga.personId,personId);
+ assertModel(f.doc);
+});
+test('un grupo sin alumnos en cierta división puede figurar sin nota como fuente de tutoría',()=>{
+ const f=fixture();
+ f.doc.students=f.doc.students.filter(s=>s.id!==f.ga.id);
+ const t=saveTutorship(f.doc,{name:'1.º BACH A',sources:[
+  {groupId:f.latin.id,originGroup:'A'},{groupId:f.greek.id,originGroup:'A'}]});
+ const rows=tutorGradeRows(f.doc,t.id,f.period.id).rows;
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].grades[1].studentId,null);
+ assertModel(f.doc);
+});
+test('el visor incluye gestión de vinculaciones, sesiones comunes y lectura de notas sin editar',()=>{
+ const f=fixture(),t=tutorA(f);
+ const html=renderSharedEvaluation(f.doc,activeYear(f.doc),{plannerEvaluationView:{tutorshipId:t.id,periodId:f.period.id}});
+ assert.match(html,/data-eval-link-pair/);
+ assert.match(html,/data-eval-tutor-session/);
+ assert.match(html,/data-eval-open-tutor/);
+ assert.match(html,/eval-combined-table/);
+ assert.match(html,/Ítaca/);
+ assert.doesNotMatch(html,/data-student=.*data-assessment=/);
 });
