@@ -10,7 +10,7 @@ const entry=async()=>read('app.js');
 
 function navigationFor(tab='cuaderno',collapsed=false){
   return entry().then(js=>{
-    const a=js.indexOf('/** Presentación únicamente:');
+    const a=js.indexOf('/** Navegación minimalista:');
     const b=js.indexOf('function renderPeriodButtons(){',a);
     assert(a>=0&&b>a,'Bloque de navegación no encontrado');
     const nav=js.slice(a,b);
@@ -21,27 +21,31 @@ function navigationFor(tab='cuaderno',collapsed=false){
   });
 }
 
-test('cinco accesos principales, dos herramientas académicas y accesos directos separados',async()=>{
+test('tres accesos principales, tres herramientas y cinco vistas de cuaderno separadas',async()=>{
   const {html}=await navigationFor();
   const ids=[...html.matchAll(/data-tab="([^"]+)"/g)].map(x=>x[1]);
-  assert.deepEqual(ids,['cuaderno','alumno','planificador','evaluaciones','final',
+  assert.deepEqual(ids,['cuaderno','planificador','evaluaciones',
     'curriculo','rubricas','ajustes']);
-  assert.equal(new Set(ids).size,8);
+  assert.equal(new Set(ids).size,6);
   assert(!ids.includes('calculos')&&!ids.includes('competencias'),'Los accesos rápidos no deben duplicarse');
   for(const key of ids)assert(html.includes('data-tab="'+key+'"'));
   assert(html.includes('id="toggle-navigation"'),'La opción de plegar el menú permanece');
   assert(html.includes('aria-label="Trabajo diario"'));
   assert(html.includes('aria-label="Herramientas académicas"'));
-  assert(html.includes('Gestión académica'));
+  assert(html.includes('Herramientas'));
+  const secondary=await navigationFor('final');
+  for(const key of ['cuaderno','calculos','competencias','final','alumno'])
+    assert(secondary.quick.includes('data-academic-quick="'+key+'"'));
   assert(html.includes('Ajustes y copias'));
   assert(html.includes('aria-current="page"'));
 });
 
-test('el destino activo se marca y Gestión académica abre automáticamente la pantalla secundaria',async()=>{
+test('el destino activo se marca y Herramientas abre automáticamente el panel secundario',async()=>{
   const main=await navigationFor('alumno');
-  assert(main.html.includes('data-tab="alumno" class="tab active" aria-current="page"'));
+  assert(main.html.includes('data-tab="cuaderno" class="tab active" aria-current="page"'));
+  assert(main.quick.includes('data-academic-quick="alumno"'));
   assert(!/class="academic-disclosure"[^>]*\bopen\b/.test(main.html));
-  for(const screen of ['curriculo','rubricas']){
+  for(const screen of ['curriculo','rubricas','ajustes']){
     const result=await navigationFor(screen);
     assert(result.html.includes('data-tab="'+screen+'" class="tab active" aria-current="page"'));
     assert(/class="academic-disclosure"[^>]*\bopen\b/.test(result.html),screen);
@@ -49,14 +53,17 @@ test('el destino activo se marca y Gestión académica abre automáticamente la 
   for(const screen of ['calculos','competencias']){
     const result=await navigationFor(screen);
     assert(result.quick.includes('data-academic-quick="'+screen+'"'));
-    assert(result.quick.includes('data-academic-quick="'+screen+'" aria-current="page"'));
+    assert(result.quick.includes('data-academic-quick="'+screen+'"'));
+    assert(result.quick.includes('aria-current="page"'));
+    assert(result.quick.includes('data-academic-quick="'+screen+'" aria-pressed="true"'));
     assert(!result.html.includes('data-tab="'+screen+'"'),'No duplicar en el lateral');
   }
   const sessions=await navigationFor('evaluaciones');
   assert(sessions.html.includes('data-tab="evaluaciones" class="tab active" aria-current="page"'));
   const final=await navigationFor('final');
-  assert(final.html.includes('data-tab="final" class="tab active" aria-current="page"'));
-  assert(!final.html.includes('data-tab="cuaderno" class="tab active"'));
+  assert(final.quick.includes('data-academic-quick="final" aria-pressed="true"'));
+  assert(final.html.includes('data-tab="cuaderno" class="tab active" aria-current="page"'));
+  assert(!final.html.includes('data-tab="final"'));
 });
 
 test('cabecera y barra de grupo reorganizadas conservan todas las acciones existentes',async()=>{
