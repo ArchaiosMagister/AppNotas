@@ -9,10 +9,10 @@ const read=file=>readFile(new URL('../'+file,import.meta.url),'utf8');
 
 async function palette(doc){
   const app=await read('app.js');
-  const a=app.indexOf('const CLASSICAL_SUBJECT_ACCENTS=');
+  const a=app.indexOf('function colorFor(level,subject){');
   const b=app.indexOf('function contrastFor(',a);
   assert(a>0&&b>a,'La paleta de presentación debe estar aislada');
-  return runInNewContext(app.slice(a,b)+';({colorFor,CLASSICAL_SUBJECT_ACCENTS})',{
+  return runInNewContext(app.slice(a,b)+';({colorFor})',{
     STATE:{doc},SUBJECT_COLORS,subjectKey
   });
 }
@@ -48,31 +48,32 @@ test('grupos: botones solo cuando hay varios y su elección no altera datos',asy
   for(const student of doc.students)overallGrade(doc,student.id,g.id,doc.periods[0].id);
   assert.deepEqual(doc,copy);
 });
-test('Latín tiene tres acentos cálidos y Griego dos azules próximos, con Griego II más intenso',async()=>{
-  const doc=initialNotebook(),{colorFor,CLASSICAL_SUBJECT_ACCENTS}=await palette(doc);
-  const keys=['4eso:Latín 4.º','1bach:Latín I','2bach:Latín II','1bach:Griego I','2bach:Griego II'];
-  const vals=keys.map(k=>CLASSICAL_SUBJECT_ACCENTS[k]);
-  assert.equal(new Set(vals).size,5);
-  assert(vals.every(x=>/^#[0-9A-F]{6}$/.test(x)));
-  for(const [i,k] of keys.entries()){
-    const colon=k.indexOf(':'),level=k.slice(0,colon),subject=k.slice(colon+1);
-    assert.equal(colorFor(level,subject),vals[i]);
+test('se conservan exactamente los cinco colores originales de acento',async()=>{
+  const doc=initialNotebook(),{colorFor}=await palette(doc);
+  const expected={
+    '4eso:Latín 4.º':'#EAB308',
+    '1bach:Latín I':'#F59E0B',
+    '2bach:Latín II':'#EA580C',
+    '1bach:Griego I':'#0284C7',
+    '2bach:Griego II':'#1D4ED8'
+  };
+  assert.equal(Object.keys(expected).length,5);
+  for(const [key,color] of Object.entries(expected)){
+    const pivot=key.indexOf(':'),level=key.slice(0,pivot),subject=key.slice(pivot+1);
+    assert.equal(SUBJECT_COLORS[key],color,'Paleta original '+key);
+    assert.equal(colorFor(level,subject),color,'Color visible '+key);
   }
-  const g1=vals[3],g2=vals[4],channels=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
-  const [r1,green1,b1]=channels(g1),[r2,green2,b2]=channels(g2);
-  assert(r1<100&&r2<100&&b1>150&&b2>150);
-  assert(Math.abs(r1-r2)<40&&Math.abs(green1-green2)<40&&Math.abs(b1-b2)<40,'Azules deben ser próximos');
-  assert(r2<r1&&green2<green1&&b2<b1,'Griego II tendrá azul algo más profundo');
+  assert.equal(new Set(Object.values(expected)).size,5);
 });
 test('los colores personalizados se preservan sin mutar el cuaderno',async()=>{
   const doc=initialNotebook(),before=structuredClone(doc);
   const {colorFor}=await palette(doc);
-  assert.equal(colorFor('1bach','Latín I'),'#AD6A47');
+  assert.equal(colorFor('1bach','Latín I'),'#F59E0B');
   assert.deepEqual(doc,before);
   setSubjectAccent(doc,'1bach','Latín I','#742AC6');
   const next=await palette(doc);
   assert.equal(next.colorFor('1bach','Latín I'),'#742AC6');
-  assert.equal(next.colorFor('1bach','Griego I'),'#438DB8');
+  assert.equal(next.colorFor('1bach','Griego I'),'#0284C7');
   assertModel(doc);
 });
 test('la barra de materias conserva los bordes coloreados sin romper móvil, oscuro u OLED',async()=>{
