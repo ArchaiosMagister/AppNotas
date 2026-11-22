@@ -106,7 +106,9 @@ test('nombres del menú y escala de adquisición no afectan a la persistencia ni
   const [app,calculation,sw]=await Promise.all([read('app.js'),read('src/calculations.js'),read('sw.js')]);
   assert(app.includes('<summary>Materias y grupos'));
   assert(!app.includes('<summary>Opciones de grupo'));
-  assert(app.includes("caches.open('cuaderno-docente-static-v150-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v150-dev'"));
+  const current=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/);
+  assert(current&&Number(current[2])>=150,'La nueva caché no puede retroceder de v150');
+  assert(app.includes(`caches.open('${current[1]}')`),'La UI y el service worker deben usar la misma caché');
+  
   assert(!calculation.includes("doc.settings.competencyAcquisition"),'No guardar indicadores derivados');
 });
