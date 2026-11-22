@@ -923,12 +923,12 @@ function render(){
     </div>
   </details>
   <button class="lock-btn" id="lock">Bloquear</button>
-</div></header><main class="content"><div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level,STATE.subject)])} · CUADERNO ACADÉMICO · v1.0</div><h1>${STATE.tab==='evaluaciones'?'Sesiones de evaluación':esc(subjectLabel)+' <span class="muted-slash">/</span> '+esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${STATE.tab==='evaluaciones'?'Organización por tutorías y evaluaciones · Almacenamiento cifrado local':esc(levelLabel)+' · '+esc(group?.course||'Curso escolar por configurar')+' · '+esc(period?.name||'')+' · Almacenamiento cifrado local'}</p></div><span class="demo-tag">⚠ Copias solo en almacenamiento local</span></div><p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar ${STATE.tab==='evaluaciones'?'hidden':''}" aria-label="Asignatura y grupo">
+</div></header><main class="content">${!['planificador','evaluaciones'].includes(STATE.tab)?`<div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level,STATE.subject)])} · CUADERNO ACADÉMICO · v1.0</div><h1>${STATE.tab==='evaluaciones'?'Sesiones de evaluación':esc(subjectLabel)+' <span class="muted-slash">/</span> '+esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${STATE.tab==='evaluaciones'?'Organización por tutorías y evaluaciones · Almacenamiento cifrado local':esc(levelLabel)+' · '+esc(group?.course||'Curso escolar por configurar')+' · '+esc(period?.name||'')+' · Almacenamiento cifrado local'}</p></div><span class="demo-tag">⚠ Copias solo en almacenamiento local</span></div>`:'' }<p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar ${STATE.tab==='evaluaciones'?'hidden':''}" aria-label="Asignatura y grupo">
   <div class="selectors">
-    <div class="course-switch" role="group" aria-label="Seleccionar asignatura">
+    <div class="course-switch" role="group" aria-label="Seleccionar asignatura; en pantallas pequeñas, desliza horizontalmente para ver todas">
       <div class="course-buttons">${courseChoices.map(x=>`<button type="button" class="btn course-choice" data-course-level="${esc(x.level)}" data-course-subject="${esc(x.subject)}" aria-pressed="${STATE.level===x.level&&STATE.subject===x.subject}" title="${esc(x.stage)}"><strong class="course-name">${esc(x.subjectName)}</strong><small class="course-group-caption" title="${esc(x.groupNames.join(' · ')||'Sin grupo creado')}">${esc(x.groupNames.length?x.groupNames.join(' · '):'Sin grupo · crear grupo')}</small></button>`).join('')}</div>
     </div>
-    ${matching.length>1?`<div class="group-switch" role="group" aria-label="Seleccionar grupo de ${esc(subjectLabel)}"><span class="group-switch-label">Grupos</span><div class="group-buttons">${matching.map(x=>`<button type="button" class="btn group-choice" data-group-choice="${esc(x.id)}" aria-pressed="${x.id===STATE.groupId}">${esc(x.name)}</button>`).join('')}</div></div>`:''}
+    ${matching.length>2?`<div class="group-switch group-switch-compact"><label class="group-switch-label" for="group-quick-select">Grupo</label><select id="group-quick-select" class="group-quick-select" aria-label="Seleccionar grupo de ${esc(subjectLabel)}">${matching.map(x=>`<option value="${esc(x.id)}" ${x.id===STATE.groupId?'selected':''}>${esc(x.name)} · ${esc(x.course)}</option>`).join('')}</select></div>`:matching.length>1?`<div class="group-switch" role="group" aria-label="Seleccionar grupo de ${esc(subjectLabel)}"><span class="group-switch-label">Grupos</span><div class="group-buttons">${matching.map(x=>`<button type="button" class="btn group-choice" data-group-choice="${esc(x.id)}" aria-pressed="${x.id===STATE.groupId}">${esc(x.name)}</button>`).join('')}</div></div>`:''}
   </div>
   <div class="actions class-more-actions">
     <details class="group-actions-disclosure" data-shell-disclosure="group" ${workspaceDisclosures.group?'open':''}>
@@ -1554,6 +1554,14 @@ function bindCommon(){
     [...document.querySelectorAll('[data-course-level][data-course-subject]')]
       .find(b=>b.dataset.courseLevel===level&&b.dataset.courseSubject===subject)?.focus({preventScroll:true});
     };
+  });
+  // Lista compacta cuando hay tres o más grupos; selección local, sin guardar notas.
+  $('#group-quick-select')?.addEventListener('change',event=>{
+    const groupId=event.target.value;
+    if(groupId===STATE.groupId||!groupsForSubject().some(g=>g.id===groupId))return;
+    STATE.groupId=groupId;STATE.competencyVersion='auto';
+    render();
+    $('#group-quick-select')?.focus({preventScroll:true});
   });
   document.querySelectorAll('[data-group-choice]').forEach(button=>{
     button.onclick=()=>{
