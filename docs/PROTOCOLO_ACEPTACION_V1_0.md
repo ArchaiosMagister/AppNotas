@@ -61,3 +61,9 @@
 Si las cuatro pruebas funcionales se superan y el centro mantiene la autorización comunicada, se puede proceder a una **última CI limpia del commit de release**, cambiar los avisos «experimental/datos ficticios» por advertencias de uso local responsable, etiquetar el repositorio como **v1.0.0** y fusionar/publicar exclusivamente en **Cloudflare Pages**. No eliminar advertencias antes de esas comprobaciones.
 
 Si falla una prueba, documentar el caso, corregirlo en la PR y repetirla antes de publicar.
+
+## Aceptación docente comunicada (22/11/2026)
+
+El usuario completó las **nueve verificaciones de la lista final** sobre la vista previa de Cloudflare de la PR #27 con datos de demostración. Confirmó la navegación, la seguridad de las vistas individuales, las materias, las siete horas y dos patios, el ajuste de franjas y aulas, la escala de adquisición (1 = alta; 4 = no adquirida), el almacenamiento local del archivo `.cuaderno`, su verificación y restauración en otro navegador o dispositivo de prueba, y el funcionamiento sin red tras cerrar y reabrir; también verificó los tres temas y las orientaciones de pantalla. **Incidencias comunicadas: ninguna.** No se ha aportado un informe independiente de seguridad y no se considera suplido por esta aceptación funcional.
+
+La publicación de la rama de producción debe realizarse exclusivamente a través del despliegue conectado de Cloudflare Pages, verificando primero la CI del código definitivo. No hay migración automática de cuadernos entre orígenes.

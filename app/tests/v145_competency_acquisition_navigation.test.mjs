@@ -106,7 +106,7 @@ test('nombres del menú y escala de adquisición no afectan a la persistencia ni
   const [app,calculation,sw]=await Promise.all([read('app.js'),read('src/calculations.js'),read('sw.js')]);
   assert(app.includes('<summary>Materias y grupos'));
   assert(!app.includes('<summary>Opciones de grupo'));
-  assert(app.includes("caches.open('cuaderno-docente-static-v146-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v146-dev'"));
+  assert(app.includes("caches.open('cuaderno-docente-static-v147-dev')"));
+  assert(sw.includes("const CACHE='cuaderno-docente-static-v147-dev'"));
   assert(!calculation.includes("doc.settings.competencyAcquisition"),'No guardar indicadores derivados');
 });
