@@ -793,7 +793,7 @@ async function savePreparedCopy(prepared,filename){
 const workspaceDisclosures={tools:false,course:false,group:false,academic:false};
 const PRIMARY_WORKSPACE_TABS=[
   ['cuaderno','Cuaderno','▦'],
-  ['alumno','Modo alumno','◉'],
+  ['alumno','Modo sesión de evaluación','◉'],
   ['planificador','Agenda','▣'],
   ['final','Evaluación final','★']
 ];
@@ -1118,7 +1118,7 @@ function openGradeObservation(studentId,assessmentId){
     <p class="subtitle"><strong>${esc(student.name)}</strong> · ${esc(activity.name)}</p>
     <label for="grade-observation-text">Observación (máximo 1500 caracteres)</label>
     <textarea id="grade-observation-text" class="text-field" rows="6" maxlength="1500" placeholder="Ej.: Realizó el examen otro día.">${esc(saved?.text||'')}</textarea>
-    <label class="grade-observation-visibility"><input type="checkbox" id="grade-observation-visible" ${saved?.visibleToStudent?'checked':''}/> Mostrar también en el modo alumno</label>
+    <label class="grade-observation-visibility"><input type="checkbox" id="grade-observation-visible" ${saved?.visibleToStudent?'checked':''}/> Mostrar también en el Modo sesión de evaluación</label>
     <p class="hint">Privada por defecto. Puedes escribir antes de calificar o modificar la nota sin perder este comentario. Dejar el texto vacío y guardar elimina la observación.</p>
     <p class="modal-error" role="alert"></p>
     <div class="modal-actions"><button type="button" class="btn" id="cancel-grade-observation">Cancelar</button><button type="submit" class="btn primary" id="save-grade-observation">Guardar observación</button></div>
@@ -1211,7 +1211,7 @@ function openRubricGrade(studentId,assessmentId){
 function renderStudentView(){
   const student=STATE.doc.students.find(s=>s.id===STATE.studentId&&s.groupId===STATE.groupId);
   const students=allStudents();
-  if(!student)return `<section class="panel panel-pad student-directory"><div class="section-title-row"><div><span class="eyebrow">CONSULTA INDIVIDUAL</span><h2 id="student-list-heading" tabindex="-1">Modo alumno · ${esc(currentGroup()?.name||'Grupo')}</h2><p class="subtitle">Selecciona un alumno para consultar sus calificaciones y medias.</p></div><span class="student-count">${students.length} ${students.length===1?'alumno':'alumnos'}</span></div><div class="student-order-bar">${studentSortControls()}</div><div class="student-directory-grid">${students.map((s,i)=>`${originDirectoryHeader(students,i)}<button type="button" class="student-directory-choice" data-open-student="${esc(s.id)}"><span class="student-directory-avatar" aria-hidden="true">◉</span><span>${esc(s.name)}</span>${studentOriginBadge(s)}<span class="student-directory-arrow" aria-hidden="true">›</span></button>`).join('')||'<p class="hint">Todavía no hay alumnos en este grupo.</p>'}</div><p class="section-note">La lista contiene nombres del grupo. Antes de compartir la pantalla, selecciona el alumno correspondiente: la consulta individual oculta los demás nombres.</p><button class="btn" id="return-notebook">Volver al cuaderno</button></section>`;
+  if(!student)return `<section class="panel panel-pad student-directory"><div class="section-title-row"><div><span class="eyebrow">CONSULTA INDIVIDUAL</span><h2 id="student-list-heading" tabindex="-1">Modo sesión de evaluación · ${esc(currentGroup()?.name||'Grupo')}</h2><p class="subtitle">Selecciona un alumno para consultar sus calificaciones y medias.</p></div><span class="student-count">${students.length} ${students.length===1?'alumno':'alumnos'}</span></div><div class="student-order-bar">${studentSortControls()}</div><div class="student-directory-grid">${students.map((s,i)=>`${originDirectoryHeader(students,i)}<button type="button" class="student-directory-choice" data-open-student="${esc(s.id)}"><span class="student-directory-avatar" aria-hidden="true">◉</span><span>${esc(s.name)}</span>${studentOriginBadge(s)}<span class="student-directory-arrow" aria-hidden="true">›</span></button>`).join('')||'<p class="hint">Todavía no hay alumnos en este grupo.</p>'}</div><p class="section-note">La lista contiene nombres del grupo. Antes de compartir la pantalla, selecciona el alumno correspondiente: la consulta individual oculta los demás nombres.</p><button class="btn" id="return-notebook">Volver al cuaderno</button></section>`;
   const position=students.findIndex(s=>s.id===student.id);
   const previous=students[position-1],next=students[position+1];
   const periods=[...STATE.doc.periods].sort((a,b)=>a.order-b.order);
