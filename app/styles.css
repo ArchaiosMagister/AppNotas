@@ -402,6 +402,11 @@ html[data-theme="dark"] .comp-curr-warning,html[data-theme="oled"] .comp-curr-wa
 .custom-competencies{margin-top:20px;border-top:1px solid var(--line);padding-top:18px}
 .custom-competencies summary{color:var(--accent-text);cursor:pointer;font-weight:740}
 .competency-view .comp-table th{white-space:nowrap}
+.competency-view .comp-table th.competency-mean-heading{min-width:148px;white-space:normal}
+.competency-mean-heading small{display:block;margin-top:4px;font-weight:500;line-height:1.35;color:var(--muted)}
+.competency-mean-cell{min-width:140px}
+.competency-mean-values{display:inline-flex;flex-direction:column;align-items:flex-start;gap:4px;font-variant-numeric:tabular-nums}
+.competency-mean-values small{font-size:12px;font-weight:680;color:var(--muted);padding-left:7px}
 @media(max-width:650px){
   .term-bar{display:grid;grid-template-columns:minmax(0,1fr);gap:7px}
   .term-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;gap:6px}
