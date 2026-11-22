@@ -53,8 +53,8 @@ test('sin vincular, una tutoría muestra todas las fichas, no fusiona homónimos
  assert.equal(tutorGradeRows(f.doc,t.id,f.period.id).rows.length,2);
 });
 test('un alumno sin Griego se muestra con no matriculado, sin convertirlo a cero',()=>{
- const f=fixture();f.doc.students=f.doc.students.filter(s=>s.id!==f.ga.id);
- const t=tutorA(f),row=tutorGradeRows(f.doc,t.id,f.period.id).rows[0];
+ const f=fixture(),t=tutorA(f);f.doc.students=f.doc.students.filter(s=>s.id!==f.ga.id);
+ const row=tutorGradeRows(f.doc,t.id,f.period.id).rows[0];
  assert.equal(row.grades[0].studentId,f.la.id);assert.equal(row.grades[1].studentId,null);
  assert.equal(row.grades[1].mean,null);
  assertModel(f.doc);
