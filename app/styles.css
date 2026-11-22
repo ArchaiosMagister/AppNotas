@@ -1415,3 +1415,130 @@ html[data-theme="oled"] .grade-table thead th.name-col{
   width:auto;
   padding:6px 10px;
 }
+
+/* v132 · Los selectores de asignatura y grupo comparten etiqueta, altura,
+ * alineación y anchura máxima en teléfono, tableta y escritorio. */
+.class-toolbar .selectors{align-items:flex-end}
+.class-toolbar .course-disclosure>summary{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:flex-start;
+  gap:6px;
+  min-height:0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent!important;
+}
+.class-toolbar .course-disclosure>summary .course-picker-label,
+.class-toolbar .selectors label.current-group-label .group-picker-label{
+  display:block;
+  font-size:11px;
+  line-height:14px;
+  font-weight:800;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  color:var(--muted);
+  white-space:nowrap;
+}
+.class-toolbar .course-disclosure>summary .course-selection{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-width:0;
+  width:100%;
+  min-height:44px;
+  padding:8px 11px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  color:var(--ink);
+  background:var(--raised);
+}
+.class-toolbar .course-disclosure>summary .course-selection strong{
+  flex:1 1 auto;
+  min-width:0;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+  font-size:13px;
+}
+.class-toolbar .course-disclosure>summary .course-selection small{
+  flex:0 0 auto;
+  font-size:10px;
+  white-space:nowrap;
+  color:var(--muted);
+}
+.class-toolbar .course-disclosure>summary .course-selection .disclosure-chevron{
+  flex:0 0 auto;
+  margin-left:0;
+}
+.class-toolbar .selectors label.current-group-label{
+  flex:0 1 230px;
+  min-width:160px;
+  max-width:320px;
+  gap:6px;
+  align-items:stretch;
+}
+.class-toolbar .selectors #group-select{
+  width:100%;
+  min-width:0;
+  max-width:none;
+  height:44px;
+  min-height:44px;
+  margin:0;
+  padding:8px 11px;
+  font-size:13px;
+  font-weight:700;
+  color:var(--ink);
+  background:var(--raised);
+}
+html[data-theme="oled"] .class-toolbar .course-disclosure>summary .course-selection,
+html[data-theme="oled"] .class-toolbar .selectors #group-select{
+  background:#000!important;
+}
+@media(max-width:640px){
+  .class-toolbar .selectors{align-items:end}
+  .class-toolbar .course-disclosure>summary{
+    gap:6px;
+    padding:0;
+    flex-wrap:nowrap;
+  }
+  .class-toolbar .course-disclosure>summary .course-selection small{
+    display:none;
+  }
+  .class-toolbar .selectors label.current-group-label{
+    flex:none;
+    width:100%;
+    min-width:0;
+    max-width:none;
+  }
+  /* El desplegable Herramientas depende del ancho de toda la segunda fila
+   * de la cabecera, no del pequeño botón a la derecha (que lo recortaba). */
+  .topmeta{position:relative;z-index:80}
+  .topmeta .header-tools{position:static}
+  .topmeta .header-tools-panel{
+    position:absolute;
+    left:auto;
+    right:0;
+    top:calc(100% + 7px);
+    width:min(340px,100%);
+    max-width:100%;
+    max-height:min(70dvh,calc(100dvh - 150px));
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+  }
+  .topmeta .header-tools-panel .theme-picker{
+    min-width:0;
+    flex-wrap:wrap;
+  }
+  .topmeta .header-tools-panel .theme-picker select{
+    min-width:0;
+    max-width:100%;
+  }
+}
+@media(max-width:400px){
+  .topmeta{flex-wrap:wrap}
+  .topmeta #save-status{flex:1 1 100%;max-width:100%}
+}

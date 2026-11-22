@@ -131,8 +131,8 @@ test('rediseño no modifica cálculos: el cuaderno de demostración conserva sus
 
 test('SW y aplicación usan una misma nueva caché sin borrar IndexedDB',async()=>{
   const [app,sw]=await Promise.all([read('app.js'),read('sw.js')]);
-  assert(app.includes("caches.open('cuaderno-docente-static-v131-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v131-dev'"));
+  assert(app.includes("caches.open('cuaderno-docente-static-v132-dev')"));
+  assert(sw.includes("const CACHE='cuaderno-docente-static-v132-dev'"));
   assert(!sw.includes('indexedDB.deleteDatabase'));
   assert(!app.includes('indexedDB.deleteDatabase'));
 });

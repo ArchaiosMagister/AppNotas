@@ -799,10 +799,10 @@ function render(){
 </div></header><main class="content"><div class="headrow"><div><div class="eyebrow">TABULARIUM · CUADERNO ACADÉMICO · V1.19</div><h1>${esc(subjectLabel)} <span class="muted-slash">/</span> ${esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${esc(levelLabel)} · ${esc(group?.course||'Curso escolar por configurar')} · ${esc(period?.name||'')} · Datos ficticios</p></div><span class="demo-tag">⚠ No introducir datos personales reales</span></div><p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo">
   <div class="selectors">
     <details class="course-picker course-disclosure" data-shell-disclosure="course" ${workspaceDisclosures.course?'open':''}>
-      <summary><span class="course-picker-label">Asignatura</span><strong>${esc(subjectLabel)}</strong><small>${esc(levelLabel)}</small><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
+      <summary><span class="course-picker-label">Asignatura</span><span class="course-selection"><strong>${esc(subjectLabel)}</strong><small>${esc(levelLabel)}</small><span class="disclosure-chevron" aria-hidden="true">⌄</span></span></summary>
       <div class="course-buttons" role="group" aria-label="Cambiar curso y asignatura">${courseChoices.map(x=>`<button type="button" class="btn course-choice" data-course-level="${esc(x.level)}" data-course-subject="${esc(x.subject)}" aria-pressed="${STATE.level===x.level&&STATE.subject===x.subject}"><strong class="course-name">${esc(x.subjectName)}</strong><span class="course-stage">${esc(x.stage)}</span></button>`).join('')}</div>
     </details>
-    <label class="current-group-label">Grupo<select id="group-select" ${matching.length?'':'disabled'}>${matching.length?choices:'<option value="">Sin grupos</option>'}</select></label>
+    <label class="current-group-label"><span class="group-picker-label">Grupo</span><select id="group-select" ${matching.length?'':'disabled'}>${matching.length?choices:'<option value="">Sin grupos</option>'}</select></label>
     <button class="btn small" id="new-group" ${STATE.level==='legacy'?'disabled':''}>+ Grupo</button>
   </div>
   <div class="actions class-more-actions">
@@ -1826,7 +1826,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v131-dev');
+      const cache=await caches.open('cuaderno-docente-static-v132-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
