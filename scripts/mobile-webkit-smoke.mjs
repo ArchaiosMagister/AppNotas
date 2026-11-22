@@ -197,6 +197,20 @@ async function audit(engine,name){
       buttonWidth:b.width,containerWidth:a.width};
     });
     assert(quick.visible,name+' pestaña académica activa fuera de vista '+JSON.stringify(quick));
+    if(size.width===390){
+     await page.locator('[data-open-student]').first().click();
+     assert(await page.locator('.shell.student-focus').count()===1,
+      name+' vista privada sin su estado visual');
+     const privateHeader=await page.evaluate(()=>{
+      const parent=document.querySelector('.student-focus .topmeta');
+      const status=parent?.querySelector('#save-status');
+      const a=parent?.getBoundingClientRect(),b=status?.getBoundingClientRect();
+      return {parentWidth:a?.width,statusWidth:b?.width};
+     });
+     assert(Math.abs(privateHeader.parentWidth-privateHeader.statusWidth)<=3,
+      name+' cabecera privada deja media fila libre: '+JSON.stringify(privateHeader));
+     await page.locator('#hide-student').click();
+    }
     await page.locator('[data-academic-quick="cuaderno"]').click();
    }
    await page.locator('.nav-primary [data-tab="evaluaciones"]').click();
