@@ -78,8 +78,8 @@ function pdfBytes(text){
 function pdfLiteral(text){
  return Array.from(String(text),ch=>{
   const n=ch.codePointAt(0);const v=n<=255?n:(WIN1252[ch]||63);
-  return v===40?'\\(':v===41?'\\)':v===92?'\\\\':v<32||v===127?' ':' '+String.fromCharCode(v);
- }).join('').replace(/ \x20/g,' ');
+  return v===40?'\\(':v===41?'\\)':v===92?'\\\\':v<32||v===127?' ':String.fromCharCode(v);
+ }).join('');
 }
 function wrap(value,max=21){
  const words=String(value).split(/\s+/),lines=[];
@@ -127,7 +127,7 @@ export function timetablePdfBytes(doc,y){
    const visible=lines.slice(0,Math.max(1,Math.floor((rowHeight-8)/10)));
    visible.forEach((line,k)=>printLine(line,x+5,yBase+rowHeight-13-k*10,7.8));
   });
-  commands.push('0.77 0.81 0.86 RG 0.4 w',left+' '+yBase.toFixed(2)+' '+(firstWidth+5*dayWidth)+' 0 m 0 0 l S');
+  commands.push('0.77 0.81 0.86 RG 0.4 w',left+' '+yBase.toFixed(2)+' m '+(left+firstWidth+5*dayWidth).toFixed(2)+' '+yBase.toFixed(2)+' l S');
  });
  const lower=top-25-rows.length*rowHeight;
  commands.push('0.70 0.75 0.80 RG 0.5 w');
