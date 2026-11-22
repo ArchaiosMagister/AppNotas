@@ -1,5 +1,5 @@
 import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,catalogForNotebook,addNotebookSubject,removeNotebookSubject,defaultSubjectAccent,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
-import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,itacaGrade} from './src/calculations.js';
+import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,competencyAcquisitionLevel,competencyAcquisitionLabel,COMPETENCY_ACQUISITION_LABELS,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,itacaGrade} from './src/calculations.js';
 import {studentsFromCsv} from './src/csv.js';
 import {parseRubricText} from './src/rubric-import.js';
 import {parseRubricFile} from './src/rubric-xlsx.js';
@@ -182,6 +182,25 @@ function paintStudentCategoryCards(context=document){
   });
 }
 const gradeChip=(score,suffix='')=>score===null||score===undefined||!Number.isFinite(score)?'<span class="grade-empty">—</span>':`<span class="grade-chip"${gradeStyle(score)}>${esc(gradeFmt(score))}${suffix?`<span class="grade-suffix">${esc(suffix)}</span>`:''}</span>`;
+/** La media 0–10 se conserva intacta. Solo su presentación competencial
+ * emplea niveles 1–4, con 1 como la mayor adquisición. */
+const competencySourceGrade=score=>Number(score).toLocaleString('es-ES',{maximumFractionDigits:8});
+function competencyLevelChip(score){
+  const level=competencyAcquisitionLevel(score);
+  if(level===null)return '<span class="grade-empty" aria-label="Sin evidencias">—</span>';
+  const label=competencyAcquisitionLabel(score);
+  return `<span class="competency-level-cell" title="Nivel ${level}: ${esc(label)} · Media original ${esc(competencySourceGrade(score))} / 10">
+    <span class="competency-level-badge competency-level-${level}" aria-label="Nivel ${level}: ${esc(label)}"><strong>${level}</strong><span>${esc(label)}</span></span>
+    <small class="competency-source-grade">Media original: ${esc(competencySourceGrade(score))} / 10</small>
+  </span>`;
+}
+function competencyScaleLegend(){
+  const bounds={1:'8–10',2:'6,5–menos de 8',3:'5–menos de 6,5',4:'0–menos de 5'};
+  return `<div class="competency-scale-legend" role="note" aria-label="Leyenda de niveles de adquisición competencial"><strong>Escala de adquisición · 1 = máximo, 4 = mínimo</strong>
+    <div class="competency-scale-items">${[1,2,3,4].map(level=>`<span class="competency-scale-item"><b class="competency-legend-number competency-level-${level}">${level}</b><span><strong>${esc(COMPETENCY_ACQUISITION_LABELS[level])}</strong><small>${esc(bounds[level])} / 10</small></span></span>`).join('')}</div>
+    <p class="hint">Cada nivel se obtiene de la media original, sin redondeos previos. Sin evidencias se muestra «—». La media 0–10 sigue intacta para los cálculos.</p>
+  </div>`;
+}
 /** Ítaca usa enteros para umbrales y media con dos decimales en modo «sin redondear»,
  * incluso cuando el usuario configura otra precisión visual en el cuaderno. */
 function itacaChip(doc,studentId,groupId,periodId){
@@ -194,7 +213,7 @@ function itacaChip(doc,studentId,groupId,periodId){
 }
 
 // Indicadores visibles únicamente en las vistas docentes, nunca en el modo alumno.
-const classStatButton=(kind,id,label)=>`<button type="button" class="class-stat-trigger" data-class-stat="${esc(kind+':'+id)}" aria-label="Estadísticas de ${esc(label)}: media y aprobados" aria-expanded="false"><span class="class-stat-info" aria-hidden="true">ⓘ</span></button>`;
+const classStatButton=(kind,id,label)=>`<button type="button" class="class-stat-trigger" data-class-stat="${esc(kind+':'+id)}" aria-label="Estadísticas de ${esc(label)}: ${kind==='competency'?'nivel medio y aprobados':'media y aprobados'}" aria-expanded="false"><span class="class-stat-info" aria-hidden="true">ⓘ</span></button>`;
 let unbindClassStats=()=>{};
 function bindClassStatistics(){
   unbindClassStats();unbindClassStats=()=>{};
@@ -233,7 +252,11 @@ function bindClassStatistics(){
     popup=document.createElement('div');
     popup.id='class-stat-popover';popup.className='class-stat-popover';popup.setAttribute('role','region');
     popup.setAttribute('aria-label','Estadísticas de la clase');
-    popup.innerHTML=`<strong>Estadísticas de la clase</strong><div class="class-stat-line"><span>Media</span><b>${stats.mean===null?'Sin notas':esc(formatGrade(stats.mean,settings))+' /'+esc(stats.maximum)}</b></div><div class="class-stat-line"><span>Aprobados</span><b>${stats.passed} / ${stats.total} (${stats.percentTotal===null?'—':formatNumber(stats.percentTotal)+' %'})</b></div><div class="class-stat-line"><span>Con nota</span><b>${stats.graded} / ${stats.total}</b></div><small>${stats.graded?`De los evaluados, aprueba el ${formatNumber(stats.percentGraded)} %.`:'Todavía no hay calificaciones.'} Las notas vacías no se cuentan en la media ni como suspensos.</small>`;
+    const isCompetency=trigger.dataset.classStat.startsWith('competency:');
+    const meanDisplay=isCompetency
+      ?competencyLevelChip(stats.mean)
+      :stats.mean===null?'Sin notas':esc(formatGrade(stats.mean,settings))+' /'+esc(stats.maximum);
+    popup.innerHTML=`<strong>Estadísticas de la clase</strong><div class="class-stat-line"><span>${isCompetency?'Nivel de adquisición de la media':'Media'}</span><b>${meanDisplay}</b></div><div class="class-stat-line"><span>Aprobados</span><b>${stats.passed} / ${stats.total} (${stats.percentTotal===null?'—':formatNumber(stats.percentTotal)+' %'})</b></div><div class="class-stat-line"><span>Con nota</span><b>${stats.graded} / ${stats.total}</b></div><small>${stats.graded?`De los evaluados, aprueba el ${formatNumber(stats.percentGraded)} %.`:'Todavía no hay calificaciones.'} Las notas vacías no se cuentan en la media ni como suspensos.</small>`;
     document.body.appendChild(popup);
     place(trigger);
   }
@@ -820,7 +843,6 @@ const PRIMARY_WORKSPACE_TABS=[
   ['final','Evaluación final','★']
 ];
 const ACADEMIC_WORKSPACE_TABS=[
-  ['calculos','Cálculos','∑'],
   ['competencias','Competencias','◎'],
   ['curriculo','Currículo','◇'],
   ['rubricas','Rúbricas','▤']
@@ -890,7 +912,7 @@ function render(){
   </div>
   <div class="actions class-more-actions">
     <details class="group-actions-disclosure" data-shell-disclosure="group" ${workspaceDisclosures.group?'open':''}>
-      <summary>Opciones de grupo <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
+      <summary>Materias y grupos <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
       <div class="group-actions-panel">
         <button class="btn small" id="new-group" ${STATE.level==='legacy'?'disabled':''}>+ Crear grupo</button>
         <button class="btn small" id="manage-subjects">Gestionar materias</button>
@@ -978,7 +1000,7 @@ function renderNotebook(){
   }).join('')}<td class="final-col"><button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip(overallGrade(STATE.doc,s.id,STATE.groupId,STATE.periodId))}</button></td><td class="itaca-col"><button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc,s.id,STATE.groupId,STATE.periodId)}${itacaStudentRule(STATE.doc,s.id,STATE.periodId)!=='general'?'<span class="itaca-exception" title="Excepción individual">*</span>':''}</button></td></tr>`).join('');
   const sum=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).reduce((s,c)=>s+c.weight,0);
   const problems=students.flatMap(st=>periodCalculationWarnings(STATE.doc,st.id,STATE.groupId,STATE.periodId)).filter(v=>v.includes('sin conversión'));
-  return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><div class="notebook-heading-kicker">TABULAE · EVALUACIÓN</div><strong>Calificaciones</strong><p>Pulsa o toca ⓘ en la cabecera de cada columna para ver la media y los aprobados de la clase. Introduce notas con hasta dos decimales. NP cuenta como cero; AJ marca una ausencia justificada pendiente que no computa. En los exámenes con faltas recuperables, pulsa la calificación para editar nota original, faltas y entrega. «⋯» configura una columna.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><details class="notebook-more-actions"><summary>Más acciones <span aria-hidden="true">⌄</span></summary><div class="notebook-more-panel"><button class="btn" id="copy-structure">⇉ Copiar actividades</button><button class="btn" id="schedule-exam">▣ Programar examen</button></div></details></div></div><div class="student-order-bar">${studentSortControls()}</div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col">Nota Ítaca <small>/10 · clic para excepción</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><div class="legend"><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></div>`;
+  return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><div class="notebook-heading-kicker">TABULAE · EVALUACIÓN</div><strong>Calificaciones</strong><p>Pulsa o toca ⓘ en la cabecera de cada columna para ver la media y los aprobados de la clase. Introduce notas con hasta dos decimales. NP cuenta como cero; AJ marca una ausencia justificada pendiente que no computa. En los exámenes con faltas recuperables, pulsa la calificación para editar nota original, faltas y entrega. «⋯» configura una columna.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><button class="btn" id="notebook-calculations" type="button" title="Configurar porcentajes y reglas de evaluación">∑ Cálculos</button><details class="notebook-more-actions"><summary>Más acciones <span aria-hidden="true">⌄</span></summary><div class="notebook-more-panel"><button class="btn" id="copy-structure">⇉ Copiar actividades</button><button class="btn" id="schedule-exam">▣ Programar examen</button></div></details></div></div><div class="student-order-bar">${studentSortControls()}</div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col">Nota Ítaca <small>/10 · clic para excepción</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><div class="legend"><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></div>`;
 }
 const ITACA_OPTIONS=[['half','Redondear desde ,5'],['seven','Redondear desde ,7'],['none','No redondear']];
 const RULE_LABELS={mean:'Media aritmética',weighted_mean:'Media ponderada por actividad',highest:'Mejor nota',best_n:'Media de las N mejores',last:'Última evaluada',latest_if_highest:'Última si iguala o supera la mejor; si no, media'};
@@ -1011,8 +1033,8 @@ function renderCompetencies(){
               data-comp="${esc(c.id)}" data-linkcat="${esc(cat.id)}" value="${esc(c.links.find(x=>x.categoryId===cat.id)?.weight??0)}"/></td></tr>`).join('')}
           </tbody></table></div></article>`).join('')||'<p class="hint">No hay competencias propias. Pulsa «+ Competencia propia» para comenzar.</p>'}</section>
       <section class="panel panel-pad"><h2>Resultados competenciales</h2>
-      <div class="overflow-auto"><table class="comp-table"><thead><tr><th>Alumno</th>${personal.map(c=>`<th>${esc(c.name)}</th>`).join('')}</tr></thead>
-      <tbody>${students.map(student=>`<tr><td>${esc(student.name)}</td>${personal.map(c=>`<td>${gradeChip(competencyGrade(STATE.doc,student.id,c.id,group.id,STATE.periodId))}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section></div>`;
+      ${competencyScaleLegend()}<div class="overflow-auto"><table class="comp-table"><thead><tr><th>Alumno</th>${personal.map(c=>`<th>${esc(c.name)}</th>`).join('')}</tr></thead>
+      <tbody>${students.map(student=>`<tr><td>${esc(student.name)}</td>${personal.map(c=>`<td>${competencyLevelChip(competencyGrade(STATE.doc,student.id,c.id,group.id,STATE.periodId))}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section></div>`;
   }
   const students=allStudents();
   const official=catalog.competencias.map(ce=>({...ce,stored:linkedOfficialCompetency(STATE.doc,group.id,ce.key)}));
@@ -1022,14 +1044,14 @@ function renderCompetencies(){
     const stored=id?STATE.doc.competencies.find(c=>c.id===id):null;
     const l=stored?.links.find(x=>x.categoryId===cat.id);
     return `<tr><td>${esc(cat.name)}</td><td class="align-right"><label class="visually-hidden" for="link-${esc(key)}-${esc(cat.id)}">Peso de ${esc(cat.name)} en ${esc(key)}</label><input class="number-field" id="link-${esc(key)}-${esc(cat.id)}" type="number" min="0" max="1000" step="1" value="${esc(l?.weight??0)}" ${id?`data-comp="${esc(id)}"`:`data-official="${esc(key)}"`} data-linkcat="${esc(cat.id)}"/></td></tr>`;}).join('')}</tbody></table></div>`;
-  const currentGrade=(student,comp)=>comp?.id?gradeChip(competencyGrade(STATE.doc,student.id,comp.id,group.id,STATE.periodId)):gradeChip(null);
+  const currentGrade=(student,comp)=>comp?.id?competencyLevelChip(competencyGrade(STATE.doc,student.id,comp.id,group.id,STATE.periodId)):competencyLevelChip(null);
   return `<div class="competency-view"><section class="panel panel-pad"><div class="section-title-row"><div><h2>Competencias específicas · ${esc(group.subject)}</h2><p class="subtitle">${esc(catalog.data.norma)} · ${catalog.competencias.length} competencias oficiales · selección de pesos opcional</p></div><button class="btn small" id="new-competency">+ Competencia propia</button></div>
   ${group.subject==='Latín II'?`<label class="competency-version">Normativa para Latín II <select id="comp-curr-version">${[['auto','Según curso escolar'],['2022','2022 · 2026–2027'],['2026','2026 · desde 2027–2028']].map(([v,t])=>opt(v,t,STATE.competencyVersion)).join('')}</select></label>`:''}
   ${catalog.warning?`<p class="comp-curr-warning">⚠ ${esc(catalog.warning)}</p>`:''}
   <p class="section-note">Los enunciados son los del decreto. Cada competencia empieza sin cálculo: solo tendrá nota si asignas explícitamente pesos a categorías. Ninguna ponderación se presume oficial.</p>
   <div class="official-competency-grid">${official.map(ce=>`<article class="competency-item official-competency"><div class="comp-head"><strong class="ce-number">${esc(ce.code)}</strong><h3>${esc(ce.enunciado)}</h3></div><details class="comp-weights"><summary>Vincular categorías para calificar ${esc(ce.code)}</summary><p class="hint">0 = categoría sin vínculo. Los pesos son relativos y no se requiere sumarlos a 100.</p>${linkRows(ce.stored?.id,ce.key)}</details></article>`).join('')}</div>
   ${custom.length?`<details class="custom-competencies"><summary>Competencias personalizadas o de versiones anteriores (${custom.length})</summary>${custom.map(c=>`<div class="competency-item"><h3>${esc(c.name)}</h3>${linkRows(c.id,c.id)}</div>`).join('')}</details>`:''}</section>
-  <section class="panel panel-pad"><h2>Resultados por competencia</h2><p class="subtitle">${esc(group.name)} · ${esc(currentPeriod()?.name)} · las casillas sin vínculo permanecen vacías</p><div class="overflow-auto"><table class="comp-table"><thead><tr><th>Alumno</th>${official.map(c=>`<th title="${esc(c.enunciado)}"><span class="class-stat-heading">${esc(c.code)} ${c.stored?.id?classStatButton('competency',c.stored.id,c.code):''}</span></th>`).join('')}</tr></thead><tbody>${students.map(st=>`<tr><td class="comp-name">${esc(st.name)}</td>${official.map(c=>`<td>${currentGrade(st,c.stored)}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="section-note">Los resultados competenciales son independientes de la nota final. Puedes consultar sus criterios de evaluación completos en «Currículo».</p></section></div>`;
+  <section class="panel panel-pad"><h2>Resultados por competencia</h2><p class="subtitle">${esc(group.name)} · ${esc(currentPeriod()?.name)} · las casillas sin vínculo permanecen vacías</p>${competencyScaleLegend()}<div class="overflow-auto"><table class="comp-table"><thead><tr><th>Alumno</th>${official.map(c=>`<th title="${esc(c.enunciado)}"><span class="class-stat-heading">${esc(c.code)} ${c.stored?.id?classStatButton('competency',c.stored.id,c.code):''}</span></th>`).join('')}</tr></thead><tbody>${students.map(st=>`<tr><td class="comp-name">${esc(st.name)}</td>${official.map(c=>`<td>${currentGrade(st,c.stored)}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="section-note">Los resultados competenciales son independientes de la nota final. Puedes consultar sus criterios de evaluación completos en «Currículo».</p></section></div>`;
 }
 
 /** La consulta curricular es de solo lectura, completamente separada de las calificaciones. */
@@ -1735,6 +1757,7 @@ function openItacaStudentRule(studentId){
   dialog.showModal();
 }
 function bindNotebook(){
+  $('#notebook-calculations')?.addEventListener('click',()=>{STATE.tab='calculos';render();});
   $('#itaca-general-rule')?.addEventListener('change',e=>{
     const groupId=STATE.groupId;
     commit(doc=>setItacaGroupRule(doc,groupId,e.target.value),'Redondeo general Nota Ítaca').catch(fail);
