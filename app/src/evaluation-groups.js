@@ -133,8 +133,19 @@ export function saveTutorship(doc,{id=null,name,sources}){
  }
  if(existing&&existing.course!==course)throw new Error('No se puede mover una tutoría a otro curso.');
  const time=stamp(),record={id:id||uid(),name:name.trim(),course,level,sources:accepted};
- if(existing)Object.assign(existing,record,{updatedAt:time});
- else{record.createdAt=time;record.updatedAt=time;(doc.tutorships??=[]).push(record);}
+ if(existing){
+  const renamed=existing.name!==record.name;
+  Object.assign(existing,record,{updatedAt:time});
+  // El título de la convocatoria figura también en Agenda y en la exportación ICS.
+  // Sincronizarlo solo cuando cambia el nombre, sin tocar fechas, notas ni actas archivadas.
+  if(renamed)for(const y of doc.planner?.years||[]){
+   if(y.name!==course)continue;
+   for(const event of y.events.filter(e=>e.type==='evaluation'&&e.tutorshipId===record.id)){
+    const period=doc.periods.find(p=>p.id===event.periodId);
+    if(period)event.title=period.name+' · '+record.name;
+   }
+  }
+ }else{record.createdAt=time;record.updatedAt=time;(doc.tutorships??=[]).push(record);}
  doc.updatedAt=time;return existing||record;
 }
 export function removeTutorship(doc,tutorshipId){

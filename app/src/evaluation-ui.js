@@ -1,6 +1,6 @@
 import {
  suggestStudentLinks,linkedStudentFamilies,linkStudentRecords,unlinkStudentRecord,
- tutoringSources,availableTutoringSources,suggestTutorships,saveTutorship,removeTutorship,
+ tutoringSources,availableTutoringSources,saveTutorship,
  tutorGradeRows,tutorGradeBreakdown,tutorshipLegacyEvents,tutorshipEvent,
  saveTutorshipEvaluation,consolidateTutorshipEvaluation
 } from './evaluation-groups.js';
@@ -22,8 +22,9 @@ const checkSources=(doc,tutorship)=>tutorship.sources.map(s=>{
 }).join(' / ');
 /** Una sola relación desplegable: nunca se muestran dos inventarios de
  * sesiones (uno por materia y otro por tutoría) como ocurría antes. */
-export function renderSharedEvaluation(doc,year,ui,section='all'){
- if(section==='sesiones')return renderEvaluationPeriodBoard(doc,year);
+export function renderSharedEvaluation(doc,year,ui,section='all',prefetchedCards=null){
+ if(section==='sesiones')return renderEvaluationPeriodBoard(doc,year,prefetchedCards??undefined);
+ if(section==='notas')return ui.plannerEvaluationView?renderTutorViewer(doc,ui.plannerEvaluationView):'';
  const tutors=(doc.tutorships||[]).filter(t=>t.course===year.name);
  const suggestions=suggestStudentLinks(doc,year.name).slice(0,30);
  const families=linkedStudentFamilies(doc,year.name);
@@ -54,6 +55,7 @@ export function renderSharedEvaluation(doc,year,ui,section='all'){
    btn('Añadir asignatura','data-eval-add-source="'+esc(t.id)+'"')+
    btn('Gestionar','data-eval-manage-tutor="'+esc(t.id)+'"')+'</div>').join('')||
    '<p class="hint">Puedes confirmar las tutorías propuestas arriba o crearlas manualmente.</p>')+'</details>';
+ if(section==='tutorias')return management;
  const summarize=(events,hasSingle=false)=>{
   if(!events.length)return 'Sin programar';
   const when=[...new Set(events.map(e=>e.date+' · '+evaluationHours(e)))];
@@ -206,9 +208,11 @@ export function bindSharedEvaluation(doc,ui,ctx,exportEvent){
  const all=selector=>[...document.querySelectorAll(selector)];
  const by=selector=>document.querySelector(selector);
  const redraw=()=>ctx.render();
- const suggestions=suggestStudentLinks(doc,activeYear(doc).name).slice(0,30);
- const proposed=suggestTutorships(doc,activeYear(doc).name).slice(0,24);
- const cards=sessionPresentation(doc,activeYear(doc));
+ // Las búsquedas de coincidencias tienen coste cuadrático: solo se necesitan
+ // cuando realmente está visible la gestión de tutorías.
+ const hasManagement=!!by('#plan-shared-management');
+ const suggestions=hasManagement?suggestStudentLinks(doc,activeYear(doc).name).slice(0,30):[];
+ const cards=hasManagement?sessionPresentation(doc,activeYear(doc)):[];
  const suggestionsToConfirm=cards.filter(c=>c.kind==='suggested');
  by('#plan-evaluations')?.addEventListener('toggle',event=>{
   ui.plannerEvaluationsOpen=event.currentTarget.open;
@@ -245,11 +249,6 @@ export function bindSharedEvaluation(doc,ui,ctx,exportEvent){
  all('[data-eval-unlink]').forEach(button=>button.onclick=()=>{
   if(!window.confirm('¿Desvincular esta ficha? Sus notas se conservarán.'))return;
   ctx.commit(d=>unlinkStudentRecord(d,button.dataset.evalUnlink),'Desvincular identidad').catch(ctx.fail);
- });
- all('[data-eval-tutor-suggestion]').forEach(button=>button.onclick=()=>{
-  const item=proposed[Number(button.dataset.evalTutorSuggestion)];if(!item)return;
-  if(!window.confirm('¿Crear la tutoría '+item.name+' con las asignaturas propuestas?'))return;
-  ctx.commit(d=>saveTutorship(d,item),'Crear tutoría compartida').catch(ctx.fail);
  });
  function manualTutorship(){
   const sources=availableTutoringSources(doc,activeYear(doc).name);
@@ -303,7 +302,7 @@ export function bindSharedEvaluation(doc,ui,ctx,exportEvent){
      return {value:e.id,label:e.date+' · '+e.time+' · '+(g?.subject||'')+' · '+(e.originGroup||g?.name||'')};
     })}
   ],v=>{
-   if(!window.confirm('Se creará una sola cita de tutoría. TODAS las convocatorias anteriores quedarán archivadas, con sus fechas y observaciones, en el cuaderno cifrado. ¿Confirmas?'))return;
+   if(!window.confirm('Se creará una sola cita de tutoría. TODAS las convocatorias anteriores quedarán archivadas, con sus fechas y observaciones, en el cuaderno cifrado. ¿Confirmas?'))return false;
    return ctx.commit(d=>consolidateTutorshipEvaluation(d,{tutorshipId:tid,periodId:pid,chosenEventId:v.selected}),'Unificar convocatorias y conservar historial');
   },'Revisa fechas y horas: si no coinciden, elige cuál es la convocatoria correcta. Los originales permanecerán en el historial cifrado.');
  });
