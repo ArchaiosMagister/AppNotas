@@ -142,8 +142,8 @@ test('validación de cuaderno restaurado rechaza límites violados o valores dec
  invalid.groups[0].weeklyHours=2;
  assertModel(invalid);
  const excessive=structuredClone(d);
- excessive.groups[0].weeklyHours=1;
  saveSlot(excessive,{day:1,start:'08:00',end:'08:55',type:'class',groupId:g.id});
+ excessive.groups[0].weeklyHours=1; // Simular una copia alterada: no usar la API protegida.
  assert.throws(()=>assertModel(excessive),/más clases/);
 });
 
