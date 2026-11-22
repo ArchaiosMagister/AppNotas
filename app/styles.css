@@ -1590,3 +1590,293 @@ html[data-theme="oled"] .class-toolbar .selectors #group-select{
 /* El cierre se mantiene fuera del visor individual del alumno y Abrir usa todo el ancho del desplegable. */
 .shell.student-focus .topbar-close-btn{display:none!important}
 .header-tools-panel .portable-controls{grid-template-columns:minmax(0,1fr)}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TABULARIUM v137 · Tres vestiduras académicas, sin variar la funcionalidad.
+   Inspiración de las maquetas A Schola Marmorea, B Tabularium, C Academia
+   Attica. Solo temas de presentación. Las tablas y datos no se reordenan.
+   La franja Safari de 50px NO contiene texto, enlaces ni controles.
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+:root{
+  --classical-heading:"Baskerville","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+html[data-course-skin="marmorea"]{
+  --classic-edge:#9f8056;--classic-accent:#8c6b3d;
+}
+html[data-course-skin="tabularium"]{
+  --classic-edge:#a87152;--classic-accent:#8d3429;
+}
+html[data-course-skin="attica"]{
+  --classic-edge:#82acc7;--classic-accent:#23659a;
+}
+/* Banda extra de 50px encima de TODO el contenido, incluido en móvil.
+   Se suma el recorte seguro de iOS; nunca tapar botones con una superposición. */
+.topbar{
+  padding-top:calc(62px + env(safe-area-inset-top,0px))!important;
+  isolation:isolate;
+}
+.topbar::before{
+  content:"";
+  position:absolute;top:0;left:0;right:0;height:50px;
+  background:var(--navy);
+  border-bottom:1px solid color-mix(in srgb,var(--classic-edge) 38%,transparent);
+  pointer-events:none;z-index:0;
+}
+.topbar>.brand,.topbar>.topmeta{position:relative;z-index:1}
+.topbar .brand-copy strong{
+  font-family:var(--classical-heading);font-size:clamp(24px,2.4vw,31px);
+  font-weight:550;letter-spacing:.012em;
+}
+.topbar .brand-copy small{font-size:9px;letter-spacing:.14em}
+.headrow h1,.panel-header strong,.planner-intro h2,.term-final,
+.student-mode-title,.student-directory h2{
+  font-family:var(--classical-heading);
+}
+.headrow h1{font-size:clamp(25px,2.6vw,37px);font-weight:650}
+.headrow .eyebrow{letter-spacing:.18em}
+.grade-table{font-variant-numeric:tabular-nums lining-nums}
+.grade-table th,.grade-table td{border-right-color:var(--line)}
+.grade-table th{font-weight:760}
+.grade-table th small{font-weight:550}
+.topbar .topbar-close-btn,
+.topbar .header-tools>summary,.topmeta .lock-btn{
+  min-height:44px;border-radius:9px;letter-spacing:.01em;
+}
+/* La composición se adapta a la navegación real: no se insertan controles
+   imaginarios de las imágenes conceptuales ni se ocultan los existentes. */
+html[data-theme="light"][data-course-skin] .tabs{
+  box-shadow:0 8px 28px #3430240d;
+  border:1px solid var(--stone-line);border-radius:12px;
+}
+html[data-theme="light"][data-course-skin] .tabs .tab.active{
+  border-left-color:var(--classic-accent);
+  background:color-mix(in srgb,var(--classic-edge) 13%,var(--surface));
+}
+html[data-theme="light"][data-course-skin] .tabs .nav-glyph,
+html[data-theme="light"][data-course-skin] .nav-footer{color:var(--classic-accent)}
+html[data-theme="light"][data-course-skin] .panel{
+  border-color:var(--stone-line);border-radius:13px;
+  box-shadow:0 3px 18px #33271708;
+}
+html[data-theme="light"][data-course-skin] .panel-header{
+  background:linear-gradient(100deg,color-mix(in srgb,var(--classic-edge) 10%,var(--surface)),var(--surface) 73%);
+}
+html[data-theme="light"][data-course-skin] .term-bar,
+html[data-theme="light"][data-course-skin] .toolbar.class-toolbar{
+  border-color:var(--stone-line);
+  box-shadow:0 2px 14px #2b2b3308;
+}
+html[data-theme="light"][data-course-skin] .student-order-bar{
+  border-bottom-color:var(--stone-line)
+}
+html[data-theme="light"][data-course-skin] .student-group-switch input:checked+.student-group-switch-track{
+  background:var(--classic-accent);border-color:var(--classic-accent)
+}
+html[data-theme="light"][data-course-skin] .student-group-switch input:checked+.student-group-switch-track::after{
+  background:#fffdf6
+}
+html[data-theme="light"][data-course-skin] .grade-table thead th{
+  background:var(--raised)!important;
+  border-bottom-color:var(--classic-edge);color:var(--ink);
+}
+html[data-theme="light"][data-course-skin] .grade-table tbody td.name-col{
+  font-weight:660;
+}
+/* A · SCHOLA MARMOREA. Mármol marfil, tinta azul, bronce discreto. */
+html[data-theme="light"][data-course-skin="marmorea"]{
+  --stone:#f5f1eb;--stone-secondary:#ede6d9;--stone-line:#d8c9b7;
+  --bronze:#96754b;--navy:#1d3343;--ink:#1e2d38;--muted:#65717a;
+  --line:#dfd7ce;--surface:#fffdf8;--raised:#f6f2eb;
+  --row-odd:#fffdf9;--row-even:#f3efe8;
+  --row-final-odd:#f5e8d9;--row-final-even:#f0e1cf;
+}
+html[data-theme="light"][data-course-skin="marmorea"] .shell{
+  background-color:var(--stone);
+  background-image:radial-gradient(ellipse at 12% 26%,#cfc0ab15 0,transparent 46%),
+    radial-gradient(ellipse at 88% 66%,#d2c6b915 0,transparent 36%),
+    repeating-linear-gradient(112deg,transparent 0 79px,#cabaa90d 80px 81px,transparent 82px 131px);
+}
+html[data-theme="light"][data-course-skin="marmorea"] .topbar{
+  background:linear-gradient(115deg,#1c3040,#263e4d 60%,#1a2e40);
+  border-bottom:3px solid #a9895c!important;
+}
+html[data-theme="light"][data-course-skin="marmorea"] .topbar::before{
+  background:linear-gradient(115deg,#1b3141,#263f50 59%,#1d3040);
+}
+html[data-theme="light"][data-course-skin="marmorea"] .topbar::after{
+  background:linear-gradient(90deg,#e1c89b,transparent 82%);
+}
+html[data-theme="light"][data-course-skin="marmorea"] .brand-mark{
+  border:1px solid #c5a979a6;background:#ffffff0c;color:#e7c998;box-shadow:none!important
+}
+html[data-theme="light"][data-course-skin="marmorea"] .tabs{
+  background:radial-gradient(circle at 15% 10%,#fffdf9,var(--surface) 70%);
+}
+html[data-theme="light"][data-course-skin="marmorea"] .tabs::after{
+  content:"";height:145px;flex:0 0 145px;display:block;opacity:.4;
+  background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20260%20300%22%20fill%3D%22none%22%20stroke%3D%22%2392765c%22%20stroke-width%3D%222.5%22%20stroke-linejoin%3D%22round%22%20opacity%3D%22.65%22%3E%3Cpath%20d%3D%22M24%2075H236M34%2087H226M48%2099H212M63%2099L55%20263h150L197%2099M46%20263h168v11H46zM27%20275h205v11H27z%22%2F%3E%3Cpath%20d%3D%22M73%20102L68%20259M91%20102L90%20259M110%20102L110%20259M130%20102L130%20259M150%20102L150%20259M169%20102L171%20259M187%20102L192%20259%22%2F%3E%3Cpath%20d%3D%22M28%2066c-14-4-18-14-12-26%208-12%2025-9%2027%204%202%2013-17%2017-21%205-2-6%208-10%2011-4M232%2066c14-4%2018-14%2012-26-8-12-25-9-27%204-2%2013%2017%2017%2021%205%202-6-8-10-11-4%22%2F%3E%3Cpath%20d%3D%22M28%2066c23%204%2034-10%2046-16%2018-12%2035-12%2056-12s38%200%2056%2012c12%206%2023%2020%2046%2016M56%2076c27-16%2045-20%2074-20s47%204%2074%2020%22%2F%3E%3Cpath%20d%3D%22M15%20286h230%22%2F%3E%3C%2Fsvg%3E") center bottom / contain no-repeat;pointer-events:none
+}
+html[data-theme="light"][data-course-skin="marmorea"] .headrow{
+  border-bottom:2px solid #ad936e
+}
+html[data-theme="light"][data-course-skin="marmorea"] .headrow::after{
+  content:"";width:120px;height:2px;bottom:-2px;padding:0;background:#4e6575;
+}
+html[data-theme="light"][data-course-skin="marmorea"] .grade-table th.final-col{
+  background:#f0e1cf!important
+}
+/* B · TABULARIUM. Registro romano pompeyano sobre pergamino. */
+html[data-theme="light"][data-course-skin="tabularium"]{
+  --stone:#f1e6d5;--stone-secondary:#e9dbc5;--stone-line:#d2bba4;
+  --bronze:#ac774f;--navy:#76281f;--ink:#392419;--muted:#795e4f;
+  --line:#dbc6b0;--surface:#fbf2e3;--raised:#f2e5d0;
+  --row-odd:#fcf4e6;--row-even:#f2e4d1;
+  --row-final-odd:#f4dfcf;--row-final-even:#ecd3c2;
+}
+html[data-theme="light"][data-course-skin="tabularium"] .shell{
+  background-color:var(--stone);
+  background-image:repeating-linear-gradient(24deg,transparent 0 3px,#9c693f08 4px,transparent 5px 10px),
+    radial-gradient(ellipse at 12% 25%,#bc94641d,transparent 44%),
+    radial-gradient(ellipse at 92% 80%,#9e79531a,transparent 42%);
+}
+html[data-theme="light"][data-course-skin="tabularium"] .topbar{
+  background:linear-gradient(112deg,#692018,#82291f 55%,#642118);
+  border-bottom:8px double #e9cfac!important;
+}
+html[data-theme="light"][data-course-skin="tabularium"] .topbar::before{
+  background:linear-gradient(110deg,#682117,#862b22 54%,#6c211a);
+  border-bottom-color:#d3ab7e66
+}
+html[data-theme="light"][data-course-skin="tabularium"] .topbar::after{
+  content:"";height:6px;left:0;right:0;bottom:0;
+  background:repeating-linear-gradient(90deg,#e9c99c 0 2px,transparent 2px 8px,#e9c99c 8px 10px,transparent 10px 15px)
+}
+html[data-theme="light"][data-course-skin="tabularium"] .brand-mark{
+  color:#f3d8a8;border:1px solid #d3a575aa;background:#ffffff0c;box-shadow:none!important
+}
+html[data-theme="light"][data-course-skin="tabularium"] .tabs{
+  background:linear-gradient(125deg,#fcf2e2,#f8ebd9 75%);
+}
+html[data-theme="light"][data-course-skin="tabularium"] .tabs::after{
+  content:"";display:block;height:174px;flex:0 0 174px;opacity:.55;
+  background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20280%20320%22%20fill%3D%22none%22%20stroke%3D%22%2394684e%22%20stroke-width%3D%222.5%22%20opacity%3D%22.70%22%3E%3Cpath%20d%3D%22M14%20305V95H266v210M4%2091H276M8%2077H272M17%2065H263M28%2046H252L270%2065H10zM48%20305V134h184v171%22%2F%3E%3Cpath%20d%3D%22M83%20305V194a57%2057%200%200%201%20114%200v111M108%20305V191a32%2032%200%200%201%2064%200v114%22%2F%3E%3Cpath%20d%3D%22M28%20113h224M31%20129h218M29%20301h222M17%20314h246%22%2F%3E%3Cpath%20d%3D%22M40%20136v162M240%20136v162M59%20154v145M221%20154v145%22%2F%3E%3Cpath%20d%3D%22M25%20100v12M60%20100v12M95%20100v12M130%20100v12M165%20100v12M200%20100v12M235%20100v12%22%2F%3E%3Cpath%20d%3D%22M33%2076h214M38%2061h204M104%2046h73%22%2F%3E%3Cpath%20d%3D%22M109%20125l-15%2027M171%20125l15%2027M128%20136v22M152%20136v22M120%20170l-14%2024M160%20170l14%2024%22%2F%3E%3C%2Fsvg%3E") center bottom / contain no-repeat;pointer-events:none
+}
+html[data-theme="light"][data-course-skin="tabularium"] .headrow{
+  border-bottom:1px solid #b98d69
+}
+html[data-theme="light"][data-course-skin="tabularium"] .headrow::after{
+  content:"❦";color:#8b4934;background:var(--stone)
+}
+html[data-theme="light"][data-course-skin="tabularium"] .grade-table th.final-col{
+  background:#ebd1bd!important;color:#6f291f
+}
+html[data-theme="light"][data-course-skin="tabularium"] .notebook-heading-kicker,
+html[data-theme="light"][data-course-skin="tabularium"] .headrow .eyebrow{
+  color:#8b3c2d
+}
+/* C · ACADEMIA ATTICA. Marfil claro, azul egeo, greca griega. */
+html[data-theme="light"][data-course-skin="attica"]{
+  --stone:#f5f7f7;--stone-secondary:#eaf1f6;--stone-line:#ccdae6;
+  --bronze:#b99d77;--navy:#f8fafb;--ink:#183b60;--muted:#617587;
+  --line:#d5e0e8;--surface:#fff;--raised:#f2f7fa;
+  --row-odd:#fff;--row-even:#f3f8fc;
+  --row-final-odd:#e4f1fa;--row-final-even:#d7eaf7;
+}
+html[data-theme="light"][data-course-skin="attica"] .shell{
+  background-color:var(--stone);
+  background-image:radial-gradient(ellipse at 12% 14%,#d2e8f544 0,transparent 37%),
+    repeating-linear-gradient(120deg,transparent 0 135px,#b2c8d40d 136px,transparent 138px 218px);
+}
+html[data-theme="light"][data-course-skin="attica"] .topbar{
+  background:linear-gradient(102deg,#f9fbfc,#f3f8fb 76%,#fff);
+  border-bottom:1px solid #c4d4df!important;
+}
+html[data-theme="light"][data-course-skin="attica"] .topbar::before{
+  background:linear-gradient(110deg,#78aace,#92bfdd 54%,#70a3ca);
+  border-bottom:2px solid #b5d8ed
+}
+html[data-theme="light"][data-course-skin="attica"] .topbar::after{
+  background:linear-gradient(90deg,#679ac4,transparent 70%)
+}
+html[data-theme="light"][data-course-skin="attica"] .brand{color:#174472}
+html[data-theme="light"][data-course-skin="attica"] .brand-mark{
+  color:#1b669e;border:1px solid #b4cddd;background:#e6f2f8;box-shadow:none!important
+}
+html[data-theme="light"][data-course-skin="attica"] .brand-copy small{color:#637f99}
+html[data-theme="light"][data-course-skin="attica"] .topmeta .pill{
+  color:#27567e;border-color:#c5d9e7;background:#eaf4fb
+}
+html[data-theme="light"][data-course-skin="attica"] .topbar .topbar-close-btn,
+html[data-theme="light"][data-course-skin="attica"] .topbar .header-tools>summary,
+html[data-theme="light"][data-course-skin="attica"] .topmeta .lock-btn{
+  background:#fff;border:1px solid #b8cddf;color:#205280;
+  box-shadow:0 3px 12px #1b578711
+}
+html[data-theme="light"][data-course-skin="attica"] .topmeta .lock-btn{
+  background:#367caf;color:#fff;border-color:#367caf
+}
+html[data-theme="light"][data-course-skin="attica"] .topbar .topbar-close-btn:hover,
+html[data-theme="light"][data-course-skin="attica"] .topbar .header-tools>summary:hover{
+  background:#e8f4fc;color:#18476d
+}
+html[data-theme="light"][data-course-skin="attica"] .tabs{
+  background:linear-gradient(145deg,#fdfefe,#f3f9fc 90%)
+}
+html[data-theme="light"][data-course-skin="attica"] .tabs::after{
+  content:"";display:block;height:154px;flex:0 0 154px;
+  background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20300%20240%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22sky%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23e1f1fa%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23eff5f3%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cpath%20fill%3D%22url(%23sky)%22%20d%3D%22M0%200h300v240H0z%22%2F%3E%3Cpath%20fill%3D%22%23b8d1db%22%20d%3D%22M0%20171l55-23%2037%2015%2059-41%2052%2017%2055-28%2042%2025v104H0z%22%2F%3E%3Cpath%20fill%3D%22%2393b7c8%22%20d%3D%22M0%20197l48-16%2040%2010%2085-25%2067%2023%2060-9v60H0z%22%2F%3E%3Cpath%20fill%3D%22%23cbbda6%22%20d%3D%22M0%20213q80-20%20151-53t149-10v90H0z%22%2F%3E%3Cpath%20fill%3D%22%23f8f5e8%22%20stroke%3D%22%236f8da1%22%20stroke-width%3D%222%22%20d%3D%22M90%2090h139v11H90zM103%2078h113l15%2012H88zM105%2062h109v16H105zM112%2050h95v12h-95zM111%20101h105v57H111zM102%20159h120v9H102z%22%2F%3E%3Cpath%20fill%3D%22%2386a9b7%22%20d%3D%22M117%20104h8v51h-8zm20%200h8v51h-8zm20%200h8v51h-8zm20%200h8v51h-8zm20%200h8v51h-8z%22%2F%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22%23607e8d%22%20stroke-width%3D%221.4%22%20d%3D%22M104%2075h112M101%2090h123M98%20167h127%22%2F%3E%3Cpath%20fill%3D%22%23537b73%22%20d%3D%22M36%20220l7-78%2010%2078zM51%20220l8-96%2010%2096zM270%20221l7-87%209%2087z%22%2F%3E%3Cpath%20fill%3D%22%23f5f1e6%22%20stroke%3D%22%238fa7ae%22%20d%3D%22M0%20212l38-12%2015%2016%2018-11%2021%2017%2028-9%2029%2027H0z%22%2F%3E%3C%2Fsvg%3E") center bottom / contain no-repeat;
+  border-radius:6px;opacity:.88;pointer-events:none
+}
+html[data-theme="light"][data-course-skin="attica"] .headrow{
+  border-bottom:1px solid #bdd5e4
+}
+html[data-theme="light"][data-course-skin="attica"] .headrow::after{
+  content:"";width:180px;height:3px;bottom:-2px;padding:0;
+  background:linear-gradient(90deg,#7badd0,#e2eef5)
+}
+html[data-theme="light"][data-course-skin="attica"] .grade-table th.final-col{
+  background:#dbeef9!important
+}
+html[data-theme="light"][data-course-skin="attica"] .grade-table td.final-col{
+  color:#1d537f
+}
+/* En modo oscuro / OLED no se cubren las superficies con papel ni mármol.
+   Permanecen los matices clásicos de los títulos sin sacrificar negro absoluto. */
+html[data-theme="dark"][data-course-skin] .topbar::before{
+  background:var(--navy)
+}
+html[data-theme="oled"][data-course-skin] .topbar::before{
+  background:#000!important
+}
+html[data-theme="dark"][data-course-skin] .tabs::after,
+html[data-theme="oled"][data-course-skin] .tabs::after{display:none}
+html[data-theme="oled"][data-course-skin] .shell,
+html[data-theme="oled"][data-course-skin] .topbar{
+  background:#000!important
+}
+html[data-theme="oled"][data-course-skin] .topbar .topbar-close-btn{
+  background:#000;color:#fff;border-color:#737373
+}
+html[data-theme="oled"][data-course-skin] .topbar .topbar-close-btn:hover{
+  background:#181818;color:#fff
+}
+/* Impedir que ornamentos laterales creen una segunda fila o tapen menús.
+   El espacio superior se mantiene completo en modo pantalla completa iOS. */
+@media(max-width:900px){
+  html[data-course-skin] .tabs::after{display:none!important}
+  .topbar{padding-top:calc(60px + env(safe-area-inset-top,0px))!important}
+  .topbar .brand-copy strong{font-size:24px}
+}
+@media(max-width:640px){
+  .topbar{padding-top:calc(60px + env(safe-area-inset-top,0px))!important}
+  .topbar .brand-copy strong{font-size:22px}
+  html[data-course-skin] .grade-table{font-size:12.5px}
+  .headrow h1{font-size:clamp(22px,5vw,29px)}
+  .student-mode-title{font-size:15px}
+}
+@media print{
+  .topbar::before{display:none!important}
+  .topbar{padding-top:12px!important}
+  html[data-course-skin] .tabs::after{display:none!important}
+}
