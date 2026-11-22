@@ -1,4 +1,5 @@
-import {SLOT_TYPES,EVENT_TYPES,EXCEPTION_TYPES,activeYear,localToday,weekday,addDays,daySlots,daySessions,isHoliday,findExamSlots,saveSlot,removeSlot,saveEvent,saveLesson,carryLesson,saveHoliday,saveTask,saveException,deletePlannerItem,setActiveYear,addAcademicYear,updateAcademicYear,scheduleBands,saveTimetableBand,removeTimetableBand} from './planner.js';
+import {SLOT_TYPES,EVENT_TYPES,EXCEPTION_TYPES,activeYear,localToday,weekday,addDays,daySlots,daySessions,isHoliday,findExamSlots,saveSlot,removeSlot,saveEvent,saveLesson,carryLesson,saveHoliday,saveTask,saveException,deletePlannerItem,setActiveYear,addAcademicYear,updateAcademicYear,scheduleBands,saveTimetableBand,removeTimetableBand,setSummerSchedule,activeScheduleMode,slotsForMode} from './planner.js';
+import {timetableRows,timetableFileBase,timetableWordBlob,timetablePdfBytes} from './timetable-export.js';
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const shortDays=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
@@ -10,22 +11,30 @@ const eventGroup=(doc,e)=>doc.groups.find(g=>g.id===e.groupId);
 const pickGroup=(doc,y)=>[...doc.groups].sort((a,b)=>Number(b.course===y.name)-Number(a.course===y.name))
   .map(g=>({value:g.id,label:`${g.subject} · ${g.name}${g.course===y.name?'':' · '+g.course}`}));
 const action=(txt,attrs,cls='btn small')=>`<button type="button" class="${cls}" ${attrs}>${txt}</button>`;
+const isColor=value=>typeof value==='string'&&/^#[0-9A-Fa-f]{6}$/.test(value);
+const slotColor=(doc,s)=>{
+ const group=doc.groups.find(g=>g.id===s.groupId);
+ const accent=group&&doc.settings?.subjectAccents?.[group.level+':'+group.subject];
+ return isColor(accent)?accent:isColor(s.color)?s.color:'#64748B';
+};
+const slotStyle=(doc,s)=>'style="--planner-color:'+esc(slotColor(doc,s))+'"';
 /** Horario con filas fijas editables y celdas táctiles por día. Si existen
  * sesiones anteriores sin franja, se siguen mostrando por separado. */
 export function renderTimetableGrid(doc,y){
- const bands=scheduleBands(y),paired=new Set();
+ const bands=scheduleBands(y),active=slotsForMode(y),paired=new Set();
  const rows=bands.map(b=>{
   const cells=longDays.map((day,i)=>{
-   const matches=y.slots.filter(slot=>slot.day===i&&(slot.bandId===b.id||(!slot.bandId&&slot.start===b.start&&slot.end===b.end)));
+   const matches=active.filter(slot=>slot.day===i&&(slot.bandId===b.id||(!slot.bandId&&slot.start===b.start&&slot.end===b.end)));
    matches.forEach(slot=>paired.add(slot.id));
-   const entries=matches.map(slot=>`<button type="button" class="planner-timetable-assignment" data-edit-slot="${esc(slot.id)}" data-plan-group="${esc(slot.groupId||'')}" data-plan-type="${esc(slot.type)}" aria-label="Editar ${esc(labels(doc,slot))} del ${esc(day)} a las ${esc(b.start)}"><strong>${esc(labels(doc,slot))}</strong>${slot.room?`<small>Aula: ${esc(slot.room)}</small>`:''}</button>`).join('');
-   const free=action(matches.length?'+ Otra clase':b.kind==='break'?'+ Actividad':' + Asignar clase',`data-band-slot="${esc(b.id)}" data-band-day="${i}" aria-label="Asignar clase o actividad el ${esc(day)} en ${esc(b.label)}"`,'planner-timetable-empty');
-   return `<td class="${b.kind==='break'?'planner-timetable-break':''}">${entries}${free}</td>`;
+   const entries=matches.map(slot=>`<button type="button" class="planner-timetable-assignment" ${slotStyle(doc,slot)} data-edit-slot="${esc(slot.id)}" data-plan-group="${esc(slot.groupId||'')}" data-plan-type="${esc(slot.type)}" aria-label="Editar ${esc(labels(doc,slot))} del ${esc(day)} a las ${esc(b.start)}"><strong>${esc(labels(doc,slot))}</strong>${slot.room?`<small>Aula: ${esc(slot.room)}</small>`:''}</button>`).join('');
+   const free=matches.length?'':action(b.kind==='break'?'+ Actividad':'+ Asignar clase',`data-band-slot="${esc(b.id)}" data-band-day="${i}" aria-label="Asignar clase o actividad el ${esc(day)} en ${esc(b.label)}"`,'planner-timetable-empty');
+   const conflict=matches.length>1?'<small class="planner-overlap-warning">⚠ Asignaciones anteriores superpuestas: revisa y elimina las sobrantes.</small>':'';
+   return `<td class="${b.kind==='break'?'planner-timetable-break':''}">${entries}${conflict}${free}</td>`;
   }).join('');
   return `<tr><th scope="row" class="planner-timetable-band ${b.kind==='break'?'planner-timetable-break':''}"><strong>${esc(b.label)}</strong><span>${esc(b.start)}–${esc(b.end)}</span>${action('Editar franja',`data-edit-band="${esc(b.id)}" aria-label="Editar horas de ${esc(b.label)}"`,'planner-timetable-band-edit')}</th>${cells}</tr>`;
  }).join('');
- const extras=y.slots.filter(slot=>!paired.has(slot.id));
- return `<div class="planner-timetable-tools"><p class="hint">Toca cualquier casilla para asignar una materia del cuaderno o escribir otra, como Atención Educativa. Puedes indicar el aula y modificar las horas desde «Editar franja».</p>${action('+ Añadir franja','id="plan-add-band"')}</div>
+ const extras=active.filter(slot=>!paired.has(slot.id));
+ return `<div class="planner-timetable-tools"><label class="planner-summer-switch"><input type="checkbox" id="plan-summer-toggle" role="switch" ${activeScheduleMode(y)==='summer'?'checked':''}/><span>Horario de verano</span></label><p class="hint">En verano: siete clases de 45 minutos, primer patio de 30 minutos y salida a las 13:45, sin segundo patio. Ambos horarios se conservan por separado. Toca una casilla para asignar una sola clase o actividad; pulsa la existente para editarla.</p><div class="planner-export-actions">${action('Word · horario','id="plan-export-word"','btn small planner-word-action')}${action('PDF · horario','id="plan-export-pdf"','btn small planner-pdf-action')}${action('+ Añadir franja','id="plan-add-band"')}</div></div>
  <div class="planner-timetable-scroll" role="region" aria-label="Horario semanal personalizable" tabindex="0"><table class="planner-timetable"><thead><tr><th scope="col">Franja</th>${longDays.map(day=>`<th scope="col">${esc(day)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
  ${extras.length?`<section class="planner-extra-sessions"><h3>Otras sesiones guardadas</h3><p class="hint">Estas sesiones anteriores o de horario especial se conservan fuera de las franjas predeterminadas.</p><div class="planner-extra-list">${extras.map(slot=>`<div class="planner-schedule-item"><div><small>${esc(longDays[slot.day])} · ${esc(slot.start)}–${esc(slot.end)}</small><strong>${esc(labels(doc,slot))}</strong>${slot.room?`<small>Aula: ${esc(slot.room)}</small>`:''}</div>${action('Editar',`data-edit-slot="${esc(slot.id)}"`)}</div>`).join('')}</div></section>`:''}`;
 }
@@ -33,7 +42,7 @@ const slotCard=(doc,y,date,s,compact=false)=>{
  const lesson=y.lessons.find(x=>x.date===date&&x.slotId===s.id),label=labels(doc,s);
  const canceled=s.exception?.type==='cancel',replacement=s.exception?.type==='replace';
  const tit=replacement?(s.exception.label||label):label;
- return `<div class="planner-slot ${canceled?'planner-cancelled':''}" data-plan-group="${esc(s.groupId||'')}" data-plan-type="${esc(s.type)}"><div class="planner-slot-time">${esc(s.effectiveStart)}–${esc(s.effectiveEnd)}</div><strong>${esc(tit)}</strong>${s.room?`<span class="planner-slot-room">Aula: ${esc(s.room)}</span>`:''}${canceled?'<em>Cancelada</em>':''}${replacement?'<em>Actividad sustituta</em>':''}${s.exception?`<button type="button" class="planner-exception-edit" data-edit-exception="${esc(s.exception.id)}">✎ Cambio excepcional</button>`:''}${lesson?.planned?`<span>${esc(lesson.planned.slice(0,compact?85:240))}</span>`:''}${lesson?.done?'<span class="planner-done">✓ Realizada</span>':''}<button type="button" class="planner-slot-edit" data-lesson-date="${esc(date)}" data-lesson-slot="${esc(s.id)}" aria-label="Planificar ${esc(label)} el ${esc(date)}" ${canceled?'disabled':''}>${lesson?'Editar':'+ Plan'}</button></div>`;
+ return `<div class="planner-slot ${canceled?'planner-cancelled':''}" ${slotStyle(doc,s)} data-plan-group="${esc(s.groupId||'')}" data-plan-type="${esc(s.type)}"><div class="planner-slot-time">${esc(s.effectiveStart)}–${esc(s.effectiveEnd)}</div><strong>${esc(tit)}</strong>${s.room?`<span class="planner-slot-room">Aula: ${esc(s.room)}</span>`:''}${canceled?'<em>Cancelada</em>':''}${replacement?'<em>Actividad sustituta</em>':''}${s.exception?`<button type="button" class="planner-exception-edit" data-edit-exception="${esc(s.exception.id)}">✎ Cambio excepcional</button>`:''}${lesson?.planned?`<span>${esc(lesson.planned.slice(0,compact?85:240))}</span>`:''}${lesson?.done?'<span class="planner-done">✓ Realizada</span>':''}<button type="button" class="planner-slot-edit" data-lesson-date="${esc(date)}" data-lesson-slot="${esc(s.id)}" aria-label="Planificar ${esc(label)} el ${esc(date)}" ${canceled?'disabled':''}>${lesson?'Editar':'+ Plan'}</button></div>`;
 };
 function dayItems(doc,y,date){
  const sessions=daySessions(y,date),holiday=isHoliday(y,date),events=y.events.filter(x=>x.date===date).sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
@@ -52,7 +61,7 @@ const taskCard=(doc,t)=>`<div class="planner-event"><div><strong>${t.done?'✓ '
 export function renderPlanner(doc,ui){
  const y=activeYear(doc),mode=ui.plannerMode||'week',focus=ui.plannerDate||localToday();
  const start=addDays(focus,-weekday(focus));const monthStart=focus.slice(0,7)+'-01';const gridStart=addDays(monthStart,-weekday(monthStart));
- const count=y.events.length,numberClasses=y.slots.filter(s=>s.type==='class').length;
+ const count=y.events.length,numberClasses=slotsForMode(y).filter(s=>s.type==='class').length;
  const tools=`<div class="planner-tools">${action('+ Clase / horario','id="plan-add-slot"','btn primary')}${action('+ Examen o evento','id="plan-add-event"')}${action('+ Trabajo diario','id="plan-add-lesson"')}${action('+ Tarea','id="plan-add-task"')}${action('+ Festivo / vacaciones','id="plan-add-holiday"')}${action('+ Cambio excepcional','id="plan-add-exception"')}</div>`;
  let body='';
  if(mode==='schedule'){
@@ -64,7 +73,7 @@ export function renderPlanner(doc,ui){
  }
  return `<div class="planner-view"><section class="panel panel-pad planner-intro"><div><div class="planner-eyebrow">Agenda docente · planificación personal</div><h2>Mi planificador</h2><p class="subtitle">Tu horario, exámenes, clases previstas y días no lectivos. El diario de clase es opcional y no altera las notas.</p></div><div class="planner-year-chooser"><label>Curso académico<select id="plan-year">${doc.planner.years.map(x=>`<option value="${esc(x.id)}" ${x.id===y.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>${action('Fechas',`id="plan-edit-year"`)}${action('+ Curso',`id="plan-new-year"`)}</div></section>
  <section class="panel panel-pad planner-controls"><div class="planner-view-tabs">${[['day','Hoy / día'],['week','Semana'],['month','Mes'],['schedule','Horario base']].map(([k,t])=>`<button type="button" class="planner-view-btn ${mode===k?'active':''}" data-plan-mode="${k}" aria-pressed="${mode===k}">${t}</button>`).join('')}</div><div class="planner-date-controls">${action('‹',`id="plan-prev"`)}<input type="date" id="plan-date" value="${esc(focus)}" aria-label="Fecha mostrada"/>${action('Hoy',`id="plan-today"`)}${action('›',`id="plan-next"`)}</div><p class="hint">${esc(y.start)} a ${esc(y.end)} · ${numberClasses} sesiones de clase en el horario · ${count} eventos</p>${tools}</section>
- <section class="panel panel-pad planner-content"><div class="planner-content-head"><h2>${mode==='schedule'?'Horario semanal':mode==='week'?'Semana del '+dayText(start):mode==='month'?new Date(monthStart+'T12:00:00Z').toLocaleDateString('es-ES',{month:'long',year:'numeric',timeZone:'UTC'}):'Agenda del día'}</h2>${mode==='schedule'?'<p class="hint">El horario se repite de lunes a viernes, excepto festivos y cambios puntuales.</p>':''}</div>${body}</section>
+ <section class="panel panel-pad planner-content"><div class="planner-content-head"><h2>${mode==='schedule'?'Horario semanal'+(activeScheduleMode(y)==='summer'?' · verano':' · ordinario'):mode==='week'?'Semana del '+dayText(start):mode==='month'?new Date(monthStart+'T12:00:00Z').toLocaleDateString('es-ES',{month:'long',year:'numeric',timeZone:'UTC'}):'Agenda del día'}</h2>${mode==='schedule'?'<p class="hint">El horario se repite de lunes a viernes, excepto festivos y cambios puntuales.</p>':''}</div>${body}</section>
  <section class="panel panel-pad planner-bottom"><div><h3>Festivos y vacaciones</h3>${y.holidays.length?y.holidays.slice().sort((a,b)=>a.start.localeCompare(b.start)).map(h=>`<div class="planner-simple-row"><span>✦ ${esc(h.name)} · ${esc(h.start)}${h.end===h.start?'':' — '+esc(h.end)}</span>${action('Editar',`data-edit-holiday="${esc(h.id)}"`)}</div>`).join(''):'<p class="hint">Todavía no has señalado días no lectivos.</p>'}</div><div><h3>Tareas docentes pendientes</h3>${y.tasks.filter(t=>!t.done).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,12).map(t=>taskCard(doc,t)).join('')||'<p class="hint">Sin tareas pendientes.</p>'}</div></section>
  ${action('Exportar agenda a calendario (.ics)',`id="plan-export-ics"`)} ${action('Imprimir calendario',`id="plan-print"`)}<p class="hint">El registro de trabajo realizado solo se guarda cuando lo marcas o escribes expresamente. Todo forma parte de la misma copia cifrada .cdoc.</p></div>`;
 }
@@ -95,6 +104,30 @@ export function bindPlanner(doc,ui,ctx){
  });
  all('[data-edit-band]').forEach(b=>b.onclick=()=>bandModal(scheduleBands(activeYear(ctx.getDoc())).find(x=>x.id===b.dataset.editBand)));
  $('#plan-add-band')?.addEventListener('click',()=>bandModal());
+ $('#plan-summer-toggle')?.addEventListener('change',e=>{
+  const enabled=e.target.checked;
+  e.target.disabled=true;
+  ctx.commit(d=>setSummerSchedule(d,enabled),'Alternar horario de verano').then(redraw).catch(ctx.fail);
+ });
+ const download=(blob,filename)=>{
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
+ };
+ const confirmTimetableExport=()=>window.confirm('El horario se exportará SIN CIFRAR. Guarda el archivo solo en ubicaciones locales autorizadas, no en carpetas sincronizadas. ¿Continuar?');
+ $('#plan-export-word')?.addEventListener('click',async()=>{
+  if(!confirmTimetableExport())return;
+  try{const d=ctx.getDoc(),yr=activeYear(d),blob=await timetableWordBlob(d,yr,window.JSZip);
+   download(blob,timetableFileBase(yr)+'.docx');ctx.toast('Horario Word (.docx) generado en este dispositivo.');
+  }catch(error){ctx.fail(error);}
+ });
+ $('#plan-export-pdf')?.addEventListener('click',()=>{
+  if(!confirmTimetableExport())return;
+  try{const d=ctx.getDoc(),yr=activeYear(d),bytes=timetablePdfBytes(d,yr);
+   download(new Blob([bytes],{type:'application/pdf'}),timetableFileBase(yr)+'.pdf');
+   ctx.toast('Horario PDF generado en este dispositivo.');
+  }catch(error){ctx.fail(error);}
+ });
  $('#plan-add-event').onclick=()=>eventModal({date:dateNow()});
  all('[data-add-event]').forEach(b=>b.onclick=()=>eventModal({date:b.dataset.addEvent}));
  all('[data-edit-event]').forEach(b=>b.onclick=()=>eventModal({event:y.events.find(e=>e.id===b.dataset.editEvent)}));
@@ -141,12 +174,13 @@ export function bindPlanner(doc,ui,ctx){
    {id:'type',label:'Tipo',type:'select',value:s?.type||(linked?.kind==='break'?'otro':'class'),options:Object.entries(SLOT_TYPES).map(([value,label])=>({value,label}))},
    {id:'groupId',label:'Clase del cuaderno (opcional)',type:'select',required:false,value:s?.groupId||'',options:groupOptions()},
    {id:'label',label:'Otra asignatura / actividad (si no eliges clase)',required:false,value:s?.label||(linked?.kind==='break'?'Patio':'')},
-   {id:'room',label:'Aula (opcional)',required:false,value:s?.room||'',maxlength:60}
+   {id:'room',label:'Aula (opcional)',required:false,value:s?.room||'',maxlength:60},
+   {id:'color',label:'Color de actividad sin grupo (guardias, otras materias...)',type:'color',required:false,value:isColor(s?.color)?s.color:'#64748B'}
   ],v=>ctx.commit(d=>{
    const validBand=linked&&v.start===linked.start&&v.end===linked.end?linked.id:null;
    saveSlot(d,{...v,id:s?.id||null,groupId:v.groupId||null,bandId:validBand});
   },'Configurar horario'),
-  'Selecciona una clase del cuaderno o escribe una materia manual (p. ej. Atención Educativa). Aula y horas son editables.');
+  'Solo se permite una clase o actividad por franja. Puedes elegir colores para guardias y actividades sin grupo. Los cambios en este horario no alteran el otro.');
   if(s){
    const button=document.createElement('button');button.className='btn warn';button.type='button';button.textContent='Eliminar sesión';
    button.onclick=async()=>{
