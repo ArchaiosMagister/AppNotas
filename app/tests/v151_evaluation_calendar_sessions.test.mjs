@@ -146,7 +146,7 @@ test('edición de fechas y exportación individual aparecen en la vista, sin exp
  assert(html.includes('id="plan-evaluations"'));
  assert(html.includes('data-eval-group="'+group.id+'" data-eval-period="'+period.id+'"'));
  assert(html.includes('data-export-event="'+e.id+'"'));
- assert(html.includes('Sesiones de evaluación por grupo, subgrupo y trimestre'));
+ assert(html.includes('Sesiones de evaluación · '));
  assert(!html.includes(student.name));
  const script=read('src/planner-ui.js');
  assert(script.includes('function evaluationModal('));
