@@ -124,5 +124,5 @@ test('los controles son accesibles en móvil, en temas oscuros y con servicio PW
   assert(css.includes('.student-group-switch input:checked+.student-group-switch-track'));
   assert(css.includes('.topmeta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))'));
   assert(css.includes('min-height:44px'));
-  assert(sw.includes("cuaderno-docente-static-v136-group-tools"));
+  assert(sw.includes("cuaderno-docente-static-v136-dev"));
 });
