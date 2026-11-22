@@ -118,8 +118,8 @@ test('el módulo es independiente de la materia seleccionada y admite cursos adi
 });
 test('módulo incluido en la PWA offline y formulario adaptado al móvil',()=>{
  const app=read('app.js'),sw=read('sw.js'),css=read('styles.css');
- assert(app.includes('cuaderno-docente-static-v161-dev'));
- assert(sw.includes('cuaderno-docente-static-v161-dev'));
+ assert(app.includes('cuaderno-docente-static-v162-dev'));
+ assert(sw.includes('cuaderno-docente-static-v162-dev'));
  assert(sw.includes("'./src/evaluation-workspace.js'"));
  assert(css.includes('dialog.evaluation-session-dialog'));
  assert(css.includes('@media(max-width:720px)'));
