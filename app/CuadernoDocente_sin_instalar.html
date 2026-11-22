@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#11243f">
 <meta name="description" content="CuadernoDocente v1.19 autónomo de pruebas. Solo para pruebas con datos ficticios.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rMfkFFWoB2W1/Zx+4bgHim0WC7vKRVrq6FTeZclH1Z4=' 'sha256-EG2eqj+eprvMgawv8+mTLC5YjPxniOuJnPHCb3eCAfw='; style-src 'sha256-lQ2PJS7O2Z76XiHNmzIAovAb1si2blgfwgSrKxaihSE='; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rMfkFFWoB2W1/Zx+4bgHim0WC7vKRVrq6FTeZclH1Z4=' 'sha256-6yj5/zVfE43+Ro7HIskgdXW8OXG8aZvAf8+sYqNKJKg='; style-src 'sha256-syCqn0TZRY+rieVVY13gw0DyZgEHfIyze0r7f9tUzJg='; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20128%20128%22%20role%3D%22img%22%20aria-label%3D%22CuadernoDocente%20%C2%B7%20columna%20cl%C3%A1sica%22%3E%0A%20%20%3Crect%20width%3D%22128%22%20height%3D%22128%22%20rx%3D%2227%22%20fill%3D%22%23263246%22%2F%3E%0A%20%20%3Crect%20x%3D%225%22%20y%3D%225%22%20width%3D%22118%22%20height%3D%22118%22%20rx%3D%2223%22%20fill%3D%22none%22%20stroke%3D%22%23a88b60%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M27%2037h74m-68%207h62M40%2050v45m24-45v45m24-45v45M27%20100h74m-68-5h62%22%20stroke%3D%22%23f4e4c8%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M30%2035c5-14%2017-19%2034-19s29%205%2034%2019M47%2036h34%22%20fill%3D%22none%22%20stroke%3D%22%23cbaa79%22%20stroke-width%3D%225%22%20stroke-linecap%3D%22round%22%2F%3E%0A%3C%2Fsvg%3E%0A">
 <title>CuadernoDocente · v1.19 · sin instalar</title>
 <style>:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#1a2d46;background:#f3f6fb;font-synthesis:none;--navy:#142845;--line:#e1e7f0;--ink:#152a47;--muted:#697b93;--blue:#326ed6;--surface:#fff;--green:#0f866a;--danger:#c53548}
@@ -2898,6 +2898,33 @@ html[data-theme="oled"] .planner-summer-switch,html[data-theme="oled"] .comp-lin
  body:has(.planner-timetable) .planner-timetable-tools,
  body:has(.planner-timetable) .planner-export-actions{display:none!important}
 }
+
+
+/* Convocatorias docentes: panel compacto, legible en móvil, oscuro y OLED. */
+.planner-evaluations{margin-block:12px}
+.planner-evaluations summary{cursor:pointer;font-weight:850;color:var(--ink);padding:6px 0;line-height:1.5}
+.planner-evaluations summary:focus-visible{outline:3px solid var(--accent);outline-offset:4px;border-radius:6px}
+.planner-evaluations > .hint{margin:10px 0}
+.planner-evaluation-row{
+ display:grid;grid-template-columns:minmax(150px,1.3fr) minmax(110px,1fr) minmax(150px,1fr) auto auto;
+ gap:10px;align-items:center;padding:11px 4px;border-top:1px solid var(--line);
+}
+.planner-evaluation-row strong{color:var(--ink);overflow-wrap:anywhere}
+.planner-evaluation-when{font-variant-numeric:tabular-nums;color:var(--ink)}
+.planner-evaluation-row .btn{white-space:normal;min-height:38px}
+.planner-week-event-row{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.planner-week-event-row .planner-week-event{flex:1 1 135px}
+.planner-week-event-row > .btn{flex:0 0 auto;font-size:11px}
+html[data-theme="oled"] .planner-evaluations{background:#000}
+@media(max-width:850px){
+ .planner-evaluation-row{grid-template-columns:minmax(100px,1fr) minmax(100px,1fr);gap:7px}
+ .planner-evaluation-when{grid-column:1/-1}
+ .planner-evaluation-row .btn{justify-self:stretch}
+}
+@media(max-width:430px){
+ .planner-evaluation-row{grid-template-columns:1fr 1fr}
+ .planner-evaluation-row strong{grid-column:1/-1}
+}
 </style>
 </head><body>
 <div id="app"><div class="loading-screen"><span class="spinner"></span><strong>CuadernoDocente</strong><p>Preparando el cuaderno local…</p></div></div>
@@ -5753,7 +5780,7 @@ function bindSettings() {
             if (!registration?.active)
                 throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
             const expected = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './src/pwa-controls.js', './src/model.js', './src/cuaderno.js', './src/planner.js', './src/planner-ui.js', './src/timetable-export.js', './src/attitude-template.js', './src/rubric-xlsx.js', './vendor/jszip.min.js', './src/calculations.js', './src/statistics.js', './src/csv.js', './src/rubric-import.js', './src/rubric-ui.js', './src/history.js', './src/vault.js', './src/storage.js', './src/diagnostics.js', './src/curriculum-data.js', './src/official-competencies.js', './data/curriculos/gr1y2-nuevo.pdf', './data/curriculos/lat1y2-nuevo.pdf', './data/curriculos/lat4.pdf', './data/curriculos/lat2-2022.pdf'];
-            const cache = await caches.open('cuaderno-docente-static-v148-dev');
+            const cache = await caches.open('cuaderno-docente-static-v149-dev');
             const missing = [];
             for (const path of expected)
                 if (!await cache.match(path))
@@ -8267,16 +8294,39 @@ function dayItems(doc, y, date) {
 }
 const eventCard = (doc, e, y) => {
     const conflict = (0, planner_js_1.isHoliday)(y, e.date) || y.exceptions.some(x => x.date === e.date && x.slotId === e.slotId && ['cancel', 'replace'].includes(x.type));
-    return `<div class="planner-event planner-event-${esc(e.type)}"><div><strong>${esc(planner_js_1.EVENT_TYPES[e.type])}: ${esc(e.title)}</strong><small>${esc(e.time || 'Sin hora')} ${eventGroup(doc, e) ? '· ' + esc(eventGroup(doc, e).subject + ' · ' + eventGroup(doc, e).name) : ''}</small>${conflict ? '<small class="planner-conflict">⚠ Día no lectivo o clase sustituida. Revisa la fecha del evento.</small>' : ''}${e.notes ? `<p>${esc(e.notes)}</p>` : ''}</div>${action('Editar', `data-edit-event="${esc(e.id)}"`)}</div>`;
+    return `<div class="planner-event planner-event-${esc(e.type)}"><div><strong>${esc(planner_js_1.EVENT_TYPES[e.type])}: ${esc(e.title)}</strong><small>${esc(e.time || 'Sin hora')} ${eventGroup(doc, e) ? '· ' + esc(eventGroup(doc, e).subject + ' · ' + eventGroup(doc, e).name) : ''}</small>${conflict ? '<small class="planner-conflict">⚠ Día no lectivo o clase sustituida. Revisa la fecha del evento.</small>' : ''}${e.notes ? `<p>${esc(e.notes)}</p>` : ''}</div>${action('Añadir a calendario', `data-export-event="${esc(e.id)}"`)}${action('Editar', `data-edit-event="${esc(e.id)}"`)}</div>`;
 };
 const taskCard = (doc, t) => `<div class="planner-event"><div><strong>${t.done ? '✓ ' : ''}${esc(t.title)}</strong>${t.notes ? `<small>${esc(t.notes)}</small>` : ''}</div>${action(t.done ? 'Reabrir' : 'Completar', `data-toggle-task="${esc(t.id)}"`)}${action('Editar', `data-edit-task="${esc(t.id)}"`)}</div>`;
+/** Un calendario de convocatorias por grupo y trimestre, independiente de las notas.
+ * Solo se ofrecen los grupos adscritos al curso académico activo. */
+function evaluationOverview(doc, y) {
+    const groups = doc.groups.filter(g => g.course === y.name), periods = [...doc.periods].sort((a, b) => a.order - b.order);
+    const total = groups.length * periods.length;
+    const scheduled = y.events.filter(e => e.type === 'evaluation' && groups.some(g => g.id === e.groupId)).length;
+    let html = '';
+    for (const group of groups)
+        for (const period of periods) {
+            const event = y.events.find(e => e.type === 'evaluation' && e.groupId === group.id && e.periodId === period.id);
+            const attrs = 'data-eval-group="' + esc(group.id) + '" data-eval-period="' + esc(period.id) + '"';
+            html += '<div class="planner-evaluation-row"><strong>' + esc(group.subject + ' · ' + group.name) + '</strong>' +
+                '<span>' + esc(period.name) + '</span><span class="planner-evaluation-when">' +
+                (event ? esc(event.date + ' · ' + event.time) : 'Sin programar') + '</span>' +
+                action(event ? 'Editar fecha y hora' : 'Programar', attrs) +
+                (event ? action('Añadir a calendario', 'data-export-event="' + esc(event.id) + '"') : '') + '</div>';
+        }
+    return '<details id="plan-evaluations" class="panel panel-pad planner-evaluations"><summary>' +
+        'Sesiones de evaluación por grupo y trimestre · ' + scheduled + '/' + total + ' programadas</summary>' +
+        '<p class="hint">Elige fecha y hora de cada convocatoria. Son citas docentes, no se modifican las calificaciones.' +
+        ' Puedes exportar cada cita a tu calendario sin compartir el cuaderno.</p>' +
+        (html || '<p class="hint">Todavía no hay grupos de este curso académico.</p>') + '</details>';
+}
 function renderPlanner(doc, ui) {
     const y = (0, planner_js_1.activeYear)(doc), mode = ui.plannerMode || 'week', focus = ui.plannerDate || (0, planner_js_1.localToday)();
     const start = (0, planner_js_1.addDays)(focus, -(0, planner_js_1.weekday)(focus));
     const monthStart = focus.slice(0, 7) + '-01';
     const gridStart = (0, planner_js_1.addDays)(monthStart, -(0, planner_js_1.weekday)(monthStart));
     const count = y.events.length, numberClasses = (0, planner_js_1.slotsForMode)(y).filter(s => s.type === 'class').length;
-    const tools = `<div class="planner-tools">${action('+ Clase / horario', 'id="plan-add-slot"', 'btn primary')}${action('+ Examen o evento', 'id="plan-add-event"')}${action('+ Trabajo diario', 'id="plan-add-lesson"')}${action('+ Tarea', 'id="plan-add-task"')}${action('+ Festivo / vacaciones', 'id="plan-add-holiday"')}${action('+ Cambio excepcional', 'id="plan-add-exception"')}</div>`;
+    const tools = `<div class="planner-tools">${action('+ Clase / horario', 'id="plan-add-slot"', 'btn primary')}${action('+ Examen o evento', 'id="plan-add-event"')}${action('Sesiones de evaluación', 'id="plan-show-evaluations"')}${action('+ Trabajo diario', 'id="plan-add-lesson"')}${action('+ Tarea', 'id="plan-add-task"')}${action('+ Festivo / vacaciones', 'id="plan-add-holiday"')}${action('+ Cambio excepcional', 'id="plan-add-exception"')}</div>`;
     let body = '';
     if (mode === 'schedule') {
         body = renderTimetableGrid(doc, y);
@@ -8284,12 +8334,13 @@ function renderPlanner(doc, ui) {
     else if (mode === 'day')
         body = dayItems(doc, y, focus);
     else if (mode === 'week')
-        body = `<div class="planner-week">${Array.from({ length: 5 }, (_, i) => { const d = (0, planner_js_1.addDays)(start, i), holiday = (0, planner_js_1.isHoliday)(y, d), events = y.events.filter(e => e.date === d); return `<section class="planner-weekday"><button type="button" class="planner-date-heading" data-go-date="${d}">${shortDays[i]} <strong>${dayText(d)}</strong></button>${holiday ? `<div class="planner-holiday">${esc(holiday.name)}</div>` : ''}${(0, planner_js_1.daySessions)(y, d).map(s => slotCard(doc, y, d, s, true)).join('')}${events.map(e => `<button type="button" class="planner-week-event" data-edit-event="${esc(e.id)}">${(0, planner_js_1.isHoliday)(y, d) || y.exceptions.some(x => x.date === d && x.slotId === e.slotId && ['cancel', 'replace'].includes(x.type)) ? '⚠ ' : ''}${esc(e.time || '')} · ${esc(e.title)}</button>`).join('')}${y.tasks.filter(t => t.dueDate === d).map(t => `<button type="button" class="planner-week-task" data-edit-task="${esc(t.id)}">${t.done ? '✓ ' : '☐ '}${esc(t.title)}</button>`).join('')}${action('+ Nota', `data-add-lesson="${d}"`, 'planner-add-note')}</section>`; }).join('')}</div>`;
+        body = `<div class="planner-week">${Array.from({ length: 5 }, (_, i) => { const d = (0, planner_js_1.addDays)(start, i), holiday = (0, planner_js_1.isHoliday)(y, d), events = y.events.filter(e => e.date === d); return `<section class="planner-weekday"><button type="button" class="planner-date-heading" data-go-date="${d}">${shortDays[i]} <strong>${dayText(d)}</strong></button>${holiday ? `<div class="planner-holiday">${esc(holiday.name)}</div>` : ''}${(0, planner_js_1.daySessions)(y, d).map(s => slotCard(doc, y, d, s, true)).join('')}${events.map(e => `<div class="planner-week-event-row"><button type="button" class="planner-week-event" data-edit-event="${esc(e.id)}">${(0, planner_js_1.isHoliday)(y, d) || y.exceptions.some(x => x.date === d && x.slotId === e.slotId && ['cancel', 'replace'].includes(x.type)) ? '⚠ ' : ''}${esc(e.time || '')} · ${esc(e.title)}</button>${action('Calendario', `data-export-event="${esc(e.id)}"`, 'btn small')}</div>`).join('')}${y.tasks.filter(t => t.dueDate === d).map(t => `<button type="button" class="planner-week-task" data-edit-task="${esc(t.id)}">${t.done ? '✓ ' : '☐ '}${esc(t.title)}</button>`).join('')}${action('+ Nota', `data-add-lesson="${d}"`, 'planner-add-note')}</section>`; }).join('')}</div>`;
     else {
         body = `<div class="planner-month">${shortDays.map(day => `<div class="planner-month-head">${day}</div>`).join('')}${Array.from({ length: 42 }, (_, i) => { const d = (0, planner_js_1.addDays)(gridStart, i), holiday = (0, planner_js_1.isHoliday)(y, d), events = y.events.filter(e => e.date === d), tasks = y.tasks.filter(t => t.dueDate === d), all = events.length + tasks.length; return `<button type="button" class="planner-month-cell ${d.slice(0, 7) === focus.slice(0, 7) ? '' : 'outside'} ${d === (0, planner_js_1.localToday)() ? 'today' : ''} ${holiday ? 'holiday' : ''}" data-go-date="${d}"><strong>${Number(d.slice(8))}</strong>${holiday ? `<small>✦ ${esc(holiday.name)}</small>` : ''}${events.slice(0, 2).map(e => `<span class="planner-month-dot">${esc(e.title)}</span>`).join('')}${tasks.length ? `<span class="planner-month-task">${tasks.length} tarea(s)</span>` : ''}${all > 2 ? `<span class="planner-more">+${all - 2}</span>` : ''}</button>`; }).join('')}</div>`;
     }
     return `<div class="planner-view"><section class="panel panel-pad planner-intro"><div><div class="planner-eyebrow">Agenda docente · planificación personal</div><h2>Mi planificador</h2><p class="subtitle">Tu horario, exámenes, clases previstas y días no lectivos. El diario de clase es opcional y no altera las notas.</p></div><div class="planner-year-chooser"><label>Curso académico<select id="plan-year">${doc.planner.years.map(x => `<option value="${esc(x.id)}" ${x.id === y.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>${action('Fechas', `id="plan-edit-year"`)}${action('+ Curso', `id="plan-new-year"`)}</div></section>
  <section class="panel panel-pad planner-controls"><div class="planner-view-tabs">${[['day', 'Hoy / día'], ['week', 'Semana'], ['month', 'Mes'], ['schedule', 'Horario base']].map(([k, t]) => `<button type="button" class="planner-view-btn ${mode === k ? 'active' : ''}" data-plan-mode="${k}" aria-pressed="${mode === k}">${t}</button>`).join('')}</div><div class="planner-date-controls">${action('‹', `id="plan-prev"`)}<input type="date" id="plan-date" value="${esc(focus)}" aria-label="Fecha mostrada"/>${action('Hoy', `id="plan-today"`)}${action('›', `id="plan-next"`)}</div><p class="hint">${esc(y.start)} a ${esc(y.end)} · ${numberClasses} sesiones de clase en el horario · ${count} eventos</p>${tools}</section>
+ ${evaluationOverview(doc, y)}
  <section class="panel panel-pad planner-content"><div class="planner-content-head"><h2>${mode === 'schedule' ? 'Horario semanal' + ((0, planner_js_1.activeScheduleMode)(y) === 'summer' ? ' · verano' : ' · ordinario') : mode === 'week' ? 'Semana del ' + dayText(start) : mode === 'month' ? new Date(monthStart + 'T12:00:00Z').toLocaleDateString('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'Agenda del día'}</h2>${mode === 'schedule' ? '<p class="hint">El horario se repite de lunes a viernes, excepto festivos y cambios puntuales.</p>' : ''}</div>${body}</section>
  <section class="panel panel-pad planner-bottom"><div><h3>Festivos y vacaciones</h3>${y.holidays.length ? y.holidays.slice().sort((a, b) => a.start.localeCompare(b.start)).map(h => `<div class="planner-simple-row"><span>✦ ${esc(h.name)} · ${esc(h.start)}${h.end === h.start ? '' : ' — ' + esc(h.end)}</span>${action('Editar', `data-edit-holiday="${esc(h.id)}"`)}</div>`).join('') : '<p class="hint">Todavía no has señalado días no lectivos.</p>'}</div><div><h3>Tareas docentes pendientes</h3>${y.tasks.filter(t => !t.done).sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, 12).map(t => taskCard(doc, t)).join('') || '<p class="hint">Sin tareas pendientes.</p>'}</div></section>
  ${action('Exportar agenda a calendario (.ics)', `id="plan-export-ics"`)} ${action('Imprimir calendario', `id="plan-print"`)}<p class="hint">El registro de trabajo realizado solo se guarda cuando lo marcas o escribes expresamente. Todo forma parte de la misma copia cifrada .cdoc.</p></div>`;
@@ -8369,8 +8420,19 @@ function bindPlanner(doc, ui, ctx) {
         }
     });
     $('#plan-add-event').onclick = () => eventModal({ date: dateNow() });
+    $('#plan-show-evaluations').onclick = () => { const overview = $('#plan-evaluations'); overview.open = true; overview.scrollIntoView({ block: 'nearest' }); };
+    all('[data-eval-group]').forEach(b => b.onclick = () => evaluationModal(b.dataset.evalGroup, b.dataset.evalPeriod));
     all('[data-add-event]').forEach(b => b.onclick = () => eventModal({ date: b.dataset.addEvent }));
-    all('[data-edit-event]').forEach(b => b.onclick = () => eventModal({ event: y.events.find(e => e.id === b.dataset.editEvent) }));
+    all('[data-edit-event]').forEach(b => b.onclick = () => {
+        const event = y.events.find(e => e.id === b.dataset.editEvent);
+        if (!event)
+            return;
+        if (event.type === 'evaluation')
+            evaluationModal(event.groupId, event.periodId);
+        else
+            eventModal({ event });
+    });
+    all('[data-export-event]').forEach(b => b.onclick = () => exportSingleEvent(y.events.find(e => e.id === b.dataset.exportEvent)));
     $('#plan-add-lesson').onclick = () => lessonModal({ date: dateNow() });
     all('[data-add-lesson]').forEach(b => b.onclick = () => lessonModal({ date: b.dataset.addLesson }));
     all('[data-lesson-slot]').forEach(b => b.onclick = () => lessonModal({ date: b.dataset.lessonDate, slotId: b.dataset.lessonSlot }));
@@ -8519,9 +8581,43 @@ function bindPlanner(doc, ui, ctx) {
         }
         ctx.dialog.showModal();
     }
+    function evaluationModal(groupId, periodId) {
+        const current = (0, planner_js_1.activeYear)(ctx.getDoc()), group = ctx.getDoc().groups.find(g => g.id === groupId && g.course === current.name);
+        const period = ctx.getDoc().periods.find(p => p.id === periodId);
+        if (!group || !period) {
+            ctx.fail(new Error('Grupo o evaluación ya no disponibles en este curso.'));
+            return;
+        }
+        const existing = current.events.find(e => e.type === 'evaluation' && e.groupId === groupId && e.periodId === periodId);
+        const today = dateNow(), date = existing?.date || (today >= current.start && today <= current.end ? today : current.start);
+        ctx.fieldsModal('Sesión de evaluación · ' + group.name + ' · ' + period.name, [
+            { id: 'date', label: 'Día de la sesión', type: 'date', value: date },
+            { id: 'time', label: 'Hora de inicio', type: 'time', value: existing?.time || '15:30' },
+            { id: 'notes', label: 'Lugar o indicaciones (opcional)', required: false, value: existing?.notes || '', maxlength: 1000 }
+        ], values => ctx.commit(d => (0, planner_js_1.saveEvaluationSession)(d, {
+            id: existing?.id || null, groupId, periodId, ...values
+        }), 'Programar sesión de evaluación'), 'La convocatoria aparecerá en las vistas de día, semana y mes. Su hora no depende de las clases del horario.');
+        if (existing)
+            delButton('events', existing.id);
+    }
+    function exportSingleEvent(event) {
+        if (!event)
+            return;
+        if (!window.confirm('Se generará un archivo .ics SIN CIFRAR con el título, fecha, hora y observaciones de esta cita. No incluyas datos personales de alumnos ni lo guardes en servicios no autorizados. ¿Continuar?'))
+            return;
+        try {
+            const ics = (0, planner_js_1.calendarEventIcs)(event);
+            const filename = 'AppNotas-evento-' + event.date + '-' + event.id.slice(0, 8) + '.ics';
+            download(new Blob([ics], { type: 'text/calendar;charset=utf-8' }), filename);
+            ctx.toast('Cita exportada. Abre el archivo .ics e impórtalo en el calendario que elijas. No existe sincronización automática.');
+        }
+        catch (error) {
+            ctx.fail(error);
+        }
+    }
     function eventModal({ date = dateNow(), event = null, assessmentId = null, groupId = null } = {}) {
         const fixedGroup = groupId || event?.groupId || null, kind = event?.type || 'exam', title = event?.title || ctx.getDoc().assessments.find(a => a.id === assessmentId)?.name || '';
-        ctx.dialog.innerHTML = `<form class="modal-inner" id="planner-event-form"><h2 id="modal-heading">${event ? 'Editar' : 'Programar'} examen o evento</h2><p class="subtitle">Elige un grupo y una fecha. Si hay una sola clase en el horario, se toma su hora automáticamente.</p><div class="modal-fields"><label>Tipo<select name="type">${Object.entries(planner_js_1.EVENT_TYPES).map(([v, t]) => `<option value="${v}" ${v === kind ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label><label>Nombre<input name="title" class="text-field" required maxlength="150" value="${esc(title)}" placeholder="Examen parcial"/></label><label>Fecha<input name="date" class="text-field" type="date" required value="${esc(event?.date || date)}"/></label><label>Grupo (opcional para reuniones)<select name="groupId"><option value="">Sin grupo</option>${pickGroup(ctx.getDoc(), (0, planner_js_1.activeYear)(ctx.getDoc())).map(g => `<option value="${esc(g.value)}" ${g.value === fixedGroup ? 'selected' : ''}>${esc(g.label)}</option>`).join('')}</select></label><label>Actividad del cuaderno (opcional)<select name="assessmentId"><option value="">Sin vincular</option></select></label><label>Clase del horario<select name="slotId"><option value="">Hora manual / sin horario</option></select></label><div id="planner-slot-message" class="hint"></div><label>Hora manual (solo si no hay clase vinculada)<input name="time" type="time" class="text-field" value="${esc(event?.time || '')}"/></label><label>Observaciones<textarea name="notes" class="text-field" maxlength="4000" rows="3">${esc(event?.notes || '')}</textarea></label></div><div class="modal-error" role="alert"></div><div class="modal-actions"><button type="button" class="btn" id="planner-cancel-event">Cancelar</button><button type="submit" class="btn primary">Guardar evento</button></div></form>`;
+        ctx.dialog.innerHTML = `<form class="modal-inner" id="planner-event-form"><h2 id="modal-heading">${event ? 'Editar' : 'Programar'} examen o evento</h2><p class="subtitle">Elige un grupo y una fecha. Si hay una sola clase en el horario, se toma su hora automáticamente.</p><div class="modal-fields"><label>Tipo<select name="type">${Object.entries(planner_js_1.EVENT_TYPES).filter(([value]) => value !== 'evaluation').map(([v, t]) => `<option value="${v}" ${v === kind ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label><label>Nombre<input name="title" class="text-field" required maxlength="150" value="${esc(title)}" placeholder="Examen parcial"/></label><label>Fecha<input name="date" class="text-field" type="date" required value="${esc(event?.date || date)}"/></label><label>Grupo (opcional para reuniones)<select name="groupId"><option value="">Sin grupo</option>${pickGroup(ctx.getDoc(), (0, planner_js_1.activeYear)(ctx.getDoc())).map(g => `<option value="${esc(g.value)}" ${g.value === fixedGroup ? 'selected' : ''}>${esc(g.label)}</option>`).join('')}</select></label><label>Actividad del cuaderno (opcional)<select name="assessmentId"><option value="">Sin vincular</option></select></label><label>Clase del horario<select name="slotId"><option value="">Hora manual / sin horario</option></select></label><div id="planner-slot-message" class="hint"></div><label>Hora manual (solo si no hay clase vinculada)<input name="time" type="time" class="text-field" value="${esc(event?.time || '')}"/></label><label>Observaciones<textarea name="notes" class="text-field" maxlength="4000" rows="3">${esc(event?.notes || '')}</textarea></label></div><div class="modal-error" role="alert"></div><div class="modal-actions"><button type="button" class="btn" id="planner-cancel-event">Cancelar</button><button type="submit" class="btn primary">Guardar evento</button></div></form>`;
         const form = ctx.dialog.querySelector('form'), fields = form.elements;
         const refresh = () => {
             const selected = fields.assessmentId.value || assessmentId || event?.assessmentId || '';
@@ -8623,6 +8719,8 @@ exports.nextClassDate = nextClassDate;
 exports.carryLesson = carryLesson;
 exports.findExamSlots = findExamSlots;
 exports.saveEvent = saveEvent;
+exports.saveEvaluationSession = saveEvaluationSession;
+exports.calendarEventIcs = calendarEventIcs;
 exports.saveTask = saveTask;
 exports.deletePlannerItem = deletePlannerItem;
 exports.assertPlanner = assertPlanner;
@@ -8771,7 +8869,7 @@ function removeTimetableBand(doc, id) {
         y.bands = next;
     doc.updatedAt = stamp();
 }
-exports.EVENT_TYPES = Object.freeze({ exam: 'Examen', task: 'Tarea', meeting: 'Reunión', other: 'Otro evento' });
+exports.EVENT_TYPES = Object.freeze({ exam: 'Examen', task: 'Tarea', meeting: 'Reunión', evaluation: 'Sesión de evaluación', other: 'Otro evento' });
 exports.EXCEPTION_TYPES = Object.freeze({ cancel: 'Clase cancelada', replace: 'Actividad sustituta', move: 'Cambio de hora' });
 function isoDate(v) {
     if (typeof v !== 'string' || !iso.test(v))
@@ -9041,7 +9139,7 @@ function carryLesson(doc, id) {
     return obj;
 }
 function findExamSlots(y, groupId, date) { return (0, exports.daySessions)(y, date).filter(s => s.type === 'class' && s.groupId === groupId && s.exception?.type !== 'cancel' && s.exception?.type !== 'replace'); }
-function saveEvent(doc, { id = null, date, type, title, groupId = null, assessmentId = null, slotId = null, time = '', notes = '' }) {
+function saveEvent(doc, { id = null, date, type, title, groupId = null, assessmentId = null, slotId = null, time = '', notes = '', periodId = null }) {
     const y = activeYear(doc);
     needDate(y, date);
     if (!Object.hasOwn(exports.EVENT_TYPES, type))
@@ -9051,6 +9149,15 @@ function saveEvent(doc, { id = null, date, type, title, groupId = null, assessme
         throw new Error('Hora del evento inválida.');
     if (String(notes).length > 4000)
         throw new Error('Notas demasiado largas.');
+    if (type === 'evaluation') {
+        const group = doc.groups.find(g => g.id === groupId);
+        if (!group || group.course !== y.name || !doc.periods.some(p => p.id === periodId) || !time || slotId || assessmentId)
+            throw new Error('La sesión de evaluación requiere grupo del curso, trimestre y hora manual.');
+        if (y.events.some(e => e.id !== id && e.type === 'evaluation' && e.groupId === groupId && e.periodId === periodId))
+            throw new Error('Este grupo ya tiene una sesión programada para esa evaluación. Edita la existente.');
+    }
+    else if (periodId !== null)
+        throw new Error('Solo las sesiones de evaluación pueden vincularse a un trimestre.');
     let slot = null;
     if (slotId) {
         slot = y.slots.find(s => s.id === slotId);
@@ -9068,7 +9175,7 @@ function saveEvent(doc, { id = null, date, type, title, groupId = null, assessme
         if (y.events.some(e => e.id !== id && e.assessmentId === assessmentId))
             throw new Error('El examen ya está programado en este curso. Edita su fecha en lugar de duplicarlo.');
     }
-    const obj = { id: id || uid(), date, type, title: trimmed(title, 150), groupId: groupId || null, assessmentId: assessmentId || null, slotId: slotId || null, time: slot ? (y.exceptions.find(e => e.date === date && e.slotId === slotId && e.type === 'move')?.start || slot.start) : time, notes: String(notes).trim() };
+    const obj = { id: id || uid(), date, type, title: trimmed(title, 150), groupId: groupId || null, assessmentId: assessmentId || null, slotId: slotId || null, time: slot ? (y.exceptions.find(e => e.date === date && e.slotId === slotId && e.type === 'move')?.start || slot.start) : time, notes: String(notes).trim(), ...(type === 'evaluation' ? { periodId } : {}) };
     const old = y.events.find(e => e.id === id);
     if (id && !old)
         throw new Error('Evento inexistente.');
@@ -9078,6 +9185,54 @@ function saveEvent(doc, { id = null, date, type, title, groupId = null, assessme
         y.events.push(obj);
     doc.updatedAt = stamp();
     return obj;
+}
+/** Una convocatoria por grupo y evaluación del curso académico activo.
+ * Son citas de agenda, no calificaciones ni actas de evaluación. */
+function saveEvaluationSession(doc, { id = null, groupId, periodId, date, time, notes = '' }) {
+    const period = doc.periods.find(p => p.id === periodId), group = doc.groups.find(g => g.id === groupId);
+    if (!period || !group)
+        throw new Error('Selecciona un grupo y una evaluación válidos.');
+    return saveEvent(doc, { id, groupId, periodId, date, time, notes, type: 'evaluation',
+        title: period.name + ' · ' + group.name });
+}
+/** VEVENT individual, sin cuentas ni red: las horas son flotantes/locales
+ * y el calendario de destino elegirá su propia zona horaria.
+ * Importar un .ics NO sincroniza modificaciones posteriores de la agenda. */
+function calendarEventIcs(event, generatedAt = new Date()) {
+    if (!event || typeof event.id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(event.id) || !Object.hasOwn(exports.EVENT_TYPES, event.type) || !event.title || !isoDate(event.date) || !Number.isFinite(generatedAt.getTime()) ||
+        (event.time && !(0, exports.timeValid)(event.time)))
+        throw new Error('Evento inválido para exportar.');
+    const escapeIcs = value => String(value ?? '').replace(/\r\n?/g, '\n').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
+    const fold = line => {
+        let out = '', count = 0;
+        const encoder = new TextEncoder();
+        for (const char of line) {
+            const bytes = encoder.encode(char).length;
+            if (count + bytes > 75) {
+                out += '\r\n ';
+                count = 1;
+            }
+            out += char;
+            count += bytes;
+        }
+        return out;
+    };
+    const date = event.date.replaceAll('-', ''), next = (0, exports.addDays)(event.date, 1).replaceAll('-', '');
+    const mins = event.time ? Number(event.time.slice(0, 2)) * 60 + Number(event.time.slice(3)) : 0;
+    const finalMins = (mins + 60) % 1440;
+    const finalDay = event.time && mins + 60 >= 1440 ? next : date;
+    const start = event.time ? date + 'T' + event.time.replace(':', '') + '00' : date;
+    const end = event.time ? finalDay + 'T' + String(Math.floor(finalMins / 60)).padStart(2, '0') +
+        String(finalMins % 60).padStart(2, '0') + '00' : next;
+    const stamp = generatedAt.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const content = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//AppNotas//AgendaDocente//ES', 'CALSCALE:GREGORIAN',
+        'BEGIN:VEVENT', 'UID:' + event.id + '@cuadernodocente.local', 'DTSTAMP:' + stamp,
+        event.time ? 'DTSTART:' + start : 'DTSTART;VALUE=DATE:' + start,
+        event.time ? 'DTEND:' + end : 'DTEND;VALUE=DATE:' + end,
+        'SUMMARY:' + escapeIcs(exports.EVENT_TYPES[event.type] + ': ' + event.title),
+        'DESCRIPTION:' + escapeIcs(event.notes),
+        'END:VEVENT', 'END:VCALENDAR'];
+    return content.map(fold).join('\r\n') + '\r\n';
 }
 function saveTask(doc, { id = null, title, dueDate, groupId = null, done = false, notes = '' }) { const y = activeYear(doc); needDate(y, dueDate); checkGroup(doc, groupId); if (String(notes).length > 4000)
     throw new Error('Notas demasiado largas.'); const obj = { id: id || uid(), title: trimmed(title, 150), dueDate, groupId: groupId || null, done: !!done, notes: String(notes).trim() }; const old = y.tasks.find(t => t.id === id); if (id && !old)
@@ -9124,7 +9279,8 @@ function assertPlanner(doc) {
         const uniquePairs = (items, key) => new Set(items.map(key)).size === items.length;
         if (!uniquePairs(y.exceptions, e => `${e.date}|${e.slotId}`) ||
             !uniquePairs(y.lessons.filter(l => l.slotId), l => `${l.date}|${l.slotId}`) ||
-            !uniquePairs(y.events.filter(e => e.assessmentId), e => e.assessmentId))
+            !uniquePairs(y.events.filter(e => e.assessmentId), e => e.assessmentId) ||
+            !uniquePairs(y.events.filter(e => e.type === 'evaluation'), e => e.groupId + '|' + e.periodId))
             throw new Error('Agenda duplicada: revisa excepciones, clases y exámenes vinculados.');
         for (const s of y.slots) {
             if (!Number.isInteger(s.day) || s.day < 0 || s.day > 4 || !Object.hasOwn(exports.SLOT_TYPES, s.type) || !(0, exports.timeValid)(s.start) || !(0, exports.timeValid)(s.end) || s.end <= s.start || (s.groupId && !doc.groups.some(g => g.id === s.groupId)) || (s.type === 'class' && !s.groupId && !s.label) || (s.type !== 'class' && s.groupId) ||
@@ -9149,7 +9305,9 @@ function assertPlanner(doc) {
                 throw new Error('Agenda de clase inválida.');
         }
         for (const e of y.events) {
-            if (!Object.hasOwn(exports.EVENT_TYPES, e.type) || !e.title || (e.time && !(0, exports.timeValid)(e.time)) || (e.slotId && y.slots.find(s => s.id === e.slotId)?.type === 'class' && y.slots.find(s => s.id === e.slotId)?.groupId !== e.groupId) || (e.assessmentId && (e.type !== 'exam' || !doc.assessments.some(a => a.id === e.assessmentId && a.groupId === e.groupId))))
+            if (!Object.hasOwn(exports.EVENT_TYPES, e.type) || !e.title || (e.time && !(0, exports.timeValid)(e.time)) || (e.slotId && y.slots.find(s => s.id === e.slotId)?.type === 'class' && y.slots.find(s => s.id === e.slotId)?.groupId !== e.groupId) || (e.assessmentId && (e.type !== 'exam' || !doc.assessments.some(a => a.id === e.assessmentId && a.groupId === e.groupId))) ||
+                (e.type === 'evaluation' && (!e.groupId || !e.periodId || !e.time || e.slotId || e.assessmentId || !doc.periods.some(p => p.id === e.periodId) || !doc.groups.some(g => g.id === e.groupId && g.course === y.name))) ||
+                (e.type !== 'evaluation' && e.periodId !== undefined && e.periodId !== null))
                 throw new Error('Evento inválido.');
         }
         for (const l of y.lessons) {
