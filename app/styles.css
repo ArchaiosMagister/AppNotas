@@ -3290,3 +3290,102 @@ html[data-theme="oled"] .notebook-eval-open{background:#000}
  .notebook-eval-list{flex-basis:100%;padding-left:20px}
 }
 @media print{.notebook-eval-notice{display:none!important}}
+
+
+/* Rediseño minimalista: menos capas y controles secundarios agrupados.
+ * Solo estilos: no se alteran formularios, fórmulas ni almacenamiento. */
+@media(min-width:901px){
+  .workspace{grid-template-columns:176px minmax(0,1fr);gap:15px}
+  .shell.nav-collapsed .workspace{grid-template-columns:62px minmax(0,1fr)}
+  .tabs{padding:10px 8px}
+  .tabs .tab{min-height:42px;padding:9px 8px;font-size:12px}
+}
+.tabs .nav-footer{display:none}
+.tabs .nav-secondary{margin-top:9px;padding-top:9px;border-top:1px solid var(--line)}
+.tabs .academic-disclosure>summary{font-weight:700}
+.academic-quick-nav{display:flex;flex-wrap:wrap;gap:4px;padding:5px;margin-bottom:8px;border-radius:10px;box-shadow:none}
+.academic-quick-nav .btn{min-height:35px;padding:7px 11px;font-size:12px;font-weight:670}
+.academic-quick-nav .btn.academic-quick-active{font-weight:800}
+.student-focus .academic-quick-nav{display:none!important}
+/* La materia sigue a un toque; los nombres repetidos de los grupos dejan de ocupar
+ * altura en cada botón. El grupo activo se conserva en la cabecera. */
+.course-choice .course-group-caption{display:none!important}
+.course-choice .course-name{font-size:12px}
+.class-toolbar{padding:10px 12px;box-shadow:none}
+.panel{box-shadow:0 2px 9px #00000006}
+.panel-header{background:var(--surface);padding:13px 16px;gap:10px}
+.notebook-heading{max-width:650px}
+.notebook-heading strong{font-size:18px}
+.notebook-heading p{margin:4px 0 0;max-width:630px;font-size:12px;line-height:1.5}
+.notebook-primary-actions{gap:7px}
+.notebook-primary-actions>.btn{min-height:40px;padding:8px 11px;font-size:12px}
+.notebook-primary-actions .notebook-more-actions>summary{min-height:40px;font-size:12px}
+.notebook-grade-options{margin:0;border-bottom:1px solid var(--line);background:var(--surface);font-size:12px}
+.notebook-grade-options>summary{display:flex;align-items:center;gap:7px;cursor:pointer;
+ padding:9px 16px;color:var(--muted);font-weight:700;list-style:none}
+.notebook-grade-options>summary::-webkit-details-marker{display:none}
+.notebook-grade-options>summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.notebook-grade-options[open]>summary{color:var(--ink);background:var(--raised)}
+.notebook-grade-options-body{display:grid;gap:8px;padding:8px 12px 12px}
+.notebook-grade-options .origin-manage-tools,.notebook-grade-options .itaca-global{
+ padding:6px 4px;border:0;background:transparent}
+.notebook-grade-options .itaca-global{justify-content:flex-start}
+.notebook-grade-options .itaca-global small{font-size:11px}
+.grade-cell-action-anchor{display:inline-flex;position:relative;align-items:center;
+ justify-content:center;vertical-align:middle;margin:2px 0;min-height:30px}
+.grade-cell-original-actions[hidden]{display:none!important}
+.grade-table .grade-cell-actions-trigger{position:relative;display:inline-flex;align-items:center;
+ justify-content:center;border:1px solid transparent;border-radius:7px;background:transparent;
+ color:var(--muted);min-width:34px;min-height:34px;padding:2px 5px;cursor:pointer;font-size:20px;
+ line-height:1}
+.grade-table .grade-cell-actions-trigger:hover{background:var(--accent-soft);border-color:var(--line)}
+.grade-table .grade-cell-actions-trigger:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grade-table .grade-cell-actions-trigger.has-observation{color:var(--accent-text)}
+.grade-cell-observation-mark{position:absolute;right:2px;top:2px;font-size:8px;color:var(--accent-text)}
+.grade-cell-actions-dialog .grade-cell-action-list{display:grid;gap:8px;margin:16px 0}
+.grade-cell-actions-dialog .grade-cell-action-list .btn{text-align:left;justify-content:flex-start;
+ min-height:45px;padding:10px 13px}
+.notebook-legend{display:block;padding:0;border:0;background:transparent}
+.notebook-legend>summary{cursor:pointer;padding:9px 13px;color:var(--muted);
+ font-weight:700;font-size:12px;list-style:none}
+.notebook-legend>summary::-webkit-details-marker{display:none}
+.notebook-legend>summary:focus-visible{outline:2px solid var(--accent)}
+.notebook-legend[open]{padding:0 0 10px}
+.notebook-legend .note{font-size:11px}
+.planner-tools-minimal{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:6px}
+.planner-create-menu{position:relative;z-index:24}
+.planner-create-menu>summary{cursor:pointer;display:flex;align-items:center;gap:12px;
+ min-height:42px;list-style:none;padding:10px 16px}
+.planner-create-menu>summary::-webkit-details-marker{display:none}
+.planner-create-menu>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.planner-create-options{position:absolute;top:calc(100% + 6px);left:0;z-index:25;
+ display:grid;gap:3px;min-width:255px;max-width:min(330px,calc(100vw - 30px));
+ padding:8px;border:1px solid var(--line);border-radius:12px;background:var(--surface);
+ box-shadow:0 12px 30px #00000020}
+.planner-create-options>.btn{display:flex;width:100%;min-height:42px;white-space:normal;
+ justify-content:flex-start;text-align:left;border:0;background:transparent;color:var(--ink)}
+.planner-create-options>.btn:hover,.planner-create-options>.btn:focus-visible{background:var(--raised)}
+.planner-tools-minimal .planner-sessions-shortcut{min-height:39px;font-size:12px}
+html[data-theme="oled"] .planner-create-options,
+html[data-theme="oled"] .planner-create-menu>summary,
+html[data-theme="oled"] .notebook-grade-options,
+html[data-theme="oled"] .notebook-grade-options[open]>summary,
+html[data-theme="oled"] .grade-table .grade-cell-actions-trigger{background:#000}
+html[data-theme="oled"] .planner-create-options>.btn:hover{background:#101010}
+@media(max-width:900px){
+ .academic-quick-nav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
+ .academic-quick-nav .btn{flex:0 0 auto;min-width:0;font-size:11px;white-space:nowrap}
+}
+@media(max-width:650px){
+ .class-toolbar{padding:9px}
+ .notebook-primary-actions{display:flex;flex-wrap:wrap}
+ .notebook-primary-actions>.btn{flex:1 1 110px}
+ .notebook-primary-actions .notebook-more-actions{flex:1 1 110px;width:auto}
+ .notebook-more-panel{grid-template-columns:1fr}
+ .planner-tools-minimal{gap:7px}
+ .planner-create-menu{flex:0 0 auto}
+ .planner-create-options{position:absolute;min-width:245px}
+ .grade-cell-actions-trigger{min-width:37px;min-height:40px}
+}
+@media print{.grade-cell-action-anchor,.notebook-grade-options>summary,
+ .notebook-legend>summary,.planner-create-menu{display:none!important}}
