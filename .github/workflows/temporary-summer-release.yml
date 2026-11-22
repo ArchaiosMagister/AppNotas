@@ -1,0 +1,79 @@
+name: Temporary AppNotas summer-7 release validation
+on:
+  push:
+    branches:
+      - feat/horario-verano-exportacion-criterios-20261122
+    paths:
+      - .github/workflows/temporary-summer-release.yml
+permissions:
+  contents: write
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install validators
+        run: |
+          npm install --location=global --no-audit --no-fund typescript@5
+          mkdir -p /tmp/appnotas-summer
+          npm install --prefix /tmp/appnotas-summer --no-audit --no-fund jszip@3.10.1
+          python3 -m pip install --quiet --user pymupdf
+      - name: Generate both schedules in real DOCX and PDF
+        run: |
+          node --input-type=module <<'JS'
+          import {createRequire} from 'node:module';
+          import {writeFileSync} from 'node:fs';
+          import {initialNotebook} from './app/src/model.js';
+          import {activeYear,scheduleBands,saveSlot,setSummerSchedule} from './app/src/planner.js';
+          import {timetablePdfBytes,timetableWordBlob} from './app/src/timetable-export.js';
+          const require=createRequire(import.meta.url),JSZip=require('/tmp/appnotas-summer/node_modules/jszip');
+          const doc=initialNotebook(),y=activeYear(doc);
+          const regular=scheduleBands(y).find(x=>x.id==='hora-7');
+          saveSlot(doc,{day:2,start:regular.start,end:regular.end,type:'guardia',label:'Guardia séptima hora',room:'Aula 2.15',color:'#7C3AED',bandId:regular.id});
+          for(const mode of ['ordinario','verano']){
+            if(mode==='verano')setSummerSchedule(doc,true);
+            const zip=await timetableWordBlob(doc,y,JSZip);
+            writeFileSync('/tmp/appnotas-summer/'+mode+'.docx',new Uint8Array(await zip.arrayBuffer()));
+            writeFileSync('/tmp/appnotas-summer/'+mode+'.pdf',timetablePdfBytes(doc,y));
+          }
+          JS
+      - name: Validate and render Word and PDF
+        run: |
+          python3 - <<'PY'
+          import fitz,zipfile,xml.etree.ElementTree as ET
+          from pathlib import Path
+          base=Path('/tmp/appnotas-summer')
+          for mode in ('ordinario','verano'):
+            docx=base/(mode+'.docx')
+            with zipfile.ZipFile(docx) as package:
+              ET.fromstring(package.read('word/document.xml'))
+              text=package.read('word/document.xml').decode()
+              assert 'Guardia séptima hora' in text
+              assert 'Aula 2.15' in text
+              assert ('13:00–13:45' in text)==(mode=='verano')
+            pdf=fitz.open(base/(mode+'.pdf'))
+            assert len(pdf)==1 and pdf[0].rect.width>pdf[0].rect.height
+            page=pdf[0]; page_text=page.get_text()
+            assert 'Guardia séptima hora' in page_text,repr(page_text)
+            assert 'Aula 2.15' in page_text
+            assert ('13:45' in page_text)==(mode=='verano')
+            page.get_pixmap(matrix=fitz.Matrix(1.3,1.3)).save(str(base/(mode+'.png')))
+            print(mode,'Word/PDF correctos, renderizados:',docx.stat().st_size,(base/(mode+'.pdf')).stat().st_size)
+          PY
+      - name: Regenerate offline HTML with exact CSP and source hashes
+        run: |
+          node app/tools/build-standalone.mjs
+          python3 scripts/source_manifest.py --write
+          python3 scripts/source_manifest.py --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/CuadernoDocente_sin_instalar.html app/MANIFEST_SHA256.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "build: actualizar HTML autónomo, CSP y manifiesto para 7.ª hora de verano"
+            git push origin HEAD:refs/heads/feat/horario-verano-exportacion-criterios-20261122
+          fi
