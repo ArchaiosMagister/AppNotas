@@ -23,7 +23,8 @@ test('los botones aparecen en pantalla bloqueada y desbloqueada, con iconos legi
   assert(js.includes('Instalar aplicación'));assert(js.includes('Buscar actualizaciones'));
   assert(js.includes('aria-label="Instalación y actualizaciones"'));
   assert(js.includes('wirePwaButtons();'));
-  assert(js.includes('${pwaButtons()}<form id="unlock-form">'));
+  assert(js.includes('${pwaButtons()}<button type="button" class="btn unlock-help-primary" id="how-it-works"'));
+  assert(js.includes('<form id="unlock-form">'));
   assert(js.includes('<div class="header-tools-heading">Aplicación</div>${pwaButtons()}'),'Los controles PWA siguen accesibles en Herramientas');
   assert(js.includes('data-shell-disclosure="tools"'));
   assert(js.includes('installIcon='));assert(js.includes('updateIcon='));
