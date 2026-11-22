@@ -27,7 +27,8 @@ test('acceso permanente en Materias y grupos, independiente de Agenda',()=>{
  const app=readFileSync(path.join(root,'app.js'),'utf8');
  assert.match(app,/<button[^>]*id="manage-shared-students"[^>]*>Vincular alumnos entre asignaturas<\/button>/);
  assert.match(app,/\$\('#manage-shared-students'\).*openStudentLinksManager/);
- const html=app.slice(app.indexOf('<div class="group-actions-panel">'),app.indexOf('</details>'));
+ const start=app.indexOf('<div class="group-actions-panel">');
+ const html=app.slice(start,app.indexOf('</details>',start));
  assert(html.includes('id="manage-shared-students"'));
  assert(html.indexOf('id="manage-shared-students"')>html.indexOf('id="manage-subjects"'));
 });
@@ -78,7 +79,7 @@ test('la interfaz muestra procedencia y asignatura para confirmar la identidad',
  assert(html.includes('Griego I'));
  assert(html.includes('Latín I'));
  assert(html.includes('Buscar alumno'));
- assert(html.includes('Confirmar vínculo'));
+ assert(html.includes('Vincular fichas seleccionadas'));
 });
 test('los nombres y los campos de búsqueda escapan contenido HTML no confiable',()=>{
  const f=fixture();
