@@ -991,7 +991,29 @@ function renderRules(){
 }
 function renderCompetencies(){
   const group=currentGroup(),catalog=officialCompetenciesForGroup(group,STATE.competencyVersion);
-  if(!catalog)return '<section class="panel panel-pad"><h2>Competencias</h2><p>Selecciona un grupo con asignatura clasificada.</p></section>';
+  if(!catalog){
+    if(!group)return '<section class="panel panel-pad"><h2>Competencias</h2><p>Selecciona primero un grupo.</p></section>';
+    // Las materias nuevas no tienen repertorio oficial: se pueden definir
+    // competencias propias, sin atribuirles normativa inventada.
+    const personal=groupCompetencies(STATE.doc,group.id).filter(c=>!c.curriculumKey);
+    const visible=visibleCategories(),students=allStudents();
+    return `<div class="competency-view">
+      <section class="panel panel-pad">
+        <div class="section-title-row"><div><h2>Competencias personalizadas · ${esc(group.subject)}</h2>
+          <p class="subtitle">Esta materia no tiene currículo oficial precargado. Puedes crear competencias propias y asociarlas a categorías, sin modificar las notas por defecto.</p></div>
+          <button class="btn small" id="new-competency">+ Competencia propia</button></div>
+        ${personal.map(c=>`<article class="competency-item">
+          <h3>${esc(c.name)}</h3>
+          <div class="comp-table"><table class="full-width"><tbody>
+          ${visible.map(cat=>`<tr><td>${esc(cat.name)}</td><td class="align-right">
+            <label class="visually-hidden" for="custom-link-${esc(c.id)}-${esc(cat.id)}">Peso de ${esc(cat.name)} en ${esc(c.name)}</label>
+            <input class="number-field" id="custom-link-${esc(c.id)}-${esc(cat.id)}" type="number" min="0" max="1000" step="1"
+              data-comp="${esc(c.id)}" data-linkcat="${esc(cat.id)}" value="${esc(c.links.find(x=>x.categoryId===cat.id)?.weight??0)}"/></td></tr>`).join('')}
+          </tbody></table></div></article>`).join('')||'<p class="hint">No hay competencias propias. Pulsa «+ Competencia propia» para comenzar.</p>'}</section>
+      <section class="panel panel-pad"><h2>Resultados competenciales</h2>
+      <div class="overflow-auto"><table class="comp-table"><thead><tr><th>Alumno</th>${personal.map(c=>`<th>${esc(c.name)}</th>`).join('')}</tr></thead>
+      <tbody>${students.map(student=>`<tr><td>${esc(student.name)}</td>${personal.map(c=>`<td>${gradeChip(competencyGrade(STATE.doc,student.id,c.id,group.id,STATE.periodId))}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section></div>`;
+  }
   const students=allStudents();
   const official=catalog.competencias.map(ce=>({...ce,stored:linkedOfficialCompetency(STATE.doc,group.id,ce.key)}));
   const custom=groupCompetencies(STATE.doc,group.id).filter(c=>!c.curriculumKey);
@@ -1044,7 +1066,7 @@ function curriculumCards(data){
 }
 function renderCurriculum(){
   const data=currentCurriculum();
-  if(!data)return `<section class="panel panel-pad"><h2>Currículo de la materia</h2><p>Selecciona Latín de 4.º de ESO, Latín I o II, o Griego I o II para consultar su normativa.</p></section>`;
+  if(!data)return `<section class="panel panel-pad"><h2>Currículo de ${esc(STATE.subject)}</h2><p>No hay un currículo oficial incorporado para esta materia. Puedes utilizar el cuaderno, las categorías y las competencias personalizadas; la normativa deberá consultarse por separado.</p></section>`;
   const isLatin2=STATE.level==='2bach'&&STATE.subject==='Latín II';
   const available=data.estado!=='fuente_pendiente';
   const nSab=data.saberes.reduce((total,b)=>total+(b.items?.length||0)+(b.subbloques||[]).reduce((sum,x)=>sum+x.items.length,0),0);
