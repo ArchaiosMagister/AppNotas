@@ -135,6 +135,6 @@ test('los exámenes ortográficos permiten sustituir NP con su editor habitual',
 
 test('la PWA fuerza la renovación de estilos tanto en app como en service worker',async()=>{
   const [app,sw]=await Promise.all([read('app.js'),read('sw.js')]);
-  assert(app.includes("caches.open('cuaderno-docente-static-v143-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v143-dev'"));
+  assert(app.includes("caches.open('cuaderno-docente-static-v145-dev')"));
+  assert(sw.includes("const CACHE='cuaderno-docente-static-v145-dev'"));
 });
