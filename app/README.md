@@ -1,3 +1,15 @@
+## Sesiones de evaluación unificadas por tutoría
+
+En **Agenda → Sesiones de evaluación** se muestra **una única lista**. Cada tutoría es un desplegable y contiene desplegables por trimestre. Las materias de un mismo grupo (p. ej. Latín I / Griego I de 1.º BACH A) aparecen juntas cuando ya están vinculadas.
+
+- Las coincidencias probables de curso, etapa, grupo y procedencia se **agrupan visualmente como propuesta** para evitar filas repetidas; no se guardan ni fusionan sin confirmar «Confirmar tutoría común».
+- Al confirmar se guarda la relación; **las convocatorias antiguas siguen intactas**. Si ya hay fechas distintas para la misma tutoría, aparece «Unificar convocatorias» para elegir expresamente la cita oficial y archivar las otras en el cuaderno cifrado.
+- Las tutorías que no se pueden identificar con seguridad siguen separadas y pueden asociarse manualmente desde «Gestionar tutorías y vínculos de alumnos».
+- El botón superior «Sesiones de evaluación» abre la lista única, sin entrar en un segundo inventario por asignaturas.
+- Los cálculos de calificaciones, las matrículas y la agenda de clases no se modifican.
+
+Se recomienda exportar y verificar una copia cifrada antes de reconciliar convocatorias del alumnado real.
+
 ## Vincular alumnos entre asignaturas (acceso docente)
 En la barra superior abre **Materias y grupos → Vincular alumnos entre asignaturas**.
 
