@@ -93,6 +93,6 @@ test('la nueva pantalla entra en la PWA offline y su caché coincide con el comp
  const app=readFileSync(path.join(root,'app.js'),'utf8');
  const worker=readFileSync(path.join(root,'sw.js'),'utf8');
  assert.match(app,/cuaderno-docente-static-v154-dev/);
- assert.match(worker,/cuaderno-docente-static-v153-dev/);
+ assert.match(worker,/cuaderno-docente-static-v154-dev/);
  assert(worker.includes("'./src/student-link-ui.js'"));
 });
