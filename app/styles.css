@@ -3391,7 +3391,7 @@ html[data-theme="oled"] .planner-create-options>.btn:hover{background:#101010}
  .notebook-legend>summary,.planner-create-menu{display:none!important}}
 
 
-/* v162 · Pulido de selectores y densidad. Sin alterar el motor de notas. */
+/* v163 · Materias estables y reglas responsive compactadas para tres módulos. */
 .headrow{padding:1px 0 9px;margin-bottom:9px;border-bottom:0;gap:8px}
 .headrow h1{font-size:clamp(20px,2vw,26px);margin:0 0 3px;font-weight:700;line-height:1.2}
 .headrow .eyebrow{display:none}
@@ -3403,7 +3403,7 @@ html[data-theme="oled"] .planner-create-options>.btn:hover{background:#101010}
 .class-toolbar .course-switch .course-buttons{
  display:flex;flex-wrap:nowrap;align-items:stretch;overflow-x:auto;overflow-y:hidden;
  gap:6px;padding:3px 2px 5px;max-width:100%;scrollbar-width:thin;
- overscroll-behavior-x:contain;scroll-snap-type:x proximity}
+ overscroll-behavior-x:contain;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
 .class-toolbar .course-switch .course-buttons::-webkit-scrollbar{height:5px}
 .class-toolbar .course-switch .course-buttons::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
 .class-toolbar .course-switch .course-choice{
@@ -3413,18 +3413,19 @@ html[data-theme="oled"] .planner-create-options>.btn:hover{background:#101010}
 .class-toolbar .course-switch .course-choice[aria-pressed="true"]{border-top-width:2px;
  box-shadow:inset 0 0 0 1px var(--course-accent)}
 .class-toolbar .course-switch .course-choice .course-name{font-size:12px;
- font-family:var(--app-humanist,system-ui);font-weight:750}
+ font-family:var(--app-humanist,system-ui);font-weight:750;
+ max-width:100%;white-space:normal;overflow-wrap:anywhere;line-height:1.2}
 .class-toolbar .group-switch{flex:0 1 auto;width:auto;min-width:0;
  padding:0;border:0;gap:5px 8px}
 .class-toolbar .group-switch-label{font-size:10px;letter-spacing:.04em}
 .class-toolbar .group-buttons{flex:0 1 auto;gap:5px}
-.class-toolbar .group-choice{min-height:42px;padding:7px 10px;font-size:12px}
+.class-toolbar .group-choice{min-height:44px;padding:7px 10px;font-size:12px}
 .class-toolbar .group-quick-select{min-width:170px;max-width:min(320px,100%);
  min-height:44px;padding:8px 30px 8px 10px;font-size:12px;font-weight:700;
  border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink)}
 .class-toolbar .group-quick-select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .class-toolbar .class-more-actions{flex:0 0 auto;margin-left:auto}
-.class-toolbar .group-actions-disclosure>summary{min-height:42px;padding:8px 10px;
+.class-toolbar .group-actions-disclosure>summary{min-height:44px;padding:8px 10px;
  font-size:12px;border-radius:9px}
 .class-toolbar .course-switch .course-group-caption{display:none!important}
 /* Un solo título por módulo: Agenda y Evaluaciones conservan los suyos. */
@@ -3449,14 +3450,10 @@ html[data-theme="oled"] .planner-create-options>.btn:hover{background:#101010}
 .eval-workspace-stats strong{font-size:17px;line-height:1.2}
 .eval-workspace-stats span{font-size:11px;line-height:1.4}
 .eval-workspace-tabs{padding:4px;gap:4px;border-radius:10px}
-.eval-workspace-tab{min-height:41px;padding:9px 8px}
+.eval-workspace-tab{min-height:44px;padding:9px 8px}
 html[data-theme="oled"] .eval-workspace-stats,
 html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
-@media(max-width:900px){
- .class-toolbar .selectors{flex-direction:row;flex-wrap:wrap}
- .class-toolbar .course-switch .course-buttons{display:flex;flex-wrap:nowrap;grid-template-columns:none}
- .class-toolbar .course-switch .course-choice{min-height:44px;padding:8px 11px}
-}
+/* Barra flex ya válida para tablet: eliminar sobrescrituras de grid antiguas. */
 @media(max-width:650px){
  .headrow{margin-bottom:7px;padding-bottom:5px}
  .headrow h1{font-size:21px}
@@ -3467,7 +3464,7 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
  .class-toolbar .course-switch{display:block;width:100%;flex:0 0 auto}
  .class-toolbar .course-switch .course-buttons{display:flex;flex-wrap:nowrap;
   grid-template-columns:none;gap:6px;padding-bottom:7px}
- .class-toolbar .course-switch .course-choice{min-height:44px;min-width:91px;max-width:145px;
+ .class-toolbar .course-switch .course-choice{min-height:44px;min-width:91px;max-width:min(175px,58vw);
   padding:8px 10px}
  .class-toolbar .group-switch{display:flex;width:100%;flex:0 0 auto}
  .class-toolbar .group-quick-select{flex:1 1 auto;max-width:100%;min-width:0}
@@ -3478,6 +3475,10 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
  .eval-workspace-stats>.panel+.panel{border-left:0}
  .eval-workspace-stats span{font-size:10px}
  .eval-workspace-header h2,.planner-view .planner-intro h2{font-size:20px}
+}
+@media(pointer:coarse){
+ .tabs .tab,.academic-quick-nav .btn,.class-toolbar .group-choice,
+ .class-toolbar .group-actions-disclosure>summary,.eval-workspace-tab{min-height:44px}
 }
 @media print{
  .class-toolbar .course-switch .course-buttons{overflow:visible}
