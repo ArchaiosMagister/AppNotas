@@ -20,6 +20,9 @@ jobs:
       - name: Test evaluation agenda and general data integrity
         working-directory: app
         run: |
+          node --check src/planner.js
+          node --check src/planner-ui.js
+          node --check sw.js
           node --test tests/v151_evaluation_calendar_sessions.test.mjs
           npm test
       - name: Rebuild autonomous HTML and hashes
