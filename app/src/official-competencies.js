@@ -35,3 +35,17 @@ export function groupCompetencies(doc,groupId){
 export function linkedOfficialCompetency(doc,groupId,key){
   return groupCompetencies(doc,groupId).find(c=>c.curriculumKey===key)||null;
 }
+
+/** Consulta pura: agrupa criterios por competencia específica de su propia versión curricular. */
+export function curriculumCompetenciesWithCriteria(data,{competence='all',query=''}={}){
+  if(!Array.isArray(data?.competencias)||!Array.isArray(data?.criterios))return [];
+  const selected=String(competence),term=String(query??'').trim().toLocaleLowerCase('es');
+  return data.competencias.flatMap(ce=>{
+    if(selected!=='all'&&selected!==String(ce.id))return [];
+    const own=data.criterios.filter(cr=>String(cr.competencia)===String(ce.id));
+    const heading=`CE ${ce.id} CE${ce.id} ${ce.enunciado??''} ${ce.descripcion??''} ${(ce.claves??[]).join(' ')}`.toLocaleLowerCase('es');
+    const matches=!term||heading.includes(term);
+    const criterios=matches?own:own.filter(cr=>`${cr.codigo??''} ${cr.texto??''}`.toLocaleLowerCase('es').includes(term));
+    return matches||criterios.length?[{competencia:ce,criterios}]:[];
+  });
+}
