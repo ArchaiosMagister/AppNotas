@@ -102,6 +102,29 @@ export function itacaGrade(doc,studentId,groupId,periodId){
   const fraction=average-base;
   return Math.min(10,base+(fraction+1e-10>=(rule==='seven'?0.7:0.5)?1:0));
 }
+/** Escala competencial descendente: 1 = máxima adquisición; 4 = no adquirida.
+ * Se convierte la media íntegra de 0–10, SIN redondeos intermedios.
+ * Los límites exactos 5, 6.5 y 8 pasan al nivel inmediatamente superior.
+ * Sin evidencias o fuera de 0–10 no debe mostrarse nivel alguno.
+ */
+export const COMPETENCY_ACQUISITION_LABELS=Object.freeze({
+  1:'Adquisición alta',
+  2:'Adquisición media',
+  3:'Adquisición baja',
+  4:'No adquirida'
+});
+export function competencyAcquisitionLevel(grade){
+  if(typeof grade!=='number'||!Number.isFinite(grade)||grade<0||grade>10+1e-8)return null;
+  if(grade<5)return 4;
+  if(grade<6.5)return 3;
+  if(grade<8)return 2;
+  return 1;
+}
+export function competencyAcquisitionLabel(grade){
+  const level=competencyAcquisitionLevel(grade);
+  return level===null?null:COMPETENCY_ACQUISITION_LABELS[level];
+}
+
 export function competencyGrade(doc,studentId,competencyId,groupId,periodId) {
   const comp=doc.competencies.find(c=>c.id===competencyId);
   if(!comp||!doc.students.some(s=>s.id===studentId&&s.groupId===groupId)||
