@@ -103,8 +103,8 @@ test('la interfaz revalida la autorización sin depender del aspecto del botón'
   assert(app.includes("const identical=conflict==='same'"));
   assert(app.includes("identical?'':"));
   assert(app.includes('await STATE.mutationQueue;await STATE.saveQueue'));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v143-dev'"));
-  assert(app.includes("caches.open('cuaderno-docente-static-v143-dev')"));
+  assert(sw.includes("const CACHE='cuaderno-docente-static-v145-dev'"));
+  assert(app.includes("caches.open('cuaderno-docente-static-v145-dev')"));
 });
 test('contraseña incorrecta y archivo alterado no generan contenido restaurable',async()=>{
   const notebook=initialNotebook();ensureBookMetadata(notebook);
