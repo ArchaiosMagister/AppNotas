@@ -51,8 +51,10 @@ test('Cambio visual no modifica modelo, cálculos ni contenido privado',async()=
   assert.equal(overallGrade(doc,student.id,group.id,period.id),score);
   assert.deepEqual(doc,before);
   const [app,sw]=await Promise.all([read('app.js'),read('sw.js')]);
-  assert(app.includes("caches.open('cuaderno-docente-static-v142-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v142-dev'"));
+  const cacheId=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/)?.[1];
+  assert(cacheId&&Number(cacheId.match(/v(\d+)/)?.[1])>=142,'La caché PWA debe tener versión actualizada');
+  assert(app.includes(`caches.open('${cacheId}')`));
+  assert(sw.includes(`const CACHE='${cacheId}'`));
   assert(!app.includes('indexedDB.deleteDatabase'));
   assert(!sw.includes('indexedDB.deleteDatabase'));
 });
