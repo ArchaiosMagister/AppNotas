@@ -182,21 +182,27 @@ export function tutorGradeBreakdown(doc,studentId,groupId,periodId){
  }));
 }
 /** La convocatoria canónica pertenece a una tutoría; no se escriben notas. */
-export function saveTutorshipEvaluation(doc,{tutorshipId,periodId,id=null,date,time,notes=''}) {
+export function saveTutorshipEvaluation(doc,{tutorshipId,periodId,id=null,date,time,endTime='',notes=''}) {
  const t=(doc.tutorships||[]).find(t=>t.id===tutorshipId);
  const p=doc.periods.find(p=>p.id===periodId),y=doc.planner?.years.find(y=>y.name===t?.course);
  if(!t||!p||!y)throw new Error('Tutoría, periodo o curso inexistente.');
  isoDate(date);
  if(date<y.start||date>y.end||!timeValid(time)||typeof notes!=='string'||notes.length>4000)
   throw new Error('Fecha, hora u observaciones inválidas.');
+ if(endTime!==''&&(!timeValid(endTime)||endTime<=time))
+  throw new Error('La hora de finalización debe ser posterior a la hora de inicio.');
  const existing=y.events.find(e=>e.type==='evaluation'&&e.tutorshipId===t.id&&e.periodId===p.id);
  if(existing&&id&&existing.id!==id||id&&!existing)throw new Error('Convocatoria distinta o inexistente.');
  if(!existing&&y.events.some(e=>e.type==='evaluation'&&!e.tutorshipId&&t.sources.some(s=>
   e.groupId===s.groupId&&clean(e.originGroup||'')===clean(s.originGroup))&&e.periodId===periodId))
   throw new Error('Antes de programar, revisa las convocatorias previas de estas asignaturas.');
  const timeStamp=stamp(),record={id:existing?.id||uid(),date,type:'evaluation',title:p.name+' · '+t.name,
-  groupId:null,slotId:null,assessmentId:null,tutorshipId:t.id,periodId,time,notes:notes.trim()};
- if(existing)Object.assign(existing,record);else y.events.push(record);
+  groupId:null,slotId:null,assessmentId:null,tutorshipId:t.id,periodId,time,
+  ...(endTime?{endTime}:{}),notes:notes.trim()};
+ if(existing){
+  Object.assign(existing,record);
+  if(!endTime)delete existing.endTime; // El campo es opcional, también al editar.
+ }else y.events.push(record);
  doc.updatedAt=timeStamp;return existing||record;
 }
 /** Reconciliación explícita: no desaparece ningún dato; las entradas antiguas
