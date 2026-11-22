@@ -16,8 +16,8 @@ test('v1.0 estable: etiquetas, descripción y versión sin avisos experimentales
 });
 test('v1.0 estable: cache PWA renueva versión para garantizar contenido fresco',()=>{
  const app=load('app.js'),sw=load('sw.js');
- assert(app.includes("caches.open('cuaderno-docente-static-v148-dev')"));
- assert(sw.includes("const CACHE='cuaderno-docente-static-v148-dev'"));
+ assert(app.includes("caches.open('cuaderno-docente-static-v149-dev')"));
+ assert(sw.includes("const CACHE='cuaderno-docente-static-v149-dev'"));
  assert(!sw.includes('indexedDB.deleteDatabase'));
  assert(!app.includes('indexedDB.deleteDatabase'));
 });

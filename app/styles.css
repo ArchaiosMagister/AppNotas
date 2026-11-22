@@ -2889,3 +2889,57 @@ html[data-theme="oled"] .planner-summer-switch,html[data-theme="oled"] .comp-lin
  body:has(.planner-timetable) .planner-timetable-tools,
  body:has(.planner-timetable) .planner-export-actions{display:none!important}
 }
+
+
+/* Convocatorias docentes: panel compacto, legible en móvil, oscuro y OLED. */
+.planner-evaluations{margin-block:12px}
+.planner-evaluations summary{cursor:pointer;font-weight:850;color:var(--ink);padding:6px 0;line-height:1.5}
+.planner-evaluations summary:focus-visible{outline:3px solid var(--accent);outline-offset:4px;border-radius:6px}
+.planner-evaluations > .hint{margin:10px 0}
+.planner-evaluation-row{
+ display:grid;grid-template-columns:minmax(150px,1.3fr) minmax(110px,1fr) minmax(150px,1fr) auto auto;
+ gap:10px;align-items:center;padding:11px 4px;border-top:1px solid var(--line);
+}
+.planner-evaluation-row strong{color:var(--ink);overflow-wrap:anywhere}
+.planner-evaluation-when{font-variant-numeric:tabular-nums;color:var(--ink)}
+.planner-evaluation-row .btn{white-space:normal;min-height:38px}
+.planner-week-event-row{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.planner-week-event-row .planner-week-event{flex:1 1 135px}
+.planner-week-event-row > .btn{flex:0 0 auto;font-size:11px}
+html[data-theme="oled"] .planner-evaluations{background:#000}
+@media(max-width:850px){
+ .planner-evaluation-row{grid-template-columns:minmax(100px,1fr) minmax(100px,1fr);gap:7px}
+ .planner-evaluation-when{grid-column:1/-1}
+ .planner-evaluation-row .btn{justify-self:stretch}
+}
+@media(max-width:430px){
+ .planner-evaluation-row{grid-template-columns:1fr 1fr}
+ .planner-evaluation-row strong{grid-column:1/-1}
+}
+
+
+/* Guardias rotatorias: revisión completa antes de escribir en el cuaderno. */
+dialog:has(.patio-import-modal){width:min(1000px,96vw);max-width:96vw}
+.patio-import-modal{width:100%;max-width:980px}
+.patio-import-modal #patio-import-form .modal-fields{
+ display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 14px;
+}
+.patio-import-modal input[type="file"]{max-width:100%;width:100%;box-sizing:border-box}
+.patio-import-modal .patio-holiday-control{
+ display:flex;align-items:center;gap:10px;padding:10px 8px;
+ line-height:1.5;grid-column:1/-1;
+}
+.patio-import-modal .patio-holiday-control input{flex:0 0 auto;width:19px;height:19px}
+.patio-import-modal #patio-preview-results{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}
+.patio-preview-scroll{max-height:min(410px,45vh);overflow:auto;border:1px solid var(--line);border-radius:9px}
+.patio-preview-table{border-collapse:collapse;width:100%;font-size:12px;min-width:640px;text-align:left}
+.patio-preview-table thead{position:sticky;top:0;background:var(--raised);z-index:1}
+.patio-preview-table th,.patio-preview-table td{padding:9px;line-height:1.4;border-bottom:1px solid var(--line);vertical-align:top}
+.patio-preview-table td:first-child{font-variant-numeric:tabular-nums;white-space:nowrap}
+.patio-import-modal .modal-actions{flex-wrap:wrap}
+.patio-import-modal #patio-preview-results h3{margin:0 0 10px;color:var(--ink)}
+html[data-theme="oled"] .patio-preview-table thead{background:#000}
+@media(max-width:640px){
+ .patio-import-modal #patio-import-form .modal-fields{grid-template-columns:1fr}
+ .patio-import-modal .modal-actions button{flex:1 1 130px}
+}

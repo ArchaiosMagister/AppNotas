@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#11243f">
 <meta name="description" content="CuadernoDocente v1.19 autónomo de pruebas. Solo para pruebas con datos ficticios.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rMfkFFWoB2W1/Zx+4bgHim0WC7vKRVrq6FTeZclH1Z4=' 'sha256-EG2eqj+eprvMgawv8+mTLC5YjPxniOuJnPHCb3eCAfw='; style-src 'sha256-lQ2PJS7O2Z76XiHNmzIAovAb1si2blgfwgSrKxaihSE='; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rMfkFFWoB2W1/Zx+4bgHim0WC7vKRVrq6FTeZclH1Z4=' 'sha256-Cfv+ukz0n+KNUrEZPccApVB4NofbtI1TH+uOb2BhiRo='; style-src 'sha256-yQhKmdVtlURHvu7YABYZAYF32T/qDagtnsvoQGQrJs8='; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20128%20128%22%20role%3D%22img%22%20aria-label%3D%22CuadernoDocente%20%C2%B7%20columna%20cl%C3%A1sica%22%3E%0A%20%20%3Crect%20width%3D%22128%22%20height%3D%22128%22%20rx%3D%2227%22%20fill%3D%22%23263246%22%2F%3E%0A%20%20%3Crect%20x%3D%225%22%20y%3D%225%22%20width%3D%22118%22%20height%3D%22118%22%20rx%3D%2223%22%20fill%3D%22none%22%20stroke%3D%22%23a88b60%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M27%2037h74m-68%207h62M40%2050v45m24-45v45m24-45v45M27%20100h74m-68-5h62%22%20stroke%3D%22%23f4e4c8%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M30%2035c5-14%2017-19%2034-19s29%205%2034%2019M47%2036h34%22%20fill%3D%22none%22%20stroke%3D%22%23cbaa79%22%20stroke-width%3D%225%22%20stroke-linecap%3D%22round%22%2F%3E%0A%3C%2Fsvg%3E%0A">
 <title>CuadernoDocente · v1.19 · sin instalar</title>
 <style>:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#1a2d46;background:#f3f6fb;font-synthesis:none;--navy:#142845;--line:#e1e7f0;--ink:#152a47;--muted:#697b93;--blue:#326ed6;--surface:#fff;--green:#0f866a;--danger:#c53548}
@@ -2898,6 +2898,60 @@ html[data-theme="oled"] .planner-summer-switch,html[data-theme="oled"] .comp-lin
  body:has(.planner-timetable) .planner-timetable-tools,
  body:has(.planner-timetable) .planner-export-actions{display:none!important}
 }
+
+
+/* Convocatorias docentes: panel compacto, legible en móvil, oscuro y OLED. */
+.planner-evaluations{margin-block:12px}
+.planner-evaluations summary{cursor:pointer;font-weight:850;color:var(--ink);padding:6px 0;line-height:1.5}
+.planner-evaluations summary:focus-visible{outline:3px solid var(--accent);outline-offset:4px;border-radius:6px}
+.planner-evaluations > .hint{margin:10px 0}
+.planner-evaluation-row{
+ display:grid;grid-template-columns:minmax(150px,1.3fr) minmax(110px,1fr) minmax(150px,1fr) auto auto;
+ gap:10px;align-items:center;padding:11px 4px;border-top:1px solid var(--line);
+}
+.planner-evaluation-row strong{color:var(--ink);overflow-wrap:anywhere}
+.planner-evaluation-when{font-variant-numeric:tabular-nums;color:var(--ink)}
+.planner-evaluation-row .btn{white-space:normal;min-height:38px}
+.planner-week-event-row{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.planner-week-event-row .planner-week-event{flex:1 1 135px}
+.planner-week-event-row > .btn{flex:0 0 auto;font-size:11px}
+html[data-theme="oled"] .planner-evaluations{background:#000}
+@media(max-width:850px){
+ .planner-evaluation-row{grid-template-columns:minmax(100px,1fr) minmax(100px,1fr);gap:7px}
+ .planner-evaluation-when{grid-column:1/-1}
+ .planner-evaluation-row .btn{justify-self:stretch}
+}
+@media(max-width:430px){
+ .planner-evaluation-row{grid-template-columns:1fr 1fr}
+ .planner-evaluation-row strong{grid-column:1/-1}
+}
+
+
+/* Guardias rotatorias: revisión completa antes de escribir en el cuaderno. */
+dialog:has(.patio-import-modal){width:min(1000px,96vw);max-width:96vw}
+.patio-import-modal{width:100%;max-width:980px}
+.patio-import-modal #patio-import-form .modal-fields{
+ display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 14px;
+}
+.patio-import-modal input[type="file"]{max-width:100%;width:100%;box-sizing:border-box}
+.patio-import-modal .patio-holiday-control{
+ display:flex;align-items:center;gap:10px;padding:10px 8px;
+ line-height:1.5;grid-column:1/-1;
+}
+.patio-import-modal .patio-holiday-control input{flex:0 0 auto;width:19px;height:19px}
+.patio-import-modal #patio-preview-results{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}
+.patio-preview-scroll{max-height:min(410px,45vh);overflow:auto;border:1px solid var(--line);border-radius:9px}
+.patio-preview-table{border-collapse:collapse;width:100%;font-size:12px;min-width:640px;text-align:left}
+.patio-preview-table thead{position:sticky;top:0;background:var(--raised);z-index:1}
+.patio-preview-table th,.patio-preview-table td{padding:9px;line-height:1.4;border-bottom:1px solid var(--line);vertical-align:top}
+.patio-preview-table td:first-child{font-variant-numeric:tabular-nums;white-space:nowrap}
+.patio-import-modal .modal-actions{flex-wrap:wrap}
+.patio-import-modal #patio-preview-results h3{margin:0 0 10px;color:var(--ink)}
+html[data-theme="oled"] .patio-preview-table thead{background:#000}
+@media(max-width:640px){
+ .patio-import-modal #patio-import-form .modal-fields{grid-template-columns:1fr}
+ .patio-import-modal .modal-actions button{flex:1 1 130px}
+}
 </style>
 </head><body>
 <div id="app"><div class="loading-screen"><span class="spinner"></span><strong>CuadernoDocente</strong><p>Preparando el cuaderno local…</p></div></div>
@@ -5752,8 +5806,8 @@ function bindSettings() {
             const registration = await navigator.serviceWorker.getRegistration('./');
             if (!registration?.active)
                 throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
-            const expected = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './src/pwa-controls.js', './src/model.js', './src/cuaderno.js', './src/planner.js', './src/planner-ui.js', './src/timetable-export.js', './src/attitude-template.js', './src/rubric-xlsx.js', './vendor/jszip.min.js', './src/calculations.js', './src/statistics.js', './src/csv.js', './src/rubric-import.js', './src/rubric-ui.js', './src/history.js', './src/vault.js', './src/storage.js', './src/diagnostics.js', './src/curriculum-data.js', './src/official-competencies.js', './data/curriculos/gr1y2-nuevo.pdf', './data/curriculos/lat1y2-nuevo.pdf', './data/curriculos/lat4.pdf', './data/curriculos/lat2-2022.pdf'];
-            const cache = await caches.open('cuaderno-docente-static-v148-dev');
+            const expected = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './src/pwa-controls.js', './src/model.js', './src/cuaderno.js', './src/planner.js', './src/planner-ui.js', './src/timetable-export.js', './src/patio-rotation.js', './src/attitude-template.js', './src/rubric-xlsx.js', './vendor/jszip.min.js', './src/calculations.js', './src/statistics.js', './src/csv.js', './src/rubric-import.js', './src/rubric-ui.js', './src/history.js', './src/vault.js', './src/storage.js', './src/diagnostics.js', './src/curriculum-data.js', './src/official-competencies.js', './data/curriculos/gr1y2-nuevo.pdf', './data/curriculos/lat1y2-nuevo.pdf', './data/curriculos/lat4.pdf', './data/curriculos/lat2-2022.pdf'];
+            const cache = await caches.open('cuaderno-docente-static-v149-dev');
             const missing = [];
             for (const path of expected)
                 if (!await cache.match(path))
@@ -8205,6 +8259,246 @@ function curriculumCompetenciesWithCriteria(data, { competence = 'all', query = 
 }
 
 },
+"src/patio-rotation.js":function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.extractPatioRotation = extractPatioRotation;
+exports.parsePatioXlsx = parsePatioXlsx;
+exports.previewPatioRotation = previewPatioRotation;
+exports.addPatioRotationEvents = addPatioRotationEvents;
+/** Importador local de rotaciones del primer patio. Solo admite el formato
+ * concreto de tres hojas y fórmulas verificadas; nunca evalúa Excel/JS. */
+const planner_js_1 = require("./planner.js");
+const MAX_FILE = 3_000_000, MAX_XML = 2_000_000;
+const normalise = value => String(value ?? '').trim().toLocaleLowerCase('es');
+const letters = 'ABCDE', quadrantDays = 'CDEFG';
+const normalRows = [4, 5, 6, 7, 10, 11, 12, 13];
+const rainRows = [15, 16, 17, 18, 21, 22, 23, 24];
+const isoUTC = (year, month, day) => new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
+const ordinal = (date) => Date.parse(date + 'T12:00:00Z') / 86400000;
+const indexOfRotated = (value, shift, week, size) => ((value - shift * (week - 1)) % size + size) % size;
+function parseXml(xml, Parser) {
+    if (/<!\s*(?:DOCTYPE|ENTITY)\b/i.test(xml))
+        throw new Error('El Excel incluye instrucciones XML no permitidas.');
+    const document = new Parser().parseFromString(xml, 'application/xml');
+    if (document.getElementsByTagName('parsererror').length)
+        throw new Error('XML Excel incorrecto.');
+    return document;
+}
+async function safeXml(zip, name, max = MAX_XML) {
+    const entry = zip.file(name);
+    if (!entry)
+        throw new Error('No se ha encontrado ' + name + ' en el Excel.');
+    if (Number.isFinite(entry._data?.uncompressedSize) && entry._data.uncompressedSize > max)
+        throw new Error('Una hoja del Excel supera el tamaño admitido.');
+    const source = await entry.async('string');
+    if (source.length > max)
+        throw new Error('El contenido Excel supera el tamaño admitido.');
+    return source;
+}
+function sheetCells(xml, Parser, shared) {
+    const xmlRoot = parseXml(xml, Parser), cells = new Map();
+    for (const cell of xmlRoot.getElementsByTagName('c')) {
+        const key = String(cell.getAttribute('r') || '').toUpperCase();
+        if (!/^[A-Z]{1,2}[1-9]\d{0,2}$/.test(key) || cells.has(key))
+            throw new Error('El Excel contiene referencias de celdas duplicadas o inválidas.');
+        const kind = cell.getAttribute('t');
+        const value = kind === 'inlineStr'
+            ? [...cell.getElementsByTagName('t')].map(n => n.textContent || '').join('')
+            : cell.getElementsByTagName('v')[0]?.textContent || '';
+        const text = kind === 's' ? shared[Number(value)] : value;
+        if (kind === 's' && typeof text !== 'string')
+            throw new Error('El Excel usa referencias de texto incorrectas.');
+        const formula = cell.getElementsByTagName('f')[0]?.textContent || '';
+        cells.set(key, { text: String(text ?? ''), formula: String(formula).replace(/\s/g, '') });
+        if (cells.size > 1500)
+            throw new Error('El Excel contiene demasiadas celdas.');
+    }
+    return cells;
+}
+const cell = (map, key) => map.get(key)?.text || '';
+const formula = (map, key) => map.get(key)?.formula || '';
+/** Extrae únicamente posiciones del marcador propio, zonas y reglas de giro.
+ * Los nombres de otros docentes nunca se guardan en el cuaderno. */
+function extractPatioRotation(quadrant, roster, second, marker = 'yo') {
+    const needle = normalise(marker);
+    if (!needle || needle.length > 80)
+        throw new Error('Escribe el marcador usado para identificar tus guardias en el Excel.');
+    const weekFormula = formula(quadrant, 'C1').match(/^INT\(\(TODAY\(\)-DATE\((\d{4}),(\d{1,2}),(\d{1,2})\)\)\/7\)\+1$/i);
+    const startFormula = formula(quadrant, 'C2').match(/^DATE\((\d{4}),(\d{1,2}),(\d{1,2})\)\+\(C1\*7\)$/i);
+    if (!weekFormula || !startFormula)
+        throw new Error('No se reconoce la fórmula semanal del Excel; no se generarán fechas por aproximación.');
+    const firstMonday = isoUTC(Number(startFormula[1]), Number(startFormula[2]), Number(startFormula[3]) + 7);
+    (0, planner_js_1.isoDate)(firstMonday);
+    if ((0, planner_js_1.weekday)(firstMonday) !== 0)
+        throw new Error('La primera semana de rotación no comienza en lunes.');
+    const reference = isoUTC(Number(weekFormula[1]), Number(weekFormula[2]), Number(weekFormula[3]));
+    if (Math.abs(ordinal(reference) - ordinal(firstMonday)) > 2 || ordinal(reference) > ordinal(firstMonday))
+        throw new Error('Las dos fórmulas de fecha del Excel no son coherentes.');
+    const weekdays = ['DL', 'DM', 'DX', 'DJ', 'DV'];
+    if (weekdays.some((day, i) => normalise(cell(roster, letters[i] + '1')) !== normalise(day)))
+        throw new Error('Los días del primer patio no coinciden con el formato del Excel.');
+    const positions = weekdays.map((_, day) => {
+        const positionsForDay = [];
+        for (let index = 0; index < 8; index++)
+            if (normalise(cell(roster, letters[day] + (index + 2))) === needle)
+                positionsForDay.push(index);
+        if (positionsForDay.length > 1)
+            throw new Error('El marcador aparece varias veces en un mismo día: revisa el Excel.');
+        return positionsForDay.length ? positionsForDay[0] : null;
+    });
+    if (positions.every(x => x === null))
+        throw new Error('El marcador no aparece en la hoja de guardias del primer patio.');
+    const secondCount = weekdays.reduce((sum, _, day) => {
+        let count = 0;
+        for (let r = 2; r <= 15; r++)
+            if (normalise(cell(second, letters[day] + r)) === needle)
+                count++;
+        return sum + count;
+    }, 0);
+    // Un docente puede tener además segundo patio: no deducir su rotación de
+    // una lista estática de nombres que no indica fechas futuras.
+    const firstFormula = formula(quadrant, 'C4').match(/^INDEX\(Professorat_gu.rdia_1r_pati!\$A\$2:\$A\$(\d+),MOD\((\d+)\+(\d+)\*\(\$C\$1-1\),(\d+)\)\+1\)$/i);
+    if (!firstFormula || Number(firstFormula[1]) !== 9 || Number(firstFormula[2]) !== 0 || Number(firstFormula[4]) !== 8)
+        throw new Error('No se reconoce la rotación de ocho puestos del primer patio.');
+    const shift = Number(firstFormula[3]), size = 8;
+    if (!Number.isInteger(shift) || shift < 1 || shift >= size)
+        throw new Error('Desplazamiento semanal de guardias inválido.');
+    const rotationFormula = (day, index) => new RegExp('^INDEX\\(Professorat_gu.rdia_1r_pati!\\$' + letters[day] + '\\$2:\\$' + letters[day] + '\\$9,MOD\\(' + index + '\\+' + shift + '\\*\\(\\$C\\$1-1\\),8\\)\\+1\\)$', 'i');
+    const standard = [], rain = [];
+    for (let i = 0; i < size; i++) {
+        const name = cell(quadrant, 'B' + normalRows[i]).trim(), wet = cell(quadrant, 'B' + rainRows[i]).trim();
+        if (!name || name.length > 150 || !wet || wet.length > 150)
+            throw new Error('Falta una zona de patio o su alternativa de lluvia.');
+        for (let day = 0; day < 5; day++) {
+            if (!rotationFormula(day, i).test(formula(quadrant, quadrantDays[day] + normalRows[i])) ||
+                !rotationFormula(day, i).test(formula(quadrant, quadrantDays[day] + rainRows[i])))
+                throw new Error('Una zona del Excel usa una fórmula de rotación distinta. Revísala antes de importar.');
+        }
+        standard.push(name);
+        rain.push(wet);
+    }
+    return Object.freeze({ firstMonday, shift, size, cycleWeeks: size / gcd(size, shift),
+        positions: Object.freeze(positions), standard: Object.freeze(standard), rain: Object.freeze(rain),
+        secondCount, marker: needle });
+}
+function gcd(a, b) { while (b) {
+    const r = a % b;
+    a = b;
+    b = r;
+} return a; }
+/** Soporte estricto del libro aportado: Quadrant y las dos tablas de profesores.
+ * XLSX ZIP limitado; sin ejecutar macros, vínculos, scripts ni fórmulas. */
+async function parsePatioXlsx(arrayBuffer, { zipLibrary = globalThis.JSZip, Parser = globalThis.DOMParser, marker = 'yo' } = {}) {
+    if (!zipLibrary || !Parser)
+        throw new Error('El lector local de Excel no está disponible.');
+    if (!(arrayBuffer instanceof ArrayBuffer) || arrayBuffer.byteLength === 0 || arrayBuffer.byteLength > MAX_FILE)
+        throw new Error('Selecciona un archivo .xlsx de hasta 3 MB.');
+    let zip;
+    try {
+        zip = await zipLibrary.loadAsync(arrayBuffer);
+    }
+    catch {
+        throw new Error('No se ha podido abrir el Excel seleccionado.');
+    }
+    if (Object.keys(zip.files).length > 100)
+        throw new Error('El Excel contiene demasiadas entradas internas.');
+    const workbook = await safeXml(zip, 'xl/workbook.xml', 120000);
+    // Rechazar orden/nombres distintos en vez de reinterpretar las hojas.
+    const root = parseXml(workbook, Parser), sheets = [...root.getElementsByTagName('sheet')].map(x => x.getAttribute('name'));
+    if (sheets.length !== 3 || sheets[0] !== 'Quadrant' || sheets[1] !== 'Professorat_guàrdia_1r_pati' || sheets[2] !== 'Professorat_guàrdia_2n_pati')
+        throw new Error('Este archivo no sigue el formato de tres hojas de guardias compatible.');
+    const sharedEntry = zip.file('xl/sharedStrings.xml');
+    const shared = sharedEntry ? [...parseXml(await safeXml(zip, 'xl/sharedStrings.xml'), Parser).getElementsByTagName('si')]
+        .map(si => [...si.getElementsByTagName('t')].map(x => x.textContent || '').join('')) : [];
+    if (shared.length > 3000)
+        throw new Error('Demasiados textos compartidos en el Excel.');
+    const data = await Promise.all([1, 2, 3].map(async (i) => sheetCells(await safeXml(zip, 'xl/worksheets/sheet' + i + '.xml'), Parser, shared)));
+    return extractPatioRotation(data[0], data[1], data[2], marker);
+}
+function firstBreak(y, mode) {
+    const band = (0, planner_js_1.scheduleBands)(y, mode).find(b => b.id === 'patio-1' && b.kind === 'break');
+    if (!band)
+        throw new Error('El horario ' + mode + ' carece de un primer patio configurado.');
+    return { start: band.start, end: band.end };
+}
+/** Proyección desde las fórmulas del libro, sin asumir que las vacaciones
+ * interrumpen el ciclo: el Excel avanza por semanas naturales. */
+function previewPatioRotation(doc, source, { from, to, summerFrom = '', skipHolidays = true } = {}) {
+    const y = (0, planner_js_1.activeYear)(doc);
+    (0, planner_js_1.isoDate)(from);
+    (0, planner_js_1.isoDate)(to);
+    if (from > to || from < y.start || to > y.end || from < source.firstMonday || ordinal(to) - ordinal(from) > 370)
+        throw new Error('Selecciona un intervalo válido dentro del curso y posterior al inicio del Excel.');
+    if (summerFrom) {
+        (0, planner_js_1.isoDate)(summerFrom);
+        if (summerFrom < from || summerFrom > to)
+            throw new Error('La fecha de inicio del horario de verano debe estar dentro del intervalo.');
+    }
+    if (typeof skipHolidays !== 'boolean')
+        throw new Error('Configuración de festivos inválida.');
+    const regular = firstBreak(y, 'regular'), summer = firstBreak(y, 'summer');
+    const entries = [];
+    let excluded = 0, existing = 0;
+    for (let date = from; date <= to; date = (0, planner_js_1.addDays)(date, 1)) {
+        const day = (0, planner_js_1.weekday)(date);
+        if (day > 4 || source.positions[day] === null)
+            continue;
+        if (skipHolidays && (0, planner_js_1.isHoliday)(y, date)) {
+            excluded++;
+            continue;
+        }
+        const monday = (0, planner_js_1.addDays)(date, -day), weeks = (ordinal(monday) - ordinal(source.firstMonday)) / 7;
+        if (!Number.isInteger(weeks) || weeks < 0)
+            throw new Error('Semana de rotación no reconocida.');
+        const week = weeks + 1, zoneIndex = indexOfRotated(source.positions[day], source.shift, week, source.size);
+        const zone = source.standard[zoneIndex], rainZone = source.rain[zoneIndex], mode = summerFrom ? (date >= summerFrom ? 'summer' : 'regular') : (y.summerEnabled ? 'summer' : 'regular');
+        const times = mode === 'summer' ? summer : regular;
+        const conflict = y.events.find(e => e.date === date && e.type === 'patio');
+        if (conflict)
+            existing++;
+        entries.push({ date, day, week, zone, zoneIndex, rainZone,
+            start: times.start, end: times.end, mode, existingId: conflict?.id ?? null });
+    }
+    if (!entries.length)
+        throw new Error('No hay guardias para el marcador y fechas seleccionados.');
+    if (entries.length > 240)
+        throw new Error('Demasiadas guardias; reduce el intervalo.');
+    return { entries, excluded, existing, firstMonday: source.firstMonday, cycleWeeks: source.cycleWeeks,
+        weekdays: source.positions.map((x, i) => x === null ? null : i).filter(x => x !== null),
+        secondCount: source.secondCount };
+}
+/** Operación determinista/idempotente y solo aditiva: no sobrescribe guardias
+ * previas ni toca horarios, otros eventos, notas o competencias. */
+function addPatioRotationEvents(doc, preview) {
+    if (!preview || !Array.isArray(preview.entries) || preview.entries.length > 240 ||
+        new Set(preview.entries.map(x => x.date)).size !== preview.entries.length)
+        throw new Error('Previsualización de guardias inválida.');
+    const y = (0, planner_js_1.activeYear)(doc), created = [];
+    // Validar todos los registros ANTES de escribir para evitar operaciones
+    // parciales incluso cuando la función se use fuera de una transacción.
+    for (const entry of preview.entries) {
+        (0, planner_js_1.isoDate)(entry.date);
+        if (entry.date < y.start || entry.date > y.end || !entry.zone || !entry.rainZone ||
+            entry.zone.length > 150 || entry.rainZone.length > 150 ||
+            !(0, planner_js_1.timeValid)(entry.start) || !(0, planner_js_1.timeValid)(entry.end) ||
+            entry.end <= entry.start)
+            throw new Error('Una guardia tiene fecha, zona o franja inválida.');
+    }
+    for (const entry of preview.entries) {
+        if (y.events.some(e => e.type === 'patio' && e.date === entry.date))
+            continue;
+        const note = 'Zona habitual: ' + entry.zone + '\nLluvia o viento: ' + entry.rainZone +
+            '\nRotación del Excel, semana ' + entry.week + '. Comprobar si el centro comunica cambios.';
+        const ev = (0, planner_js_1.saveEvent)(doc, { date: entry.date, type: 'patio', title: '1.er patio · ' + entry.zone,
+            time: entry.start, endTime: entry.end, notes: note });
+        ev.patioRotationSource = 'xlsx-first-break-v1';
+        created.push(ev.id);
+    }
+    return { created: created.length, skipped: preview.entries.length - created.length, ids: created };
+}
+
+},
 "src/planner-ui.js":function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -8213,6 +8507,7 @@ exports.renderPlanner = renderPlanner;
 exports.bindPlanner = bindPlanner;
 const planner_js_1 = require("./planner.js");
 const timetable_export_js_1 = require("./timetable-export.js");
+const patio_rotation_js_1 = require("./patio-rotation.js");
 const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const shortDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const longDays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
@@ -8267,16 +8562,39 @@ function dayItems(doc, y, date) {
 }
 const eventCard = (doc, e, y) => {
     const conflict = (0, planner_js_1.isHoliday)(y, e.date) || y.exceptions.some(x => x.date === e.date && x.slotId === e.slotId && ['cancel', 'replace'].includes(x.type));
-    return `<div class="planner-event planner-event-${esc(e.type)}"><div><strong>${esc(planner_js_1.EVENT_TYPES[e.type])}: ${esc(e.title)}</strong><small>${esc(e.time || 'Sin hora')} ${eventGroup(doc, e) ? '· ' + esc(eventGroup(doc, e).subject + ' · ' + eventGroup(doc, e).name) : ''}</small>${conflict ? '<small class="planner-conflict">⚠ Día no lectivo o clase sustituida. Revisa la fecha del evento.</small>' : ''}${e.notes ? `<p>${esc(e.notes)}</p>` : ''}</div>${action('Editar', `data-edit-event="${esc(e.id)}"`)}</div>`;
+    return `<div class="planner-event planner-event-${esc(e.type)}"><div><strong>${esc(planner_js_1.EVENT_TYPES[e.type])}: ${esc(e.title)}</strong><small>${esc(e.time ? (e.time + (e.endTime ? '–' + e.endTime : '')) : 'Sin hora')} ${eventGroup(doc, e) ? '· ' + esc(eventGroup(doc, e).subject + ' · ' + eventGroup(doc, e).name) : ''}</small>${conflict ? '<small class="planner-conflict">⚠ Día no lectivo o clase sustituida. Revisa la fecha del evento.</small>' : ''}${e.notes ? `<p>${esc(e.notes)}</p>` : ''}</div>${action('Añadir a calendario', `data-export-event="${esc(e.id)}"`)}${action('Editar', `data-edit-event="${esc(e.id)}"`)}</div>`;
 };
 const taskCard = (doc, t) => `<div class="planner-event"><div><strong>${t.done ? '✓ ' : ''}${esc(t.title)}</strong>${t.notes ? `<small>${esc(t.notes)}</small>` : ''}</div>${action(t.done ? 'Reabrir' : 'Completar', `data-toggle-task="${esc(t.id)}"`)}${action('Editar', `data-edit-task="${esc(t.id)}"`)}</div>`;
+/** Un calendario de convocatorias por grupo y trimestre, independiente de las notas.
+ * Solo se ofrecen los grupos adscritos al curso académico activo. */
+function evaluationOverview(doc, y) {
+    const groups = doc.groups.filter(g => g.course === y.name), periods = [...doc.periods].sort((a, b) => a.order - b.order);
+    const total = groups.length * periods.length;
+    const scheduled = y.events.filter(e => e.type === 'evaluation' && groups.some(g => g.id === e.groupId)).length;
+    let html = '';
+    for (const group of groups)
+        for (const period of periods) {
+            const event = y.events.find(e => e.type === 'evaluation' && e.groupId === group.id && e.periodId === period.id);
+            const attrs = 'data-eval-group="' + esc(group.id) + '" data-eval-period="' + esc(period.id) + '"';
+            html += '<div class="planner-evaluation-row"><strong>' + esc(group.subject + ' · ' + group.name) + '</strong>' +
+                '<span>' + esc(period.name) + '</span><span class="planner-evaluation-when">' +
+                (event ? esc(event.date + ' · ' + event.time) : 'Sin programar') + '</span>' +
+                action(event ? 'Editar fecha y hora' : 'Programar', attrs) +
+                (event ? action('Añadir a calendario', 'data-export-event="' + esc(event.id) + '"') : '') + '</div>';
+        }
+    return '<details id="plan-evaluations" class="panel panel-pad planner-evaluations"><summary>' +
+        'Sesiones de evaluación por grupo y trimestre · ' + scheduled + '/' + total + ' programadas</summary>' +
+        '<p class="hint">Elige fecha y hora de cada convocatoria. Son citas docentes, no se modifican las calificaciones.' +
+        ' Puedes exportar cada cita a tu calendario sin compartir el cuaderno.</p>' +
+        (html || '<p class="hint">Todavía no hay grupos de este curso académico.</p>') + '</details>';
+}
 function renderPlanner(doc, ui) {
     const y = (0, planner_js_1.activeYear)(doc), mode = ui.plannerMode || 'week', focus = ui.plannerDate || (0, planner_js_1.localToday)();
     const start = (0, planner_js_1.addDays)(focus, -(0, planner_js_1.weekday)(focus));
     const monthStart = focus.slice(0, 7) + '-01';
     const gridStart = (0, planner_js_1.addDays)(monthStart, -(0, planner_js_1.weekday)(monthStart));
     const count = y.events.length, numberClasses = (0, planner_js_1.slotsForMode)(y).filter(s => s.type === 'class').length;
-    const tools = `<div class="planner-tools">${action('+ Clase / horario', 'id="plan-add-slot"', 'btn primary')}${action('+ Examen o evento', 'id="plan-add-event"')}${action('+ Trabajo diario', 'id="plan-add-lesson"')}${action('+ Tarea', 'id="plan-add-task"')}${action('+ Festivo / vacaciones', 'id="plan-add-holiday"')}${action('+ Cambio excepcional', 'id="plan-add-exception"')}</div>`;
+    const tools = `<div class="planner-tools">${action('+ Clase / horario', 'id="plan-add-slot"', 'btn primary')}${action('+ Examen o evento', 'id="plan-add-event"')}${action('Sesiones de evaluación', 'id="plan-show-evaluations"')}${action('Importar guardias de patio (.xlsx)', 'id="plan-import-patio"')}${action('+ Trabajo diario', 'id="plan-add-lesson"')}${action('+ Tarea', 'id="plan-add-task"')}${action('+ Festivo / vacaciones', 'id="plan-add-holiday"')}${action('+ Cambio excepcional', 'id="plan-add-exception"')}</div>`;
     let body = '';
     if (mode === 'schedule') {
         body = renderTimetableGrid(doc, y);
@@ -8284,12 +8602,13 @@ function renderPlanner(doc, ui) {
     else if (mode === 'day')
         body = dayItems(doc, y, focus);
     else if (mode === 'week')
-        body = `<div class="planner-week">${Array.from({ length: 5 }, (_, i) => { const d = (0, planner_js_1.addDays)(start, i), holiday = (0, planner_js_1.isHoliday)(y, d), events = y.events.filter(e => e.date === d); return `<section class="planner-weekday"><button type="button" class="planner-date-heading" data-go-date="${d}">${shortDays[i]} <strong>${dayText(d)}</strong></button>${holiday ? `<div class="planner-holiday">${esc(holiday.name)}</div>` : ''}${(0, planner_js_1.daySessions)(y, d).map(s => slotCard(doc, y, d, s, true)).join('')}${events.map(e => `<button type="button" class="planner-week-event" data-edit-event="${esc(e.id)}">${(0, planner_js_1.isHoliday)(y, d) || y.exceptions.some(x => x.date === d && x.slotId === e.slotId && ['cancel', 'replace'].includes(x.type)) ? '⚠ ' : ''}${esc(e.time || '')} · ${esc(e.title)}</button>`).join('')}${y.tasks.filter(t => t.dueDate === d).map(t => `<button type="button" class="planner-week-task" data-edit-task="${esc(t.id)}">${t.done ? '✓ ' : '☐ '}${esc(t.title)}</button>`).join('')}${action('+ Nota', `data-add-lesson="${d}"`, 'planner-add-note')}</section>`; }).join('')}</div>`;
+        body = `<div class="planner-week">${Array.from({ length: 5 }, (_, i) => { const d = (0, planner_js_1.addDays)(start, i), holiday = (0, planner_js_1.isHoliday)(y, d), events = y.events.filter(e => e.date === d); return `<section class="planner-weekday"><button type="button" class="planner-date-heading" data-go-date="${d}">${shortDays[i]} <strong>${dayText(d)}</strong></button>${holiday ? `<div class="planner-holiday">${esc(holiday.name)}</div>` : ''}${(0, planner_js_1.daySessions)(y, d).map(s => slotCard(doc, y, d, s, true)).join('')}${events.map(e => `<div class="planner-week-event-row"><button type="button" class="planner-week-event" data-edit-event="${esc(e.id)}">${(0, planner_js_1.isHoliday)(y, d) || y.exceptions.some(x => x.date === d && x.slotId === e.slotId && ['cancel', 'replace'].includes(x.type)) ? '⚠ ' : ''}${esc(e.time || '')} · ${esc(e.title)}</button>${action('Calendario', `data-export-event="${esc(e.id)}"`, 'btn small')}</div>`).join('')}${y.tasks.filter(t => t.dueDate === d).map(t => `<button type="button" class="planner-week-task" data-edit-task="${esc(t.id)}">${t.done ? '✓ ' : '☐ '}${esc(t.title)}</button>`).join('')}${action('+ Nota', `data-add-lesson="${d}"`, 'planner-add-note')}</section>`; }).join('')}</div>`;
     else {
         body = `<div class="planner-month">${shortDays.map(day => `<div class="planner-month-head">${day}</div>`).join('')}${Array.from({ length: 42 }, (_, i) => { const d = (0, planner_js_1.addDays)(gridStart, i), holiday = (0, planner_js_1.isHoliday)(y, d), events = y.events.filter(e => e.date === d), tasks = y.tasks.filter(t => t.dueDate === d), all = events.length + tasks.length; return `<button type="button" class="planner-month-cell ${d.slice(0, 7) === focus.slice(0, 7) ? '' : 'outside'} ${d === (0, planner_js_1.localToday)() ? 'today' : ''} ${holiday ? 'holiday' : ''}" data-go-date="${d}"><strong>${Number(d.slice(8))}</strong>${holiday ? `<small>✦ ${esc(holiday.name)}</small>` : ''}${events.slice(0, 2).map(e => `<span class="planner-month-dot">${esc(e.title)}</span>`).join('')}${tasks.length ? `<span class="planner-month-task">${tasks.length} tarea(s)</span>` : ''}${all > 2 ? `<span class="planner-more">+${all - 2}</span>` : ''}</button>`; }).join('')}</div>`;
     }
     return `<div class="planner-view"><section class="panel panel-pad planner-intro"><div><div class="planner-eyebrow">Agenda docente · planificación personal</div><h2>Mi planificador</h2><p class="subtitle">Tu horario, exámenes, clases previstas y días no lectivos. El diario de clase es opcional y no altera las notas.</p></div><div class="planner-year-chooser"><label>Curso académico<select id="plan-year">${doc.planner.years.map(x => `<option value="${esc(x.id)}" ${x.id === y.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>${action('Fechas', `id="plan-edit-year"`)}${action('+ Curso', `id="plan-new-year"`)}</div></section>
  <section class="panel panel-pad planner-controls"><div class="planner-view-tabs">${[['day', 'Hoy / día'], ['week', 'Semana'], ['month', 'Mes'], ['schedule', 'Horario base']].map(([k, t]) => `<button type="button" class="planner-view-btn ${mode === k ? 'active' : ''}" data-plan-mode="${k}" aria-pressed="${mode === k}">${t}</button>`).join('')}</div><div class="planner-date-controls">${action('‹', `id="plan-prev"`)}<input type="date" id="plan-date" value="${esc(focus)}" aria-label="Fecha mostrada"/>${action('Hoy', `id="plan-today"`)}${action('›', `id="plan-next"`)}</div><p class="hint">${esc(y.start)} a ${esc(y.end)} · ${numberClasses} sesiones de clase en el horario · ${count} eventos</p>${tools}</section>
+ ${evaluationOverview(doc, y)}
  <section class="panel panel-pad planner-content"><div class="planner-content-head"><h2>${mode === 'schedule' ? 'Horario semanal' + ((0, planner_js_1.activeScheduleMode)(y) === 'summer' ? ' · verano' : ' · ordinario') : mode === 'week' ? 'Semana del ' + dayText(start) : mode === 'month' ? new Date(monthStart + 'T12:00:00Z').toLocaleDateString('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'Agenda del día'}</h2>${mode === 'schedule' ? '<p class="hint">El horario se repite de lunes a viernes, excepto festivos y cambios puntuales.</p>' : ''}</div>${body}</section>
  <section class="panel panel-pad planner-bottom"><div><h3>Festivos y vacaciones</h3>${y.holidays.length ? y.holidays.slice().sort((a, b) => a.start.localeCompare(b.start)).map(h => `<div class="planner-simple-row"><span>✦ ${esc(h.name)} · ${esc(h.start)}${h.end === h.start ? '' : ' — ' + esc(h.end)}</span>${action('Editar', `data-edit-holiday="${esc(h.id)}"`)}</div>`).join('') : '<p class="hint">Todavía no has señalado días no lectivos.</p>'}</div><div><h3>Tareas docentes pendientes</h3>${y.tasks.filter(t => !t.done).sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, 12).map(t => taskCard(doc, t)).join('') || '<p class="hint">Sin tareas pendientes.</p>'}</div></section>
  ${action('Exportar agenda a calendario (.ics)', `id="plan-export-ics"`)} ${action('Imprimir calendario', `id="plan-print"`)}<p class="hint">El registro de trabajo realizado solo se guarda cuando lo marcas o escribes expresamente. Todo forma parte de la misma copia cifrada .cdoc.</p></div>`;
@@ -8369,8 +8688,20 @@ function bindPlanner(doc, ui, ctx) {
         }
     });
     $('#plan-add-event').onclick = () => eventModal({ date: dateNow() });
+    $('#plan-show-evaluations').onclick = () => { const overview = $('#plan-evaluations'); overview.open = true; overview.scrollIntoView({ block: 'nearest' }); };
+    $('#plan-import-patio').onclick = () => patioImportModal();
+    all('[data-eval-group]').forEach(b => b.onclick = () => evaluationModal(b.dataset.evalGroup, b.dataset.evalPeriod));
     all('[data-add-event]').forEach(b => b.onclick = () => eventModal({ date: b.dataset.addEvent }));
-    all('[data-edit-event]').forEach(b => b.onclick = () => eventModal({ event: y.events.find(e => e.id === b.dataset.editEvent) }));
+    all('[data-edit-event]').forEach(b => b.onclick = () => {
+        const event = y.events.find(e => e.id === b.dataset.editEvent);
+        if (!event)
+            return;
+        if (event.type === 'evaluation')
+            evaluationModal(event.groupId, event.periodId);
+        else
+            eventModal({ event });
+    });
+    all('[data-export-event]').forEach(b => b.onclick = () => exportSingleEvent(y.events.find(e => e.id === b.dataset.exportEvent)));
     $('#plan-add-lesson').onclick = () => lessonModal({ date: dateNow() });
     all('[data-add-lesson]').forEach(b => b.onclick = () => lessonModal({ date: b.dataset.addLesson }));
     all('[data-lesson-slot]').forEach(b => b.onclick = () => lessonModal({ date: b.dataset.lessonDate, slotId: b.dataset.lessonSlot }));
@@ -8519,9 +8850,134 @@ function bindPlanner(doc, ui, ctx) {
         }
         ctx.dialog.showModal();
     }
+    /** El Excel se procesa en memoria, solo se guardan las fechas y las zonas
+     * confirmadas; ni el archivo ni los nombres del resto del profesorado salen del iPad. */
+    function patioImportModal() {
+        const book = ctx.getDoc(), year = (0, planner_js_1.activeYear)(book), today = (0, planner_js_1.localToday)();
+        const initial = today < year.start ? year.start : today > year.end ? year.start : today;
+        ctx.dialog.innerHTML = '<div class="modal-inner patio-import-modal">' +
+            '<h2 id="modal-heading">Importar guardias rotatorias de patio</h2>' +
+            '<p class="subtitle">Se analiza el Excel en este dispositivo. El marcador identifica exclusivamente tus días de guardia; no se guardarán los nombres de otros docentes.</p>' +
+            '<form id="patio-import-form"><div class="modal-fields">' +
+            '<label>Excel de guardias (.xlsx)<input class="text-field" id="patio-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required></label>' +
+            '<label>Marcador de tus guardias en el Excel<input class="text-field" id="patio-marker" maxlength="80" required value="yo"></label>' +
+            '<label>Generar desde<input class="text-field" id="patio-from" type="date" min="' + esc(year.start) + '" max="' + esc(year.end) + '" value="' + esc(initial) + '" required></label>' +
+            '<label>Hasta (elige la fecha final del curso)<input class="text-field" id="patio-to" type="date" min="' + esc(year.start) + '" max="' + esc(year.end) + '" required></label>' +
+            '<label>Inicio del horario de verano (opcional)<input class="text-field" id="patio-summer" type="date" min="' + esc(year.start) + '" max="' + esc(year.end) + '"></label>' +
+            '<label class="patio-holiday-control"><input id="patio-skip" type="checkbox" checked> Omitir festivos y vacaciones marcados en esta agenda</label>' +
+            '</div>' +
+            '<p class="hint">La rotación avanza por semanas naturales incluso durante las vacaciones. El horario ordinario usa el primer patio habitual y la fecha opcional de verano cambia a su franja correspondiente. Las guardias existentes no se sobrescriben.</p>' +
+            '<p class="hint">El archivo no determina automáticamente todas las vacaciones ni la fecha de fin de curso: revisa ambos datos.</p>' +
+            '<div class="modal-error" id="patio-import-error" role="alert"></div>' +
+            '<div class="modal-actions"><button type="button" class="btn" id="patio-cancel">Cancelar</button>' +
+            '<button type="submit" class="btn" id="patio-preview">Revisar asignaciones</button>' +
+            '<button type="button" class="btn primary" id="patio-apply" disabled>Confirmar e incorporar</button></div></form>' +
+            '<div id="patio-preview-results" aria-live="polite" hidden></div></div>';
+        const $p = id => ctx.dialog.querySelector('#' + id), form = $p('patio-import-form');
+        const error = $p('patio-import-error'), out = $p('patio-preview-results'), apply = $p('patio-apply');
+        let prepared = null;
+        const reset = () => { prepared = null; apply.disabled = true; out.hidden = true; out.innerHTML = ''; error.textContent = ''; };
+        for (const input of form.querySelectorAll('input'))
+            input.addEventListener('change', reset);
+        $p('patio-cancel').onclick = () => ctx.dialog.close();
+        const options = () => ({ from: $p('patio-from').value, to: $p('patio-to').value,
+            summerFrom: $p('patio-summer').value, skipHolidays: $p('patio-skip').checked });
+        form.onsubmit = async (event) => {
+            event.preventDefault();
+            reset();
+            const button = $p('patio-preview');
+            button.disabled = true;
+            try {
+                const file = $p('patio-file').files[0];
+                if (!file || !/\.xlsx$/i.test(file.name) || file.size > 3_000_000)
+                    throw new Error('Selecciona un Excel .xlsx de hasta 3 MB.');
+                const template = await (0, patio_rotation_js_1.parsePatioXlsx)(await file.arrayBuffer(), { marker: $p('patio-marker').value });
+                const config = options(), preview = (0, patio_rotation_js_1.previewPatioRotation)(ctx.getDoc(), template, config);
+                prepared = { template, config, preview };
+                const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+                const details = preview.entries.map(item => '<tr><td>' + esc(item.date) + ' · ' + esc(days[item.day]) + '</td>' +
+                    '<td>' + esc(item.start + '–' + item.end) + '</td><td>' + esc(item.zone) + '</td>' +
+                    '<td>' + esc(item.rainZone) + '</td>' +
+                    '<td>' + esc(item.existingId ? 'Ya programada' : 'Nueva') + '</td></tr>').join('');
+                out.hidden = false;
+                out.innerHTML = '<h3>Vista previa de la rotación</h3>' +
+                    '<p class="hint">Primer lunes del Excel: ' + esc(template.firstMonday) +
+                    '. Desplazamiento: ' + esc(template.shift) + ' puestos por semana; ciclo de ' +
+                    esc(template.cycleWeeks) + ' semanas. Días asignados: ' +
+                    esc(preview.weekdays.map(d => days[d]).join(', ')) + '.</p>' +
+                    '<p><strong>' + esc(preview.entries.length - preview.existing) + ' guardias nuevas</strong>' +
+                    ' · ' + esc(preview.existing) + ' ya programadas (no se sobrescribirán)' +
+                    ' · ' + esc(preview.excluded) + ' fechas omitidas por festivos.</p>' +
+                    (preview.secondCount ? '<p class="hint">Atención: tu marcador aparece también en el segundo patio; esas guardias NO se importan con este formato.</p>' : '') +
+                    '<div class="patio-preview-scroll"><table class="patio-preview-table"><thead><tr>' +
+                    '<th>Fecha</th><th>Hora</th><th>Zona habitual</th><th>Con lluvia o viento</th><th>Resultado</th>' +
+                    '</tr></thead><tbody>' + details + '</tbody></table></div>' +
+                    '<p class="hint">Comprueba las zonas, las vacaciones y el último día del curso antes de incorporar. Los datos se guardarán cifrados con tu cuaderno.</p>';
+                apply.disabled = preview.entries.length === preview.existing;
+            }
+            catch (err) {
+                error.textContent = err.message || 'No se ha podido interpretar la rotación.';
+            }
+            finally {
+                button.disabled = false;
+            }
+        };
+        apply.onclick = async () => {
+            if (!prepared)
+                return;
+            if (!window.confirm('¿Incorporar las guardias revisadas a la agenda del cuaderno cifrado? No se sustituirá ninguna guardia existente.'))
+                return;
+            apply.disabled = true;
+            try {
+                const { template, config } = prepared;
+                await ctx.commit(d => (0, patio_rotation_js_1.addPatioRotationEvents)(d, (0, patio_rotation_js_1.previewPatioRotation)(d, template, config)), 'Importar guardias rotatorias de patio');
+                ctx.dialog.close();
+                ctx.toast('Guardias incorporadas. Revisa la agenda y verifica una copia cifrada del cuaderno.');
+            }
+            catch (err) {
+                error.textContent = err.message;
+                apply.disabled = false;
+            }
+        };
+        ctx.dialog.showModal();
+    }
+    function evaluationModal(groupId, periodId) {
+        const current = (0, planner_js_1.activeYear)(ctx.getDoc()), group = ctx.getDoc().groups.find(g => g.id === groupId && g.course === current.name);
+        const period = ctx.getDoc().periods.find(p => p.id === periodId);
+        if (!group || !period) {
+            ctx.fail(new Error('Grupo o evaluación ya no disponibles en este curso.'));
+            return;
+        }
+        const existing = current.events.find(e => e.type === 'evaluation' && e.groupId === groupId && e.periodId === periodId);
+        const today = dateNow(), date = existing?.date || (today >= current.start && today <= current.end ? today : current.start);
+        ctx.fieldsModal('Sesión de evaluación · ' + group.name + ' · ' + period.name, [
+            { id: 'date', label: 'Día de la sesión', type: 'date', value: date },
+            { id: 'time', label: 'Hora de inicio', type: 'time', value: existing?.time || '15:30' },
+            { id: 'notes', label: 'Lugar o indicaciones (opcional)', required: false, value: existing?.notes || '', maxlength: 1000 }
+        ], values => ctx.commit(d => (0, planner_js_1.saveEvaluationSession)(d, {
+            id: existing?.id || null, groupId, periodId, ...values
+        }), 'Programar sesión de evaluación'), 'La convocatoria aparecerá en las vistas de día, semana y mes. Su hora no depende de las clases del horario.');
+        if (existing)
+            delButton('events', existing.id);
+    }
+    function exportSingleEvent(event) {
+        if (!event)
+            return;
+        if (!window.confirm('Se generará un archivo .ics SIN CIFRAR con el título, fecha, hora y observaciones de esta cita. No incluyas datos personales de alumnos ni lo guardes en servicios no autorizados. ¿Continuar?'))
+            return;
+        try {
+            const ics = (0, planner_js_1.calendarEventIcs)(event);
+            const filename = 'AppNotas-evento-' + event.date + '-' + event.id.slice(0, 8) + '.ics';
+            download(new Blob([ics], { type: 'text/calendar;charset=utf-8' }), filename);
+            ctx.toast('Cita exportada. Abre el archivo .ics e impórtalo en el calendario que elijas. No existe sincronización automática.');
+        }
+        catch (error) {
+            ctx.fail(error);
+        }
+    }
     function eventModal({ date = dateNow(), event = null, assessmentId = null, groupId = null } = {}) {
         const fixedGroup = groupId || event?.groupId || null, kind = event?.type || 'exam', title = event?.title || ctx.getDoc().assessments.find(a => a.id === assessmentId)?.name || '';
-        ctx.dialog.innerHTML = `<form class="modal-inner" id="planner-event-form"><h2 id="modal-heading">${event ? 'Editar' : 'Programar'} examen o evento</h2><p class="subtitle">Elige un grupo y una fecha. Si hay una sola clase en el horario, se toma su hora automáticamente.</p><div class="modal-fields"><label>Tipo<select name="type">${Object.entries(planner_js_1.EVENT_TYPES).map(([v, t]) => `<option value="${v}" ${v === kind ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label><label>Nombre<input name="title" class="text-field" required maxlength="150" value="${esc(title)}" placeholder="Examen parcial"/></label><label>Fecha<input name="date" class="text-field" type="date" required value="${esc(event?.date || date)}"/></label><label>Grupo (opcional para reuniones)<select name="groupId"><option value="">Sin grupo</option>${pickGroup(ctx.getDoc(), (0, planner_js_1.activeYear)(ctx.getDoc())).map(g => `<option value="${esc(g.value)}" ${g.value === fixedGroup ? 'selected' : ''}>${esc(g.label)}</option>`).join('')}</select></label><label>Actividad del cuaderno (opcional)<select name="assessmentId"><option value="">Sin vincular</option></select></label><label>Clase del horario<select name="slotId"><option value="">Hora manual / sin horario</option></select></label><div id="planner-slot-message" class="hint"></div><label>Hora manual (solo si no hay clase vinculada)<input name="time" type="time" class="text-field" value="${esc(event?.time || '')}"/></label><label>Observaciones<textarea name="notes" class="text-field" maxlength="4000" rows="3">${esc(event?.notes || '')}</textarea></label></div><div class="modal-error" role="alert"></div><div class="modal-actions"><button type="button" class="btn" id="planner-cancel-event">Cancelar</button><button type="submit" class="btn primary">Guardar evento</button></div></form>`;
+        ctx.dialog.innerHTML = `<form class="modal-inner" id="planner-event-form"><h2 id="modal-heading">${event ? 'Editar' : 'Programar'} examen o evento</h2><p class="subtitle">Elige un grupo y una fecha. Si hay una sola clase en el horario, se toma su hora automáticamente.</p><div class="modal-fields"><label>Tipo<select name="type">${Object.entries(planner_js_1.EVENT_TYPES).filter(([value]) => value !== 'evaluation').map(([v, t]) => `<option value="${v}" ${v === kind ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label><label>Nombre<input name="title" class="text-field" required maxlength="150" value="${esc(title)}" placeholder="Examen parcial"/></label><label>Fecha<input name="date" class="text-field" type="date" required value="${esc(event?.date || date)}"/></label><label>Grupo (opcional para reuniones)<select name="groupId"><option value="">Sin grupo</option>${pickGroup(ctx.getDoc(), (0, planner_js_1.activeYear)(ctx.getDoc())).map(g => `<option value="${esc(g.value)}" ${g.value === fixedGroup ? 'selected' : ''}>${esc(g.label)}</option>`).join('')}</select></label><label>Actividad del cuaderno (opcional)<select name="assessmentId"><option value="">Sin vincular</option></select></label><label>Clase del horario<select name="slotId"><option value="">Hora manual / sin horario</option></select></label><div id="planner-slot-message" class="hint"></div><label>Hora manual (solo si no hay clase vinculada)<input name="time" type="time" class="text-field" value="${esc(event?.time || '')}"/></label><label>Hora de finalización (opcional; se propone una hora si se deja vacía)<input name="endTime" type="time" class="text-field" value="${esc(event?.endTime || '')}"/></label><label>Observaciones<textarea name="notes" class="text-field" maxlength="4000" rows="3">${esc(event?.notes || '')}</textarea></label></div><div class="modal-error" role="alert"></div><div class="modal-actions"><button type="button" class="btn" id="planner-cancel-event">Cancelar</button><button type="submit" class="btn primary">Guardar evento</button></div></form>`;
         const form = ctx.dialog.querySelector('form'), fields = form.elements;
         const refresh = () => {
             const selected = fields.assessmentId.value || assessmentId || event?.assessmentId || '';
@@ -8550,7 +9006,7 @@ function bindPlanner(doc, ui, ctx) {
         form.onsubmit = async (ev) => { ev.preventDefault(); const v = Object.fromEntries(new FormData(form)); try {
             if (v.type === 'exam' && v.groupId && !v.slotId && !v.time)
                 throw new Error('El examen necesita una hora. Selecciona la sesión del horario o escribe una hora manual.');
-            await ctx.commit(d => (0, planner_js_1.saveEvent)(d, { ...v, id: event?.id || null, slotId: v.slotId || null, groupId: v.groupId || null, assessmentId: v.type === 'exam' ? v.assessmentId || null : null, time: v.slotId ? '' : v.time }), 'Programar examen o evento');
+            await ctx.commit(d => (0, planner_js_1.saveEvent)(d, { ...v, id: event?.id || null, slotId: v.slotId || null, groupId: v.groupId || null, assessmentId: v.type === 'exam' ? v.assessmentId || null : null, time: v.slotId ? '' : v.time, endTime: v.endTime || '' }), 'Programar examen o evento');
             ctx.dialog.close();
         }
         catch (e) {
@@ -8564,7 +9020,7 @@ function bindPlanner(doc, ui, ctx) {
     function exportIcs() {
         if (!window.confirm('El calendario .ics se descargará SIN CIFRAR y podrá contener títulos o notas personales. ¿Continuar?'))
             return;
-        const events = [...y.events.map(e => ({ id: e.id, date: e.date, time: e.time, title: `${planner_js_1.EVENT_TYPES[e.type]}: ${e.title}`, detail: e.notes })), ...y.tasks.map(t => ({ id: t.id, date: t.dueDate, title: 'Tarea docente: ' + t.title, detail: t.notes }))];
+        const events = [...y.events.map(e => ({ id: e.id, date: e.date, time: e.time, endTime: e.endTime, title: `${planner_js_1.EVENT_TYPES[e.type]}: ${e.title}`, detail: e.notes })), ...y.tasks.map(t => ({ id: t.id, date: t.dueDate, title: 'Tarea docente: ' + t.title, detail: t.notes }))];
         const clean = t => String(t || '').replace(/\r\n?/g, '\n').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
         const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CuadernoDocente//Planificador//ES', 'CALSCALE:GREGORIAN'];
         for (const e of events) {
@@ -8572,8 +9028,8 @@ function bindPlanner(doc, ui, ctx) {
             const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
             const start = e.time ? `${ymd}T${e.time.replace(':', '')}00` : ymd;
             const hourEnd = e.time ? Math.floor((Number(e.time.slice(0, 2)) * 60 + Number(e.time.slice(3)) + 60) / 1440) : 0;
-            const endMinutes = e.time ? (Number(e.time.slice(0, 2)) * 60 + Number(e.time.slice(3)) + 60) % 1440 : 0;
-            const endDate = e.time && hourEnd ? next : ymd;
+            const endMinutes = e.time ? (e.endTime ? Number(e.endTime.slice(0, 2)) * 60 + Number(e.endTime.slice(3)) : (Number(e.time.slice(0, 2)) * 60 + Number(e.time.slice(3)) + 60) % 1440) : 0;
+            const endDate = e.time && !e.endTime && hourEnd ? next : ymd;
             const endTime = e.time ? `${endDate}T${String(Math.floor(endMinutes / 60)).padStart(2, '0')}${String(endMinutes % 60).padStart(2, '0')}00` : next;
             lines.push('BEGIN:VEVENT', `UID:${e.id}@cuadernodocente.local`, `DTSTAMP:${stamp}`, e.time ? `DTSTART:${start}` : `DTSTART;VALUE=DATE:${start}`, e.time ? `DTEND:${endTime}` : `DTEND;VALUE=DATE:${endTime}`, `SUMMARY:${clean(e.title)}`, `DESCRIPTION:${clean(e.detail)}`, 'END:VEVENT');
         }
@@ -8623,6 +9079,8 @@ exports.nextClassDate = nextClassDate;
 exports.carryLesson = carryLesson;
 exports.findExamSlots = findExamSlots;
 exports.saveEvent = saveEvent;
+exports.saveEvaluationSession = saveEvaluationSession;
+exports.calendarEventIcs = calendarEventIcs;
 exports.saveTask = saveTask;
 exports.deletePlannerItem = deletePlannerItem;
 exports.assertPlanner = assertPlanner;
@@ -8749,7 +9207,10 @@ function saveTimetableBand(doc, { id = null, label, start, end, kind = 'lesson' 
             slot.start = start;
             slot.end = end;
             y.events.filter(e => e.slotId === slot.id).forEach(e => {
-                e.time = y.exceptions.find(x => x.slotId === slot.id && x.date === e.date && x.type === 'move')?.start || start;
+                const moved = y.exceptions.find(x => x.slotId === slot.id && x.date === e.date && x.type === 'move');
+                e.time = moved?.start || start;
+                if (e.endTime !== undefined)
+                    e.endTime = moved?.end || end;
             });
         }
     }
@@ -8771,7 +9232,7 @@ function removeTimetableBand(doc, id) {
         y.bands = next;
     doc.updatedAt = stamp();
 }
-exports.EVENT_TYPES = Object.freeze({ exam: 'Examen', task: 'Tarea', meeting: 'Reunión', other: 'Otro evento' });
+exports.EVENT_TYPES = Object.freeze({ exam: 'Examen', task: 'Tarea', meeting: 'Reunión', evaluation: 'Sesión de evaluación', patio: 'Guardia de patio', other: 'Otro evento' });
 exports.EXCEPTION_TYPES = Object.freeze({ cancel: 'Clase cancelada', replace: 'Actividad sustituta', move: 'Cambio de hora' });
 function isoDate(v) {
     if (typeof v !== 'string' || !iso.test(v))
@@ -8890,7 +9351,12 @@ function saveSlot(doc, { id = null, day, start, end, type, groupId = null, label
             y.exceptions = y.exceptions.filter(x => x.slotId !== id);
         }
         else {
-            y.events.filter(x => x.slotId === id).forEach(x => { x.time = y.exceptions.find(e => e.slotId === id && e.date === x.date && e.type === 'move')?.start || start; });
+            y.events.filter(x => x.slotId === id).forEach(x => {
+                const moved = y.exceptions.find(e => e.slotId === id && e.date === x.date && e.type === 'move');
+                x.time = moved?.start || start;
+                if (x.endTime !== undefined)
+                    x.endTime = moved?.end || end;
+            });
         }
         Object.assign(existing, record);
     }
@@ -8950,14 +9416,22 @@ function saveException(doc, { id = null, date, slotId, type, label = '', start =
     // «cambio de hora» a «cancelada» quedaba la hora antigua en el calendario.
     if (old?.type === 'move') {
         const oldSlot = y.slots.find(s => s.id === old.slotId);
-        y.events.filter(e => e.slotId === old.slotId && e.date === old.date).forEach(e => { e.time = oldSlot?.start || e.time; });
+        y.events.filter(e => e.slotId === old.slotId && e.date === old.date).forEach(e => {
+            e.time = oldSlot?.start || e.time;
+            if (e.endTime !== undefined && oldSlot)
+                e.endTime = oldSlot.end;
+        });
     }
     if (old)
         Object.assign(old, obj);
     else
         y.exceptions.push(obj);
     if (type === 'move')
-        y.events.filter(e => e.slotId === slotId && e.date === date).forEach(e => { e.time = start; });
+        y.events.filter(e => e.slotId === slotId && e.date === date).forEach(e => {
+            e.time = start;
+            if (e.endTime !== undefined)
+                e.endTime = end;
+        });
     doc.updatedAt = stamp();
     return obj;
 }
@@ -9041,7 +9515,7 @@ function carryLesson(doc, id) {
     return obj;
 }
 function findExamSlots(y, groupId, date) { return (0, exports.daySessions)(y, date).filter(s => s.type === 'class' && s.groupId === groupId && s.exception?.type !== 'cancel' && s.exception?.type !== 'replace'); }
-function saveEvent(doc, { id = null, date, type, title, groupId = null, assessmentId = null, slotId = null, time = '', notes = '' }) {
+function saveEvent(doc, { id = null, date, type, title, groupId = null, assessmentId = null, slotId = null, time = '', endTime = '', notes = '', periodId = null }) {
     const y = activeYear(doc);
     needDate(y, date);
     if (!Object.hasOwn(exports.EVENT_TYPES, type))
@@ -9049,8 +9523,19 @@ function saveEvent(doc, { id = null, date, type, title, groupId = null, assessme
     checkGroup(doc, groupId);
     if (time && !(0, exports.timeValid)(time))
         throw new Error('Hora del evento inválida.');
+    if (endTime && (!time && !slotId || !(0, exports.timeValid)(endTime)))
+        throw new Error('Hora final del evento inválida.');
     if (String(notes).length > 4000)
         throw new Error('Notas demasiado largas.');
+    if (type === 'evaluation') {
+        const group = doc.groups.find(g => g.id === groupId);
+        if (!group || group.course !== y.name || !doc.periods.some(p => p.id === periodId) || !time || slotId || assessmentId)
+            throw new Error('La sesión de evaluación requiere grupo del curso, trimestre y hora manual.');
+        if (y.events.some(e => e.id !== id && e.type === 'evaluation' && e.groupId === groupId && e.periodId === periodId))
+            throw new Error('Este grupo ya tiene una sesión programada para esa evaluación. Edita la existente.');
+    }
+    else if (periodId !== null)
+        throw new Error('Solo las sesiones de evaluación pueden vincularse a un trimestre.');
     let slot = null;
     if (slotId) {
         slot = y.slots.find(s => s.id === slotId);
@@ -9068,16 +9553,76 @@ function saveEvent(doc, { id = null, date, type, title, groupId = null, assessme
         if (y.events.some(e => e.id !== id && e.assessmentId === assessmentId))
             throw new Error('El examen ya está programado en este curso. Edita su fecha en lugar de duplicarlo.');
     }
-    const obj = { id: id || uid(), date, type, title: trimmed(title, 150), groupId: groupId || null, assessmentId: assessmentId || null, slotId: slotId || null, time: slot ? (y.exceptions.find(e => e.date === date && e.slotId === slotId && e.type === 'move')?.start || slot.start) : time, notes: String(notes).trim() };
+    const move = slot && y.exceptions.find(e => e.date === date && e.slotId === slotId && e.type === 'move');
+    const actualStart = slot ? (move?.start || slot.start) : time, actualEnd = endTime || (slot ? (move?.end || slot.end) : '');
+    if (actualEnd && (!actualStart || !(0, exports.timeValid)(actualEnd) || actualEnd <= actualStart))
+        throw new Error('La hora final debe ser posterior al inicio.');
+    const obj = { id: id || uid(), date, type, title: trimmed(title, 150), groupId: groupId || null, assessmentId: assessmentId || null, slotId: slotId || null, time: actualStart, ...(actualEnd ? { endTime: actualEnd } : {}), notes: String(notes).trim(), ...(type === 'evaluation' ? { periodId } : {}) };
     const old = y.events.find(e => e.id === id);
     if (id && !old)
         throw new Error('Evento inexistente.');
-    if (old)
+    if (old) {
         Object.assign(old, obj);
+        if (type !== 'patio')
+            delete old.patioRotationSource;
+        if (type !== 'evaluation')
+            delete old.periodId;
+        if (!actualEnd)
+            delete old.endTime;
+    }
     else
         y.events.push(obj);
     doc.updatedAt = stamp();
-    return obj;
+    return old || obj;
+}
+/** Una convocatoria por grupo y evaluación del curso académico activo.
+ * Son citas de agenda, no calificaciones ni actas de evaluación. */
+function saveEvaluationSession(doc, { id = null, groupId, periodId, date, time, notes = '' }) {
+    const period = doc.periods.find(p => p.id === periodId), group = doc.groups.find(g => g.id === groupId);
+    if (!period || !group)
+        throw new Error('Selecciona un grupo y una evaluación válidos.');
+    return saveEvent(doc, { id, groupId, periodId, date, time, notes, type: 'evaluation',
+        title: period.name + ' · ' + group.name });
+}
+/** VEVENT individual, sin cuentas ni red: las horas son flotantes/locales
+ * y el calendario de destino elegirá su propia zona horaria.
+ * Importar un .ics NO sincroniza modificaciones posteriores de la agenda. */
+function calendarEventIcs(event, generatedAt = new Date()) {
+    if (!event || typeof event.id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(event.id) || !Object.hasOwn(exports.EVENT_TYPES, event.type) || !event.title || !isoDate(event.date) || !Number.isFinite(generatedAt.getTime()) ||
+        (event.time && !(0, exports.timeValid)(event.time)) || (event.endTime && (!event.time || !(0, exports.timeValid)(event.endTime) || event.endTime <= event.time)))
+        throw new Error('Evento inválido para exportar.');
+    const escapeIcs = value => String(value ?? '').replace(/\r\n?/g, '\n').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
+    const fold = line => {
+        let out = '', count = 0;
+        const encoder = new TextEncoder();
+        for (const char of line) {
+            const bytes = encoder.encode(char).length;
+            if (count + bytes > 75) {
+                out += '\r\n ';
+                count = 1;
+            }
+            out += char;
+            count += bytes;
+        }
+        return out;
+    };
+    const date = event.date.replaceAll('-', ''), next = (0, exports.addDays)(event.date, 1).replaceAll('-', '');
+    const mins = event.time ? Number(event.time.slice(0, 2)) * 60 + Number(event.time.slice(3)) : 0;
+    const defaultFinalMins = (mins + 60) % 1440;
+    const finalMins = event.endTime ? Number(event.endTime.slice(0, 2)) * 60 + Number(event.endTime.slice(3)) : defaultFinalMins;
+    const finalDay = event.time && !event.endTime && mins + 60 >= 1440 ? next : date;
+    const start = event.time ? date + 'T' + event.time.replace(':', '') + '00' : date;
+    const end = event.time ? finalDay + 'T' + String(Math.floor(finalMins / 60)).padStart(2, '0') +
+        String(finalMins % 60).padStart(2, '0') + '00' : next;
+    const stamp = generatedAt.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const content = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//AppNotas//AgendaDocente//ES', 'CALSCALE:GREGORIAN',
+        'BEGIN:VEVENT', 'UID:' + event.id + '@cuadernodocente.local', 'DTSTAMP:' + stamp,
+        event.time ? 'DTSTART:' + start : 'DTSTART;VALUE=DATE:' + start,
+        event.time ? 'DTEND:' + end : 'DTEND;VALUE=DATE:' + end,
+        'SUMMARY:' + escapeIcs(exports.EVENT_TYPES[event.type] + ': ' + event.title),
+        'DESCRIPTION:' + escapeIcs(event.notes),
+        'END:VEVENT', 'END:VCALENDAR'];
+    return content.map(fold).join('\r\n') + '\r\n';
 }
 function saveTask(doc, { id = null, title, dueDate, groupId = null, done = false, notes = '' }) { const y = activeYear(doc); needDate(y, dueDate); checkGroup(doc, groupId); if (String(notes).length > 4000)
     throw new Error('Notas demasiado largas.'); const obj = { id: id || uid(), title: trimmed(title, 150), dueDate, groupId: groupId || null, done: !!done, notes: String(notes).trim() }; const old = y.tasks.find(t => t.id === id); if (id && !old)
@@ -9094,7 +9639,12 @@ function deletePlannerItem(doc, collection, id) {
     const original = y[collection].find(x => x.id === id);
     y[collection] = y[collection].filter(x => x.id !== id);
     if (collection === 'exceptions' && original.type === 'move')
-        y.events.filter(x => x.date === original.date && x.slotId === original.slotId).forEach(x => { x.time = y.slots.find(s => s.id === original.slotId)?.start || x.time; });
+        y.events.filter(x => x.date === original.date && x.slotId === original.slotId).forEach(x => {
+            const slot = y.slots.find(s => s.id === original.slotId);
+            x.time = slot?.start || x.time;
+            if (x.endTime !== undefined && slot)
+                x.endTime = slot.end;
+        });
     doc.updatedAt = stamp();
 }
 const unique = a => Array.isArray(a) && a.every(x => x && typeof x.id === 'string') && new Set(a.map(x => x.id)).size === a.length;
@@ -9124,7 +9674,8 @@ function assertPlanner(doc) {
         const uniquePairs = (items, key) => new Set(items.map(key)).size === items.length;
         if (!uniquePairs(y.exceptions, e => `${e.date}|${e.slotId}`) ||
             !uniquePairs(y.lessons.filter(l => l.slotId), l => `${l.date}|${l.slotId}`) ||
-            !uniquePairs(y.events.filter(e => e.assessmentId), e => e.assessmentId))
+            !uniquePairs(y.events.filter(e => e.assessmentId), e => e.assessmentId) ||
+            !uniquePairs(y.events.filter(e => e.type === 'evaluation'), e => e.groupId + '|' + e.periodId))
             throw new Error('Agenda duplicada: revisa excepciones, clases y exámenes vinculados.');
         for (const s of y.slots) {
             if (!Number.isInteger(s.day) || s.day < 0 || s.day > 4 || !Object.hasOwn(exports.SLOT_TYPES, s.type) || !(0, exports.timeValid)(s.start) || !(0, exports.timeValid)(s.end) || s.end <= s.start || (s.groupId && !doc.groups.some(g => g.id === s.groupId)) || (s.type === 'class' && !s.groupId && !s.label) || (s.type !== 'class' && s.groupId) ||
@@ -9149,7 +9700,11 @@ function assertPlanner(doc) {
                 throw new Error('Agenda de clase inválida.');
         }
         for (const e of y.events) {
-            if (!Object.hasOwn(exports.EVENT_TYPES, e.type) || !e.title || (e.time && !(0, exports.timeValid)(e.time)) || (e.slotId && y.slots.find(s => s.id === e.slotId)?.type === 'class' && y.slots.find(s => s.id === e.slotId)?.groupId !== e.groupId) || (e.assessmentId && (e.type !== 'exam' || !doc.assessments.some(a => a.id === e.assessmentId && a.groupId === e.groupId))))
+            if (!Object.hasOwn(exports.EVENT_TYPES, e.type) || !e.title || (e.time && !(0, exports.timeValid)(e.time)) ||
+                (e.endTime !== undefined && (!(0, exports.timeValid)(e.endTime) || !e.time || e.endTime <= e.time)) ||
+                (e.patioRotationSource !== undefined && (e.type !== 'patio' || e.patioRotationSource !== 'xlsx-first-break-v1')) || (e.slotId && y.slots.find(s => s.id === e.slotId)?.type === 'class' && y.slots.find(s => s.id === e.slotId)?.groupId !== e.groupId) || (e.assessmentId && (e.type !== 'exam' || !doc.assessments.some(a => a.id === e.assessmentId && a.groupId === e.groupId))) ||
+                (e.type === 'evaluation' && (!e.groupId || !e.periodId || !e.time || e.slotId || e.assessmentId || !doc.periods.some(p => p.id === e.periodId) || !doc.groups.some(g => g.id === e.groupId && g.course === y.name))) ||
+                (e.type !== 'evaluation' && e.periodId !== undefined && e.periodId !== null))
                 throw new Error('Evento inválido.');
         }
         for (const l of y.lessons) {
