@@ -1,4 +1,4 @@
-import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
+import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,catalogForNotebook,addNotebookSubject,removeNotebookSubject,defaultSubjectAccent,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
 import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,itacaGrade} from './src/calculations.js';
 import {studentsFromCsv} from './src/csv.js';
 import {parseRubricText} from './src/rubric-import.js';
@@ -398,7 +398,7 @@ function navigateHistory(direction){
 function chooseInitial(){
   const group=STATE.doc.groups[0];STATE.groupId=group?.id||null;
   STATE.level=group?.level||'legacy';STATE.subject=group?group.subject:'Latín I';
-  if(!group){STATE.level='1bach';STATE.subject='Latín I';}
+  if(!group){const available=catalogForNotebook(STATE.doc).flatMap(entry=>entry.subjects.map(subject=>({level:entry.level,subject})));const selected=available.find(x=>x.level==='1bach'&&x.subject==='Latín I')||available[0];STATE.level=selected?.level||'1bach';STATE.subject=selected?.subject||'Latín I';}
   STATE.periodId=[...STATE.doc.periods].sort((a,b)=>a.order-b.order)[0]?.id||null;
 }
 const groupsForSubject=()=>STATE.doc.groups.filter(g=>(g.level??'legacy')===STATE.level&&g.subject===STATE.subject);
@@ -411,7 +411,7 @@ function setSubjectChoice(level,subject){
  * El rediseño clásico no sustituye los colores almacenados del docente. */
 function colorFor(level,subject){
   const key=subjectKey(level,subject);
-  return STATE.doc.settings.subjectAccents[key]||SUBJECT_COLORS[key]||'#F59E0B';
+  return STATE.doc.settings.subjectAccents[key]||defaultSubjectAccent(level,subject);
 }
 function contrastFor(hex){
   const vals=[1,3,5].map(pos=>parseInt(hex.slice(pos,pos+2),16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);
@@ -435,7 +435,7 @@ function applyTheme(){
   document.documentElement.style.setProperty('--classic-accent',color);
   document.documentElement.style.setProperty('--accent-ink',contrastFor(color));
 }
-const pairOptions=()=>Object.entries(COURSE_SUBJECTS).flatMap(([level,x])=>x.subjects.map(subject=>({value:subjectKey(level,subject),label:`${x.label} · ${subject}`})));
+const pairOptions=()=>catalogForNotebook(STATE.doc).flatMap(({level,label,subjects})=>subjects.map(subject=>({value:subjectKey(level,subject),label:`${label} · ${subject}`})));
 
 async function init(){
   try{
@@ -839,8 +839,8 @@ function render(){
   applyTheme();
   // Cada boton corresponde a una materia concreta, no solo a una etapa:
   // elegir entre Latin y Griego nunca depende de un segundo desplegable.
-  const courseChoices=[...Object.entries(COURSE_SUBJECTS).flatMap(([level,entry])=>entry.subjects.map(subject=>({
-    level,subject,subjectName:subject,stage:entry.label
+  const courseChoices=[...catalogForNotebook(STATE.doc).flatMap(({level,label,subjects})=>subjects.map(subject=>({
+    level,subject,subjectName:subject,stage:label
   }))), ...[...new Set(STATE.doc.groups.filter(g=>g.level===null).map(g=>g.subject))].map(subject=>({
     level:'legacy',subject,subjectName:subject||'Sin asignatura',stage:'Sin clasificar'
   }))];
@@ -871,6 +871,7 @@ function render(){
       <summary>Opciones de grupo <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
       <div class="group-actions-panel">
         <button class="btn small" id="new-group" ${STATE.level==='legacy'?'disabled':''}>+ Crear grupo</button>
+        <button class="btn small" id="manage-subjects">Gestionar materias</button>
         <button class="btn small" id="edit-group" ${hasGroup?'':'disabled'} title="Editar nombre y curso escolar del grupo">⋯ Gestionar grupo</button>
         ${STATE.level==='legacy'?'':`<label class="color-select-label">Color de acento<input id="accent-select" type="color" value="${esc(color)}" aria-label="Color de acento para ${esc(subjectLabel)}"/></label>`}
         ${group?.level===null?'<button class="btn" id="classify-group">Clasificar grupo</button>':''}
@@ -1421,7 +1422,7 @@ function bindCommon(){
     button.onclick=()=>{
     const {courseLevel:level,courseSubject:subject}=button.dataset;
     if(level===STATE.level&&subject===STATE.subject)return;
-    if(level==='legacy'?!STATE.doc.groups.some(g=>g.level===null&&g.subject===subject):!validSubject(level,subject))return;
+    if(level==='legacy'?!STATE.doc.groups.some(g=>g.level===null&&g.subject===subject):!validSubject(level,subject,STATE.doc))return;
     setSubjectChoice(level,subject);
     [...document.querySelectorAll('[data-course-level][data-course-subject]')]
       .find(b=>b.dataset.courseLevel===level&&b.dataset.courseSubject===subject)?.focus({preventScroll:true});
@@ -1451,15 +1452,56 @@ function bindCommon(){
   $('#accent-select')?.addEventListener('change',e=>commit(d=>setSubjectAccent(d,STATE.level,STATE.subject,e.target.value)).catch(fail));
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{if(STATE.tab==='alumno'&&b.dataset.tab!=='alumno')STATE.studentId=null;if(b.dataset.tab==='curriculo'&&currentGroup()?.subject==='Latín II')STATE.curriculumVersion=officialCompetenciesForGroup(currentGroup(),STATE.competencyVersion)?.version||'2022';STATE.tab=b.dataset.tab;render();});
   $('#edit-group')?.addEventListener('click',openGroupTools);
+  $('#manage-subjects')?.addEventListener('click',openSubjectsManager);
 
+  function openSubjectsManager(){
+    const list=catalogForNotebook(STATE.doc).flatMap(({level,label,subjects})=>subjects.map(subject=>({level,label,subject})));
+    const hidden=Object.entries(COURSE_SUBJECTS).flatMap(([level,entry])=>entry.subjects
+      .filter(subject=>!validSubject(level,subject,STATE.doc)).map(subject=>({level,subject,label:entry.label})));
+    dialog.innerHTML=`<div class="modal-inner subject-manager"><h2 id="modal-heading">Gestionar materias</h2>
+      <p class="subtitle">Las cinco materias originales vienen incluidas. Añade otras o retira las que no utilices; nunca se borran alumnos, notas ni grupos.</p>
+      <div class="subject-manager-list">${list.map(x=>`<div class="subject-manager-row"><span><strong>${esc(x.subject)}</strong><small>${esc(x.label)}</small></span>
+        <button class="btn small warn" type="button" data-remove-subject="${esc(subjectKey(x.level,x.subject))}">Retirar</button></div>`).join('')}</div>
+      <h3>Añadir materia</h3><form id="subject-manager-create">
+       <div class="subject-manager-fields"><label>Etapa<select name="level">${Object.entries(COURSE_SUBJECTS).map(([level,x])=>opt(level,x.label)).join('')}</select></label>
+       <label>Materia<input class="text-field" name="subject" maxlength="65" required placeholder="Ej. Historia o Atención Educativa"/></label>
+       <label>Color<input type="color" name="color" value="#64748B"/></label></div>
+       <div class="modal-error" role="alert"></div><div class="modal-actions"><button type="button" class="btn" id="subject-manager-close">Cerrar</button>
+       <button type="submit" class="btn primary">+ Añadir materia</button></div>
+      </form>
+      ${hidden.length?`<p class="hint">Materias predeterminadas retiradas: ${hidden.map(x=>esc(x.subject)).join(', ')}. Para recuperarlas, escribe exactamente su nombre en la etapa correspondiente.</p>`:''}
+      <p class="hint">Por seguridad, no puedes retirar una materia mientras tenga grupos asociados. Gestiona o elimina esos grupos explícitamente antes.</p></div>`;
+    dialog.querySelector('#subject-manager-close').onclick=()=>dialog.close();
+    dialog.querySelectorAll('[data-remove-subject]').forEach(button=>button.onclick=async()=>{
+      const key=button.dataset.removeSubject,pivot=key.indexOf(':'),level=key.slice(0,pivot),subject=key.slice(pivot+1);
+      if(!window.confirm('¿Retirar «'+subject+'» de los botones? No se eliminará ningún grupo ni calificación.'))return;
+      try{
+        await commit(doc=>removeNotebookSubject(doc,level,subject),'Retirar materia');
+        if(STATE.level===level&&STATE.subject===subject){
+          const first=catalogForNotebook(STATE.doc).flatMap(x=>x.subjects.map(subject=>({level:x.level,subject})))[0];
+          STATE.level=first.level;STATE.subject=first.subject;STATE.groupId=null;
+        }
+        dialog.close();render();
+      }catch(error){dialog.querySelector('.modal-error').textContent=error.message;}
+    });
+    dialog.querySelector('#subject-manager-create').onsubmit=async event=>{
+      event.preventDefault();const form=event.currentTarget,values=Object.fromEntries(new FormData(form));
+      try{
+        await commit(doc=>addNotebookSubject(doc,values.level,values.subject,values.color),'Añadir materia');
+        STATE.level=values.level;STATE.subject=values.subject;STATE.groupId=null;
+        dialog.close();render();
+      }catch(error){form.querySelector('.modal-error').textContent=error.message;}
+    };
+    dialog.showModal();
+  }
   $('#new-group').onclick=()=>{
-    if(!validSubject(STATE.level,STATE.subject))return toast('Selecciona primero un curso y asignatura.');
+    if(!validSubject(STATE.level,STATE.subject,STATE.doc))return toast('Selecciona primero un curso y asignatura.');
     fieldsModal(`Nuevo grupo · ${STATE.subject}`,[{id:'name',label:'Nombre del grupo',value:'Grupo A'},{id:'course',label:'Curso escolar',value:'2026-2027'}],async v=>{
       let group;await commit(d=>{group=addGroup(d,v.name,STATE.subject,v.course,STATE.level);});STATE.groupId=group.id;render();
     },`Asignatura: ${COURSE_SUBJECTS[STATE.level].label} · ${STATE.subject}.`);
   };
   $('#classify-group')?.addEventListener('click',()=>fieldsModal('Clasificar grupo anterior',[{id:'pair',label:'Curso y asignatura',type:'select',options:pairOptions()}],async v=>{
-    const [level,subject]=v.pair.split(':');const groupId=STATE.groupId;
+    const [level,...parts]=v.pair.split(':');const subject=parts.join(':');const groupId=STATE.groupId;
     await commit(d=>classifyGroup(d,groupId,level,subject));STATE.level=level;STATE.subject=subject;STATE.groupId=groupId;render();
   },'No se modificará ningún alumno, actividad o calificación.'));
   $('#new-period')?.addEventListener('click',()=>fieldsModal('Nuevo periodo',[{id:'name',label:'Nombre del periodo',value:`${STATE.doc.periods.length+1}.ª evaluación`}],async v=>{let p;await commit(d=>{p=addPeriod(d,v.name);});STATE.periodId=p.id;STATE.tab='cuaderno';render();}));
