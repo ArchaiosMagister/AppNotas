@@ -27,7 +27,10 @@ test('calendario calculado en UTC sin desajustes de huso horario; 23-11-2026 cae
 });
 test('sesiones de lunes a viernes: clases de grupos, asignatura manual y tipos docentes',()=>{
  const {d,g,y}=setup();slot(d,g);saveSlot(d,{day:2,start:'09:00',end:'10:00',type:'class',label:'Filosofía'});
- for(const type of ['guardia','familias','complementaria','departamento','jefatura','otro'])saveSlot(d,{day:3,start:'11:00',end:'11:55',type});
+ for(const [i,type] of ['guardia','familias','complementaria','departamento','jefatura','otro'].entries()){
+  const h=String(11+i).padStart(2,'0');
+  saveSlot(d,{day:3,start:h+':00',end:h+':55',type});
+ }
  assert.equal(y.slots.length,8);assert.equal(daySlots(y,'2026-11-23').length,1);assert.equal(daySlots(y,'2026-11-25')[0].label,'Filosofía');assert.equal(daySlots(y,'2026-11-26').length,6);
  assert.equal(daySlots(y,'2026-11-28').length,0);assertModel(d);
 });
