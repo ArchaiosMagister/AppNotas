@@ -1,4 +1,4 @@
-import {SLOT_TYPES,EVENT_TYPES,EXCEPTION_TYPES,activeYear,localToday,weekday,addDays,daySlots,daySessions,isHoliday,findExamSlots,saveSlot,removeSlot,saveEvent,saveLesson,carryLesson,saveHoliday,saveTask,saveException,deletePlannerItem,setActiveYear,addAcademicYear,updateAcademicYear,scheduleBands,saveTimetableBand,removeTimetableBand,setSummerSchedule,activeScheduleMode,slotsForMode,saveEvaluationSession,calendarEventIcs} from './planner.js';
+import {SLOT_TYPES,EVENT_TYPES,EXCEPTION_TYPES,activeYear,localToday,weekday,addDays,daySlots,daySessions,isHoliday,findExamSlots,saveSlot,removeSlot,saveEvent,saveLesson,carryLesson,saveHoliday,saveTask,saveException,deletePlannerItem,setActiveYear,addAcademicYear,updateAcademicYear,scheduleBands,saveTimetableBand,removeTimetableBand,setSummerSchedule,activeScheduleMode,slotsForMode,weeklySlotCount,plannerSlotColor,saveEvaluationSession,calendarEventIcs} from './planner.js';
 import {timetableRows,timetableFileBase,timetableWordBlob,timetablePdfBytes} from './timetable-export.js';
 import {parsePatioXlsx,previewPatioRotation,addPatioRotationEvents} from './patio-rotation.js';
 
@@ -13,11 +13,7 @@ const pickGroup=(doc,y)=>[...doc.groups].sort((a,b)=>Number(b.course===y.name)-N
   .map(g=>({value:g.id,label:`${g.subject} · ${g.name}${g.course===y.name?'':' · '+g.course}`}));
 const action=(txt,attrs,cls='btn small')=>`<button type="button" class="${cls}" ${attrs}>${txt}</button>`;
 const isColor=value=>typeof value==='string'&&/^#[0-9A-Fa-f]{6}$/.test(value);
-const slotColor=(doc,s)=>{
- const group=doc.groups.find(g=>g.id===s.groupId);
- const accent=group&&doc.settings?.subjectAccents?.[group.level+':'+group.subject];
- return isColor(accent)?accent:isColor(s.color)?s.color:'#64748B';
-};
+const slotColor=(_doc,slot)=>plannerSlotColor(slot);
 const slotStyle=(doc,s)=>'style="--planner-color:'+esc(slotColor(doc,s))+'"';
 /** Horario con filas fijas editables y celdas táctiles por día. Si existen
  * sesiones anteriores sin franja, se siguen mostrando por separado. */
@@ -35,7 +31,14 @@ export function renderTimetableGrid(doc,y){
   return `<tr><th scope="row" class="planner-timetable-band ${b.kind==='break'?'planner-timetable-break':''}"><strong>${esc(b.label)}</strong><span>${esc(b.start)}–${esc(b.end)}</span>${action('Editar franja',`data-edit-band="${esc(b.id)}" aria-label="Editar horas de ${esc(b.label)}"`,'planner-timetable-band-edit')}</th>${cells}</tr>`;
  }).join('');
  const extras=active.filter(slot=>!paired.has(slot.id));
+ const limits=doc.groups.filter(g=>g.course===y.name&&g.weeklyHours!==undefined)
+  .map(g=>{const count=weeklySlotCount(y,g.id);
+   return '<span class="planner-weekly-counter '+(count===g.weeklyHours?'at-limit':'')+'">'+
+    esc(g.subject+' · '+g.name)+': <strong>'+count+'/'+g.weeklyHours+
+    ' sesiones</strong></span>';
+  }).join('');
  return `<div class="planner-timetable-tools"><label class="planner-summer-switch"><input type="checkbox" id="plan-summer-toggle" role="switch" ${activeScheduleMode(y)==='summer'?'checked':''}/><span>Horario de verano</span></label><p class="hint">En verano: siete clases de 45 minutos, primer patio de 30 minutos y salida a las 13:45, sin segundo patio. Ambos horarios se conservan por separado. Toca una casilla para asignar una sola clase o actividad; pulsa la existente para editarla.</p><div class="planner-export-actions">${action('Word · horario','id="plan-export-word"','btn small planner-word-action')}${action('PDF · horario','id="plan-export-pdf"','btn small planner-pdf-action')}${action('+ Añadir franja','id="plan-add-band"')}</div></div>
+ ${limits?'<div class="planner-weekly-limits" aria-label="Horas semanales configuradas">'+limits+'</div>':''}
  <div class="planner-timetable-scroll" role="region" aria-label="Horario semanal personalizable" tabindex="0"><table class="planner-timetable"><thead><tr><th scope="col">Franja</th>${longDays.map(day=>`<th scope="col">${esc(day)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
  ${extras.length?`<section class="planner-extra-sessions"><h3>Otras sesiones guardadas</h3><p class="hint">Estas sesiones anteriores o de horario especial se conservan fuera de las franjas predeterminadas.</p><div class="planner-extra-list">${extras.map(slot=>`<div class="planner-schedule-item"><div><small>${esc(longDays[slot.day])} · ${esc(slot.start)}–${esc(slot.end)}</small><strong>${esc(labels(doc,slot))}</strong>${slot.room?`<small>Aula: ${esc(slot.room)}</small>`:''}</div>${action('Editar',`data-edit-slot="${esc(slot.id)}"`)}</div>`).join('')}</div></section>`:''}`;
 }
@@ -64,22 +67,33 @@ const taskCard=(doc,t)=>`<div class="planner-event"><div><strong>${t.done?'✓ '
  * Solo se ofrecen los grupos adscritos al curso académico activo. */
 function evaluationOverview(doc,y){
  const groups=doc.groups.filter(g=>g.course===y.name),periods=[...doc.periods].sort((a,b)=>a.order-b.order);
- const total=groups.length*periods.length;
- const scheduled=y.events.filter(e=>e.type==='evaluation'&&groups.some(g=>g.id===e.groupId)).length;
- let html='';
- for(const group of groups)for(const period of periods){
-  const event=y.events.find(e=>e.type==='evaluation'&&e.groupId===group.id&&e.periodId===period.id);
-  const attrs='data-eval-group="'+esc(group.id)+'" data-eval-period="'+esc(period.id)+'"';
-  html+='<div class="planner-evaluation-row"><strong>'+esc(group.subject+' · '+group.name)+'</strong>'+
-   '<span>'+esc(period.name)+'</span><span class="planner-evaluation-when">'+
-   (event?esc(event.date+' · '+event.time):'Sin programar')+'</span>'+
-   action(event?'Editar fecha y hora':'Programar',attrs)+
-   (event?action('Añadir a calendario','data-export-event="'+esc(event.id)+'"'):'')+'</div>';
+ let html='',total=0;
+ for(const group of groups){
+  const origins=[...new Set([
+   ...doc.students.filter(s=>s.groupId===group.id).map(s=>s.originGroup||''),
+   ...y.events.filter(e=>e.type==='evaluation'&&e.groupId===group.id).map(e=>e.originGroup||'')
+  ])].filter(Boolean).sort((a,b)=>a.localeCompare(b,'es',{numeric:true,sensitivity:'base'}));
+  // Si hay procedencias, cada tutoría dispone de convocatoria propia; la cita
+  // general anterior se mantiene visible para no perder una reunión ya guardada.
+  const hadGeneral=y.events.some(e=>e.type==='evaluation'&&e.groupId===group.id&&!e.originGroup);
+  const missing=doc.students.some(s=>s.groupId===group.id&&!s.originGroup);
+  const variants=origins.length?(hadGeneral||missing?['',...origins]:origins):[''];
+  for(const period of periods)for(const origin of variants){
+   total++;
+   const event=y.events.find(e=>e.type==='evaluation'&&e.groupId===group.id&&e.periodId===period.id&&(e.originGroup||'')===origin);
+   const attrs='data-eval-group="'+esc(group.id)+'" data-eval-period="'+esc(period.id)+'" data-eval-origin="'+esc(origin)+'"';
+   const label=origin?' · '+origin:' · grupo completo';
+   html+='<div class="planner-evaluation-row"><strong>'+esc(group.subject+' · '+group.name)+'</strong>'+
+    '<span>'+esc(period.name+label)+'</span><span class="planner-evaluation-when">'+
+    (event?esc(event.date+' · '+event.time):'Sin programar')+'</span>'+
+    action(event?'Editar fecha y hora':'Programar',attrs)+
+    (event?action('Añadir a calendario','data-export-event="'+esc(event.id)+'"'):'')+'</div>';
+  }
  }
+ const scheduled=y.events.filter(e=>e.type==='evaluation').length;
  return '<details id="plan-evaluations" class="panel panel-pad planner-evaluations"><summary>'+
-  'Sesiones de evaluación por grupo y trimestre · '+scheduled+'/'+total+' programadas</summary>'+
-  '<p class="hint">Elige fecha y hora de cada convocatoria. Son citas docentes, no se modifican las calificaciones.'+
-  ' Puedes exportar cada cita a tu calendario sin compartir el cuaderno.</p>'+
+  'Sesiones de evaluación por grupo, subgrupo y trimestre · '+scheduled+'/'+total+' programadas</summary>'+
+  '<p class="hint">Las optativas comparten notas por materia, pero cada tutoría de procedencia puede tener distinta convocatoria. Para añadir o cambiar subgrupos utiliza «Gestionar procedencias» en Cuaderno.</p>'+
   (html||'<p class="hint">Todavía no hay grupos de este curso académico.</p>')+'</details>';
 }
 
@@ -114,7 +128,8 @@ export function bindPlanner(doc,ui,ctx){
    redraw();
  };
  const dateNow=()=>ui.plannerDate||localToday();
- all('[data-plan-group]').forEach(el=>{const g=doc.groups.find(x=>x.id===el.dataset.planGroup);if(g){const c=doc.settings.subjectAccents[`${g.level}:${g.subject}`];if(c)el.style.setProperty('--planner-color',c);}});
+ // Los colores del horario provienen exclusivamente de la sesión, no de la materia.
+ // No sobreescribir --planner-color tras renderizar las tarjetas.
  all('[data-plan-mode]').forEach(b=>b.onclick=()=>{ui.plannerMode=b.dataset.planMode;if(ui.plannerMode==='day')ui.plannerDate=localToday();redraw();});
  $('#plan-year').onchange=e=>ctx.commit(d=>setActiveYear(d,e.target.value),'Cambiar curso del planificador').then(()=>{const current=activeYear(ctx.getDoc());ui.plannerDate=current.start;redraw();}).catch(ctx.fail);
  $('#plan-date').onchange=e=>{if(!e.target.value)return;ui.plannerDate=e.target.value;redraw();};
@@ -157,12 +172,12 @@ export function bindPlanner(doc,ui,ctx){
  $('#plan-add-event').onclick=()=>eventModal({date:dateNow()});
  $('#plan-show-evaluations').onclick=()=>{const overview=$('#plan-evaluations');overview.open=true;overview.scrollIntoView({block:'nearest'});};
  $('#plan-import-patio').onclick=()=>patioImportModal();
- all('[data-eval-group]').forEach(b=>b.onclick=()=>evaluationModal(b.dataset.evalGroup,b.dataset.evalPeriod));
+ all('[data-eval-group]').forEach(b=>b.onclick=()=>evaluationModal(b.dataset.evalGroup,b.dataset.evalPeriod,b.dataset.evalOrigin||''));
  all('[data-add-event]').forEach(b=>b.onclick=()=>eventModal({date:b.dataset.addEvent}));
  all('[data-edit-event]').forEach(b=>b.onclick=()=>{
   const event=y.events.find(e=>e.id===b.dataset.editEvent);
   if(!event)return;
-  if(event.type==='evaluation')evaluationModal(event.groupId,event.periodId);
+  if(event.type==='evaluation')evaluationModal(event.groupId,event.periodId,event.originGroup||'');
   else eventModal({event});
  });
  all('[data-export-event]').forEach(b=>b.onclick=()=>exportSingleEvent(y.events.find(e=>e.id===b.dataset.exportEvent)));
@@ -210,12 +225,12 @@ export function bindPlanner(doc,ui,ctx){
    {id:'groupId',label:'Clase del cuaderno (opcional)',type:'select',required:false,value:s?.groupId||'',options:groupOptions()},
    {id:'label',label:'Otra asignatura / actividad (si no eliges clase)',required:false,value:s?.label||(linked?.kind==='break'?'Patio':'')},
    {id:'room',label:'Aula (opcional)',required:false,value:s?.room||'',maxlength:60},
-   {id:'color',label:'Color de actividad sin grupo (guardias, otras materias...)',type:'color',required:false,value:isColor(s?.color)?s.color:'#64748B'}
+   {id:'color',label:'Color de esta sesión (independiente del acento de asignatura)',type:'color',required:false,value:plannerSlotColor(s||{type:linked?.kind==='break'?'otro':'class'})}
   ],v=>ctx.commit(d=>{
    const validBand=linked&&v.start===linked.start&&v.end===linked.end?linked.id:null;
    saveSlot(d,{...v,id:s?.id||null,groupId:v.groupId||null,bandId:validBand});
   },'Configurar horario'),
-  'Solo se permite una clase o actividad por franja. Puedes elegir colores para guardias y actividades sin grupo. Los cambios en este horario no alteran el otro.');
+  'Una sesión por franja. El color es propio del horario (paleta verde oscuro). Cada grupo optativo puede tener un límite de horas semanales; los horarios ordinario y de verano se cuentan por separado.');
   if(s){
    const button=document.createElement('button');button.className='btn warn';button.type='button';button.textContent='Eliminar sesión';
    button.onclick=async()=>{
@@ -332,18 +347,18 @@ export function bindPlanner(doc,ui,ctx){
   ctx.dialog.showModal();
  }
 
- function evaluationModal(groupId,periodId){
+ function evaluationModal(groupId,periodId,origin=''){
   const current=activeYear(ctx.getDoc()),group=ctx.getDoc().groups.find(g=>g.id===groupId&&g.course===current.name);
   const period=ctx.getDoc().periods.find(p=>p.id===periodId);
   if(!group||!period){ctx.fail(new Error('Grupo o evaluación ya no disponibles en este curso.'));return;}
-  const existing=current.events.find(e=>e.type==='evaluation'&&e.groupId===groupId&&e.periodId===periodId);
+  const existing=current.events.find(e=>e.type==='evaluation'&&e.groupId===groupId&&e.periodId===periodId&&(e.originGroup||'')===origin);
   const today=dateNow(),date=existing?.date||(today>=current.start&&today<=current.end?today:current.start);
-  ctx.fieldsModal('Sesión de evaluación · '+group.name+' · '+period.name,[
+  ctx.fieldsModal('Sesión de evaluación · '+group.name+(origin?' · '+origin:'')+' · '+period.name,[
    {id:'date',label:'Día de la sesión',type:'date',value:date},
    {id:'time',label:'Hora de inicio',type:'time',value:existing?.time||'15:30'},
    {id:'notes',label:'Lugar o indicaciones (opcional)',required:false,value:existing?.notes||'',maxlength:1000}
   ],values=>ctx.commit(d=>saveEvaluationSession(d,{
-   id:existing?.id||null,groupId,periodId,...values
+   id:existing?.id||null,groupId,periodId,originGroup:origin||null,...values
   }),'Programar sesión de evaluación'),
   'La convocatoria aparecerá en las vistas de día, semana y mes. Su hora no depende de las clases del horario.');
   if(existing)delButton('events',existing.id);
