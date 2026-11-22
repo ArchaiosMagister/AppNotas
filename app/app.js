@@ -1883,6 +1883,41 @@ function openItacaStudentRule(studentId){
   }catch(err){fail(err);}};
   dialog.showModal();
 }
+/** Una única ventana de acciones por nota evita cientos de menús desplegados
+ * dentro del área desplazable. Reutiliza los controladores NP, AJ y observación
+ * ya validados, de modo que el modelo y la lógica de guardado permanecen intactos. */
+function openGradeCellActions(studentId,assessmentId){
+  const student=STATE.doc.students.find(x=>x.id===studentId&&x.groupId===STATE.groupId);
+  const activity=STATE.doc.assessments.find(x=>x.id===assessmentId&&x.groupId===STATE.groupId&&x.periodId===STATE.periodId);
+  if(!student||!activity)return;
+  const grade=STATE.doc.grades.find(x=>x.studentId===studentId&&x.assessmentId===assessmentId);
+  const observation=(STATE.doc.gradeObservations||[]).some(x=>x.studentId===studentId&&x.assessmentId===assessmentId);
+  dialog.innerHTML=`<div class="modal-inner grade-cell-actions-dialog">
+    <h2 id="modal-heading">Opciones de calificación</h2>
+    <p class="subtitle">${esc(student.name)} · ${esc(activity.name)}</p>
+    <p class="hint">La nota se edita directamente en la tabla. Estas acciones mantienen las reglas actuales de NP, AJ y observaciones.</p>
+    <div class="grade-cell-action-list">
+      <button type="button" class="btn" id="grade-action-np">${grade?.notSubmitted?'Quitar NP · No presentado':'Marcar NP · No presentado'}</button>
+      <button type="button" class="btn" id="grade-action-aj">${grade?.pendingJustified?'Quitar AJ · Ausencia justificada':'Marcar AJ · Ausencia justificada'}</button>
+      <button type="button" class="btn" id="grade-action-observation">${observation?'Editar observación':'Añadir observación'}</button>
+    </div>
+    <div class="modal-actions"><button type="button" class="btn" id="grade-action-close">Cerrar</button></div>
+  </div>`;
+  $('#grade-action-close',dialog).onclick=()=>dialog.close();
+  for(const [id,studentKey,assessmentKey] of [
+    ['grade-action-np','npStudent','npAssessment'],
+    ['grade-action-aj','ajStudent','ajAssessment'],
+    ['grade-action-observation','observationStudent','observationAssessment']]){
+    $('#'+id,dialog).onclick=()=>{
+      const original=[...document.querySelectorAll('['+
+        (studentKey==='npStudent'?'data-np-student':studentKey==='ajStudent'?'data-aj-student':'data-observation-student')+
+        ']')].find(b=>b.dataset[studentKey]===studentId&&b.dataset[assessmentKey]===assessmentId);
+      dialog.close();
+      original?.click();
+    };
+  }
+  dialog.showModal();
+}
 function bindNotebook(){
   $('#manage-origin-groups')?.addEventListener('click',openOriginGroupsManager);
   $('#itaca-general-rule')?.addEventListener('change',e=>{
@@ -1895,6 +1930,7 @@ function bindNotebook(){
   document.querySelectorAll('[data-view-student]').forEach(b=>b.onclick=()=>{STATE.studentId=b.dataset.viewStudent;STATE.tab='alumno';render();});
   document.querySelectorAll('[data-edit-student]').forEach(b=>b.onclick=()=>openStudentTools(b.dataset.editStudent));
   document.querySelectorAll('[data-observation-student]').forEach(b=>b.onclick=()=>openGradeObservation(b.dataset.observationStudent,b.dataset.observationAssessment));
+  document.querySelectorAll('[data-grade-cell-actions-student]').forEach(b=>b.onclick=()=>openGradeCellActions(b.dataset.gradeCellActionsStudent,b.dataset.gradeCellActionsAssessment));
   document.querySelectorAll('[data-rubric-grade]').forEach(b=>b.onclick=()=>openRubricGrade(b.dataset.rubricStudent,b.dataset.rubricGrade));
   document.querySelectorAll('[data-orthography-grade]').forEach(b=>b.onclick=()=>openOrthographyGrade(b.dataset.orthographyStudent,b.dataset.orthographyGrade));
   document.querySelectorAll('[data-aj-student]').forEach(button=>button.onclick=async()=>{
@@ -1921,7 +1957,7 @@ function bindNotebook(){
     }catch(err){fail(err);}
     finally{
       button.disabled=false;
-      const replacement=[...document.querySelectorAll('[data-np-student]')].find(b=>b.dataset.npStudent===studentId&&b.dataset.npAssessment===assessmentId);
+      const replacement=[...document.querySelectorAll('[data-grade-cell-actions-student]')].find(b=>b.dataset.gradeCellActionsStudent===studentId&&b.dataset.gradeCellActionsAssessment===assessmentId);
       if(replacement){const table=$('.table-scroller');table.scrollLeft=left;table.scrollTop=top;replacement.focus({preventScroll:true});}
     }
   });
