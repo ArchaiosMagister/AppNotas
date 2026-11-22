@@ -5,7 +5,7 @@ import {parseRubricText} from './src/rubric-import.js';
 import {parseRubricFile} from './src/rubric-xlsx.js';
 import {createVault,seal,unlockVault,saltFromEnvelope,validateEnvelope} from './src/vault.js';
 import {openDb,readEnvelope,writeEnvelope,sameEnvelope,readRecoveryEnvelope,replaceEnvelopeWithRecovery,swapRecoveryEnvelope,readExportReceipt,recordExportReceipt} from './src/storage.js';
-import {ensureBookMetadata,markBookChange,compareBookVersions,importRiskLevel,canConfirmImport,IMPORT_CONFIRMATION_TEXT,backupProtection,createPortableCopy,readBackupFile,backupSummary,portableFilename} from './src/cuaderno.js';
+import {ensureBookMetadata,markBookChange,compareBookVersions,compareBackupAgainstLocal,importRiskLevel,canConfirmImport,IMPORT_CONFIRMATION_TEXT,backupProtection,createPortableCopy,readBackupFile,backupSummary,portableFilename} from './src/cuaderno.js';
 import {emptyHistory,recordChange,stepHistory} from './src/history.js';
 import {previewRubric,validateRubricDraft} from './src/rubric-ui.js';
 import {RELOAD_PROBE_KEY,makeReloadProbe,evaluateReloadProbe} from './src/diagnostics.js';
@@ -563,7 +563,7 @@ async function restoreBackup(file){
   const existing=await readEnvelope(STATE.db);
   if(!sameEnvelope(existing,STATE.envelope))throw new Error('Otra pestaña ha cambiado las notas. Importación cancelada sin cambios.');
   const originalLocalDoc=STATE.doc;
-  const conflict=originalLocalDoc?compareBookVersions(originalLocalDoc,opened.doc):existing?'unknown':'empty';
+  const conflict=await compareBackupAgainstLocal(originalLocalDoc,existing,opened.doc,password);
   const choice=await decideImport(info,conflict,!!existing);
   if(!choice||typeof choice!=='object'){
     toast(choice==='keep'?'Se ha conservado el cuaderno local sin cambios.':'Importación cancelada: ningún dato ha cambiado.');
