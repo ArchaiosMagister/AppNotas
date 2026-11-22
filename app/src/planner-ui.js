@@ -1,6 +1,7 @@
 import {SLOT_TYPES,EVENT_TYPES,EXCEPTION_TYPES,activeYear,localToday,weekday,addDays,daySlots,daySessions,isHoliday,findExamSlots,saveSlot,removeSlot,saveEvent,saveLesson,carryLesson,saveHoliday,saveTask,saveException,deletePlannerItem,setActiveYear,addAcademicYear,updateAcademicYear,scheduleBands,saveTimetableBand,removeTimetableBand,setSummerSchedule,activeScheduleMode,slotsForMode,weeklySlotCount,plannerSlotColor,saveEvaluationSession,calendarEventIcs} from './planner.js';
 import {timetableRows,timetableFileBase,timetableWordBlob,timetablePdfBytes} from './timetable-export.js';
 import {parsePatioXlsx,previewPatioRotation,addPatioRotationEvents} from './patio-rotation.js';
+import {renderSharedEvaluation,bindSharedEvaluation,openTutorshipSessionModal} from './evaluation-ui.js';
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const shortDays=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
@@ -126,6 +127,10 @@ function evaluationOverview(doc,y){
   const missing=doc.students.some(s=>s.groupId===group.id&&!s.originGroup);
   const variants=origins.length?(hadGeneral||missing?['',...origins]:origins):[''];
   for(const period of periods)for(const origin of variants){
+   // Una procedencia ya incluida en una tutoría común se muestra una sola vez.
+   // Las convocatorias anteriores continúan accesibles en la reconciliación.
+   if((doc.tutorships||[]).some(t=>t.course===y.name&&t.sources.some(s=>
+     s.groupId===group.id&&s.originGroup===origin)))continue;
    total++;
    const event=y.events.find(e=>e.type==='evaluation'&&e.groupId===group.id&&e.periodId===period.id&&(e.originGroup||'')===origin);
    const attrs='data-eval-group="'+esc(group.id)+'" data-eval-period="'+esc(period.id)+'" data-eval-origin="'+esc(origin)+'"';
@@ -161,6 +166,7 @@ export function renderPlanner(doc,ui){
  return `<div class="planner-view"><section class="panel panel-pad planner-intro"><div><div class="planner-eyebrow">Agenda docente · planificación personal</div><h2>Mi planificador</h2><p class="subtitle">Tu horario, exámenes, clases previstas y días no lectivos. El diario de clase es opcional y no altera las notas.</p></div><div class="planner-year-chooser"><label>Curso académico<select id="plan-year">${doc.planner.years.map(x=>`<option value="${esc(x.id)}" ${x.id===y.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>${action('Fechas',`id="plan-edit-year"`)}${action('+ Curso',`id="plan-new-year"`)}</div></section>
  <section class="panel panel-pad planner-controls"><div class="planner-view-tabs">${[['day','Hoy / día'],['week','Semana'],['month','Mes'],['schedule','Horario base'],['patio','Guardias de patio']].map(([k,t])=>`<button type="button" class="planner-view-btn ${mode===k?'active':''}" data-plan-mode="${k}" aria-pressed="${mode===k}">${t}</button>`).join('')}</div><div class="planner-date-controls">${action('‹',`id="plan-prev"`)}<input type="date" id="plan-date" value="${esc(focus)}" aria-label="Fecha mostrada"/>${action('Hoy',`id="plan-today"`)}${action('›',`id="plan-next"`)}</div><p class="hint">${esc(y.start)} a ${esc(y.end)} · ${numberClasses} sesiones de clase en el horario · ${count} eventos</p>${tools}</section>
  ${evaluationOverview(doc,y)}
+ ${renderSharedEvaluation(doc,y,ui)}
  <section class="panel panel-pad planner-content"><div class="planner-content-head"><h2>${mode==='schedule'?'Horario semanal'+(activeScheduleMode(y)==='summer'?' · verano':' · ordinario'):mode==='patio'?'Guardias rotatorias':mode==='week'?'Semana del '+dayText(start):mode==='month'?new Date(monthStart+'T12:00:00Z').toLocaleDateString('es-ES',{month:'long',year:'numeric',timeZone:'UTC'}):'Agenda del día'}</h2>${mode==='schedule'?'<p class="hint">El horario se repite de lunes a viernes, excepto festivos y cambios puntuales.</p>':''}</div>${body}</section>
  <section class="panel panel-pad planner-bottom"><div><h3>Festivos y vacaciones</h3>${y.holidays.length?y.holidays.slice().sort((a,b)=>a.start.localeCompare(b.start)).map(h=>`<div class="planner-simple-row"><span>✦ ${esc(h.name)} · ${esc(h.start)}${h.end===h.start?'':' — '+esc(h.end)}</span>${action('Editar',`data-edit-holiday="${esc(h.id)}"`)}</div>`).join(''):'<p class="hint">Todavía no has señalado días no lectivos.</p>'}</div><div><h3>Tareas docentes pendientes</h3>${y.tasks.filter(t=>!t.done).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,12).map(t=>taskCard(doc,t)).join('')||'<p class="hint">Sin tareas pendientes.</p>'}</div></section>
  ${action('Exportar agenda a calendario (.ics)',`id="plan-export-ics"`)} ${action('Imprimir calendario',`id="plan-print"`)}<p class="hint">El registro de trabajo realizado solo se guarda cuando lo marcas o escribes expresamente. Todo forma parte de la misma copia cifrada .cdoc.</p></div>`;
@@ -179,7 +185,7 @@ export function bindPlanner(doc,ui,ctx){
  // Aplicación dinámica compatible con CSP a horario ordinario, verano y tarjetas diarias.
  applyPlannerColors(document.querySelector('.planner-view'));
  all('[data-plan-mode]').forEach(b=>b.onclick=()=>{ui.plannerMode=b.dataset.planMode;if(ui.plannerMode==='day')ui.plannerDate=localToday();redraw();});
- $('#plan-year').onchange=e=>ctx.commit(d=>setActiveYear(d,e.target.value),'Cambiar curso del planificador').then(()=>{const current=activeYear(ctx.getDoc());ui.plannerDate=current.start;redraw();}).catch(ctx.fail);
+ $('#plan-year').onchange=e=>ctx.commit(d=>setActiveYear(d,e.target.value),'Cambiar curso del planificador').then(()=>{const current=activeYear(ctx.getDoc());ui.plannerDate=current.start;ui.plannerEvaluationView=null;redraw();}).catch(ctx.fail);
  $('#plan-date').onchange=e=>{if(!e.target.value)return;ui.plannerDate=e.target.value;redraw();};
  $('#plan-today').onclick=()=>{ui.plannerMode='day';ui.plannerDate=localToday();redraw();};
  $('#plan-prev').onclick=()=>ui.plannerMode==='month'?moveMonth(-1):move(ui.plannerMode==='day'?-1:-7);
@@ -226,7 +232,9 @@ export function bindPlanner(doc,ui,ctx){
  all('[data-edit-event]').forEach(b=>b.onclick=()=>{
   const event=y.events.find(e=>e.id===b.dataset.editEvent);
   if(!event)return;
-  if(event.type==='evaluation')evaluationModal(event.groupId,event.periodId,event.originGroup||'');
+  if(event.type==='evaluation'&&event.tutorshipId)
+   openTutorshipSessionModal(ctx.getDoc(),ctx,event.tutorshipId,event.periodId);
+  else if(event.type==='evaluation')evaluationModal(event.groupId,event.periodId,event.originGroup||'');
   else eventModal({event});
  });
  all('[data-export-event]').forEach(b=>b.onclick=()=>exportSingleEvent(y.events.find(e=>e.id===b.dataset.exportEvent)));
@@ -243,6 +251,7 @@ export function bindPlanner(doc,ui,ctx){
  $('#plan-edit-year').onclick=()=>ctx.fieldsModal('Fechas del curso académico',[{id:'name',label:'Nombre del curso',value:y.name},{id:'start',label:'Inicio de curso',type:'date',value:y.start},{id:'end',label:'Final de curso',type:'date',value:y.end}],v=>ctx.commit(d=>updateAcademicYear(d,y.id,v),'Fechas del curso'));
  $('#plan-new-year').onclick=()=>ctx.fieldsModal('Nuevo curso académico',[{id:'name',label:'Nombre (ej. 2027-2028)',value:`${Number(y.start.slice(0,4))+1}-${Number(y.start.slice(0,4))+2}`},{id:'start',label:'Fecha de inicio',type:'date',value:`${Number(y.start.slice(0,4))+1}-09-01`},{id:'end',label:'Fecha de fin',type:'date',value:`${Number(y.start.slice(0,4))+2}-06-30`},{id:'copyFrom',label:'Horario de referencia',type:'select',options:[{value:'',label:'Empezar sin horario'},...doc.planner.years.map(t=>({value:t.id,label:'Copiar horario de '+t.name}))]}],async v=>{await ctx.commit(d=>addAcademicYear(d,{...v,copyFrom:v.copyFrom||null}),'Crear curso académico');ui.plannerDate=v.start;redraw();});
  $('#plan-export-ics').onclick=()=>exportIcs();$('#plan-print').onclick=()=>window.print();
+ bindSharedEvaluation(doc,ui,ctx,exportSingleEvent);
  const groupOptions=()=>[{value:'',label:'Sin grupo (personal)'},...pickGroup(ctx.getDoc(),activeYear(ctx.getDoc()))];
  const delButton=(collection,id)=>{const b=document.createElement('button');b.className='btn warn';b.type='button';b.textContent='Eliminar';b.onclick=async()=>{if(!window.confirm('¿Eliminar este elemento de la agenda? Las notas del cuaderno no cambian.'))return;ctx.dialog.close();try{await ctx.commit(d=>deletePlannerItem(d,collection,id),'Eliminar del planificador');}catch(e){ctx.fail(e);}};ctx.dialog.querySelector('.modal-actions').prepend(b);};
  function bandModal(b=null){
