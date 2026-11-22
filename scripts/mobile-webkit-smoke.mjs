@@ -88,6 +88,30 @@ async function audit(engine,name){
     assert(Math.abs(nav.cards[0].left-nav.bar.left)<=11,name+' hueco inicial de navegación');
     assert(Math.abs(nav.bar.right-nav.cards[3].right)<=11,name+' cuarta columna vacía');
     assert(nav.cards.every(c=>c.height>=43.5),name+' navegación táctil insuficiente');
+    // Medir icono, título y altura real, no solamente la presencia de botones.
+    const alignment=await page.evaluate(()=>{
+     const elements=[...document.querySelectorAll('.tabs .nav-primary>.tab'),
+      document.querySelector('.tabs .academic-disclosure>summary')];
+     return elements.map(el=>{
+      const root=el.getBoundingClientRect(),icon=el.querySelector('.nav-glyph').getBoundingClientRect();
+      const label=el.querySelector('.nav-text').getBoundingClientRect();
+      return {height:root.height,top:root.top,iconTop:icon.top,labelTop:label.top,
+       buttonCenter:(root.left+root.right)/2,
+       iconCenter:(icon.left+icon.right)/2,labelCenter:(label.left+label.right)/2,
+       labelGrow:getComputedStyle(el.querySelector('.nav-text')).flexGrow};
+     });
+    });
+    const first=alignment[0],toolsNav=alignment[3];
+    assert(alignment.every(el=>Math.abs(el.height-first.height)<=2&&
+      Math.abs(el.top-first.top)<=2),
+     name+' Herramientas no comparte altura/fila: '+JSON.stringify(alignment));
+    assert(alignment.every(el=>Math.abs(el.iconTop-first.iconTop)<=2&&
+      Math.abs(el.labelTop-first.labelTop)<=2),
+     name+' iconos o títulos descentrados: '+JSON.stringify(alignment));
+    assert(Math.abs(toolsNav.iconCenter-toolsNav.buttonCenter)<=1.5&&
+      Math.abs(toolsNav.labelCenter-toolsNav.buttonCenter)<=1.5,
+     name+' eje de Herramientas desalineado: '+JSON.stringify(toolsNav));
+    assert.equal(toolsNav.labelGrow,'0','Herramientas no debe estirar su título');
     // Herramientas debe ser un control real y el menú no debe salir del viewport.
     await page.locator('.tabs .academic-disclosure>summary').click();
     const tools=await page.evaluate(()=>{
@@ -170,6 +194,35 @@ async function audit(engine,name){
    assert(await page.locator('.class-toolbar').isVisible());
    await page.locator('.course-choice[data-course-level="'+defaultCourse.level+
     '"][data-course-subject="'+defaultCourse.subject+'"]').click();
+   // Probar reglas reales sobre una fila de estilos temporal y ficticia:
+   // el cálculo de notas y el documento cifrado no se modifican.
+   const gradeSizing=await page.evaluate(()=>{
+    const table=document.querySelector('.grade-table:not(.final-table)');
+    if(!table||!table.tBodies[0])return {missing:true};
+    const row=document.createElement('tr');
+    row.innerHTML=
+     '<td><input class="note-input grade-colored" value="8,5"></td>'+
+     '<td><button class="converted-primary"><span class="grade-chip">8,5</span></button></td>'+
+     '<td><button class="rubric-grade-button"><span class="grade-chip">8,5</span></button></td>'+
+     '<td><button class="orthography-grade-button"><span class="grade-chip">8,5</span></button></td>'+
+     '<td class="final-col"><button class="score-button"><span class="grade-chip">8,5</span></button></td>'+
+     '<td class="itaca-col"><button class="itaca-edit"><span class="grade-chip">9</span></button></td>'+
+     '<td><span class="converted-score"><span class="grade-chip">8,5</span></span></td>'+
+     '<td><input class="note-input original-note-input" value="4,25"></td>';
+    table.tBodies[0].append(row);
+    const font=q=>getComputedStyle(row.querySelector(q)).fontSize;
+    const values={input:font('.grade-colored'),converted:font('.converted-primary .grade-chip'),
+     rubric:font('.rubric-grade-button .grade-chip'),orthography:font('.orthography-grade-button .grade-chip'),
+     final:font('.final-col .grade-chip'),itaca:font('.itaca-col .grade-chip'),
+     secondary:font('.converted-score .grade-chip'),original:font('.original-note-input')};
+    row.remove();
+    return values;
+   });
+   assert(!gradeSizing.missing,name+' no se encuentra la tabla de notas');
+   for(const key of ['input','converted','rubric','orthography','final','itaca'])
+    assert.equal(gradeSizing[key],'16px',name+' tipografía desigual en '+key+': '+JSON.stringify(gradeSizing));
+   assert(parseFloat(gradeSizing.secondary)<16&&parseFloat(gradeSizing.original)<16,
+    name+' los valores secundarios deben seguir siendo menores');
    if(size.width<=650){
     const actions=await page.evaluate(()=>{
      const primary=[...document.querySelectorAll('.notebook-primary-actions>.btn')].map(n=>n.getBoundingClientRect());
