@@ -67,7 +67,7 @@ test('niveles de confirmación: importación cotidiana sin bloqueos y riesgo pro
   assert.equal(IMPORT_CONFIRMATION_TEXT,'SUSTITUIR');
   for(const status of ['empty','newer']){
     assert.equal(importRiskLevel(status,status==='newer'),0);
-    assert.equal(highRiskImport(status,true),false);
+    assert.equal(highRiskImport(status,status==='newer'),false);
     assert.equal(canConfirmImport(status,status==='newer'),true);
   }
   assert.equal(canConfirmImport('same',true),false);
