@@ -137,6 +137,7 @@ window.addEventListener('appinstalled',()=>{pendingInstallPrompt=null;paintPwaBu
 const savedTheme=()=>{try{const value=localStorage.getItem('cuaderno-docente-theme');return ['light','dark','oled'].includes(value)?value:'light';}catch{return 'light';}};
 const savedNavigation=()=>{try{return localStorage.getItem('cuaderno-docente-nav-collapsed')==='yes';}catch{return false;}};
 const savedStudentSort=()=>{try{const mode=localStorage.getItem('cuaderno-docente-student-sort');return STUDENT_SORT_MODES.includes(mode)?mode:'surname';}catch{return 'surname';}};
+const savedStudentPlainSort=()=>{try{const mode=localStorage.getItem('cuaderno-docente-student-sort-before-group');return STUDENT_SORT_MODES.includes(mode)&&mode!=='originGroup'?mode:'surname';}catch{return 'surname';}};
 const savedStudentActivityOrders=()=>{try{
   const raw=JSON.parse(localStorage.getItem('cuaderno-docente-student-activity-orders')||'{}');
   if(!raw||typeof raw!=='object'||Array.isArray(raw))return {};
@@ -144,7 +145,7 @@ const savedStudentActivityOrders=()=>{try{
 }catch{return {};}};
 const STUDENT_ACTIVITY_SORT_OPTIONS=[['category','Por categoría'],['column','Orden del cuaderno'],['alphabetical','Nombre de actividad (A–Z)'],['reverse','Últimas actividades primero']];
 
-const STATE={plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),studentActivityOrders:savedStudentActivityOrders(),studentPeriodOpen:{},db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
+const STATE={plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),studentPlainSort:savedStudentPlainSort(),studentActivityOrders:savedStudentActivityOrders(),studentPeriodOpen:{},db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const $=(sel,context=document)=>context.querySelector(sel);
 const opt=(id,label,chosen)=>`<option value="${esc(id)}" ${chosen===id?'selected':''}>${esc(label)}</option>`;
@@ -263,7 +264,23 @@ const currentPeriod=()=>STATE.doc.periods.find(x=>x.id===STATE.periodId);
 const allAssessments=()=>STATE.doc.assessments.filter(x=>x.groupId===STATE.groupId&&x.periodId===STATE.periodId).sort((a,b)=>a.order-b.order);
 const allStudents=()=>sortStudents(STATE.doc.students.filter(x=>x.groupId===STATE.groupId),STATE.studentSort);
 const STUDENT_SORT_LABELS=[['surname','Apellidos (A–Z)'],['firstName','Nombre (A–Z)'],['originGroup','Grupo de procedencia · apellidos'],['manual','Orden manual']];
-const studentSortControls=()=>`<label class="student-sort-control" for="student-sort-mode"><span>Ordenar alumnos</span><select id="student-sort-mode" aria-label="Ordenar alumnos">${STUDENT_SORT_LABELS.map(([key,label])=>opt(key,label,STATE.studentSort)).join('')}</select></label><small class="student-sort-hint">Las notas no cambian al ordenar.</small>`;
+const studentSortControls=()=>`<div class="student-mode-toolbar" role="group" aria-label="Presentación de alumnos"><strong class="student-mode-title">Alumnos</strong><label class="student-group-switch" for="student-group-mode"><input type="checkbox" id="student-group-mode" role="switch" aria-label="Modo grupo: agrupar por procedencia y ordenar por apellidos" aria-checked="${STATE.studentSort==='originGroup'}" ${STATE.studentSort==='originGroup'?'checked':''}/><span class="student-group-switch-track" aria-hidden="true"></span><span>Modo grupo</span></label></div><label class="student-sort-control" for="student-sort-mode"><span>Ordenar</span><select id="student-sort-mode" aria-label="Ordenar alumnos">${STUDENT_SORT_LABELS.map(([key,label])=>opt(key,label,STATE.studentSort)).join('')}</select></label><small class="student-sort-hint">El orden solo cambia en pantalla; las notas permanecen intactas.</small>`;
+/** Presentación local: alternar el grupo no altera el orden ni los registros cifrados.
+ * Al desactivarlo se recupera la ordenación individual que estaba seleccionada. */
+function setStudentSort(mode){
+  if(!STUDENT_SORT_MODES.includes(mode))return;
+  if(mode==='originGroup'){
+    if(STATE.studentSort!=='originGroup')STATE.studentPlainSort=STATE.studentSort;
+  }else{
+    STATE.studentPlainSort=mode;
+  }
+  STATE.studentSort=mode;
+  try{
+    localStorage.setItem('cuaderno-docente-student-sort',mode);
+    localStorage.setItem('cuaderno-docente-student-sort-before-group',STATE.studentPlainSort);
+  }catch{}
+  render();
+}
 const studentOriginBadge=student=>student.originGroup?`<span class="student-origin-badge" title="Grupo de procedencia">${esc(student.originGroup)}</span>`:'';
 const originEqual=(a,b)=>String(a||'').localeCompare(String(b||''),'es',{sensitivity:'base',numeric:true})===0;
 /** Cabeceras de grupo solo en el modo específico: las filas no modifican las notas. */
@@ -817,10 +834,10 @@ function render(){
   const color=STATE.level==='legacy'?'#F59E0B':colorFor(STATE.level,STATE.subject);
   unbindClassStats();
   root.innerHTML=`<div class="shell ${STATE.tab==='alumno'&&STATE.studentId?'student-focus':''} ${STATE.navCollapsed?'nav-collapsed':''}"><header class="topbar"><div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h30M12 16h24M15 19v17m9-17v17m9-17v17M9 39h30M12 36h24M12 12c1-5 6-8 12-8s11 3 12 8"/><path d="M19 12h10"/></svg></div><div class="brand-copy"><strong>CuadernoDocente</strong><small>Tabularium · Agenda y evaluación</small></div></div><div class="topmeta"><span class="pill security-pill" title="Cuaderno guardado cifrado en el dispositivo">🔒 Cifrado local</span><span id="save-status" role="status" class="pill status ok">Guardado cifrado</span>
-  <details class="header-tools" data-shell-disclosure="tools" ${workspaceDisclosures.tools?'open':''}><summary aria-label="Abrir herramientas de la aplicación">Herramientas <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
+  <button type="button" class="btn topbar-close-btn" id="close-notebook" title="Guardar una copia cifrada y cerrar el cuaderno">Cerrar cuaderno</button><details class="header-tools" data-shell-disclosure="tools" ${workspaceDisclosures.tools?'open':''}><summary aria-label="Abrir herramientas de la aplicación">Herramientas <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
     <div class="header-tools-panel">
       <div class="header-tools-heading">Apariencia</div><label class="theme-picker">Tema <select id="theme-select" aria-label="Modo de apariencia">${[['light','Claro'],['dark','Oscuro'],['oled','OLED']].map(([k,v])=>opt(k,v,STATE.theme)).join('')}</select></label>
-      <div class="header-tools-heading">Cuaderno y copias</div><div class="portable-controls" role="group" aria-label="Copias de cuaderno"><button type="button" class="btn small" id="open-notebook">Abrir cuaderno</button><button type="button" class="btn small primary" id="close-notebook">Cerrar cuaderno</button></div>
+      <div class="header-tools-heading">Cuaderno y copias</div><div class="portable-controls" role="group" aria-label="Copias de cuaderno"><button type="button" class="btn small" id="open-notebook">Abrir cuaderno</button></div>
       <div class="header-tools-heading">Aplicación</div>${pwaButtons()}
       <div class="header-tools-heading">Historial de cambios</div><div class="history-actions" role="group" aria-label="Historial de cambios"><button type="button" class="btn small" id="undo-change" title="Deshacer último cambio (Ctrl/Cmd+Z)" ${STATE.history.past.length?'':'disabled'}>↶ Deshacer</button><button type="button" class="btn small" id="redo-change" title="Rehacer (Ctrl/Cmd+Mayús+Z)" ${STATE.history.future.length?'':'disabled'}>↷ Rehacer</button></div>
     </div>
@@ -1356,11 +1373,9 @@ function bindCommon(){
     if(Object.prototype.hasOwnProperty.call(workspaceDisclosures,key))workspaceDisclosures[key]=details.open;
   }));
 
-  $('#student-sort-mode')?.addEventListener('change',event=>{
-    if(!STUDENT_SORT_MODES.includes(event.target.value))return;
-    STATE.studentSort=event.target.value;
-    try{localStorage.setItem('cuaderno-docente-student-sort',STATE.studentSort);}catch{}
-    render();
+  $('#student-sort-mode')?.addEventListener('change',event=>setStudentSort(event.target.value));
+  $('#student-group-mode')?.addEventListener('change',event=>{
+    setStudentSort(event.target.checked?'originGroup':STATE.studentPlainSort);
   });
   $('#toggle-navigation')?.addEventListener('click',()=>{
     STATE.navCollapsed=!STATE.navCollapsed;
