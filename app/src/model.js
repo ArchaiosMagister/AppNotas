@@ -312,6 +312,8 @@ export function assertModel(doc) {
     if(x.notSubmitted!==undefined&&(x.notSubmitted!==true||x.score!==0||x.pendingJustified||x.rubricRatings!==undefined||x.orthographyFaults!==undefined||x.orthographyDelivered!==undefined))throw new Error('Calificación «No presentado» inconsistente.');
     if(x.pendingJustified!==undefined&&x.pendingJustified!==true)throw new Error('Estado de ausencia justificada inválido.');
     if(x.pendingPlaceholder!==undefined&&(!x.pendingJustified||x.pendingPlaceholder!==true||x.score!==0||x.rubricRatings!==undefined||x.orthographyFaults!==undefined||x.orthographyDelivered!==undefined))throw new Error('Ausencia justificada sin nota inconsistente.');
+    if(x.pendingWasNotSubmitted!==undefined&&(x.pendingWasNotSubmitted!==true||!x.pendingJustified||!x.pendingPlaceholder||x.notSubmitted||x.score!==0))
+      throw new Error('Ausencia justificada con NP anterior inconsistente.');
     if(!x.notSubmitted&&!x.pendingPlaceholder&&assessment.rubricId){const rubric=doc.rubrics.find(r=>r.id===assessment.rubricId);if(!Array.isArray(x.rubricRatings)||x.rubricRatings.length!==rubric.criteria.length||new Set(x.rubricRatings.map(r=>r.criterionId)).size!==rubric.criteria.length||rubric.criteria.some(c=>!x.rubricRatings.some(r=>r.criterionId===c.id&&Number.isFinite(r.score)&&r.score>=0&&r.score<=c.maxScore&&(!c.levels||c.levels.some(l=>l.score===r.score))))||!consistentRubricScore(rubric,x))throw new Error('Calificación de rúbrica inconsistente.');}
     else if(x.rubricRatings!==undefined&&!assessment.rubricId)throw new Error('Calificación de rúbrica sin actividad correspondiente.');
     if(x.orthographyFaults!==undefined&&(!Number.isInteger(x.orthographyFaults)||x.orthographyFaults<0||x.orthographyFaults>1000||assessment.rubricId))throw new Error('Número de faltas inválido.');
@@ -797,14 +799,21 @@ export function setPendingJustified(doc,studentId,assessmentId,enabled){
   const previous=doc.grades[index];
   if(enabled){
     if(previous?.pendingJustified)return doc;
-    if(previous?.notSubmitted){doc.grades[index]=mark({id:previous.id,studentId,assessmentId,score:0,pendingJustified:true,pendingPlaceholder:true,createdAt:previous.createdAt});}
+    if(previous?.notSubmitted){
+      // AJ suspende el cero de NP, pero no debe destruirlo: quitar AJ
+      // restaura exactamente el estado NP previo, con su identidad.
+      doc.grades[index]=mark({id:previous.id,studentId,assessmentId,score:0,pendingJustified:true,pendingPlaceholder:true,pendingWasNotSubmitted:true,createdAt:previous.createdAt});
+    }
     else if(previous){doc.grades[index]=mark({...previous,pendingJustified:true});}
     else doc.grades.push(mark({id:uid(),studentId,assessmentId,score:0,pendingJustified:true,pendingPlaceholder:true,createdAt:now()}));
   }else{
     if(!previous?.pendingJustified)return doc;
-    if(previous.pendingPlaceholder)doc.grades.splice(index,1);
-    else{
-      const {pendingJustified,pendingPlaceholder,...unchanged}=previous;
+    if(previous.pendingPlaceholder){
+      if(previous.pendingWasNotSubmitted){
+        doc.grades[index]=mark({id:previous.id,studentId,assessmentId,score:0,notSubmitted:true,createdAt:previous.createdAt});
+      }else doc.grades.splice(index,1);
+    }else{
+      const {pendingJustified,pendingPlaceholder,pendingWasNotSubmitted,...unchanged}=previous;
       doc.grades[index]=mark(unchanged);
     }
   }
@@ -831,7 +840,7 @@ export function setNotSubmitted(doc,studentId,assessmentId,enabled){
   doc.updatedAt=now();return doc;
 }
 function numericGrade(previous,fields){
-  const {notSubmitted,pendingJustified,pendingPlaceholder,...grade}=previous;
+  const {notSubmitted,pendingJustified,pendingPlaceholder,pendingWasNotSubmitted,...grade}=previous;
   return mark({...grade,...fields});
 }
 export function setGrade(doc,studentId,assessmentId,score){
@@ -845,7 +854,9 @@ export function setGrade(doc,studentId,assessmentId,score){
   }else{
     const val=parseScore(score);
     if(!Number.isFinite(val)||val<0||val>assessment.maxScore)throw new Error(`Introduce una nota entre 0 y ${assessment.maxScore}.`);
-    if(at>=0&&!doc.grades[at].notSubmitted&&doc.grades[at].score===val)return doc;
+    // Una nota idéntica a la conservada bajo AJ NO es un no-op: reintroducirla
+    // debe reactivar la evidencia y retirarla del estado pendiente.
+    if(at>=0&&!doc.grades[at].notSubmitted&&!doc.grades[at].pendingJustified&&doc.grades[at].score===val)return doc;
     if(at>=0)doc.grades[at]=numericGrade(doc.grades[at],{score:val});
     else doc.grades.push(mark({id:uid(),studentId,assessmentId,score:val,createdAt:now()}));
   }
@@ -867,7 +878,9 @@ export function setOrthographyGrade(doc,studentId,assessmentId,{score,faults=0,d
     if(!Number.isInteger(count)||count<0||count>1000)throw new Error('Introduce entre 0 y 1000 faltas, sin decimales.');
     if(typeof delivered!=='boolean'||delivered&&(!count||!assessment.orthography.refundable))throw new Error('La entrega no puede marcarse en este examen.');
     const previous=at>=0?doc.grades[at]:{id:uid(),studentId,assessmentId,createdAt:now()};
-    if(at>=0&&!previous.notSubmitted&&previous.score===base&&(previous.orthographyFaults??0)===count&&!!previous.orthographyDelivered===delivered)return doc;
+    // AJ conserva puntuación y faltas; volver a confirmarlas debe reactivar
+    // el cálculo incluso aunque los números no hayan cambiado.
+    if(at>=0&&!previous.notSubmitted&&!previous.pendingJustified&&previous.score===base&&(previous.orthographyFaults??0)===count&&!!previous.orthographyDelivered===delivered)return doc;
     const grade=numericGrade(previous,{score:base,orthographyFaults:count,orthographyDelivered:delivered});
     if(at>=0)doc.grades[at]=grade;else doc.grades.push(grade);
   }
@@ -935,7 +948,9 @@ export function setRubricGrade(doc,studentId,assessmentId,ratings){
   const entries=rubric.criteria.map(c=>({criterionId:c.id,score:ratings&&ratings[c.id]!==''&&ratings[c.id]!==null&&ratings[c.id]!==undefined?parseScore(ratings[c.id]):NaN}));
   if(entries.some((x,i)=>!Number.isFinite(x.score)||x.score<0||x.score>rubric.criteria[i].maxScore||(rubric.criteria[i].levels&&!rubric.criteria[i].levels.some(l=>l.score===x.score))))throw new Error('Puntuación de rúbrica fuera de escala.');
   const score=rubricGradeFromRatings(rubric,entries);
-  if(idx>=0&&Math.abs(doc.grades[idx].score-score)<1e-12&&
+  // Una rúbrica con AJ conserva sus valoraciones, pero reintroducirlas
+  // debe quitar AJ para volver a contar la nota aunque sean idénticas.
+  if(idx>=0&&!doc.grades[idx].pendingJustified&&Math.abs(doc.grades[idx].score-score)<1e-12&&
      Array.isArray(doc.grades[idx].rubricRatings)&&doc.grades[idx].rubricRatings.length===entries.length&&
      entries.every(entry=>doc.grades[idx].rubricRatings.some(r=>r.criterionId===entry.criterionId&&r.score===entry.score)))return score;
   if(idx>=0)doc.grades[idx]=numericGrade(doc.grades[idx],{score,rubricRatings:entries});
