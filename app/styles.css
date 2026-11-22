@@ -156,6 +156,15 @@ dialog{border:0;border-radius:16px;box-shadow:0 22px 90px rgba(3,20,43,.3);paddi
 .curr-controls{display:grid;gap:14px}.curr-filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:15px 17px;background:#fff;border:1px solid var(--line);border-radius:11px}
 .curr-filters label{font-size:12px;color:#596c82;font-weight:700}.curr-filters input{flex:1;min-width:195px;max-width:500px;height:39px}.curr-filters select{max-width:160px;height:39px}
 .curr-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr));gap:15px;align-items:start}
+.curr-card-grid.curr-competency-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,540px),1fr))}
+.curr-criteria-group{border-top:1px solid var(--line);padding-top:14px;min-width:0}
+.curr-criteria-group h4{margin:0 0 12px;font-size:14px;color:var(--ink)}
+.curr-card .curr-criteria-list{display:grid;gap:12px;padding-left:21px;margin:0}
+.curr-criteria-list li{margin:0;padding-left:4px}
+.curr-criterion-entry{display:flex;gap:9px;align-items:flex-start}
+.curr-criterion-code{min-width:37px;flex:0 0 auto;font-size:12px;color:var(--accent-text);font-variant-numeric:tabular-nums}
+.curr-criteria-list .curr-source{margin-top:5px;font-size:11px}
+@media(max-width:600px){.curr-criterion-entry{display:block}.curr-criterion-code{display:inline-block;margin-bottom:4px}}
 .curr-card{min-width:0;display:grid;gap:13px;align-content:start;padding:19px 20px;border:1px solid #dce5f1;background:#fff;border-radius:14px;box-shadow:0 4px 15px rgba(18,43,79,.045)}
 .curr-card-heading{display:flex;align-items:start;gap:12px}.curr-card h3{font-size:15px;line-height:1.5;margin:0;color:#25354c;font-weight:720}.curr-card p{font-size:13px;line-height:1.68;margin:0;color:#425269}.curr-card h4{margin:3px 0 10px;font-size:13px;color:#263751}.curr-card li{font-size:13px;line-height:1.65;margin-bottom:8px;color:#455972}
 .curr-card ul{margin:4px 0;padding-left:20px}.curr-card .curr-eyebrow{font-size:10px;margin:1px 0 5px}
