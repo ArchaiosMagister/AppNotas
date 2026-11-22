@@ -23,7 +23,8 @@ function fixture(){
 test('separación real: Agenda muestra un acceso pero no formularios de configuración duplicados',()=>{
  const f=fixture(),html=renderPlanner(f.doc,{plannerMode:'week',plannerDate:'2026-12-18'});
  assert(html.includes('id="plan-show-evaluations"'));
- assert(html.includes('id="plan-evaluation-shortcut"'));
+ assert(html.includes('id="planner-create-menu"'));
+ assert(!html.includes('id="plan-evaluation-shortcut"'),'La Agenda no duplica el panel de Evaluaciones');
  assert(!html.includes('id="plan-evaluations"'));
  assert(!html.includes('id="plan-shared-management"'));
  assert(!html.includes('data-eval-confirm-session='));
@@ -111,7 +112,7 @@ test('el módulo es independiente de la materia seleccionada y admite cursos adi
  assert(html.includes('2026-2027'));
  assert(html.includes('2027-2028'));
  const app=read('app.js');
- assert(app.includes("['evaluaciones','Sesiones de evaluación'"));
+ assert(app.includes("['evaluaciones','Evaluaciones'"));
  assert(app.includes("STATE.tab==='evaluaciones'?renderEvaluationWorkspace"));
  assert(app.includes("STATE.tab==='evaluaciones')bindEvaluationWorkspace"));
 });
