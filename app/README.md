@@ -1,3 +1,11 @@
+## Tarjetas de evaluación: controles compactos y estados visuales (v159)
+
+En **Sesiones de evaluación → Sesiones**, la acción principal **Programar sesión**, **Editar sesión** o **Unificar convocatorias** permanece siempre visible en cada tarjeta. Las acciones auxiliares **Calendario** y **Ver notas** se agrupan en un menú nativo **···** con etiqueta accesible. Los subgrupos no confirmados conservan sus controles independientes y su exportación de calendario por asignatura. El menú se cierra al elegir una acción, al pulsar fuera o con Escape; funciona con teclado, ratón y pantalla táctil.
+
+Los estados se diferencian mediante texto y colores discretos: **Programada** (verde suave), **Sin programar** (gris) y **Pendiente de revisar** (ámbar). Las coincidencias sin confirmar y las convocatorias antiguas pendientes se destacan sin unirlas automáticamente. En modo oscuro se usan tonos atenuados, y en OLED se conserva el fondo negro.
+
+Es una modificación exclusivamente de presentación: no se alteran identificadores, convocatorias, fechas, horas, cálculos, notas ni contenidos cifrados.
+
 ## Auditoría de estabilidad de evaluaciones (v158)
 
 Se han revisado los flujos de tutorías, convocatorias, calendario, conciliación histórica, formularios y carga del visor conjunto, sin modificar criterios ni fórmulas de calificación.

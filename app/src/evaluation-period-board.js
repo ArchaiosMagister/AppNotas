@@ -5,6 +5,13 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const button=(title,attrs,cls='btn small')=>
  '<button type="button" class="'+cls+'" '+attrs+'>'+esc(title)+'</button>';
 const when=e=>e.date+' · '+e.time+(e.endTime?'–'+e.endTime:'');
+/** Menú nativo <details>: acciones disponibles con teclado y sin dependencia de JavaScript. */
+const moreMenu=(label,actions)=>!actions?'':(
+ '<details class="eval-period-more" data-eval-more name="eval-card-actions">'+
+ '<summary aria-label="Más acciones de '+esc(label)+'" title="Más acciones de '+esc(label)+'">'+
+ '<span aria-hidden="true">···</span></summary>'+
+ '<div class="eval-period-more-items">'+actions+'</div></details>'
+);
 const subjects=card=>[...new Set(card.sources.map(s=>s.group?.subject||'Materia anterior'))].join(' · ');
 const sourceEvents=(year,source,periodId)=>year.events.filter(e=>
  e.type==='evaluation'&&!e.tutorshipId&&e.periodId===periodId&&
@@ -29,7 +36,7 @@ function periodCard(doc,year,period,card){
  if(t){
   const event=tutorshipEvent(doc,t.id,period.id);
   const previous=tutorshipLegacyEvents(doc,t.id,period.id);
-  status=previous.length&&!event?'Pendiente de unificar':event?'Programada':'Sin programar';
+  status=previous.length?'Pendiente de revisar':event?'Programada':'Sin programar';
   details=previous.length&&!event?'<div class="eval-period-unscheduled">Sin convocatoria común</div>':eventDetails(event);
   if(previous.length){
    extra='<p class="eval-period-caution">'+
@@ -37,17 +44,19 @@ function periodCard(doc,year,period,card){
      'Hay '+previous.length+' convocatorias de asignaturas por unificar.')+'</p>'+
     legacyDetails(doc,previous);
   }
+  const auxiliary=(event?button('Calendario','data-eval-tutor-export="'+esc(event.id)+'"'):'')+
+   button('Ver notas','data-eval-open-tutor="'+esc(t.id)+'" data-eval-period="'+esc(period.id)+'"');
   actions=(previous.length&&!event?
    button('Unificar convocatorias','data-eval-consolidate="'+esc(t.id)+
     '" data-eval-period="'+esc(period.id)+'"','btn small primary'):
    button(event?'Editar sesión':'Programar sesión','data-eval-tutor-session="'+esc(t.id)+
     '" data-eval-period="'+esc(period.id)+'"','btn small primary'))+
-   (event?button('Calendario','data-eval-tutor-export="'+esc(event.id)+'"'):'')+
-   button('Ver notas','data-eval-open-tutor="'+esc(t.id)+'" data-eval-period="'+esc(period.id)+'"');
+   moreMenu(title,auxiliary);
  }else{
   const pairs=card.sources.map(source=>({source,events:sourceEvents(year,source,period.id)}));
   if(card.kind==='suggested'){
-   status='Coincidencia pendiente de confirmar';
+   status='Pendiente de revisar';
+   extra='<p class="eval-period-caution">Coincidencia pendiente de confirmar entre asignaturas.</p>';
    details='<div class="eval-period-source-list">'+pairs.map(({source,events})=>{
     const event=events[0],canEdit=source.students>0||events.length>0;
     const attrs='data-eval-group="'+esc(source.groupId)+'" data-eval-period="'+esc(period.id)+
@@ -55,7 +64,7 @@ function periodCard(doc,year,period,card){
     return '<div class="eval-period-source"><span class="eval-period-source-heading"><strong>'+
      esc(source.group.subject)+'</strong><small>'+esc(event?when(event):'Sin programar')+'</small></span>'+
      (canEdit?button(event?'Editar':'Programar',attrs):'<small>Sin alumnado</small>')+
-     events.map(e=>button('Calendario','data-export-event="'+esc(e.id)+'"')).join('')+'</div>';
+     moreMenu(source.group.subject,events.map(e=>button('Calendario','data-export-event="'+esc(e.id)+'"')).join(''))+'</div>';
    }).join('')+'</div>';
    actions=button('Revisar tutoría','data-eval-switch-tab="tutorias"');
   }else{
@@ -66,11 +75,12 @@ function periodCard(doc,year,period,card){
    const canEdit=source.students>0||pairs[0].events.length>0;
    actions=canEdit?button(event?'Editar sesión':'Programar sesión',attrs,'btn small primary'):
     '<span class="hint">Sin alumnado en esta procedencia</span>';
-   actions+=(event?button('Calendario','data-export-event="'+esc(event.id)+'"'):'');
+   actions+=event?moreMenu(title,button('Calendario','data-export-event="'+esc(event.id)+'"')):'';
   }
  }
+ const state=status==='Programada'?'scheduled':status==='Sin programar'?'unscheduled':'review';
  return '<article class="eval-period-small-card" data-eval-group-card="'+esc(card.id)+'" '+
-  'data-eval-card-status="'+esc(status)+'">'+intro+
+  'data-eval-card-status="'+esc(status)+'" data-eval-card-state="'+state+'">'+intro+
   '<span class="eval-period-status">'+esc(status)+'</span>'+details+extra+
   '<div class="eval-period-actions">'+actions+'</div></article>';
 }
@@ -93,4 +103,33 @@ export function renderEvaluationPeriodBoard(doc,year,cards=sessionPresentation(d
   'Programa o edita cada sesión desde su tarjeta. Los grupos con coincidencias pendientes '+
   'conservan sus convocatorias individuales hasta que confirmes la tutoría.</p>'+content+
   '</div>';
+}
+
+/** Menús de acciones: cerrar otros al abrir, cerrar al elegir una opción,
+ * y admitir Escape o pulsar fuera. Eventos ligados al panel, no a document:
+ * no acumulan escuchadores tras cambios de evaluación o de curso. */
+export function bindEvaluationCardMenus(root){
+ if(!root)return;
+ const menus=[...root.querySelectorAll('[data-eval-more]')];
+ if(!menus.length)return;
+ for(const menu of menus){
+  menu.querySelector('summary')?.addEventListener('click',()=>{
+   for(const other of menus)if(other!==menu)other.open=false;
+  });
+  for(const button of menu.querySelectorAll('button'))
+   button.addEventListener('click',()=>{menu.open=false;});
+ }
+ root.addEventListener('pointerdown',event=>{
+  if(event.target.closest('[data-eval-more]'))return;
+  for(const menu of menus)menu.open=false;
+ });
+ root.addEventListener('keydown',event=>{
+  if(event.key!=='Escape')return;
+  const opened=menus.filter(menu=>menu.open);
+  if(!opened.length)return;
+  event.preventDefault();
+  event.stopPropagation();
+  for(const menu of opened)menu.open=false;
+  opened[opened.length-1].querySelector('summary')?.focus();
+ });
 }
