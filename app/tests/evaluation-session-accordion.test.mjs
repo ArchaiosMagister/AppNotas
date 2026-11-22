@@ -105,12 +105,13 @@ test('una asignatura sin alumnado o fechas no se identifica automáticamente com
  assert(!cards.some(c=>c.kind==='suggested'));
  assertModel(f.doc);
 });
-test('el HTML escapa nombres de grupos no confiables y conserva accesibilidad del acordeón',()=>{
+test('el HTML escapa nombres de grupos y presenta tarjetas dentro de secciones accesibles',()=>{
  const f=fixture();f.latin.name='<script>alert(1)</script>';
  const html=renderEvaluationWorkspace(f.doc,{evaluationWorkspaceTab:'sesiones'});
  assert(!html.includes('<script>alert(1)</script>'));
  assert(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
- assert(html.includes('<details')&&html.includes('<summary'));
+ assert(html.includes('<section')&&html.includes('data-evaluation-section='));
+ assert(html.includes('<article class="eval-period-small-card"'));
 });
 test('cache PWA renovada y módulo agrupador incluido para modo offline',()=>{
  const app=readFileSync(path.join(base,'app.js'),'utf8');
