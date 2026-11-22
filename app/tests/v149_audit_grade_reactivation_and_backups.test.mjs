@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
- initialNotebook,emptyNotebook,assertModel,addAssessment,createRubric,
- setGrade,setRubricGrade,setOrthographyGrade,setPendingJustified,setNotSubmitted,
- updateAssessment,addGroup,addStudent,setFinalOverride
+ initialNotebook,assertModel,addAssessment,createRubric,
+ setGrade,setRubricGrade,setOrthographyGrade,setPendingJustified,
+ addGroup,addStudent,setFinalOverride
 } from '../src/model.js';
 import {
  effectiveAssessmentScore,categoryGrade,overallGrade,finalGrade,competencyGrade,
- itacaGrade,competencyArithmeticMean
+ itacaGrade
 } from '../src/calculations.js';
 import {ensureBookMetadata,markBookChange,createPortableCopy,readBackupFile,compareBookVersions} from '../src/cuaderno.js';
 import {createVault,saltFromEnvelope} from '../src/vault.js';
@@ -145,4 +145,28 @@ test('copia cifrada verificable tras reactivar AJ conserva exactamente puntuacio
  close(itacaGrade(imported.doc,student.id,group.id,period.id),expected.itaca);
  close(competencyGrade(imported.doc,student.id,doc.competencies[0].id,group.id,period.id),expected.comp);
  assertModel(imported.doc);
+});
+
+test('10 valores de frontera: AJ y confirmación de la misma nota mantienen medias, Ítaca y competencias',()=>{
+ const scores=[0,0.01,4.99,5,6.49,6.5,6.51,7.99,8,10];
+ for(const score of scores){
+  const {doc,student,group,period,assessment}=fx();
+  setGrade(doc,student.id,assessment.id,score);
+  const beforeOther=structuredClone(doc.grades.filter(g=>g.studentId!==student.id));
+  const metric=()=>({
+    cat:categoryGrade(doc,student.id,assessment.categoryId,group.id,period.id),
+    period:overallGrade(doc,student.id,group.id,period.id),
+    annual:finalGrade(doc,student.id,group.id),
+    itaca:itacaGrade(doc,student.id,group.id,period.id),
+    competency:competencyGrade(doc,student.id,doc.competencies[0].id,group.id,period.id)
+  });
+  const expected=metric(),id=record(doc,student.id,assessment.id).id;
+  setPendingJustified(doc,student.id,assessment.id,true);
+  setGrade(doc,student.id,assessment.id,score);
+  assert.equal(record(doc,student.id,assessment.id).pendingJustified,undefined,`AJ no se eliminó para ${score}`);
+  assert.equal(record(doc,student.id,assessment.id).id,id);
+  for(const [name,value] of Object.entries(expected))close(metric()[name],value);
+  assert.deepEqual(doc.grades.filter(g=>g.studentId!==student.id),beforeOther,`Alumnos ajenos modificados para ${score}`);
+  assertModel(doc);
+ }
 });
