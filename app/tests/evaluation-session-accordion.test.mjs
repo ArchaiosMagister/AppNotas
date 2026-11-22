@@ -115,7 +115,7 @@ test('el HTML escapa nombres de grupos no confiables y conserva accesibilidad de
 test('cache PWA renovada y módulo agrupador incluido para modo offline',()=>{
  const app=readFileSync(path.join(base,'app.js'),'utf8');
  const sw=readFileSync(path.join(base,'sw.js'),'utf8');
- assert(app.includes('cuaderno-docente-static-v156-dev'));
- assert(sw.includes('cuaderno-docente-static-v156-dev'));
+ assert(app.includes('cuaderno-docente-static-v157-dev'));
+ assert(sw.includes('cuaderno-docente-static-v157-dev'));
  assert(sw.includes("'./src/evaluation-session-presentation.js'"));
 });
