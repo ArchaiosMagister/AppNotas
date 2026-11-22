@@ -173,6 +173,35 @@ export function bindSharedEvaluation(doc,ui,ctx,exportEvent){
  const redraw=()=>ctx.render();
  const suggestions=suggestStudentLinks(doc,activeYear(doc).name).slice(0,30);
  const proposed=suggestTutorships(doc,activeYear(doc).name).slice(0,24);
+ const cards=sessionPresentation(doc,activeYear(doc));
+ const suggestionsToConfirm=cards.filter(c=>c.kind==='suggested');
+ by('#plan-evaluations')?.addEventListener('toggle',event=>{
+  ui.plannerEvaluationsOpen=event.currentTarget.open;
+ });
+ by('#plan-shared-management')?.addEventListener('toggle',event=>{
+  ui.plannerSharedManagementOpen=event.currentTarget.open;
+ });
+ all('[data-eval-card]').forEach(node=>node.addEventListener('toggle',event=>{
+  (ui.plannerEvalOpenCards??={})[event.currentTarget.dataset.evalCard]=event.currentTarget.open;
+ }));
+ all('[data-eval-period-panel]').forEach(node=>node.addEventListener('toggle',event=>{
+  (ui.plannerEvalOpenPeriods??={})[event.currentTarget.dataset.evalPeriodPanel]=event.currentTarget.open;
+ }));
+ all('[data-eval-confirm-session]').forEach(button=>button.onclick=async()=>{
+  const candidate=suggestionsToConfirm.find(c=>c.id===button.dataset.evalConfirmSession);
+  if(!candidate)return;
+  const subjects=[...new Set(candidate.sources.map(s=>s.group.subject))];
+  if(!window.confirm('¿Confirmas que '+candidate.name+' de '+subjects.join(' y ')+
+   ' corresponde a UNA MISMA tutoría?\\n\\nSe guardará la relación, pero no se cambiarán ni fusionarán notas, fechas ni citas existentes.'))return;
+  button.disabled=true;
+  ui.plannerEvaluationsOpen=true;
+  try{
+   await ctx.commit(d=>saveTutorship(d,{name:candidate.name,sources:candidate.sources.map(s=>({
+    groupId:s.groupId,originGroup:s.originGroup
+   }))}),'Confirmar tutoría compartida');
+   ctx.toast('Tutoría confirmada. Revisa cada evaluación y unifica las convocatorias anteriores cuando corresponda.');
+  }catch(error){ctx.fail(error);if(button.isConnected)button.disabled=false;}
+ });
  all('[data-eval-link-pair]').forEach(button=>button.onclick=()=>{
   const pair=suggestions[Number(button.dataset.evalLinkPair)];if(!pair)return;
   if(!window.confirm('¿Confirmas que ambos registros pertenecen a la misma persona? Las notas no se fusionarán.'))return;
