@@ -9,7 +9,7 @@ const read=name=>readFile(new URL('../'+name,import.meta.url),'utf8');
 const hexChannels=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
 
 async function presentation(subject){
-  const js=await read('app.js'),start=js.indexOf('const CLASSICAL_SUBJECT_ACCENTS='),
+  const js=await read('app.js'),start=js.indexOf('function colorFor(level,subject){'),
     end=js.indexOf('const pairOptions=',start);
   assert(start>0&&end>start);
   const doc=initialNotebook();
@@ -32,8 +32,8 @@ test('Griego I y II comparten vestidura pero tienen acentos de curso distintos',
   assert.equal(two.dataset.courseSkin,'attica');
   assert.equal(one.dataset.courseVariant,'griego-i');
   assert.equal(two.dataset.courseVariant,'griego-ii');
-  assert.equal(one.cssProps.get('--accent'),'#438DB8');
-  assert.equal(two.cssProps.get('--accent'),'#2878AF');
+  assert.equal(one.cssProps.get('--accent'),'#0284C7');
+  assert.equal(two.cssProps.get('--accent'),'#1D4ED8');
   assert.notEqual(one.cssProps.get('--classic-accent'),two.cssProps.get('--classic-accent'));
   assert.equal(one.dataset.theme,'light');
   assert.equal(two.dataset.theme,'light');
