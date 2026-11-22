@@ -1,4 +1,5 @@
 import {activeYear,setActiveYear,calendarEventIcs,deletePlannerItem} from './planner.js';
+import {setEvaluationPastMode} from './model.js';
 import {sessionPresentation} from './evaluation-session-presentation.js';
 import {bindEvaluationCardMenus} from './evaluation-period-board.js';
 import {
@@ -78,13 +79,20 @@ export function bindEvaluationWorkspace(doc,ui,ctx){
  const $=selector=>document.querySelector(selector),all=selector=>[...document.querySelectorAll(selector)];
  const redraw=()=>ctx.render(),year=activeYear(doc);
  bindEvaluationCardMenus($('.evaluation-workspace'));
+ $('[data-eval-past-mode]')?.addEventListener('change',event=>{
+  ctx.commit(d=>setEvaluationPastMode(d,event.currentTarget.checked?'all':'auto'),
+   'Preferencia de sesiones pasadas').catch(ctx.fail);
+ });
+ all('[data-eval-past-period]').forEach(details=>details.addEventListener('toggle',()=>{
+  ui.evaluationPastExpanded={...(ui.evaluationPastExpanded||{}),[details.dataset.evalPastPeriod]:details.open};
+ }));
  all('[data-eval-workspace-tab]').forEach(button=>button.onclick=()=>{
   ui.evaluationWorkspaceTab=button.dataset.evalWorkspaceTab;redraw();
  });
  $('#eval-workspace-year')?.addEventListener('change',event=>{
   const selected=event.currentTarget.value;
   ctx.commit(d=>setActiveYear(d,selected),'Cambiar curso de evaluaciones').then(()=>{
-   ui.plannerEvaluationView=null;ui.plannerEvalOpenCards={};ui.plannerEvalOpenPeriods={};
+   ui.plannerEvaluationView=null;ui.plannerEvalOpenCards={};ui.plannerEvalOpenPeriods={};ui.evaluationPastExpanded={};
    ui.plannerDate=activeYear(ctx.getDoc()).start;redraw();
   }).catch(ctx.fail);
  });
