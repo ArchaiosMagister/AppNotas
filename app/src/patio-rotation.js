@@ -4,7 +4,7 @@ import {activeYear,isoDate,addDays,weekday,isHoliday,scheduleBands,saveEvent} fr
 
 const MAX_FILE=3_000_000,MAX_XML=2_000_000;
 const normalise=value=>String(value??'').trim().toLocaleLowerCase('es');
-const letters='ABCDE';
+const letters='ABCDE',quadrantDays='CDEFG';
 const normalRows=[4,5,6,7,10,11,12,13];
 const rainRows=[15,16,17,18,21,22,23,24];
 const isoUTC=(year,month,day)=>new Date(Date.UTC(year,month-1,day)).toISOString().slice(0,10);
@@ -88,8 +88,8 @@ export function extractPatioRotation(quadrant,roster,second,marker='yo'){
   const name=cell(quadrant,'B'+normalRows[i]).trim(),wet=cell(quadrant,'B'+rainRows[i]).trim();
   if(!name||name.length>150||!wet||wet.length>150)throw new Error('Falta una zona de patio o su alternativa de lluvia.');
   for(let day=0;day<5;day++){
-   if(!rotationFormula(day,i).test(formula(quadrant,letters[day+2]+normalRows[i]))||
-      !rotationFormula(day,i).test(formula(quadrant,letters[day+2]+rainRows[i])))
+   if(!rotationFormula(day,i).test(formula(quadrant,quadrantDays[day]+normalRows[i]))||
+      !rotationFormula(day,i).test(formula(quadrant,quadrantDays[day]+rainRows[i])))
     throw new Error('Una zona del Excel usa una fórmula de rotación distinta. Revísala antes de importar.');
   }
   standard.push(name);rain.push(wet);
