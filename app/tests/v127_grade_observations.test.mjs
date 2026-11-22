@@ -173,7 +173,8 @@ test('interfaz: editar desde todas las casillas y mostrar al alumno solo con per
  const [app,css,sw]=await Promise.all(['app.js','styles.css','sw.js']
    .map(path=>readFile(new URL('../'+path,import.meta.url),'utf8')));
  const table=app.slice(app.indexOf('function renderNotebook(){'),app.indexOf('const ITACA_OPTIONS='));
- assert.equal((table.match(/observationButton\(s\.id,a\.id\)/g)||[]).length,3);
+ assert.equal((table.match(/gradeCellActions\(s,a,g,npButton,ajButton\)/g)||[]).length,3);
+ assert(table.includes('observationButton(student.id,assessment.id)'), 'Las tres clases de celda conservan el acceso a observaciones');
  assert(table.includes('data-observation-student='));
  assert(table.includes('data-observation-assessment='));
  assert(app.includes("setGradeObservation(d,studentId,assessmentId,text.value,checkbox.checked)"));
