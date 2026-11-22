@@ -144,3 +144,26 @@ test('la app no usa el catálogo fijo para renderizar los botones de materias',a
  assert(app.includes('validSubject(level,subject,STATE.doc)'));
  assert(app.includes("pairOptions=()=>catalogForNotebook(STATE.doc)"));
 });
+
+
+test('materias añadidas ofrecen competencias propias sin atribuirles normativa oficial',async()=>{
+ const app=await read('app.js');
+ const begin=app.indexOf('function renderCompetencies(){');
+ const end=app.indexOf('function currentCurriculum(){',begin);
+ assert(begin>0&&end>begin);
+ const body=app.slice(begin,end);
+ assert(body.includes('if(!catalog){'));
+ assert(body.includes('Competencias personalizadas'));
+ assert(body.includes('id="new-competency"'));
+ assert(body.includes('data-comp='));
+ assert(body.includes('data-linkcat='));
+ assert(body.includes('competencyGrade('));
+ assert(body.includes('no tiene currículo oficial precargado'));
+ assert(app.includes('No hay un currículo oficial incorporado para esta materia'));
+ const doc=emptyNotebook();
+ addNotebookSubject(doc,'2bach','Historia del Arte');
+ const g=addGroup(doc,'2.º B','Historia del Arte','2026-2027','2bach');
+ assert.equal(g.subject,'Historia del Arte');
+ assert.equal(doc.categories.some(x=>x.name==='Cultura'),false,'No aplicar plantilla de Griego II a materias no configuradas');
+ assertModel(doc);
+});
