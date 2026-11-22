@@ -69,9 +69,11 @@ test('tres tratamientos visuales autónomos, con motivos clásicos sin peticione
 test('la interfaz existente conserva controles docentes y el modo grupo',async()=>{
   const [app]=await files();
   for(const id of ['save-status','close-notebook','open-notebook','lock','theme-select',
-    'group-select','new-group','new-student','new-assessment','student-sort-mode',
+    'new-group','new-student','new-assessment','student-sort-mode',
     'student-group-mode','itaca-general-rule','csv-import','undo-change','redo-change'])
     assert(app.includes('id="'+id+'"'),id);
+  assert(app.includes('data-group-choice='));
+  assert(app.includes('class="course-switch"'));
   assert(app.includes("$('#close-notebook')?.addEventListener('click',()=>closeNotebook().catch(fail))"));
   assert(app.includes("sortStudents(STATE.doc.students.filter(x=>x.groupId===STATE.groupId),STATE.studentSort)"));
   assert(app.includes('renderFinalEvaluation()'));
