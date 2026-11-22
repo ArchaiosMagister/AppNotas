@@ -2738,3 +2738,41 @@ html[data-theme="oled"] .notebook-primary-actions #notebook-calculations{
 @media(max-width:350px){
   .competency-scale-items{grid-template-columns:minmax(0,1fr)}
 }
+
+
+/* v145 · Cálculos y Competencias, juntos en el cuaderno y accesibles desde
+   las dos vistas analíticas sin añadir duplicados al menú lateral. */
+.notebook-primary-actions #notebook-competencies{
+  background:var(--raised);color:var(--ink);border:1px solid var(--line);
+  border-radius:10px;font-weight:800;
+}
+.notebook-primary-actions #notebook-competencies:hover,
+.notebook-primary-actions #notebook-competencies:focus-visible{
+  background:var(--accent-soft);border-color:var(--accent);
+}
+.academic-quick-nav{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  width:100%;margin:0 0 13px;padding:9px 12px;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:12px;
+}
+.academic-quick-nav .btn{
+  min-height:43px;font-size:13px;font-weight:800;
+  background:var(--raised);color:var(--ink);
+}
+.academic-quick-nav .academic-quick-active{
+  background:var(--accent-soft);border-color:var(--accent);
+}
+html[data-theme="oled"] .notebook-primary-actions #notebook-competencies,
+html[data-theme="oled"] .academic-quick-nav,
+html[data-theme="oled"] .academic-quick-nav .btn{
+  background:#000!important;color:#fff;
+}
+@media(max-width:540px){
+  .notebook-primary-actions #notebook-calculations,
+  .notebook-primary-actions #notebook-competencies{
+    grid-column:auto;min-width:0;width:100%;
+  }
+  .academic-quick-nav{gap:6px;padding:8px}
+  .academic-quick-nav .btn{flex:1 1 auto;min-width:85px;font-size:12px}
+}
