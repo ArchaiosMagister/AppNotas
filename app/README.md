@@ -1,3 +1,15 @@
+## Apartado propio: Sesiones de evaluación
+
+La gestión de reuniones se encuentra en el menú principal, junto a **Agenda**, bajo **Sesiones de evaluación**. Agenda mantiene la visualización cronológica de las convocatorias y un botón que conduce al nuevo apartado, sin duplicar sus formularios.
+
+El apartado incluye tres pestañas y selector de curso académico:
+
+- **Sesiones:** tarjetas desplegables por tutoría y evaluación. Se puede programar, editar, eliminar o exportar convocatorias; el editor usa panel lateral en escritorio y ventana amplia en móvil/iPad, con campos fecha, inicio, finalización opcional y observaciones. Las posibles coincidencias entre grupos se muestran sin unirlas automáticamente.
+- **Tutorías:** propuestas semiautomáticas de grupos equivalentes, confirmación explícita, creación y edición manual de tutorías, alta y retirada de asignaturas y enlace a la gestión de alumnos de varias materias.
+- **Vista de notas:** seleccionar tutoría y trimestre y consultar la relación conjunta, con calificaciones decimales y Nota Ítaca por asignatura; no se calcula ninguna media entre Latín y Griego y no hay edición de notas desde el visor.
+
+Se han reutilizado el modelo y los cálculos existentes. La confirmación de una tutoría no unifica fechas antiguas: la conciliación sigue solicitando elegir la convocatoria oficial y archiva íntegros los originales en el cuaderno cifrado. La exportación .ics no está cifrada y sigue requiriendo autorización explícita.
+
 ## Hora de finalización de las sesiones de evaluación
 
 En **Agenda → Sesiones de evaluación**, al pulsar **Programar** o **Editar fecha y hora** puedes indicar:
