@@ -13,7 +13,8 @@ const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json
 const server=createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://localhost');
-  const rel=decodeURIComponent(url.pathname)==='/'?'index.html':decodeURIComponent(url.pathname).replace(/^\\//,'');
+  const decoded=decodeURIComponent(url.pathname);
+  const rel=decoded==='/'?'index.html':decoded.slice(1);
   const file=resolve(app,rel);
   if(!file.startsWith(app+sep)){res.writeHead(403);res.end();return;}
   const data=await readFile(file);
