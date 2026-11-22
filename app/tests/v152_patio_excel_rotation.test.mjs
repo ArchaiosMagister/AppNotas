@@ -157,7 +157,8 @@ test('ICS de guardia utiliza duración real de 30 minutos y no nombres de profes
  assert(ics.includes('DTSTART:20261124T104500'));
  assert(ics.includes('DTEND:20261124T111500'));
  assert(ics.includes('RONDA PART DAVANTERA'));
- assert(ics.includes('Banys')||ics.includes('BANYS'));
+ const unfolded=ics.replace(/\r\n /g,''); // iCalendar puede plegar las líneas a 75 octetos.
+ assert(unfolded.includes('BANYS'));
  assert(!ics.includes('Jéssica Roig'));
  assertModel(doc);
 });
@@ -204,7 +205,7 @@ test('botón, vista previa y nuevo módulo están integrados en la PWA y caché 
 function fakeNode(text,attrs={}){
  return {textContent:text,getAttribute:name=>attrs[name]??null,getElementsByTagName(tag){
   const re=new RegExp('<'+tag+'\\b([^>]*)>([\\s\\S]*?)<\\/'+tag+'>','gi');
-  return [...text.matchAll(re)].map(m=>fakeNode(m[2],Object.fromEntries([...m[1].matchAll(/([\\w:-]+)="([^"]*)"/g)].map(x=>[x[1],x[2]]))));
+  return [...text.matchAll(re)].map(m=>fakeNode(m[2],Object.fromEntries([...m[1].matchAll(/([\w:-]+)="([^"]*)"/g)].map(x=>[x[1],x[2]]))));
  }};
 }
 class FakeParser{parseFromString(text){return fakeNode(text);}}
