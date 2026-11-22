@@ -165,7 +165,7 @@ export function bindSharedEvaluation(doc,ui,ctx,exportEvent){
   },'Gestionar tutoría compartida'),
   'La retirada de una asignatura no borra sus notas. No es posible retirar la última procedencia.');
  });
- all('[data-eval-tutor-session]').forEach(button=>button.onclick=>
+ all('[data-eval-tutor-session]').forEach(button=>button.onclick=()=>
   openTutorshipSessionModal(ctx.getDoc(),ctx,button.dataset.evalTutorSession,button.dataset.evalPeriod));
  all('[data-eval-consolidate]').forEach(button=>button.onclick=()=>{
   const tid=button.dataset.evalConsolidate,pid=button.dataset.evalPeriod;
@@ -187,7 +187,7 @@ export function bindSharedEvaluation(doc,ui,ctx,exportEvent){
   redraw();
  });
  by('#plan-close-evaluation')?.addEventListener('click',()=>{ui.plannerEvaluationView=null;redraw();});
- all('[data-eval-tutor-export]').forEach(button=>button.onclick=>
+ all('[data-eval-tutor-export]').forEach(button=>button.onclick=()=>
   exportEvent(activeYear(ctx.getDoc()).events.find(e=>e.id===button.dataset.evalTutorExport)));
  all('[data-eval-detail-student]').forEach(button=>button.onclick=()=>{
   const sid=button.dataset.evalDetailStudent,gid=button.dataset.evalDetailGroup,pid=button.dataset.evalDetailPeriod;
