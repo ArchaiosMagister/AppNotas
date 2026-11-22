@@ -995,6 +995,22 @@ function renderNotebook(){
     const label=note?'Editar observación':'Añadir observación';
     return `<button type="button" class="grade-observation-button ${note?'has-observation':''}" data-observation-student="${esc(studentId)}" data-observation-assessment="${esc(assessmentId)}" aria-label="${label} de ${esc(student?.name||'alumno')} en ${esc(activity?.name||'actividad')}" title="${label}">${note?'● ':''}Obs.</button>`;
   };
+  /** Todas las acciones antiguas permanecen enlazadas a los mismos controles.
+   * Solo se ocultan hasta abrir el diálogo de la celda; los cálculos no cambian. */
+  const gradeCellActions=(student,assessment,grade,npButton,ajButton)=>{
+    const note=gradeObservationsByPair.has(student.id+'|'+assessment.id);
+    const state=grade?.pendingJustified?'AJ':grade?.notSubmitted?'NP':'';
+    return `<span class="grade-cell-action-anchor">
+      <button type="button" class="grade-cell-actions-trigger ${note?'has-observation':''}"
+        data-grade-cell-actions-student="${esc(student.id)}"
+        data-grade-cell-actions-assessment="${esc(assessment.id)}"
+        aria-haspopup="dialog"
+        aria-label="Opciones de calificación de ${esc(student.name)} en ${esc(assessment.name)}"
+        title="NP, AJ y observaciones">⋯${note?'<span class="grade-cell-observation-mark" aria-label="Con observación">●</span>':''}</button>
+      <span class="grade-cell-original-actions" hidden>${npButton}${ajButton}${observationButton(student.id,assessment.id)}</span>
+      ${state?'<span class="visually-hidden">Estado: '+state+'</span>':''}
+    </span>`;
+  };
   const gradesByStudent=new Map();
   for(const grade of STATE.doc.grades){
     if(!visibleIds.has(grade.assessmentId))continue;
@@ -1015,19 +1031,19 @@ function renderNotebook(){
     // calificación sigue abriendo su editor, sin cambiar el valor registrado.
     const npGradeMarker='<span class="np-grade-marker" aria-label="No presentado">NP</span>';
     if(a.rubricId){const score=g?recordedScore(STATE.doc,a,g):null;
-      return `<td${categoryCell(a)}><div class="grade-entry rubric-grade-entry"><button class="rubric-grade-button" type="button" data-rubric-grade="${esc(a.id)}" data-rubric-student="${esc(s.id)}" aria-label="Evaluar ${esc(s.name)} en ${esc(a.name)} con rúbrica">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?npGradeMarker:g?gradeChip(score):'Evaluar'}<small>${g?.notSubmitted?'Pulsar para editar':'/10'}</small></button></div>${npButton}${ajButton}${observationButton(s.id,a.id)}</td>`;
+      return `<td${categoryCell(a)}><div class="grade-entry rubric-grade-entry"><button class="rubric-grade-button" type="button" data-rubric-grade="${esc(a.id)}" data-rubric-student="${esc(s.id)}" aria-label="Evaluar ${esc(s.name)} en ${esc(a.name)} con rúbrica">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?npGradeMarker:g?gradeChip(score):'Evaluar'}<small>${g?.notSubmitted?'Pulsar para editar':'/10'}</small></button></div>${gradeCellActions(s,a,g,npButton,ajButton)}</td>`;
     }
     if(a.orthography?.enabled){
       const value=g?effectiveAssessmentScore(STATE.doc,a,g):null;
       const faults=g?.orthographyFaults??0;
       const amount=g?orthographyPenalty(a,g):0;
       const note=g?`<small class="orthography-meta">Original: ${esc(rawFmt(g.score))}/${esc(rawFmt(a.maxScore))}${faults?` · ${g.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(amount))} (${faults} faltas)`}`:''}</small>`:'<small class="orthography-meta">Nota, faltas y entrega</small>';
-      return `<td${categoryCell(a)}><button class="orthography-grade-button" type="button" data-orthography-grade="${esc(a.id)}" data-orthography-student="${esc(s.id)}" aria-label="Corregir ${esc(s.name)} en ${esc(a.name)}: nota, faltas y entrega">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?`${npGradeMarker}<small class="np-edit-hint">Pulsar para editar</small>`:g?gradeChip(value):'<strong>+ Nota</strong>'}${g?.notSubmitted||g?.pendingJustified?'':note}</button>${npButton}${ajButton}${observationButton(s.id,a.id)}</td>`;
+      return `<td${categoryCell(a)}><button class="orthography-grade-button" type="button" data-orthography-grade="${esc(a.id)}" data-orthography-student="${esc(s.id)}" aria-label="Corregir ${esc(s.name)} en ${esc(a.name)}: nota, faltas y entrega">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?`${npGradeMarker}<small class="np-edit-hint">Pulsar para editar</small>`:g?gradeChip(value):'<strong>+ Nota</strong>'}${g?.notSubmitted||g?.pendingJustified?'':note}</button>${gradeCellActions(s,a,g,npButton,ajButton)}</td>`;
     }
     const isTenScale=a.maxScore===10||a.convertToTen;
     const converted=g&&!g.notSubmitted&&!g.pendingJustified&&isTenScale?normalizedScore(g.score,a.maxScore,a.convertToTen):null;
     const showConverted=g&&!g.notSubmitted&&!g.pendingJustified&&a.convertToTen&&a.maxScore!==10;
-    return `<td${categoryCell(a)}><div class="grade-entry ${showConverted?'converted-entry':''}">${showConverted?`<button type="button" class="converted-primary" data-focus-original="${esc(a.id)}:${esc(s.id)}" aria-label="Nota sobre diez: ${esc(gradeFmt(converted))}; editar nota original">${gradeChip(converted)}</button><small class="original-score">(<input class="note-input original-note-input" type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota original de ${esc(s.name)} en ${esc(a.name)}, sobre ${esc(rawFmt(a.maxScore))}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${esc(rawFmt(g.score))}"/> /${esc(rawFmt(a.maxScore))})</small>`:`<input class="note-input ${g?.notSubmitted?'np-grade-input':converted!==null?'grade-colored':''}" ${converted!==null?gradeStyle(converted):''} type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota de ${esc(s.name)} en ${esc(a.name)}" placeholder="${g?.pendingJustified?'AJ':g?.notSubmitted?'NP':'—'}" title="${g?.notSubmitted?'NP · No presentado. Escribe una nota para sustituirlo.':''}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${g&&!g.notSubmitted&&!g.pendingJustified?esc(rawFmt(g.score)):''}"/>`}</div>${npButton}${ajButton}${observationButton(s.id,a.id)}</td>`;
+    return `<td${categoryCell(a)}><div class="grade-entry ${showConverted?'converted-entry':''}">${showConverted?`<button type="button" class="converted-primary" data-focus-original="${esc(a.id)}:${esc(s.id)}" aria-label="Nota sobre diez: ${esc(gradeFmt(converted))}; editar nota original">${gradeChip(converted)}</button><small class="original-score">(<input class="note-input original-note-input" type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota original de ${esc(s.name)} en ${esc(a.name)}, sobre ${esc(rawFmt(a.maxScore))}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${esc(rawFmt(g.score))}"/> /${esc(rawFmt(a.maxScore))})</small>`:`<input class="note-input ${g?.notSubmitted?'np-grade-input':converted!==null?'grade-colored':''}" ${converted!==null?gradeStyle(converted):''} type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota de ${esc(s.name)} en ${esc(a.name)}" placeholder="${g?.pendingJustified?'AJ':g?.notSubmitted?'NP':'—'}" title="${g?.notSubmitted?'NP · No presentado. Escribe una nota para sustituirlo.':''}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${g&&!g.notSubmitted&&!g.pendingJustified?esc(rawFmt(g.score)):''}"/>`}</div>${gradeCellActions(s,a,g,npButton,ajButton)}</td>`;
   }).join('')}<td class="final-col"><button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip(overallGrade(STATE.doc,s.id,STATE.groupId,STATE.periodId))}</button></td><td class="itaca-col"><button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc,s.id,STATE.groupId,STATE.periodId)}${itacaStudentRule(STATE.doc,s.id,STATE.periodId)!=='general'?'<span class="itaca-exception" title="Excepción individual">*</span>':''}</button></td></tr>`).join('');
   const sum=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).reduce((s,c)=>s+c.weight,0);
   const problems=students.flatMap(st=>periodCalculationWarnings(STATE.doc,st.id,STATE.groupId,STATE.periodId)).filter(v=>v.includes('sin conversión'));
