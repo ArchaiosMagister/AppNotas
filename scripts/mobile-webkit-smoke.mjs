@@ -122,7 +122,7 @@ async function audit(engine,name){
    // Elegir la última materia, cambiar de módulo y comprobar scroll horizontal conservado.
    await page.locator('.course-choice').last().click();
    await page.locator('.nav-primary [data-tab="planificador"]').click();
-   if(size.width<=900){
+   if(size.width<=1200){
     const agenda=await page.evaluate(()=>{
      const box=q=>{const e=document.querySelector(q);if(!e)return null;const r=e.getBoundingClientRect();
       return {left:r.left,right:r.right,width:r.width,height:r.height};};
@@ -185,6 +185,19 @@ async function audit(engine,name){
      name+' botones Cuaderno demasiado bajos');
     assert(actions.more&&Math.abs(actions.more.width-actions.container.width)<=4,
      name+' Acciones del Cuaderno no ocupan todo el ancho '+JSON.stringify(actions));
+   }
+   if(size.width<=1200){
+    await page.locator('[data-academic-quick="alumno"]').click();
+    const quick=await page.evaluate(()=>{
+     const strip=document.querySelector('.academic-quick-nav');
+     const active=strip?.querySelector('.academic-quick-active');
+     if(!strip||!active)return {visible:false};
+     const a=strip.getBoundingClientRect(),b=active.getBoundingClientRect();
+     return {visible:b.left>=a.left-3&&b.right<=a.right+3,
+      buttonWidth:b.width,containerWidth:a.width};
+    });
+    assert(quick.visible,name+' pestaña académica activa fuera de vista '+JSON.stringify(quick));
+    await page.locator('[data-academic-quick="cuaderno"]').click();
    }
    await page.locator('.nav-primary [data-tab="evaluaciones"]').click();
    console.log(name+' '+size.width+'x'+size.height+': materias, táctil y overflow correctos');
