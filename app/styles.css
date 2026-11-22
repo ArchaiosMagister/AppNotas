@@ -3210,3 +3210,57 @@ html[data-theme="oled"] .eval-period-appointment,html[data-theme="oled"] .eval-p
 @media(max-width:650px){.eval-period-section{padding:12px}.eval-period-cards{grid-template-columns:repeat(auto-fill,minmax(min(100%,205px),1fr));gap:9px}.eval-period-small-card{padding:11px}}
 @media(max-width:420px){.eval-period-cards{grid-template-columns:minmax(0,1fr)}.eval-period-actions .btn{flex:1 1 auto}}
 @media print{.eval-period-small-card,.eval-period-section{break-inside:avoid}.eval-period-actions{display:none!important}}
+
+
+/* Acciones secundarias de tarjetas: resumen nativo accesible con teclado/tacto. */
+.eval-period-more{position:relative;flex:0 0 auto;align-self:center}
+.eval-period-more[open]{z-index:25}
+.eval-period-more>summary{display:grid;place-items:center;min-width:38px;min-height:35px;
+ padding:0 9px;border:1px solid var(--line);border-radius:9px;background:var(--surface);
+ color:var(--ink);font-size:20px;letter-spacing:1px;font-weight:800;
+ cursor:pointer;list-style:none;user-select:none}
+.eval-period-more>summary::-webkit-details-marker{display:none}
+.eval-period-more>summary::marker{content:""}
+.eval-period-more[open]>summary,.eval-period-more>summary:hover{background:var(--raised)}
+.eval-period-more>summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.eval-period-more-items{position:absolute;right:0;bottom:calc(100% + 6px);
+ z-index:26;min-width:155px;max-width:min(275px,82vw);display:grid;gap:3px;
+ padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--surface);
+ box-shadow:0 9px 28px #1018282c}
+.eval-period-more-items>.btn{display:flex;justify-content:flex-start;width:100%;
+ min-height:40px;padding:8px 11px;white-space:normal;color:var(--ink);
+ border:0;background:transparent;text-align:left;font-weight:650}
+.eval-period-more-items>.btn:hover,.eval-period-more-items>.btn:focus-visible{
+ background:var(--raised)}
+.eval-period-source>.eval-period-more{margin-left:auto}
+
+/* Estados legibles por texto; los colores discretos solo refuerzan el significado. */
+.eval-period-status{display:inline-flex;align-self:flex-start;align-items:center;
+ padding:4px 9px;border:1px solid var(--line);border-radius:999px;
+ line-height:1.4;font-size:11px;font-weight:730}
+.eval-period-small-card[data-eval-card-state="scheduled"] .eval-period-status{
+ color:#226540;background:#e9f6ee;border-color:#c9e7d5}
+.eval-period-small-card[data-eval-card-state="unscheduled"] .eval-period-status{
+ color:#526378;background:#eff2f6;border-color:#d9e1e9}
+.eval-period-small-card[data-eval-card-state="review"] .eval-period-status{
+ color:#82551c;background:#fff4e6;border-color:#f1dfbd}
+html[data-theme="dark"] .eval-period-small-card[data-eval-card-state="scheduled"] .eval-period-status{
+ color:#b7edcc;background:#183729;border-color:#355943}
+html[data-theme="dark"] .eval-period-small-card[data-eval-card-state="unscheduled"] .eval-period-status{
+ color:#c0cede;background:#29384b;border-color:#465469}
+html[data-theme="dark"] .eval-period-small-card[data-eval-card-state="review"] .eval-period-status{
+ color:#ffe0ae;background:#3c2e1b;border-color:#73552f}
+html[data-theme="oled"] .eval-period-small-card[data-eval-card-state="scheduled"] .eval-period-status{
+ color:#b7edcc;background:#000;border-color:#47785a}
+html[data-theme="oled"] .eval-period-small-card[data-eval-card-state="unscheduled"] .eval-period-status{
+ color:#c0cede;background:#000;border-color:#516075}
+html[data-theme="oled"] .eval-period-small-card[data-eval-card-state="review"] .eval-period-status{
+ color:#ffe0ae;background:#000;border-color:#806134}
+html[data-theme="oled"] .eval-period-more>summary,
+html[data-theme="oled"] .eval-period-more[open]>summary,
+html[data-theme="oled"] .eval-period-more-items,
+html[data-theme="oled"] .eval-period-more-items>.btn{background:#000;color:var(--ink)}
+html[data-theme="oled"] .eval-period-more-items>.btn:hover,
+html[data-theme="oled"] .eval-period-more-items>.btn:focus-visible{outline:2px solid var(--line)}
+@media(max-width:420px){.eval-period-actions>.eval-period-more{flex:0 0 auto}}
+@media print{.eval-period-more{display:none!important}}
