@@ -92,7 +92,7 @@ test('los nombres y los campos de búsqueda escapan contenido HTML no confiable'
 test('la nueva pantalla entra en la PWA offline y su caché coincide con el comprobador',()=>{
  const app=readFileSync(path.join(root,'app.js'),'utf8');
  const worker=readFileSync(path.join(root,'sw.js'),'utf8');
- assert.match(app,/cuaderno-docente-static-v155-dev/);
- assert.match(worker,/cuaderno-docente-static-v155-dev/);
+ assert.match(app,/cuaderno-docente-static-v156-dev/);
+ assert.match(worker,/cuaderno-docente-static-v156-dev/);
  assert(worker.includes("'./src/student-link-ui.js'"));
 });
