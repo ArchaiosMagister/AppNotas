@@ -23,7 +23,9 @@ const checkSources=(doc,tutorship)=>tutorship.sources.map(s=>{
 /** Una sola relación desplegable: nunca se muestran dos inventarios de
  * sesiones (uno por materia y otro por tutoría) como ocurría antes. */
 export function renderSharedEvaluation(doc,year,ui,section='all',prefetchedCards=null){
- if(section==='sesiones')return renderEvaluationPeriodBoard(doc,year,prefetchedCards??undefined);
+ if(section==='sesiones')return renderEvaluationPeriodBoard(doc,year,prefetchedCards??undefined,{
+  showPast:doc.settings?.evaluationPastMode==='all',expandedPast:ui.evaluationPastExpanded||{}
+ });
  if(section==='notas')return ui.plannerEvaluationView?renderTutorViewer(doc,ui.plannerEvaluationView):'';
  const tutors=(doc.tutorships||[]).filter(t=>t.course===year.name);
  const suggestions=suggestStudentLinks(doc,year.name).slice(0,30);

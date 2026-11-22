@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialNotebook,addGroup,addStudent,assertModel} from '../src/model.js';
+import {initialNotebook,addGroup,addStudent,assertModel,setEvaluationPastMode} from '../src/model.js';
 import {activeYear,saveEvaluationSession} from '../src/planner.js';
 import {saveTutorship,saveTutorshipEvaluation,tutorshipLegacyEvents} from '../src/evaluation-groups.js';
 import {renderEvaluationPeriodBoard} from '../src/evaluation-period-board.js';
@@ -119,5 +119,53 @@ test('los datos de otras evaluaciones y las notas permanecen sin cambios al rend
  assert(third.includes('2027-05-20'));
  assert(third.includes('16:00–17:00'));
  assert.deepEqual(f.doc,before);
+ assertModel(f.doc);
+});
+
+test('sesión anterior a hoy se oculta en el historial, pero la de hoy permanece visible',()=>{
+ const f=fixture(),t=saveTutorship(f.doc,{name:'1.º BACH A',sources:[
+  {groupId:f.latin.id,originGroup:'A'},{groupId:f.greek.id,originGroup:'A'}]});
+ saveTutorshipEvaluation(f.doc,{tutorshipId:t.id,periodId:f.periods[0].id,
+  date:'2026-12-18',time:'15:30',endTime:'17:00'});
+ const before=structuredClone(f.doc);
+ const yesterday=renderEvaluationPeriodBoard(f.doc,f.year,undefined,{today:'2026-12-19'});
+ assert(yesterday.includes('Sesiones pasadas (1)'));
+ assert(yesterday.includes('data-eval-card-state="past"'));
+ assert(yesterday.includes('Editar sesión'));
+ assert(yesterday.includes('data-eval-tutor-session="'+t.id+'"'));
+ assert(yesterday.includes('Sin programar'),'No se archivan otros periodos sin convocatoria');
+ const sameDay=renderEvaluationPeriodBoard(f.doc,f.year,undefined,{today:'2026-12-18'});
+ assert(!sameDay.includes('Sesiones pasadas (1)'));
+ assert(sameDay.includes('data-eval-card-state="scheduled"'));
+ assert.deepEqual(f.doc,before,'La vista por fecha no escribe datos ni notas');
+});
+test('Mostrar siempre todas: se conserva la cita y se desactiva el acordeón',()=>{
+ const f=fixture(),t=saveTutorship(f.doc,{name:'1.º BACH A',sources:[
+  {groupId:f.latin.id,originGroup:'A'},{groupId:f.greek.id,originGroup:'A'}]});
+ saveTutorshipEvaluation(f.doc,{tutorshipId:t.id,periodId:f.periods[0].id,
+  date:'2026-12-18',time:'15:30'});
+ setEvaluationPastMode(f.doc,'all');
+ const html=renderEvaluationPeriodBoard(f.doc,f.year,undefined,{today:'2026-12-19',
+  showPast:f.doc.settings.evaluationPastMode==='all'});
+ assert(html.includes('data-eval-past-mode checked'));
+ assert(!html.includes('Sesiones pasadas (1)'));
+ assert(html.includes('data-eval-card-state="past"'));
+ assert(html.includes('Editar sesión'));
+ assertModel(f.doc);
+ assert.throws(()=>setEvaluationPastMode(f.doc,'erase'),/inválido/);
+});
+test('las convocatorias anteriores por unificar nunca se archivan automáticamente',()=>{
+ const f=fixture();
+ saveEvaluationSession(f.doc,{groupId:f.latin.id,originGroup:'A',periodId:f.periods[0].id,
+  date:'2026-12-18',time:'15:30'});
+ saveEvaluationSession(f.doc,{groupId:f.greek.id,originGroup:'A',periodId:f.periods[0].id,
+  date:'2026-12-18',time:'16:00'});
+ const tutor=saveTutorship(f.doc,{name:'1.º BACH A',sources:[
+  {groupId:f.latin.id,originGroup:'A'},{groupId:f.greek.id,originGroup:'A'}]});
+ const html=renderEvaluationPeriodBoard(f.doc,f.year,undefined,{today:'2026-12-22'});
+ assert(!html.includes('Sesiones pasadas (1)'));
+ assert(html.includes('Pendiente de revisar'));
+ assert(html.includes('Unificar convocatorias'));
+ assert(html.includes('2026-12-18'));
  assertModel(f.doc);
 });

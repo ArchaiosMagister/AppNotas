@@ -223,6 +223,38 @@ async function audit(engine,name){
     assert.equal(gradeSizing[key],'16px',name+' tipografía desigual en '+key+': '+JSON.stringify(gradeSizing));
    assert(parseFloat(gradeSizing.secondary)<16&&parseFloat(gradeSizing.original)<16,
     name+' los valores secundarios deben seguir siendo menores');
+   // Las celdas de actividades comparten el mismo inicio para la cifra.
+   // Los puntos suspensivos deben permanecer activos sin mover esa cifra.
+   const gradeRows=await page.evaluate(()=>{
+    const row=document.querySelector('.grade-table tbody tr:not(.student-origin-divider)');
+    const cells=row?[...row.querySelectorAll('td.category-tinted .grade-cell-stack')]:[];
+    return cells.map(cell=>{
+     const face=cell.querySelector('.grade-cell-face')?.getBoundingClientRect();
+     const actions=cell.querySelector('.grade-cell-actions-trigger')?.getBoundingClientRect();
+     const body=cell.getBoundingClientRect();
+     return {top:face?.top,height:face?.height,actions:!!actions,
+      actionBottom:actions?.bottom,bottom:body.bottom};
+    });
+   });
+   assert(gradeRows.length>=3,name+' las notas no usan la misma estructura: '+JSON.stringify(gradeRows));
+   assert(gradeRows.every(x=>x.actions&&Math.abs(x.top-gradeRows[0].top)<=2),
+    name+' cifras principales de distintas columnas desalineadas: '+JSON.stringify(gradeRows));
+   assert(gradeRows.every(x=>Math.abs(x.actionBottom-x.bottom)<=3),
+    name+' menú ⋯ desplaza el contenido: '+JSON.stringify(gradeRows));
+   if(size.width===390){
+    await page.locator('td.category-tinted .grade-cell-actions-trigger').first().click();
+    assert(await page.locator('.grade-cell-actions-dialog').isVisible(),
+     name+' menú ⋯ dejó de funcionar');
+    await page.locator('#grade-action-close').click();
+    // La configuración se encuentra dentro de «Configuración del grupo».
+    await page.locator('.notebook-grade-options>summary').click();
+    await page.locator('#configure-itaca-attitude').click();
+    assert(await page.locator('#itaca-attitude-form').isVisible(),
+     name+' no abre la configuración de actitud');
+    await page.locator('[name="guardMode"]').selectOption('category');
+    assert(await page.locator('[name="guardCategory"]').count()===1);
+    await page.locator('#itaca-guard-cancel').click();
+   }
    if(size.width<=650){
     const actions=await page.evaluate(()=>{
      const primary=[...document.querySelectorAll('.notebook-primary-actions>.btn')].map(n=>n.getBoundingClientRect());

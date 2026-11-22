@@ -3721,3 +3721,73 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   display:inline-flex;align-items:center;justify-content:center;
   min-height:44px;
 }
+
+/* v166 · Celdas con pista de nota y fila auxiliar estables.
+   El botón ⋯ se conserva, anclado sin mover las cifras hacia arriba. */
+.grade-table tbody td .grade-cell-stack{
+  position:relative;display:grid;grid-template-rows:54px minmax(27px,auto);
+  justify-items:center;align-items:center;gap:0;min-width:118px;
+  min-height:81px;padding:0 2px;
+}
+.grade-table tbody td .grade-cell-face{
+  display:flex;justify-content:center;align-items:center;
+  width:100%;min-height:54px;min-width:0;
+}
+.grade-table tbody td .grade-cell-face>.note-input{
+  min-height:41px;text-align:center;
+}
+.grade-table tbody td .grade-cell-face .rubric-grade-button,
+.grade-table tbody td .grade-cell-face .orthography-grade-button{
+  min-height:47px;max-width:100%;justify-content:center;
+  border-radius:9px;
+}
+.grade-table tbody td .grade-cell-support{
+  display:flex;align-items:center;justify-content:center;
+  min-height:27px;width:100%;padding-right:34px;
+  color:var(--muted);font-size:11px;
+}
+.grade-table tbody td .grade-cell-support:empty{visibility:hidden}
+.grade-table tbody td .grade-cell-support .orthography-meta{
+  font-size:10px;white-space:normal;line-height:1.3;
+}
+.grade-table tbody td .grade-cell-menu{
+  position:absolute;right:0;bottom:0;min-height:34px;
+  display:flex;align-items:center;justify-content:center;
+}
+.grade-table tbody td .grade-cell-menu .grade-cell-action-anchor{
+  margin:0;min-height:34px;vertical-align:initial;
+}
+.grade-table tbody td .grade-cell-menu .grade-cell-actions-trigger{
+  min-width:34px;min-height:34px;
+}
+.grade-table tbody td .original-score{font-size:11px}
+.grade-table tbody td .grade-cell-helper{
+  font-size:10px;color:var(--muted);text-align:center;
+}
+@media(max-width:650px){
+  .grade-table tbody td .grade-cell-stack{min-width:110px}
+}
+.itaca-attitude-dialog .modal-fields{margin-top:13px}
+.itaca-guard-details{display:grid;gap:12px}
+.itaca-guard-details label{display:grid;gap:6px}
+.itaca-guard-details select,.itaca-guard-details input{width:100%;min-width:0}
+.itaca-guard-indicator{
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:850;color:var(--danger);
+  border:1px solid var(--danger);border-radius:50%;
+  width:15px;height:15px;margin-left:3px;
+}
+.eval-past-mode{display:flex;gap:9px;align-items:center;flex-wrap:wrap;
+  padding:8px 12px;font-size:12px;font-weight:670;color:var(--ink);
+  background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.eval-past-mode input{width:18px;height:18px;accent-color:var(--accent)}
+.eval-past-archive{margin:13px 0 2px;padding:9px 12px;
+  border:1px solid var(--line);background:var(--raised);border-radius:10px}
+.eval-past-archive>summary{cursor:pointer;font-weight:750;font-size:13px;
+  min-height:44px;display:flex;align-items:center;color:var(--ink)}
+.eval-past-archive>.eval-period-cards{margin:10px 0 4px}
+.eval-period-small-card[data-eval-card-state="past"] .eval-period-status{
+  color:var(--muted);background:var(--raised);border-color:var(--line)}
+@media print{.grade-table tbody td .grade-cell-menu{display:none!important}
+ .eval-past-mode{display:none!important}
+ .eval-past-archive>.eval-period-cards{display:grid}}

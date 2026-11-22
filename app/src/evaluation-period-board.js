@@ -1,4 +1,5 @@
 import {sessionPresentation} from './evaluation-session-presentation.js';
+import {localToday} from './planner.js';
 import {tutorshipEvent,tutorshipLegacyEvents} from './evaluation-groups.js';
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
@@ -28,14 +29,15 @@ const legacyDetails=(doc,events)=>events.length?
 
 /** Una tarjeta por grupo/tutoría EN CADA evaluación. Solo presentación:
  * no se vinculan alumnos ni se decide qué convocatoria histórica prevalece. */
-function periodCard(doc,year,period,card){
+function periodCard(doc,year,period,card,today){
  const title=card.name,subtitle=subjects(card),t=card.tutorship;
  const intro='<div class="eval-period-card-head"><div class="eval-period-card-label"><strong>'+
   esc(title)+'</strong><small>'+esc(subtitle)+'</small></div></div>';
- let status='',details='',actions='',extra='';
+ let status='',details='',actions='',extra='',archived=false;
  if(t){
   const event=tutorshipEvent(doc,t.id,period.id);
   const previous=tutorshipLegacyEvents(doc,t.id,period.id);
+  archived=!!event&&event.date<today&&previous.length===0;
   status=previous.length?'Pendiente de revisar':event?'Programada':'Sin programar';
   details=previous.length&&!event?'<div class="eval-period-unscheduled">Sin convocatoria común</div>':eventDetails(event);
   if(previous.length){
@@ -69,6 +71,7 @@ function periodCard(doc,year,period,card){
    actions=button('Revisar tutoría','data-eval-switch-tab="tutorias"');
   }else{
    const source=pairs[0]?.source,event=pairs[0]?.events[0];
+   archived=!!event&&pairs[0].events.length===1&&event.date<today;
    status=event?'Programada':'Sin programar';details=eventDetails(event);
    const attrs='data-eval-group="'+esc(source.groupId)+'" data-eval-period="'+esc(period.id)+
     '" data-eval-origin="'+esc(source.originGroup)+'"';
@@ -78,30 +81,43 @@ function periodCard(doc,year,period,card){
    actions+=event?moreMenu(title,button('Calendario','data-export-event="'+esc(event.id)+'"')):'';
   }
  }
- const state=status==='Programada'?'scheduled':status==='Sin programar'?'unscheduled':'review';
- return '<article class="eval-period-small-card" data-eval-group-card="'+esc(card.id)+'" '+
+ if(archived)status='Pasada';
+ const state=archived?'past':status==='Programada'?'scheduled':status==='Sin programar'?'unscheduled':'review';
+ const html='<article class="eval-period-small-card" data-eval-group-card="'+esc(card.id)+'" '+
   'data-eval-card-status="'+esc(status)+'" data-eval-card-state="'+state+'">'+intro+
   '<span class="eval-period-status">'+esc(status)+'</span>'+details+extra+
   '<div class="eval-period-actions">'+actions+'</div></article>';
+ return {html,archived};
 }
 /** El orden académico determina las secciones: 1.ª, 2.ª, 3.ª evaluación.
  * Cada una muestra todas las tutorías elegibles sin duplicar materias confirmadas. */
-export function renderEvaluationPeriodBoard(doc,year,cards=sessionPresentation(doc,year)){
+export function renderEvaluationPeriodBoard(doc,year,cards=sessionPresentation(doc,year),{
+ today=localToday(),showPast=doc.settings?.evaluationPastMode==='all',expandedPast={}
+}={}){
  const periods=[...doc.periods].sort((a,b)=>a.order-b.order);
  const content=periods.map(period=>{
+  const entries=cards.map(card=>periodCard(doc,year,period,card,today));
+  const visible=showPast?entries:entries.filter(c=>!c.archived);
+  const past=showPast?[]:entries.filter(c=>c.archived);
   const events=year.events.filter(e=>e.type==='evaluation'&&e.periodId===period.id);
   return '<section class="eval-period-section" data-evaluation-section="'+esc(period.id)+'">'+
    '<div class="eval-period-section-head"><h3>'+esc(period.name)+'</h3><span>'+
    esc(cards.length+' '+(cards.length===1?'grupo':'grupos')+' · '+events.length+
     ' '+(events.length===1?'cita':'citas'))+'</span></div>'+
-   '<div class="eval-period-cards">'+cards.map(card=>periodCard(doc,year,period,card)).join('')+
+   '<div class="eval-period-cards">'+visible.map(entry=>entry.html).join('')+
    (cards.length?'':'<p class="hint">Todavía no hay grupos de este curso académico.</p>')+
-   '</div></section>';
+   '</div>'+
+   (past.length?'<details class="eval-past-archive" data-eval-past-period="'+esc(period.id)+'"'+
+    (expandedPast[period.id]?' open':'')+'><summary>Sesiones pasadas ('+past.length+')</summary>'+
+    '<div class="eval-period-cards">'+past.map(entry=>entry.html).join('')+'</div></details>':'')+
+   '</section>';
  }).join('');
  return '<div id="plan-evaluations" class="eval-period-board">'+
   '<p class="hint eval-period-intro">Las reuniones están organizadas por evaluación. '+
   'Programa o edita cada sesión desde su tarjeta. Los grupos con coincidencias pendientes '+
-  'conservan sus convocatorias individuales hasta que confirmes la tutoría.</p>'+content+
+  'conservan sus convocatorias individuales hasta que confirmes la tutoría.</p>'+
+  '<label class="eval-past-mode"><input type="checkbox" data-eval-past-mode'+
+  (showPast?' checked':'')+'> Mostrar siempre todas las sesiones, incluidas las pasadas</label>'+content+
   '</div>';
 }
 

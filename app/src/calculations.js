@@ -1,4 +1,4 @@
-import {effectiveCategories,recordedScore,individualCategoryRule,itacaGroupRule,itacaStudentRule} from './model.js';
+import {effectiveCategories,recordedScore,individualCategoryRule,itacaGroupRule,itacaStudentRule,itacaAttitudeCondition} from './model.js';
 /** Cálculos puros; las notas se expresan internamente en escala 0-10. */
 export const mean = values => values.length ? values.reduce((a,b)=>a+b,0)/values.length : null;
 export function normalizedScore(score,maxScore,convertToTen=true){return convertToTen?(score/maxScore)*10:score;}
@@ -88,6 +88,32 @@ export function overallGrade(doc,studentId,groupId,periodId) {
   const grade=weightedGrade(evaluated,e=>e.grade,e=>e.weight);
   return grade===null||!isTenGrade(grade)?null:grade;
 }
+/** Una condición activa nunca altera la media: solo permite o veta redondearla.
+ * Sin evidencias, AJ, rúbrica o criterio desaparecidos => no redondear.
+ * El requisito por criterio usa la escala BRUTA propia del criterio.
+ * El requisito por categoría usa la nota agregada 0–10 de Actitud. */
+export function itacaAttitudeBlock(doc,studentId,groupId,periodId){
+  const config=itacaAttitudeCondition(doc,groupId,periodId);
+  if(!config)return null;
+  const category=doc.categories.find(c=>c.id===config.categoryId);
+  const invalid='Falta la calificación o la configuración de Actitud requerida.';
+  if(!category)return invalid;
+  if(config.mode==='category'){
+    const grade=categoryGrade(doc,studentId,config.categoryId,groupId,periodId);
+    if(grade===null)return invalid;
+    return grade+1e-9<config.minScore
+      ?'La categoría Actitud no alcanza 5/10.':null;
+  }
+  const activity=doc.assessments.find(a=>a.id===config.assessmentId&&a.groupId===groupId&&
+    a.periodId===periodId&&a.categoryId===config.categoryId&&a.rubricId);
+  const criterion=doc.rubrics.find(r=>r.id===activity?.rubricId)?.criteria.find(c=>c.id===config.criterionId);
+  const grade=doc.grades.find(g=>g.studentId===studentId&&g.assessmentId===activity?.id);
+  if(!activity||!criterion||!grade||grade.pendingJustified||grade.notSubmitted)return invalid;
+  const score=grade.rubricRatings?.find(r=>r.criterionId===config.criterionId)?.score;
+  if(!Number.isFinite(score))return invalid;
+  return score+1e-9<config.minScore?
+    'El criterio '+criterion.name+' no alcanza '+config.minScore+'/'+criterion.maxScore+'.':null;
+}
 /** Nota Ítaca: solo aplica el redondeo a la media trimestral ya calculada.
  * «none» devuelve la media íntegra sin redondeo; la interfaz puede limitar decimales visuales.
  * Los valores nulos siguen sin calificarse (no se convierten en cero).
@@ -97,7 +123,7 @@ export function itacaGrade(doc,studentId,groupId,periodId){
   if(average===null)return null;
   const chosen=itacaStudentRule(doc,studentId,periodId);
   const rule=chosen==='general'?itacaGroupRule(doc,groupId):chosen;
-  if(rule==='none')return average;
+  if(rule==='none'||itacaAttitudeBlock(doc,studentId,groupId,periodId))return average;
   const base=Math.floor(average);
   const fraction=average-base;
   return Math.min(10,base+(fraction+1e-10>=(rule==='seven'?0.7:0.5)?1:0));

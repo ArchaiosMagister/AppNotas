@@ -1,6 +1,11 @@
 import {ATTITUDE_2BACH_CRITERIA} from './attitude-template.js';
 import {createPlanner,assertPlanner,weeklySlotCount} from './planner.js';
 export const SCHEMA_VERSION = 8;
+/** Solo una preferencia de visualización: nunca elimina ni modifica citas. */
+export function setEvaluationPastMode(doc,mode){
+  if(!['auto','all'].includes(mode))throw new Error('Modo de sesiones pasadas inválido.');
+  doc.settings.evaluationPastMode=mode;doc.updatedAt=now();return doc;
+}
 export const INDIVIDUAL_RULES = Object.freeze(['np_mean','mean','last']);
 /** Nota Ítaca: aplica únicamente a la salida trimestral, no modifica las medias. */
 export const ITACA_ROUNDING = Object.freeze(['half','seven','none']);
@@ -15,6 +20,38 @@ export function setItacaGroupRule(doc,groupId,rule){
   const group=doc.groups.find(g=>g.id===groupId);
   if(!group||!ITACA_ROUNDING.includes(rule))throw new Error('Regla general de Nota Ítaca inválida.');
   group.itacaRounding=rule;group.updatedAt=doc.updatedAt=now();return doc;
+}
+/** Condición de actitud por grupo y evaluación. Ausencia = redondeo sin restricción. */
+export const itacaAttitudeCondition=(doc,groupId,periodId)=>
+  doc.groups.find(g=>g.id===groupId)?.itacaAttitudeConditions?.[periodId]??null;
+const isAttitudeCategory=(doc,id)=>(
+  doc.categories.find(c=>c.id===id)?.name||''
+).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().startsWith('actitud');
+const validItacaAttitudeShape=condition=>!!condition&&typeof condition==='object'&&!Array.isArray(condition)&&
+  ['category','criterion'].includes(condition.mode)&&
+  typeof condition.categoryId==='string'&&!!condition.categoryId&&
+  Number.isFinite(condition.minScore)&&condition.minScore>=0&&condition.minScore<=1000&&
+  (condition.mode==='category'
+    ?condition.minScore===5&&condition.assessmentId===undefined&&condition.criterionId===undefined
+    :typeof condition.assessmentId==='string'&&!!condition.assessmentId&&
+      typeof condition.criterionId==='string'&&!!condition.criterionId);
+export function setItacaAttitudeCondition(doc,groupId,periodId,condition){
+  const group=doc.groups.find(g=>g.id===groupId);
+  if(!group||!doc.periods.some(p=>p.id===periodId))throw new Error('Grupo o evaluación de Ítaca inválidos.');
+  if(condition!==null){
+    if(!validItacaAttitudeShape(condition)||!categoryAvailableForGroup(doc,groupId,condition.categoryId)||
+      !isAttitudeCategory(doc,condition.categoryId))throw new Error('La condición debe usar una categoría Actitud válida.');
+    if(condition.mode==='criterion'){
+      const activity=doc.assessments.find(a=>a.id===condition.assessmentId&&
+        a.groupId===groupId&&a.periodId===periodId&&a.categoryId===condition.categoryId&&a.rubricId);
+      const criterion=doc.rubrics.find(r=>r.id===activity?.rubricId)?.criteria.find(c=>c.id===condition.criterionId);
+      if(!criterion||condition.minScore>criterion.maxScore)throw new Error('Criterio o umbral de actitud inválidos.');
+    }
+  }
+  const current={...(group.itacaAttitudeConditions||{})};
+  if(condition===null)delete current[periodId];else current[periodId]={...condition};
+  if(Object.keys(current).length)group.itacaAttitudeConditions=current;else delete group.itacaAttitudeConditions;
+  group.updatedAt=doc.updatedAt=now();return doc;
 }
 export function setItacaStudentRule(doc,studentId,periodId,rule){
   const student=doc.students.find(s=>s.id===studentId);
@@ -234,6 +271,11 @@ export function assertModel(doc) {
   if(!doc.groups.every(g=>g.weeklyHours===undefined||(Number.isInteger(g.weeklyHours)&&g.weeklyHours>=1&&g.weeklyHours<=30)))throw new Error('Horas semanales del grupo inválidas.');
   assertPlanner(doc);
   if(!doc.groups.every(g=>(g.itacaRounding===undefined||ITACA_ROUNDING.includes(g.itacaRounding))))throw new Error('Regla general de Nota Ítaca inválida.');
+  if(!doc.groups.every(g=>g.itacaAttitudeConditions===undefined||(
+    g.itacaAttitudeConditions&&typeof g.itacaAttitudeConditions==='object'&&!Array.isArray(g.itacaAttitudeConditions)&&
+    Object.entries(g.itacaAttitudeConditions).every(([periodId,condition])=>
+      doc.periods.some(p=>p.id===periodId)&&validItacaAttitudeShape(condition))
+  )))throw new Error('Condición de actitud de Ítaca inválida.');
   if(!doc.groups.every(g=>g.orthographyRefundable===undefined||typeof g.orthographyRefundable==='boolean'))throw new Error('Regla de devolución por faltas del grupo inválida.');
   if(!doc.students.every(s=>s.itacaRoundingOverrides===undefined||(
     s.itacaRoundingOverrides&&typeof s.itacaRoundingOverrides==='object'&&!Array.isArray(s.itacaRoundingOverrides)&&
@@ -252,6 +294,7 @@ export function assertModel(doc) {
  if(Object.entries(doc.settings.subjectAccents).some(([key,color])=>!subjectKeys.has(key)||!/^#[0-9A-Fa-f]{6}$/.test(color))||
     custom.some(x=>!/^#[0-9A-Fa-f]{6}$/.test(doc.settings.subjectAccents[subjectKey(x.level,x.subject)]??'')))
   throw new Error('Colores de asignatura inválidos.');
+  if(doc.settings?.evaluationPastMode!==undefined&&!['auto','all'].includes(doc.settings.evaluationPastMode))throw new Error('Modo de sesiones pasadas inválido.');
   if(!doc.settings || !Number.isInteger(doc.settings.decimals) || doc.settings.decimals<0 || doc.settings.decimals>3 || !['half-up','floor','ceil'].includes(doc.settings.rounding))throw new Error('Configuración de redondeo inválida.');
   const od=doc.settings.orthographyDefaults;
   if(!od||typeof od.enabledForExams!=='boolean'||!validOrthographyConfig({...od,enabled:true}))throw new Error('Preferencias ortográficas inválidas.');

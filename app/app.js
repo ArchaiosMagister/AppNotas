@@ -1,5 +1,5 @@
-import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,catalogForNotebook,addNotebookSubject,removeNotebookSubject,defaultSubjectAccent,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,setGroupWeeklyHours,setStudentOriginGroups,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
-import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,competencyArithmeticMean,gradeToFour,competencyAcquisitionLevel,competencyAcquisitionLabel,COMPETENCY_ACQUISITION_LABELS,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,itacaGrade} from './src/calculations.js';
+import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,catalogForNotebook,addNotebookSubject,removeNotebookSubject,defaultSubjectAccent,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,setGroupWeeklyHours,setStudentOriginGroups,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setItacaAttitudeCondition,itacaAttitudeCondition,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
+import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,competencyArithmeticMean,gradeToFour,competencyAcquisitionLevel,competencyAcquisitionLabel,COMPETENCY_ACQUISITION_LABELS,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,itacaGrade,itacaAttitudeBlock} from './src/calculations.js';
 import {studentsFromCsv} from './src/csv.js';
 import {parseRubricText} from './src/rubric-import.js';
 import {parseRubricFile} from './src/rubric-xlsx.js';
@@ -211,8 +211,10 @@ function itacaChip(doc,studentId,groupId,periodId){
   if(score===null)return '<span class="grade-empty">—</span>';
   const specific=itacaStudentRule(doc,studentId,periodId);
   const rule=specific==='general'?itacaGroupRule(doc,groupId):specific;
-  const shown=rule==='none'?score.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}):String(score);
-  return `<span class="grade-chip"${gradeStyle(score)}>${esc(shown)}</span>`;
+  const normal=rule==='none'?score.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}):String(score);
+  const blocked=itacaAttitudeBlock(doc,studentId,groupId,periodId);
+  const shown=blocked?score.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}):normal;
+  return `<span class="grade-chip"${gradeStyle(score)}${blocked?' title="'+esc('Sin redondeo: '+blocked)+'"':''}>${esc(shown)}</span>${blocked?'<span class="itaca-guard-indicator" title="'+esc(blocked)+'" aria-label="Redondeo de Ítaca anulado por actitud">!</span>':''}`;
 }
 
 // Indicadores visibles únicamente en las vistas docentes, nunca en el modo alumno.
@@ -1015,6 +1017,12 @@ function renderNotebook(){
       ${state?'<span class="visually-hidden">Estado: '+state+'</span>':''}
     </span>`;
   };
+  // Una misma pista superior para todas las notas; el menú ⋯ permanece
+  // disponible, anclado abajo a la derecha sin empujar la cifra hacia arriba.
+  const gradeCellStack=(main,actions,secondary='')=>`<div class="grade-cell-stack">
+    <div class="grade-cell-face">${main}</div>
+    <div class="grade-cell-support">${secondary}</div>
+    <div class="grade-cell-menu">${actions}</div></div>`;
   const gradesByStudent=new Map();
   for(const grade of STATE.doc.grades){
     if(!visibleIds.has(grade.assessmentId))continue;
@@ -1034,24 +1042,37 @@ function renderNotebook(){
     // Indicador independiente del control NP; el botón original de la
     // calificación sigue abriendo su editor, sin cambiar el valor registrado.
     const npGradeMarker='<span class="np-grade-marker" aria-label="No presentado">NP</span>';
-    if(a.rubricId){const score=g?recordedScore(STATE.doc,a,g):null;
-      return `<td${categoryCell(a)}><div class="grade-entry rubric-grade-entry"><button class="rubric-grade-button" type="button" data-rubric-grade="${esc(a.id)}" data-rubric-student="${esc(s.id)}" aria-label="Evaluar ${esc(s.name)} en ${esc(a.name)} con rúbrica">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?npGradeMarker:g?gradeChip(score):'Evaluar'}<small>${g?.notSubmitted?'Pulsar para editar':'/10'}</small></button></div>${gradeCellActions(s,a,g,npButton,ajButton)}</td>`;
+    if(a.rubricId){
+      const score=g?recordedScore(STATE.doc,a,g):null;
+      const main=`<button class="rubric-grade-button" type="button" data-rubric-grade="${esc(a.id)}" data-rubric-student="${esc(s.id)}"
+        aria-label="Evaluar ${esc(s.name)} en ${esc(a.name)} con rúbrica">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?npGradeMarker:g?gradeChip(score):'Evaluar'}</button>`;
+      const secondary=g?.notSubmitted?'<small class="grade-cell-helper">Pulsar para editar</small>':'';
+      return `<td${categoryCell(a)}>${gradeCellStack(main,gradeCellActions(s,a,g,npButton,ajButton),secondary)}</td>`;
     }
     if(a.orthography?.enabled){
       const value=g?effectiveAssessmentScore(STATE.doc,a,g):null;
       const faults=g?.orthographyFaults??0;
       const amount=g?orthographyPenalty(a,g):0;
       const note=g?`<small class="orthography-meta">Original: ${esc(rawFmt(g.score))}/${esc(rawFmt(a.maxScore))}${faults?` · ${g.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(amount))} (${faults} faltas)`}`:''}</small>`:'<small class="orthography-meta">Nota, faltas y entrega</small>';
-      return `<td${categoryCell(a)}><button class="orthography-grade-button" type="button" data-orthography-grade="${esc(a.id)}" data-orthography-student="${esc(s.id)}" aria-label="Corregir ${esc(s.name)} en ${esc(a.name)}: nota, faltas y entrega">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?`${npGradeMarker}<small class="np-edit-hint">Pulsar para editar</small>`:g?gradeChip(value):'<strong>+ Nota</strong>'}${g?.notSubmitted||g?.pendingJustified?'':note}</button>${gradeCellActions(s,a,g,npButton,ajButton)}</td>`;
+      const main=`<button class="orthography-grade-button" type="button" data-orthography-grade="${esc(a.id)}" data-orthography-student="${esc(s.id)}"
+        aria-label="Corregir ${esc(s.name)} en ${esc(a.name)}: nota, faltas y entrega">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?npGradeMarker:g?gradeChip(value):'<strong>+ Nota</strong>'}</button>`;
+      const secondary=g?.notSubmitted?'<small class="np-edit-hint">Pulsar para editar</small>':g?.pendingJustified?'':note;
+      return `<td${categoryCell(a)}>${gradeCellStack(main,gradeCellActions(s,a,g,npButton,ajButton),secondary)}</td>`;
     }
     const isTenScale=a.maxScore===10||a.convertToTen;
     const converted=g&&!g.notSubmitted&&!g.pendingJustified&&isTenScale?normalizedScore(g.score,a.maxScore,a.convertToTen):null;
     const showConverted=g&&!g.notSubmitted&&!g.pendingJustified&&a.convertToTen&&a.maxScore!==10;
-    return `<td${categoryCell(a)}><div class="grade-entry ${showConverted?'converted-entry':''}">${showConverted?`<button type="button" class="converted-primary" data-focus-original="${esc(a.id)}:${esc(s.id)}" aria-label="Nota sobre diez: ${esc(gradeFmt(converted))}; editar nota original">${gradeChip(converted)}</button><small class="original-score">(<input class="note-input original-note-input" type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota original de ${esc(s.name)} en ${esc(a.name)}, sobre ${esc(rawFmt(a.maxScore))}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${esc(rawFmt(g.score))}"/> /${esc(rawFmt(a.maxScore))})</small>`:`<input class="note-input ${g?.notSubmitted?'np-grade-input':converted!==null?'grade-colored':''}" ${converted!==null?gradeStyle(converted):''} type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota de ${esc(s.name)} en ${esc(a.name)}" placeholder="${g?.pendingJustified?'AJ':g?.notSubmitted?'NP':'—'}" title="${g?.notSubmitted?'NP · No presentado. Escribe una nota para sustituirlo.':''}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${g&&!g.notSubmitted&&!g.pendingJustified?esc(rawFmt(g.score)):''}"/>`}</div>${gradeCellActions(s,a,g,npButton,ajButton)}</td>`;
+    const main=showConverted
+      ?`<button type="button" class="converted-primary" data-focus-original="${esc(a.id)}:${esc(s.id)}" aria-label="Nota sobre diez: ${esc(gradeFmt(converted))}; editar nota original">${gradeChip(converted)}</button>`
+      :`<input class="note-input ${g?.notSubmitted?'np-grade-input':converted!==null?'grade-colored':''}" ${converted!==null?gradeStyle(converted):''} type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota de ${esc(s.name)} en ${esc(a.name)}" placeholder="${g?.pendingJustified?'AJ':g?.notSubmitted?'NP':'—'}" title="${g?.notSubmitted?'NP · No presentado. Escribe una nota para sustituirlo.':''}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${g&&!g.notSubmitted&&!g.pendingJustified?esc(rawFmt(g.score)):''}"/>`;
+    const secondary=showConverted
+      ?`<small class="original-score">(<input class="note-input original-note-input" type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota original de ${esc(s.name)} en ${esc(a.name)}, sobre ${esc(rawFmt(a.maxScore))}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${esc(rawFmt(g.score))}"/> /${esc(rawFmt(a.maxScore))})</small>`
+      :'';
+    return `<td${categoryCell(a)}>${gradeCellStack(main,gradeCellActions(s,a,g,npButton,ajButton),secondary)}</td>`;
   }).join('')}<td class="final-col"><button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip(overallGrade(STATE.doc,s.id,STATE.groupId,STATE.periodId))}</button></td><td class="itaca-col"><button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc,s.id,STATE.groupId,STATE.periodId)}${itacaStudentRule(STATE.doc,s.id,STATE.periodId)!=='general'?'<span class="itaca-exception" title="Excepción individual">*</span>':''}</button></td></tr>`).join('');
   const sum=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).reduce((s,c)=>s+c.weight,0);
   const problems=students.flatMap(st=>periodCalculationWarnings(STATE.doc,st.id,STATE.groupId,STATE.periodId)).filter(v=>v.includes('sin conversión'));
-  return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><strong>Calificaciones</strong><p>Introduce notas directamente. Pulsa «⋯» en una celda para NP, AJ y observaciones; «⋯» en una columna para configurarla.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><details class="notebook-more-actions"><summary>Más acciones <span aria-hidden="true">⌄</span></summary><div class="notebook-more-panel"><button class="btn" id="copy-structure">⇉ Copiar actividades</button><button class="btn" id="schedule-exam">▣ Programar examen</button></div></details></div></div><div class="student-order-bar">${studentSortControls()}</div><details class="notebook-grade-options"><summary>Configuración del grupo <span aria-hidden="true">⌄</span></summary><div class="notebook-grade-options-body"><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div></div></details><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col">Nota Ítaca <small>/10 · clic para excepción</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><details class="legend notebook-legend"><summary>ⓘ Significado de las notas y colores</summary><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></details>`;
+  return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><strong>Calificaciones</strong><p>Introduce notas directamente. Pulsa «⋯» en una celda para NP, AJ y observaciones; «⋯» en una columna para configurarla.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><details class="notebook-more-actions"><summary>Más acciones <span aria-hidden="true">⌄</span></summary><div class="notebook-more-panel"><button class="btn" id="copy-structure">⇉ Copiar actividades</button><button class="btn" id="schedule-exam">▣ Programar examen</button></div></details></div></div><div class="student-order-bar">${studentSortControls()}</div><details class="notebook-grade-options"><summary>Configuración del grupo <span aria-hidden="true">⌄</span></summary><div class="notebook-grade-options-body"><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small><button type="button" class="btn small" id="configure-itaca-attitude">Condición de actitud: ${itacaAttitudeCondition(STATE.doc,STATE.groupId,STATE.periodId)?'Activada':'Desactivada'}</button><small>Configurable para ${esc(currentPeriod().name)}; anula el redondeo, no modifica las notas.</small></div></div></details><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col">Nota Ítaca <small>/10 · clic para excepción</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><details class="legend notebook-legend"><summary>ⓘ Significado de las notas y colores</summary><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></details>`;
 }
 const ITACA_OPTIONS=[['half','Redondear desde ,5'],['seven','Redondear desde ,7'],['none','No redondear']];
 const RULE_LABELS={mean:'Media aritmética',weighted_mean:'Media ponderada por actividad',highest:'Mejor nota',best_n:'Media de las N mejores',last:'Última evaluada',latest_if_highest:'Última si iguala o supera la mejor; si no, media'};
@@ -1873,6 +1894,90 @@ function openAssessmentTools(id){
   };
   dialog.showModal();
 }
+/** Las condiciones de actitud se aplican por grupo y evaluación, nunca a la media. */
+function openItacaAttitudeCondition(){
+ const groupId=STATE.groupId,periodId=STATE.periodId,doc=STATE.doc;
+ const eligible=effectiveCategories(doc,groupId,periodId).filter(c=>
+  c.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().startsWith('actitud'));
+ if(!eligible.length){
+  toast('Primero debes disponer de una categoría Actitud para este grupo.');return;
+ }
+ const candidateIds=new Set(eligible.map(c=>c.id));
+ const activities=doc.assessments.filter(a=>a.groupId===groupId&&a.periodId===periodId&&
+  candidateIds.has(a.categoryId)&&a.rubricId&&doc.rubrics.some(r=>r.id===a.rubricId));
+ const current=itacaAttitudeCondition(doc,groupId,periodId);
+ dialog.innerHTML=`<form class="modal-inner itaca-attitude-dialog" id="itaca-attitude-form">
+ <h2 id="modal-heading">Condición de actitud · Nota Ítaca</h2>
+ <p class="subtitle">${esc(currentPeriod().name)} · ${esc(currentGroup().name)}. Si no se cumple el requisito, Ítaca mostrará la media íntegra con dos decimales, sin subir ni bajar al entero. Las notas originales no cambian.</p>
+ <div class="modal-fields">
+ <label>Aplicar redondeo solo cuando<select name="guardMode">
+ <option value="none"${!current?' selected':''}>Sin condición (comportamiento anterior)</option>
+ <option value="category"${current?.mode==='category'?' selected':''}>La nota de Actitud esté aprobada (5/10)</option>
+ <option value="criterion"${current?.mode==='criterion'?' selected':''}${activities.length?'':' disabled'}>Un criterio de la rúbrica alcance el mínimo</option>
+ </select></label>
+ <div class="itaca-guard-details" id="itaca-guard-details"></div>
+ <p class="hint">La condición se evalúa para cada alumno. Si falta la nota necesaria o está marcada como AJ, no se aplica el redondeo hasta completarla. Las excepciones individuales siguen disponibles, pero no eluden esta condición.</p>
+ </div>
+ <div class="modal-error" role="alert"></div>
+ <div class="modal-actions"><button type="button" class="btn" id="itaca-guard-cancel">Cancelar</button><button type="submit" class="btn primary">Guardar condición</button></div>
+ </form>`;
+ const form=$('#itaca-attitude-form',dialog),details=$('#itaca-guard-details',form);
+ const categoryOptions=selected=>eligible.map(c=>opt(c.id,c.name,selected)).join('');
+ const rubricOf=activity=>doc.rubrics.find(r=>r.id===activity.rubricId);
+ const renderCriteria=(activityId,wantedCriterion=null,wantedMin=null)=>{
+  const activity=activities.find(a=>a.id===activityId)||activities[0];
+  const criteria=activity?rubricOf(activity).criteria:[];
+  const criterion=criteria.find(c=>c.id===wantedCriterion)||criteria[0];
+  const score=wantedMin!==null&&wantedMin!==undefined&&
+   Number.isFinite(Number(wantedMin))&&Number(wantedMin)<=criterion.maxScore
+    ?wantedMin:Math.round(criterion.maxScore*50)/100;
+  $('#itaca-guard-criterion-fields',form).innerHTML=
+   `<label>Criterio de la rúbrica<select name="guardCriterion">${criteria.map(c=>opt(c.id,c.name,criterion.id)).join('')}</select></label>
+   <label>Puntuación mínima (sobre ${esc(criterion.maxScore)})<input name="guardMin" type="number" inputmode="decimal" min="0" max="${esc(criterion.maxScore)}" step="0.01" value="${esc(score)}" required></label>`;
+  form.elements.guardCriterion.onchange=()=>{
+   const next=criteria.find(c=>c.id===form.elements.guardCriterion.value);
+   if(next)renderCriteria(activity.id,next.id,Math.round(next.maxScore*50)/100);
+  };
+ };
+ const renderMode=()=>{
+  const mode=form.elements.guardMode.value;
+  if(mode==='none'){details.innerHTML='';return;}
+  if(mode==='category'){
+   details.innerHTML=`<label>Categoría de actitud<select name="guardCategory">${categoryOptions(current?.categoryId||eligible[0].id)}</select></label>`;
+   return;
+  }
+  const selected=activities.find(a=>a.id===current?.assessmentId)||activities[0];
+  details.innerHTML=`<label>Actividad con rúbrica de Actitud<select name="guardAssessment">
+   ${activities.map(a=>opt(a.id,a.name,selected.id)).join('')}</select></label>
+   <div id="itaca-guard-criterion-fields"></div>`;
+  renderCriteria(selected.id,current?.criterionId,current?.minScore);
+  form.elements.guardAssessment.onchange=()=>renderCriteria(form.elements.guardAssessment.value);
+ };
+ form.elements.guardMode.onchange=renderMode;
+ renderMode();
+ $('#itaca-guard-cancel',form).onclick=()=>dialog.close();
+ form.onsubmit=async event=>{
+  event.preventDefault();
+  const mode=form.elements.guardMode.value;
+  let condition=null;
+  try{
+   if(mode==='category'){
+    condition={mode,categoryId:form.elements.guardCategory.value,minScore:5};
+   }else if(mode==='criterion'){
+    const assessment=activities.find(a=>a.id===form.elements.guardAssessment.value);
+    const rubric=rubricOf(assessment);
+    const criterion=rubric?.criteria.find(c=>c.id===form.elements.guardCriterion.value);
+    const minScore=parseScore(form.elements.guardMin.value);
+    if(!criterion||minScore>criterion.maxScore)throw new Error('La nota mínima supera el máximo del criterio.');
+    condition={mode,categoryId:assessment.categoryId,assessmentId:assessment.id,
+     criterionId:criterion.id,minScore};
+   }
+   await commit(d=>setItacaAttitudeCondition(d,groupId,periodId,condition),'Condición de actitud en Nota Ítaca');
+   if(dialog.open)dialog.close();
+  }catch(error){fail(error);}
+ };
+ dialog.showModal();
+}
 function openItacaStudentRule(studentId){
   const student=STATE.doc.students.find(s=>s.id===studentId&&s.groupId===STATE.groupId);
   if(!student)return;
@@ -1932,6 +2037,7 @@ function openGradeCellActions(studentId,assessmentId){
 }
 function bindNotebook(){
   $('#manage-origin-groups')?.addEventListener('click',openOriginGroupsManager);
+  $('#configure-itaca-attitude')?.addEventListener('click',openItacaAttitudeCondition);
   $('#itaca-general-rule')?.addEventListener('change',e=>{
     const groupId=STATE.groupId;
     commit(doc=>setItacaGroupRule(doc,groupId,e.target.value),'Redondeo general Nota Ítaca').catch(fail);
@@ -2181,7 +2287,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v165-dev');
+      const cache=await caches.open('cuaderno-docente-static-v166-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
