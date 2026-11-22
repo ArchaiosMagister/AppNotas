@@ -2826,3 +2826,66 @@ html[data-theme="oled"] .academic-quick-nav .btn{background:#000!important;color
   .academic-quick-nav{gap:6px;padding:8px}
   .academic-quick-nav .btn{flex:1 1 auto;min-width:85px;font-size:12px}
 }
+
+
+/* v1.1 — Horarios alternativos, exportaciones y consulta competencial. */
+.planner-summer-switch{
+ display:inline-flex;align-items:center;gap:10px;cursor:pointer;
+ padding:9px 12px;border:1px solid var(--line);border-radius:12px;
+ background:var(--raised);color:var(--ink);font-weight:850;font-size:13px;
+ white-space:nowrap;
+}
+.planner-summer-switch input{
+ appearance:none;-webkit-appearance:none;width:44px;height:25px;
+ border:2px solid var(--line);border-radius:999px;background:var(--muted);
+ display:inline-flex;align-items:center;position:relative;cursor:pointer;
+ transition:background .15s,border-color .15s;flex:none;
+}
+.planner-summer-switch input::before{
+ content:"";width:17px;height:17px;border-radius:50%;background:#fff;
+ position:absolute;left:2px;top:2px;transition:transform .15s;
+ box-shadow:0 1px 3px #0004;
+}
+.planner-summer-switch input:checked{background:var(--accent);border-color:var(--accent)}
+.planner-summer-switch input:checked::before{transform:translateX(19px)}
+.planner-summer-switch input:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.planner-export-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.planner-export-actions .btn{min-height:42px;font-weight:800}
+.planner-export-actions .planner-word-action{background:#e6f0ff;color:#164b95;border:1px solid #70a8f2}
+.planner-export-actions .planner-pdf-action{background:#fff0ee;color:#a12727;border:1px solid #e28b82}
+.planner-export-actions .planner-word-action:hover,.planner-export-actions .planner-word-action:focus-visible{background:#cfe2ff}
+.planner-export-actions .planner-pdf-action:hover,.planner-export-actions .planner-pdf-action:focus-visible{background:#ffe0db}
+.planner-overlap-warning{display:block;color:#a13724;font-size:11px;font-weight:800;line-height:1.4}
+.competency-view .comp-table th.competency-mean-heading{min-width:175px}
+.competency-mean-values{align-items:center;gap:6px;min-width:120px}
+.competency-mean-values .competency-level-badge{
+ min-width:105px;min-height:38px;padding:5px 8px;
+}
+.competency-mean-values .competency-level-badge strong{font-size:20px}
+.competency-mean-values .competency-mean-source{
+ color:var(--muted);font-size:11px;font-weight:750;text-align:center;
+ padding:0;white-space:normal;
+}
+.comp-linked-criteria{
+ margin-top:15px;padding:14px;border:1px solid var(--line);border-radius:11px;
+ background:var(--raised);line-height:1.5;
+}
+.comp-linked-criteria h4{font-size:14px;margin:0 0 10px;color:var(--ink)}
+.comp-linked-criteria ol{margin:0;padding-left:22px;display:grid;gap:10px}
+.comp-linked-criteria li{font-size:13px;overflow-wrap:anywhere}
+.comp-linked-criteria li strong{color:var(--accent-text)}
+.comp-linked-criteria a{color:var(--accent-text);font-size:12px}
+html[data-theme="dark"] .planner-word-action,html[data-theme="oled"] .planner-word-action{background:#09223e;color:#9bc6ff;border-color:#4c7dbd}
+html[data-theme="dark"] .planner-pdf-action,html[data-theme="oled"] .planner-pdf-action{background:#3e1415;color:#ffd3ce;border-color:#bf655b}
+html[data-theme="oled"] .planner-summer-switch,html[data-theme="oled"] .comp-linked-criteria{background:#000;color:#fff}
+@media(max-width:640px){
+ .planner-timetable-tools{align-items:stretch;flex-direction:column}
+ .planner-export-actions{width:100%;gap:7px}
+ .planner-export-actions .btn{flex:1 1 110px}
+ .planner-summer-switch{justify-content:center}
+ .competency-mean-values{min-width:108px}
+}
+@media print{
+ body:has(.planner-timetable) .planner-timetable-tools,
+ body:has(.planner-timetable) .planner-export-actions{display:none!important}
+}
