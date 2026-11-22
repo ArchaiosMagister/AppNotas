@@ -5,6 +5,8 @@ import {initialNotebook,assertModel} from '../src/model.js';
 import {categoryGrade,overallGrade,finalGrade} from '../src/calculations.js';
 
 const read=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
+const v141=css=>css.slice(css.indexOf('/* v141 · Centrado horizontal'),css.indexOf('/* v142 · Capas coherentes'));
+
 
 test('las tarjetas del directorio de alumnos se centran sin cambiar sus anchuras',async()=>{
   const css=await read('styles.css'),start=css.indexOf('/* v141 · Centrado horizontal');
@@ -18,7 +20,7 @@ test('las tarjetas del directorio de alumnos se centran sin cambiar sus anchuras
 });
 
 test('fichas y evaluaciones del alumno quedan centradas, pero sus textos a la izquierda',async()=>{
-  const css=await read('styles.css'),patch=css.slice(css.indexOf('/* v141 · Centrado horizontal'));
+  const css=await read('styles.css'),patch=v141(css);
   assert.match(patch,/\.student-privacy,\s*details\.student-period,\s*\.student-final-summary\s*\{\s*margin-inline:auto;/);
   assert.match(patch,/\.student-period \.student-category\.student-category-tinted\s*\{\s*margin:10px auto;/);
   assert.match(patch,/\.student-period \.student-assessment-block\.student-category-tinted\s*\{\s*margin:5px auto;/);
@@ -33,7 +35,7 @@ test('fichas y evaluaciones del alumno quedan centradas, pero sus textos a la iz
 });
 
 test('Safari móvil conserva ancho adaptable, sin recortar notas ni ocultar controles',async()=>{
-  const css=await read('styles.css'),patch=css.slice(css.indexOf('/* v141 · Centrado horizontal'));
+  const css=await read('styles.css'),patch=v141(css);
   assert.match(patch,/@media\(max-width:540px\)/);
   assert.match(patch,/max-width:100%/);
   assert(!patch.includes('overflow:hidden'));
