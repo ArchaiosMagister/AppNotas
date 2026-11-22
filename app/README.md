@@ -1,3 +1,15 @@
+## Pulido minimalista de la interfaz (PWA v162)
+
+Después de la reorganización A–A–A de v161, esta revisión **no toca las calificaciones ni los algoritmos** y concentra el refinamiento en el espacio disponible:
+
+- **Materias:** los botones de Latín y Griego siguen siendo visibles y accesibles a un toque. Ahora forman una tira de fichas pequeñas en una fila, desplazable horizontalmente en pantallas estrechas con puntos de parada y foco de teclado. Conservan acento propio, estado seleccionado y controles originales.
+- **Grupos:** con uno se usa el encabezado existente; con dos permanecen los botones rápidos; desde **tres grupos** aparece un selector compacto con nombre del grupo y curso escolar para desambiguar nombres repetidos. Cambia solo el grupo visual y la versión competencial de referencia, sin escribir en el cuaderno.
+- **Cabeceras:** Agenda y Evaluaciones ya muestran su propio título y prescinden del segundo título global; la identificación de guardado cifrado, bloqueo y restauración sigue en la barra superior. Cuaderno conserva grupo/materia y una descripción más breve.
+- **Densidad:** se afinan los espacios, se reduce la altura de los botones y de las cabeceras internas y se convierten los tres indicadores de Evaluaciones en un resumen horizontal compacto. Compatible con claro, oscuro, OLED, móvil, iPad e impresión.
+- **Pruebas:** nuevos casos de 0/1/2/3 grupos, nombres escapados, selección sin mutaciones, notas intactas, foco accesible y encabezados no duplicados. Pruebas generales de cifrado, cálculos y alojamiento en Cloudflare.
+
+No se modifica ningún formato de archivo ni la forma de calcular, registrar o recuperar notas.
+
 ## Primera fase de rediseño minimalista (v161)
 
 **Arquitectura de navegación.** Solo tres secciones diarias: **Cuaderno**, **Agenda** y **Evaluaciones**; bajo **Herramientas** quedan Currículo, Rúbricas y Ajustes/copia. El cuaderno conserva sus cinco vistas en una navegación secundaria de un toque: Notas, Cálculos, Competencias, Final y Vista alumno. Las pantallas, indicadores y cálculos no se han fusionado ni suprimido. La vista privada del alumno mantiene sus restricciones visuales.
