@@ -16,8 +16,10 @@ test('v1.0 estable: etiquetas, descripción y versión sin avisos experimentales
 });
 test('v1.0 estable: cache PWA renueva versión para garantizar contenido fresco',()=>{
  const app=load('app.js'),sw=load('sw.js');
- assert(app.includes("caches.open('cuaderno-docente-static-v150-dev')"));
- assert(sw.includes("const CACHE='cuaderno-docente-static-v150-dev'"));
+ const current=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/);
+  assert(current&&Number(current[2])>=150,'La nueva caché no puede retroceder de v150');
+  assert(app.includes(`caches.open('${current[1]}')`),'La UI y el service worker deben usar la misma caché');
+ 
  assert(!sw.includes('indexedDB.deleteDatabase'));
  assert(!app.includes('indexedDB.deleteDatabase'));
 });

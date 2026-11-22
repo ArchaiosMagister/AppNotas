@@ -58,8 +58,8 @@ test('color elegido para clase prevalece sobre acento y Word/PDF usan la misma f
  assert.equal(plannerSlotColor(slot),'#124E37');
  assert.equal(timetableRows(d,y)[0].cells[0].slots[0].color,'#124E37');
  const html=renderTimetableGrid(d,y);
- assert(html.includes('--planner-color:#124E37'));
- assert(!html.includes('--planner-color:#FF0000'));
+ assert(html.includes('data-planner-color="#124E37"'));
+ assert(!html.includes('data-planner-color="#FF0000"'));
  assertModel(d);
 });
 

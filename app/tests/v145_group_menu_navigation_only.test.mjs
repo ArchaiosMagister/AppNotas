@@ -54,8 +54,10 @@ test('los botones son accesibles en iPad, móvil, oscuro y OLED',()=>{
 });
 test('caché PWA renovada y sincronizada: no se modifica IndexedDB',()=>{
   const app=read('app.js'),sw=read('sw.js');
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v150-dev'"));
-  assert(app.includes("caches.open('cuaderno-docente-static-v150-dev')"));
+  
+  const current=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/);
+  assert(current&&Number(current[2])>=150,'La nueva caché no puede retroceder de v150');
+  assert(app.includes(`caches.open('${current[1]}')`),'La UI y el service worker deben usar la misma caché');
   assert(!app.includes('indexedDB.deleteDatabase'));
   assert(!sw.includes('indexedDB.deleteDatabase'));
 });

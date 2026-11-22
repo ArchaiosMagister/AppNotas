@@ -14,7 +14,16 @@ const pickGroup=(doc,y)=>[...doc.groups].sort((a,b)=>Number(b.course===y.name)-N
 const action=(txt,attrs,cls='btn small')=>`<button type="button" class="${cls}" ${attrs}>${txt}</button>`;
 const isColor=value=>typeof value==='string'&&/^#[0-9A-Fa-f]{6}$/.test(value);
 const slotColor=(_doc,slot)=>plannerSlotColor(slot);
-const slotStyle=(doc,s)=>'style="--planner-color:'+esc(slotColor(doc,s))+'"';
+const slotStyle=(doc,s)=>'data-planner-color="'+esc(slotColor(doc,s))+'"';
+/** La CSP no permite style="..." en HTML; aplicar colores guardados con CSSOM.
+ * El valor debe ser un hexadecimal validado, nunca CSS proporcionado por texto libre. */
+export function applyPlannerColors(root){
+ if(!root)return;
+ for(const node of root.querySelectorAll('[data-planner-color]')){
+  const color=node.dataset.plannerColor;
+  if(isColor(color))node.style.setProperty('--planner-color',color.toUpperCase());
+ }
+}
 /** Horario con filas fijas editables y celdas táctiles por día. Si existen
  * sesiones anteriores sin franja, se siguen mostrando por separado. */
 export function renderTimetableGrid(doc,y){
@@ -40,7 +49,7 @@ export function renderTimetableGrid(doc,y){
  return `<div class="planner-timetable-tools"><label class="planner-summer-switch"><input type="checkbox" id="plan-summer-toggle" role="switch" ${activeScheduleMode(y)==='summer'?'checked':''}/><span>Horario de verano</span></label><p class="hint">En verano: siete clases de 45 minutos, primer patio de 30 minutos y salida a las 13:45, sin segundo patio. Ambos horarios se conservan por separado. Toca una casilla para asignar una sola clase o actividad; pulsa la existente para editarla.</p><div class="planner-export-actions">${action('Word · horario','id="plan-export-word"','btn small planner-word-action')}${action('PDF · horario','id="plan-export-pdf"','btn small planner-pdf-action')}${action('+ Añadir franja','id="plan-add-band"')}</div></div>
  ${limits?'<div class="planner-weekly-limits" aria-label="Horas semanales configuradas">'+limits+'</div>':''}
  <div class="planner-timetable-scroll" role="region" aria-label="Horario semanal personalizable" tabindex="0"><table class="planner-timetable"><thead><tr><th scope="col">Franja</th>${longDays.map(day=>`<th scope="col">${esc(day)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
- ${extras.length?`<section class="planner-extra-sessions"><h3>Otras sesiones guardadas</h3><p class="hint">Estas sesiones anteriores o de horario especial se conservan fuera de las franjas predeterminadas.</p><div class="planner-extra-list">${extras.map(slot=>`<div class="planner-schedule-item"><div><small>${esc(longDays[slot.day])} · ${esc(slot.start)}–${esc(slot.end)}</small><strong>${esc(labels(doc,slot))}</strong>${slot.room?`<small>Aula: ${esc(slot.room)}</small>`:''}</div>${action('Editar',`data-edit-slot="${esc(slot.id)}"`)}</div>`).join('')}</div></section>`:''}`;
+ ${extras.length?`<section class="planner-extra-sessions"><h3>Otras sesiones guardadas</h3><p class="hint">Estas sesiones anteriores o de horario especial se conservan fuera de las franjas predeterminadas.</p><div class="planner-extra-list">${extras.map(slot=>`<div class="planner-schedule-item" ${slotStyle(doc,slot)} data-plan-type="${esc(slot.type)}"><div><small>${esc(longDays[slot.day])} · ${esc(slot.start)}–${esc(slot.end)}</small><strong>${esc(labels(doc,slot))}</strong>${slot.room?`<small>Aula: ${esc(slot.room)}</small>`:''}</div>${action('Editar',`data-edit-slot="${esc(slot.id)}"`)}</div>`).join('')}</div></section>`:''}`;
 }
 const slotCard=(doc,y,date,s,compact=false)=>{
  const lesson=y.lessons.find(x=>x.date===date&&x.slotId===s.id),label=labels(doc,s);
@@ -67,22 +76,38 @@ const taskCard=(doc,t)=>`<div class="planner-event"><div><strong>${t.done?'✓ '
  * Solo se ofrecen los grupos adscritos al curso académico activo. */
 /** Apartado propio de guardias en la navegación de Agenda: sin duplicar
  * los eventos que ya están en día, semana y calendario exportado. */
+const patioWeekStart=date=>addDays(date,-weekday(date));
+const patioWeekDate=date=>new Date(date+'T12:00:00Z').toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+const patioCount=(count,one,many)=>count+' '+(count===1?one:many);
 function renderPatioPanel(y){
  const records=y.events.filter(e=>e.type==='patio').slice().sort((a,b)=>
-  a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
+  a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
  const months=[...new Set(records.map(e=>e.date.slice(0,7)))];
+ const today=localToday(),todayWeek=patioWeekStart(today);
+ const initialMonth=months.includes(today.slice(0,7))?today.slice(0,7):months[0];
  return '<div class="planner-patio-panel"><div class="planner-patio-heading">'+
   '<div><h3>Guardias de patio</h3><p class="hint">Asignaciones semanales, zona habitual y alternativa para lluvia o viento. Puedes importar el Excel tras indicar hasta cuándo generar.</p></div>'+
   action('Importar rotación de Excel', 'id="plan-import-patio-panel"','btn primary')+'</div>'+
-  (records.length?months.map(month=>
-   '<section class="planner-patio-month"><h4>'+
-   esc(new Date(month+'-01T12:00:00Z').toLocaleDateString('es-ES',{month:'long',year:'numeric',timeZone:'UTC'}))+'</h4>'+
-   records.filter(e=>e.date.startsWith(month)).map(e=>
-    '<div class="planner-patio-entry"><div><strong>'+esc(e.date)+' · '+esc((e.time||'')+(e.endTime?'–'+e.endTime:''))+'</strong>'+
-    '<p>'+esc(e.title)+'</p><small>'+esc(e.notes||'')+'</small></div>'+
-    '<div class="planner-patio-entry-actions">'+action('Editar','data-edit-event="'+esc(e.id)+'"')+
-    action('Calendario','data-export-event="'+esc(e.id)+'"')+'</div></div>').join('')+
-   '</section>').join(''):
+  (records.length?months.map(month=>{
+   const entries=records.filter(e=>e.date.startsWith(month));
+   const weeks=[...new Set(entries.map(e=>patioWeekStart(e.date)))];
+   const initialWeek=weeks.includes(todayWeek)?todayWeek:weeks[0];
+   return '<details class="planner-patio-month"'+(month===initialMonth?' open':'')+'>'+
+    '<summary><strong>'+esc(new Date(month+'-01T12:00:00Z').toLocaleDateString('es-ES',{month:'long',year:'numeric',timeZone:'UTC'}))+
+    '</strong><small>'+esc(patioCount(entries.length,'guardia','guardias'))+' · '+
+    esc(patioCount(weeks.length,'semana','semanas'))+'</small></summary>'+
+    '<div class="planner-patio-weeks">'+weeks.map(week=>{
+     const days=entries.filter(e=>patioWeekStart(e.date)===week);
+     return '<details class="planner-patio-week"'+(month===initialMonth&&week===initialWeek?' open':'')+'>'+
+      '<summary><span>Semana del '+esc(patioWeekDate(week))+' al '+esc(patioWeekDate(addDays(week,6)))+
+      '</span><small>'+esc(patioCount(days.length,'guardia','guardias'))+'</small></summary>'+
+      '<div class="planner-patio-entries">'+days.map(e=>
+       '<div class="planner-patio-entry"><div><strong>'+esc(e.date)+' · '+esc((e.time||'')+(e.endTime?'–'+e.endTime:''))+'</strong>'+
+       '<p>'+esc(e.title)+'</p><small>'+esc(e.notes||'')+'</small></div>'+
+       '<div class="planner-patio-entry-actions">'+action('Editar','data-edit-event="'+esc(e.id)+'"')+
+       action('Calendario','data-export-event="'+esc(e.id)+'"')+'</div></div>').join('')+'</div></details>';
+    }).join('')+'</div></details>';
+  }).join(''):
    '<p class="hint">Sin guardias incorporadas. Utiliza «Importar rotación de Excel» para revisar las zonas y fechas antes de guardarlas.</p>')+
   '</div>';
 }
@@ -151,8 +176,8 @@ export function bindPlanner(doc,ui,ctx){
    redraw();
  };
  const dateNow=()=>ui.plannerDate||localToday();
- // Los colores del horario provienen exclusivamente de la sesión, no de la materia.
- // No sobreescribir --planner-color tras renderizar las tarjetas.
+ // Aplicación dinámica compatible con CSP a horario ordinario, verano y tarjetas diarias.
+ applyPlannerColors(document.querySelector('.planner-view'));
  all('[data-plan-mode]').forEach(b=>b.onclick=()=>{ui.plannerMode=b.dataset.planMode;if(ui.plannerMode==='day')ui.plannerDate=localToday();redraw();});
  $('#plan-year').onchange=e=>ctx.commit(d=>setActiveYear(d,e.target.value),'Cambiar curso del planificador').then(()=>{const current=activeYear(ctx.getDoc());ui.plannerDate=current.start;redraw();}).catch(ctx.fail);
  $('#plan-date').onchange=e=>{if(!e.target.value)return;ui.plannerDate=e.target.value;redraw();};
