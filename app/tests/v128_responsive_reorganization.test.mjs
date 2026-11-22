@@ -14,19 +14,20 @@ function navigationFor(tab='cuaderno',collapsed=false){
     const b=js.indexOf('function renderPeriodButtons(){',a);
     assert(a>=0&&b>a,'Bloque de navegación no encontrado');
     const nav=js.slice(a,b);
-    const api=runInNewContext(nav+';({renderNavigation,workspaceDisclosures})',{
+    const api=runInNewContext(nav+';({renderNavigation,renderAcademicQuickNav,workspaceDisclosures})',{
       STATE:{tab,navCollapsed:collapsed}
     });
-    return {html:api.renderNavigation(),preferences:api.workspaceDisclosures};
+    return {html:api.renderNavigation(),quick:api.renderAcademicQuickNav(),preferences:api.workspaceDisclosures};
   });
 }
 
-test('cuatro accesos principales, cuatro herramientas académicas y Ajustes siguen disponibles sin duplicados',async()=>{
+test('cuatro accesos principales, dos herramientas académicas y accesos directos separados',async()=>{
   const {html}=await navigationFor();
   const ids=[...html.matchAll(/data-tab="([^"]+)"/g)].map(x=>x[1]);
   assert.deepEqual(ids,['cuaderno','alumno','planificador','final',
-    'calculos','competencias','curriculo','rubricas','ajustes']);
-  assert.equal(new Set(ids).size,9);
+    'curriculo','rubricas','ajustes']);
+  assert.equal(new Set(ids).size,7);
+  assert(!ids.includes('calculos')&&!ids.includes('competencias'),'Los accesos rápidos no deben duplicarse');
   for(const key of ids)assert(html.includes('data-tab="'+key+'"'));
   assert(html.includes('id="toggle-navigation"'),'La opción de plegar el menú permanece');
   assert(html.includes('aria-label="Trabajo diario"'));
@@ -40,10 +41,16 @@ test('el destino activo se marca y Gestión académica abre automáticamente la 
   const main=await navigationFor('alumno');
   assert(main.html.includes('data-tab="alumno" class="tab active" aria-current="page"'));
   assert(!/class="academic-disclosure"[^>]*\bopen\b/.test(main.html));
-  for(const screen of ['calculos','competencias','curriculo','rubricas']){
+  for(const screen of ['curriculo','rubricas']){
     const result=await navigationFor(screen);
     assert(result.html.includes('data-tab="'+screen+'" class="tab active" aria-current="page"'));
     assert(/class="academic-disclosure"[^>]*\bopen\b/.test(result.html),screen);
+  }
+  for(const screen of ['calculos','competencias']){
+    const result=await navigationFor(screen);
+    assert(result.quick.includes('data-academic-quick="'+screen+'"'));
+    assert(result.quick.includes('data-academic-quick="'+screen+'" aria-current="page"'));
+    assert(!result.html.includes('data-tab="'+screen+'"'),'No duplicar en el lateral');
   }
   const final=await navigationFor('final');
   assert(final.html.includes('data-tab="final" class="tab active" aria-current="page"'));
