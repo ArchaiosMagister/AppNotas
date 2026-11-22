@@ -10,6 +10,19 @@ La aplicación permite llevar calificaciones, rúbricas, agenda docente y evalua
 
 > **Privacidad:** trabajar con datos ficticios durante las pruebas. No incorporar al repositorio información identificativa de alumnado, calificaciones reales, contraseñas ni copias `.cuaderno` / `.cdoc`. La utilización institucional requiere las comprobaciones y autorizaciones aplicables.
 
+
+## Tutorías comunes y alumnos que cursan varias materias (nueva función)
+
+En **Agenda docente → Sesiones de evaluación** se ofrece una sección «Alumnos vinculados y tutorías comunes»:
+
+- Detecta posibles coincidencias de nombres entre asignaturas del mismo curso y etapa; **ninguna vinculación es automática**. Debe confirmarse manualmente; se puede desvincular.
+- Permite crear tutorías comunes a partir de procedencias coincidentes (como 1.º BACH A/B) o asignarlas manualmente. Las asignaturas mantienen sus listas de clase y notas independientes.
+- Una convocatoria puede pertenecer a la tutoría compartida; las citas anteriores deben **reconciliarse explícitamente**. La selección de una fecha y hora archiva íntegramente las convocatorias anteriores en el cuaderno cifrado.
+- «Ver notas» muestra una fila por identidad confirmada, una columna por asignatura y la nota decimal y Nota Ítaca de cada matrícula. «—» representa ausencia de matrícula o calificación, nunca cero. El desglose es solo de lectura.
+- Las estructuras antiguas de cuaderno (esquema v8) siguen abriéndose; los nuevos vínculos son opcionales y los cálculos originales no se alteran.
+
+Antes de utilizar los nuevos vínculos con datos reales, guardar y verificar una copia cifrada del cuaderno. Se aconseja revisar visualmente coincidencias, tutorías y convocatorias con datos ficticios tras actualizar la PWA.
+
 ## Estructura del repositorio
 
 | Ruta | Contenido |
