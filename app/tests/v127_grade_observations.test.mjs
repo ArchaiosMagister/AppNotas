@@ -183,7 +183,7 @@ test('interfaz: editar desde todas las casillas y mostrar al alumno solo con per
  assert(student.includes('observation?.visibleToStudent?'));
  assert(student.includes('esc(observation.text)'));
  assert(student.includes('student-assessment-observation'));
- assert(app.includes('Mostrar también en el modo alumno'));
+ assert(app.includes('Mostrar también en el Modo sesión de evaluación'));
  assert(app.includes('Privada por defecto'));
  assert(css.includes('.grade-table .grade-observation-button.has-observation'));
  assert(css.includes('.student-assessment-observation>p'));
