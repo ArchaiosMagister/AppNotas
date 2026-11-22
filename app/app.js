@@ -837,47 +837,52 @@ async function savePreparedCopy(prepared,filename){
 }
 
 
-/** Presentación únicamente: no altera el modelo, las notas ni la navegación interna. */
+/** Navegación minimalista: tres destinos diarios y un menú de herramientas.
+ * Las cinco vistas del cuaderno siguen existiendo como navegación secundaria. */
 const workspaceDisclosures={tools:false,course:false,group:false,academic:false};
 const PRIMARY_WORKSPACE_TABS=[
   ['cuaderno','Cuaderno','▦'],
-  ['alumno','Modo sesión de evaluación','◉'],
   ['planificador','Agenda','▣'],
-  ['evaluaciones','Sesiones de evaluación','◷'],
-  ['final','Evaluación final','★']
+  ['evaluaciones','Evaluaciones','◷']
 ];
 const ACADEMIC_WORKSPACE_TABS=[
   ['curriculo','Currículo','◇'],
-  ['rubricas','Rúbricas','▤']
+  ['rubricas','Rúbricas','▤'],
+  ['ajustes','Ajustes y copias','⚙']
+];
+const NOTEBOOK_WORKSPACE_TABS=[
+  ['cuaderno','Notas'],
+  ['calculos','Cálculos'],
+  ['competencias','Competencias'],
+  ['final','Final'],
+  ['alumno','Vista alumno']
 ];
 function workspaceTab([key,label,glyph]){
-  const active=STATE.tab===key;
+  const active=STATE.tab===key||
+    (key==='cuaderno'&&['calculos','competencias','final','alumno'].includes(STATE.tab));
   return `<button type="button" data-tab="${key}" class="tab ${active?'active':''}" ${active?'aria-current="page"':''} title="${label}"><span class="nav-glyph" aria-hidden="true">${glyph}</span><span class="nav-text">${label}</span></button>`;
 }
 function renderNavigation(){
-  const academicSelected=ACADEMIC_WORKSPACE_TABS.some(([id])=>id===STATE.tab);
-  return `<nav class="tabs" aria-label="Secciones del cuaderno">
+  const toolsSelected=ACADEMIC_WORKSPACE_TABS.some(([key])=>STATE.tab===key);
+  return `<nav class="tabs" aria-label="Navegación principal">
     <button type="button" class="nav-collapse" id="toggle-navigation" aria-label="Plegar o desplegar navegación" aria-expanded="${!STATE.navCollapsed}" title="Plegar o desplegar menú"><span class="nav-collapse-glyph" aria-hidden="true">☷</span><span class="nav-text">Menú</span></button>
     <div class="nav-primary" role="group" aria-label="Trabajo diario">${PRIMARY_WORKSPACE_TABS.map(workspaceTab).join('')}</div>
     <div class="nav-secondary">
-      <details class="academic-disclosure" data-shell-disclosure="academic" ${academicSelected||workspaceDisclosures.academic?'open':''}>
-        <summary title="Abrir gestión académica"><span class="nav-glyph" aria-hidden="true">⊞</span><span class="nav-text">Gestión académica</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
+      <details class="academic-disclosure" data-shell-disclosure="academic" ${toolsSelected||workspaceDisclosures.academic?'open':''}>
+        <summary title="Abrir herramientas y ajustes"><span class="nav-glyph" aria-hidden="true">⚙</span><span class="nav-text">Herramientas</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
         <div class="nav-academic-links" role="group" aria-label="Herramientas académicas">${ACADEMIC_WORKSPACE_TABS.map(workspaceTab).join('')}</div>
       </details>
-      ${workspaceTab(['ajustes','Ajustes y copias','⚙'])}
     </div>
-    <div class="nav-footer" aria-hidden="true">✦ Μνήμη · Studium</div>
   </nav>`;
 }
-
-/** Accesos a la evaluación desde las vistas analíticas.
- * Impiden tener que regresar al cuaderno para cambiar entre Cálculos
- * y Competencias cuando ambos salen del menú lateral. */
+/** Cuaderno, Cálculos, Competencias, Final y Vista alumno comparten contexto
+ * de grupo; cada destino conserva su motor y acciones originales. */
 function renderAcademicQuickNav(){
-  return `<nav class="academic-quick-nav" aria-label="Navegación entre cálculos y competencias">
-    <button type="button" class="btn small" data-academic-quick="cuaderno">‹ Cuaderno</button>
-    <button type="button" class="btn small ${STATE.tab==='calculos'?'academic-quick-active':''}" data-academic-quick="calculos" ${STATE.tab==='calculos'?'aria-current="page"':''}>∑ Cálculos</button>
-    <button type="button" class="btn small ${STATE.tab==='competencias'?'academic-quick-active':''}" data-academic-quick="competencias" ${STATE.tab==='competencias'?'aria-current="page"':''}>◎ Competencias</button>
+  return `<nav class="academic-quick-nav" aria-label="Vistas del cuaderno">
+    ${NOTEBOOK_WORKSPACE_TABS.map(([key,label])=>
+      `<button type="button" class="btn small ${STATE.tab===key?'academic-quick-active':''}"
+        data-academic-quick="${key}" aria-pressed="${STATE.tab===key}"
+        ${STATE.tab===key?'aria-current="page"':''}>${label}</button>`).join('')}
   </nav>`;
 }
 function renderPeriodButtons(){
@@ -941,7 +946,7 @@ function render(){
     </details>
     <input type="file" id="csv-file" class="hidden" accept=".csv,text/csv"/>
   </div>
-</div><div class="workspace">${renderNavigation()}<div class="work-area">${hasGroup&&['cuaderno','final'].includes(STATE.tab)?renderPeriodButtons():''}${hasGroup&&['calculos','competencias'].includes(STATE.tab)?renderAcademicQuickNav():''}<div id="tab-content">${!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'&&STATE.tab!=='evaluaciones'?`<section class="panel panel-pad no-group-state"><h2>No hay grupos de ${esc(subjectLabel)}</h2><p>Selecciona otro grupo o crea uno nuevo para esta asignatura. No se mezclarán las calificaciones de materias distintas.</p>${STATE.level==='legacy'?'<p>Clasifica primero el grupo anterior para utilizarlo en uno de los cursos disponibles.</p>':'<button class="btn primary" id="new-group-empty">+ Crear primer grupo</button>'}</section>`:STATE.tab==='cuaderno'?renderNotebook():STATE.tab==='planificador'?renderPlanner(STATE.doc,STATE):STATE.tab==='evaluaciones'?renderEvaluationWorkspace(STATE.doc,STATE):STATE.tab==='alumno'?renderStudentView():STATE.tab==='final'?renderFinalEvaluation():STATE.tab==='calculos'?renderRules():STATE.tab==='rubricas'?renderRubrics():STATE.tab==='competencias'?renderCompetencies():STATE.tab==='curriculo'?renderCurriculum():renderSettings()}</div></div></div></main></div>`;
+</div><div class="workspace">${renderNavigation()}<div class="work-area">${hasGroup&&['cuaderno','calculos','competencias','final','alumno'].includes(STATE.tab)?renderAcademicQuickNav():''}${hasGroup&&STATE.tab==='cuaderno'?renderPeriodButtons():''}<div id="tab-content">${!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'&&STATE.tab!=='evaluaciones'?`<section class="panel panel-pad no-group-state"><h2>No hay grupos de ${esc(subjectLabel)}</h2><p>Selecciona otro grupo o crea uno nuevo para esta asignatura. No se mezclarán las calificaciones de materias distintas.</p>${STATE.level==='legacy'?'<p>Clasifica primero el grupo anterior para utilizarlo en uno de los cursos disponibles.</p>':'<button class="btn primary" id="new-group-empty">+ Crear primer grupo</button>'}</section>`:STATE.tab==='cuaderno'?renderNotebook():STATE.tab==='planificador'?renderPlanner(STATE.doc,STATE):STATE.tab==='evaluaciones'?renderEvaluationWorkspace(STATE.doc,STATE):STATE.tab==='alumno'?renderStudentView():STATE.tab==='final'?renderFinalEvaluation():STATE.tab==='calculos'?renderRules():STATE.tab==='rubricas'?renderRubrics():STATE.tab==='competencias'?renderCompetencies():STATE.tab==='curriculo'?renderCurriculum():renderSettings()}</div></div></div></main></div>`;
   bindCommon();
   wirePwaButtons();
   updatePortableStatus();
@@ -1583,7 +1588,8 @@ function bindCommon(){
   $('#accent-select')?.addEventListener('change',e=>commit(d=>setSubjectAccent(d,STATE.level,STATE.subject,e.target.value)).catch(fail));
   document.querySelectorAll('[data-academic-quick]').forEach(button=>button.addEventListener('click',()=>{
     const destination=button.dataset.academicQuick;
-    if(!['cuaderno','calculos','competencias'].includes(destination)||!STATE.groupId)return;
+    if(!['cuaderno','calculos','competencias','final','alumno'].includes(destination)||!STATE.groupId)return;
+    if(STATE.tab==='alumno'&&destination!=='alumno')STATE.studentId=null;
     STATE.tab=destination;render();
   }));
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{if(STATE.tab==='alumno'&&b.dataset.tab!=='alumno')STATE.studentId=null;if(b.dataset.tab==='curriculo'&&currentGroup()?.subject==='Latín II')STATE.curriculumVersion=officialCompetenciesForGroup(currentGroup(),STATE.competencyVersion)?.version||'2022';STATE.tab=b.dataset.tab;render();});
