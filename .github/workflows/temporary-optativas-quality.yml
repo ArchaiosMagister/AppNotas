@@ -1,5 +1,5 @@
 name: 'Temporary quality gate optativas and agenda'
-# Final test pass: only artificially corrupt model after valid save, never bypass capped API.
+# Regression pass: adapt legacy UI assertions for new chosen palette and preserved shared sort bar.
 on:
   push:
     branches:
