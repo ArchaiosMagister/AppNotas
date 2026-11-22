@@ -170,7 +170,7 @@ export function openTutorshipSessionModal(doc,ctx,tutorshipId,periodId){
  if(prior.length&&!e){ctx.fail(new Error('Unifica primero las convocatorias anteriores.'));return;}
  const y=doc.planner.years.find(y=>y.name===t.course),today=localToday();
  const date=e?.date||(today>=y.start&&today<=y.end?today:y.start);
- ctx.fieldsModal('Sesión de evaluación · '+t.name+' · '+period.name,[
+ (ctx.sessionFieldsModal||ctx.fieldsModal)('Sesión de evaluación · '+t.name+' · '+period.name,[
   {id:'date',label:'Fecha',type:'date',value:date},
   {id:'time',label:'Hora de inicio',type:'time',value:e?.time||'15:30'},
   {id:'endTime',label:'Hora de finalización (opcional)',type:'time',value:e?.endTime||'',required:false},
