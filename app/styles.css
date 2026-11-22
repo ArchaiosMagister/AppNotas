@@ -2044,7 +2044,6 @@ html[data-course-skin="attica"][data-course-variant="griego-i"]{
   --attica-banner-finish:#76b5d5;
   --attica-title:#215a83;
   --attica-line:#83b5d5;
-  --attica-button:#428eb9;
   --attica-selected:#d9eef9;
   --attica-table-final:#e2f2fc;
   --attica-highlight:#ebf6fc;
@@ -2055,7 +2054,6 @@ html[data-course-skin="attica"][data-course-variant="griego-ii"]{
   --attica-banner-finish:#4b7fb5;
   --attica-title:#173f78;
   --attica-line:#6b9dcc;
-  --attica-button:#2e70ad;
   --attica-selected:#d4e5f8;
   --attica-table-final:#d5e8fa;
   --attica-highlight:#e3effa;
@@ -2078,8 +2076,8 @@ html[data-theme="light"][data-course-skin="attica"][data-course-variant] .brand-
   background:var(--attica-highlight);
 }
 html[data-theme="light"][data-course-skin="attica"][data-course-variant] .topmeta .lock-btn{
-  background:var(--attica-button);
-  border-color:var(--attica-button);color:#fff;
+  background:var(--accent);
+  border-color:var(--accent);color:var(--accent-ink);
 }
 html[data-theme="light"][data-course-skin="attica"][data-course-variant] .topmeta .lock-btn:hover{
   background:var(--attica-title);border-color:var(--attica-title);color:#fff;
@@ -2092,7 +2090,7 @@ html[data-theme="light"][data-course-skin="attica"][data-course-variant] .headro
 }
 html[data-theme="light"][data-course-skin="attica"][data-course-variant] .tabs .tab.active{
   background:var(--attica-selected);
-  border-left-color:var(--attica-button);
+  border-left-color:var(--accent);
 }
 html[data-theme="light"][data-course-skin="attica"][data-course-variant] .grade-table th.final-col{
   background:var(--attica-table-final)!important;
