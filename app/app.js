@@ -5,7 +5,7 @@ import {parseRubricText} from './src/rubric-import.js';
 import {parseRubricFile} from './src/rubric-xlsx.js';
 import {createVault,seal,unlockVault,saltFromEnvelope,validateEnvelope} from './src/vault.js';
 import {openDb,readEnvelope,writeEnvelope,sameEnvelope,readRecoveryEnvelope,replaceEnvelopeWithRecovery,swapRecoveryEnvelope,readExportReceipt,recordExportReceipt} from './src/storage.js';
-import {ensureBookMetadata,markBookChange,compareBookVersions,backupProtection,createPortableCopy,readBackupFile,backupSummary,portableFilename} from './src/cuaderno.js';
+import {ensureBookMetadata,markBookChange,compareBookVersions,highRiskImport,canConfirmImport,IMPORT_CONFIRMATION_TEXT,backupProtection,createPortableCopy,readBackupFile,backupSummary,portableFilename} from './src/cuaderno.js';
 import {emptyHistory,recordChange,stepHistory} from './src/history.js';
 import {previewRubric,validateRubricDraft} from './src/rubric-ui.js';
 import {RELOAD_PROBE_KEY,makeReloadProbe,evaluateReloadProbe} from './src/diagnostics.js';
@@ -521,15 +521,25 @@ function decideImport(info,conflict,hasLocal){
   return new Promise(resolve=>{
     if(dialog.open){resolve('cancel');return;}
     const courses=info.courses.map(c=>`<li>${esc(c.subject)} · ${esc(c.name)} (${esc(c.course)})</li>`).join('');
-    const conflictClass=['older','divergent','different','unknown'].includes(conflict)?'import-warning':'section-note';
-    dialog.innerHTML=`<div class="modal-inner portable-dialog"><h2 id="modal-heading">Abrir cuaderno · comprobar antes de importar</h2><p>Archivo descifrado y autenticado correctamente. <strong>Aún no se ha modificado ningún dato local.</strong></p><div class="portable-facts"><div>Creado: <strong>${esc(new Date(info.createdAt).toLocaleString('es-ES'))}</strong></div><div>Exportado: <strong>${info.exportedAt?esc(new Date(info.exportedAt).toLocaleString('es-ES')):'No consta (copia histórica)'}</strong></div><div>Esquema de datos: <strong>v${esc(info.modelVersion)}</strong></div><div>Cursos/grupos: <strong>${info.courses.length}</strong> · Alumnos: <strong>${info.students}</strong> · Notas: <strong>${info.grades}</strong> · Rúbricas: <strong>${info.rubrics}</strong></div></div><details><summary>Mostrar los cursos incluidos</summary><ul>${courses}</ul></details><p class="${conflictClass}" role="status">${conflictMessage[conflict]}</p><p class="hint">${hasLocal?'Al importar se conservará previamente una copia cifrada del estado local en IndexedDB. Solo hay un punto de recuperación: otra importación lo sustituye.':'Se creará una copia local cifrada de este archivo.'} No se combinarán notas.</p><div class="modal-actions portable-choices"><button class="btn" id="import-keep">Conservar datos actuales</button><button class="btn" id="import-cancel">Cancelar</button><button class="btn warn" id="import-confirm">Importar copia</button></div></div>`;
+    const risky=highRiskImport(conflict,hasLocal);
+    const conflictClass=risky?'import-warning':'section-note';
+    const riskPrompt=risky?`<label class="import-risk-phrase" for="import-risk-phrase">Esta operación puede descartar cambios locales. Para habilitar la importación, escribe <strong>${IMPORT_CONFIRMATION_TEXT}</strong>.<input class="text-field" id="import-risk-phrase" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="${IMPORT_CONFIRMATION_TEXT}" aria-label="Confirmación de sustitución de cuaderno"/></label>`:'';
+    dialog.innerHTML=`<div class="modal-inner portable-dialog"><h2 id="modal-heading">Abrir cuaderno · comprobar antes de importar</h2><p>Archivo descifrado y autenticado correctamente. <strong>Aún no se ha modificado ningún dato local.</strong></p><div class="portable-facts"><div>Creado: <strong>${esc(new Date(info.createdAt).toLocaleString('es-ES'))}</strong></div><div>Exportado: <strong>${info.exportedAt?esc(new Date(info.exportedAt).toLocaleString('es-ES')):'No consta (copia histórica)'}</strong></div><div>Esquema de datos: <strong>v${esc(info.modelVersion)}</strong></div><div>Cursos/grupos: <strong>${info.courses.length}</strong> · Alumnos: <strong>${info.students}</strong> · Notas: <strong>${info.grades}</strong> · Rúbricas: <strong>${info.rubrics}</strong></div></div><details><summary>Mostrar los cursos incluidos</summary><ul>${courses}</ul></details><p class="${conflictClass}" role="status">${conflictMessage[conflict]}</p><p class="hint">${hasLocal?'Al importar se conservará previamente una copia cifrada del estado local en IndexedDB. Solo hay un punto de recuperación: otra importación lo sustituye.':'Se creará una copia local cifrada de este archivo.'} No se combinarán notas.</p>${riskPrompt}<div class="modal-actions portable-choices"><button class="btn" id="import-keep">Conservar datos actuales</button><button class="btn" id="import-cancel">Cancelar</button><button class="btn warn" id="import-confirm" ${risky?'disabled':''}>Importar copia</button></div></div>`;
     let chosen=false;
     const settle=choice=>{if(chosen)return;chosen=true;dialog.removeEventListener('close',onClose);dialog.close();resolve(choice);};
     const onClose=()=>{if(dialog.open||chosen)return;chosen=true;dialog.removeEventListener('close',onClose);resolve('cancel');};
     dialog.addEventListener('close',onClose);
     $('#import-keep',dialog).onclick=()=>settle('keep');
     $('#import-cancel',dialog).onclick=()=>settle('cancel');
-    $('#import-confirm',dialog).onclick=()=>settle('import');
+    const importButton=$('#import-confirm',dialog);
+    if(risky){
+      const phrase=$('#import-risk-phrase',dialog);
+      phrase.addEventListener('input',()=>{importButton.disabled=!canConfirmImport(conflict,hasLocal,phrase.value);});
+    }
+    importButton.onclick=()=>{
+      const phrase=risky?$('#import-risk-phrase',dialog)?.value:'';
+      if(canConfirmImport(conflict,hasLocal,phrase))settle('import');
+    };
     dialog.showModal();
   });
 }
@@ -1826,7 +1836,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v132-dev');
+      const cache=await caches.open('cuaderno-docente-static-v133-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

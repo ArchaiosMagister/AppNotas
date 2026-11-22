@@ -40,6 +40,14 @@ export function markBookChange(next,previous){
   next._portability={...p,head:crypto.randomUUID(),revision:p.revision+1,ancestors};
   validateBookMetadata(next);
 }
+/** Evita reemplazos accidentales de notas desde copias antiguas o divergentes. */
+export const IMPORT_CONFIRMATION_TEXT='SUSTITUIR';
+export function highRiskImport(conflict,hasLocal){
+  return Boolean(hasLocal)&&['older','divergent','different','unknown'].includes(conflict);
+}
+export function canConfirmImport(conflict,hasLocal,confirmation=''){
+  return !highRiskImport(conflict,hasLocal)||confirmation===IMPORT_CONFIRMATION_TEXT;
+}
 /** `older` significa que la copia que se quiere importar antecede al contenido local. */
 export function compareBookVersions(local,incoming){
   if(!local)return 'empty';
