@@ -336,13 +336,13 @@ export function saveEvent(doc,{id=null,date,type,title,groupId=null,assessmentId
 
 /** Una convocatoria por grupo y evaluación del curso académico activo.
  * Son citas de agenda, no calificaciones ni actas de evaluación. */
-export function saveEvaluationSession(doc,{id=null,groupId,periodId,date,time,notes='',originGroup=null}){
+export function saveEvaluationSession(doc,{id=null,groupId,periodId,date,time,endTime='',notes='',originGroup=null}){
  const period=doc.periods.find(p=>p.id===periodId),group=doc.groups.find(g=>g.id===groupId);
  if(!period||!group)throw new Error('Selecciona un grupo y una evaluación válidos.');
  if(originGroup!==null&&!doc.students.some(s=>s.groupId===groupId&&s.originGroup===originGroup)&&
      !activeYear(doc).events.some(e=>e.id===id&&e.originGroup===originGroup))
   throw new Error('El subgrupo no está asignado a ningún alumno de esta optativa.');
- return saveEvent(doc,{id,groupId,periodId,date,time,notes,type:'evaluation',originGroup,
+ return saveEvent(doc,{id,groupId,periodId,date,time,endTime,notes,type:'evaluation',originGroup,
   title:period.name+' · '+group.name+(originGroup?' · '+originGroup:'')});
 }
 /** VEVENT individual, sin cuentas ni red: las horas son flotantes/locales
