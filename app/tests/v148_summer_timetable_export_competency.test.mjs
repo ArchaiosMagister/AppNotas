@@ -86,7 +86,7 @@ test('las guardias y materias manuales validan color y mantienen el mismo al edi
  assert.throws(()=>saveSlot(doc,{day:1,start:band.start,end:band.end,type:'guardia',color:'red;--x:0'}),/Color/);
  const s=saveSlot(doc,{day:1,start:band.start,end:band.end,type:'guardia',room:'Biblioteca',bandId:band.id,color:'#aB34f0'});
  assert.equal(s.color,'#AB34F0');
- assert(renderTimetableGrid(doc,year).includes('style="--planner-color:#AB34F0"'));
+ assert(renderTimetableGrid(doc,year).includes('data-planner-color="#AB34F0"'));
  const current=saveSlot(doc,{...s,label:'Guardia de patio',color:'#CC6633'});
  assert.equal(current.color,'#CC6633');
  assertModel(doc);
