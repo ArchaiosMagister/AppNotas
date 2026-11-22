@@ -129,7 +129,7 @@ export function renderPlanner(doc,ui){
  }
  return `<div class="planner-view"><section class="panel panel-pad planner-intro"><div><div class="planner-eyebrow">Agenda docente · planificación personal</div><h2>Mi planificador</h2><p class="subtitle">Tu horario, exámenes, clases previstas y días no lectivos. El diario de clase es opcional y no altera las notas.</p></div><div class="planner-year-chooser"><label>Curso académico<select id="plan-year">${doc.planner.years.map(x=>`<option value="${esc(x.id)}" ${x.id===y.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>${action('Fechas',`id="plan-edit-year"`)}${action('+ Curso',`id="plan-new-year"`)}</div></section>
  <section class="panel panel-pad planner-controls"><div class="planner-view-tabs">${[['day','Hoy / día'],['week','Semana'],['month','Mes'],['schedule','Horario base'],['patio','Guardias de patio']].map(([k,t])=>`<button type="button" class="planner-view-btn ${mode===k?'active':''}" data-plan-mode="${k}" aria-pressed="${mode===k}">${t}</button>`).join('')}</div><div class="planner-date-controls">${action('‹',`id="plan-prev"`)}<input type="date" id="plan-date" value="${esc(focus)}" aria-label="Fecha mostrada"/>${action('Hoy',`id="plan-today"`)}${action('›',`id="plan-next"`)}</div><p class="hint">${esc(y.start)} a ${esc(y.end)} · ${numberClasses} sesiones de clase en el horario · ${count} eventos</p>${tools}</section>
- ${renderSharedEvaluation(doc,y,ui)}
+ <section class="panel panel-pad planner-evaluation-shortcut"><div><h3>Sesiones de evaluación</h3><p class="hint">Gestiona reuniones y tutorías desde su apartado propio. Las citas programadas siguen visibles en el calendario.</p></div>${action('Abrir sesiones de evaluación',`id="plan-evaluation-shortcut"`,'btn primary')}</section>
  <section class="panel panel-pad planner-content"><div class="planner-content-head"><h2>${mode==='schedule'?'Horario semanal'+(activeScheduleMode(y)==='summer'?' · verano':' · ordinario'):mode==='patio'?'Guardias rotatorias':mode==='week'?'Semana del '+dayText(start):mode==='month'?new Date(monthStart+'T12:00:00Z').toLocaleDateString('es-ES',{month:'long',year:'numeric',timeZone:'UTC'}):'Agenda del día'}</h2>${mode==='schedule'?'<p class="hint">El horario se repite de lunes a viernes, excepto festivos y cambios puntuales.</p>':''}</div>${body}</section>
  <section class="panel panel-pad planner-bottom"><div><h3>Festivos y vacaciones</h3>${y.holidays.length?y.holidays.slice().sort((a,b)=>a.start.localeCompare(b.start)).map(h=>`<div class="planner-simple-row"><span>✦ ${esc(h.name)} · ${esc(h.start)}${h.end===h.start?'':' — '+esc(h.end)}</span>${action('Editar',`data-edit-holiday="${esc(h.id)}"`)}</div>`).join(''):'<p class="hint">Todavía no has señalado días no lectivos.</p>'}</div><div><h3>Tareas docentes pendientes</h3>${y.tasks.filter(t=>!t.done).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,12).map(t=>taskCard(doc,t)).join('')||'<p class="hint">Sin tareas pendientes.</p>'}</div></section>
  ${action('Exportar agenda a calendario (.ics)',`id="plan-export-ics"`)} ${action('Imprimir calendario',`id="plan-print"`)}<p class="hint">El registro de trabajo realizado solo se guarda cuando lo marcas o escribes expresamente. Todo forma parte de la misma copia cifrada .cdoc.</p></div>`;
@@ -187,12 +187,12 @@ export function bindPlanner(doc,ui,ctx){
   }catch(error){ctx.fail(error);}
  });
  $('#plan-add-event').onclick=()=>eventModal({date:dateNow()});
- $('#plan-show-evaluations').onclick=()=>{
-  const panel=$('#plan-evaluations');
-  if(!panel)return;
-  panel.open=true;ui.plannerEvaluationsOpen=true;
-  panel.scrollIntoView({block:'start',behavior:'smooth'});
+ const openEvaluationWorkspace=()=>{
+  if(ctx.openEvaluations)ctx.openEvaluations();
+  else ctx.toast('Abre «Sesiones de evaluación» en el menú principal.');
  };
+ $('#plan-show-evaluations').onclick=openEvaluationWorkspace;
+ $('#plan-evaluation-shortcut')?.addEventListener('click',openEvaluationWorkspace);
  $('#plan-import-patio').onclick=()=>patioImportModal();
  $('#plan-import-patio-panel')?.addEventListener('click',()=>patioImportModal());
  all('[data-eval-group]').forEach(b=>b.onclick=()=>evaluationModal(b.dataset.evalGroup,b.dataset.evalPeriod,b.dataset.evalOrigin||''));
