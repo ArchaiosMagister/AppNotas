@@ -62,10 +62,10 @@ export function renderSharedEvaluation(doc,year,ui){
     '</div>';
   }).join('')+'</section>'
  ).join('');
- return '<section class="panel panel-pad eval-shared-section"><div class="eval-title-row"><div>'+
+ return management+'<section id="plan-tutorship-sessions" class="panel panel-pad eval-shared-section"><div class="eval-title-row"><div>'+
   '<h3>Sesiones de evaluación por tutoría</h3><p class="hint">Una convocatoria y una relación de alumnos por tutoría, con las notas independientes de cada asignatura.</p></div></div>'+
   (sessions||'<p class="hint">Crea primero las tutorías compartidas en el apartado superior.</p>')+'</section>'+
-  management+(ui.plannerEvaluationView?renderTutorViewer(doc,ui.plannerEvaluationView):'');
+  (ui.plannerEvaluationView?renderTutorViewer(doc,ui.plannerEvaluationView):'');
 }
 function renderTutorViewer(doc,view){
  let data;
