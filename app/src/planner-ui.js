@@ -117,7 +117,20 @@ export function renderPlanner(doc,ui){
  const y=activeYear(doc),mode=ui.plannerMode||'week',focus=ui.plannerDate||localToday();
  const start=addDays(focus,-weekday(focus));const monthStart=focus.slice(0,7)+'-01';const gridStart=addDays(monthStart,-weekday(monthStart));
  const count=y.events.length,numberClasses=slotsForMode(y).filter(s=>s.type==='class').length;
- const tools=`<div class="planner-tools">${action('+ Clase / horario','id="plan-add-slot"','btn primary')}${action('+ Examen o evento','id="plan-add-event"')}${action('Sesiones de evaluación','id="plan-show-evaluations"')}${action('Importar guardias de patio (.xlsx)','id="plan-import-patio"')}${action('+ Trabajo diario','id="plan-add-lesson"')}${action('+ Tarea','id="plan-add-task"')}${action('+ Festivo / vacaciones','id="plan-add-holiday"')}${action('+ Cambio excepcional','id="plan-add-exception"')}</div>`;
+ const tools=`<div class="planner-tools planner-tools-minimal">
+ <details class="planner-create-menu" id="planner-create-menu">
+ <summary class="btn primary" aria-label="Crear un elemento nuevo en la agenda">+ Nuevo <span aria-hidden="true">⌄</span></summary>
+ <div class="planner-create-options" role="group" aria-label="Nuevo elemento">
+ ${action('+ Clase / horario','id="plan-add-slot"')}
+ ${action('+ Examen o evento','id="plan-add-event"')}
+ ${action('+ Trabajo diario','id="plan-add-lesson"')}
+ ${action('+ Tarea','id="plan-add-task"')}
+ ${action('+ Festivo / vacaciones','id="plan-add-holiday"')}
+ ${action('+ Cambio excepcional','id="plan-add-exception"')}
+ ${action('Importar guardias de patio (.xlsx)','id="plan-import-patio"')}
+ </div></details>
+ ${action('Sesiones de evaluación','id="plan-show-evaluations"','btn small planner-sessions-shortcut')}
+ </div>`;
  let body='';
  if(mode==='schedule'){
   body=renderTimetableGrid(doc,y);
@@ -129,7 +142,7 @@ export function renderPlanner(doc,ui){
  }
  return `<div class="planner-view"><section class="panel panel-pad planner-intro"><div><div class="planner-eyebrow">Agenda docente · planificación personal</div><h2>Mi planificador</h2><p class="subtitle">Tu horario, exámenes, clases previstas y días no lectivos. El diario de clase es opcional y no altera las notas.</p></div><div class="planner-year-chooser"><label>Curso académico<select id="plan-year">${doc.planner.years.map(x=>`<option value="${esc(x.id)}" ${x.id===y.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>${action('Fechas',`id="plan-edit-year"`)}${action('+ Curso',`id="plan-new-year"`)}</div></section>
  <section class="panel panel-pad planner-controls"><div class="planner-view-tabs">${[['day','Hoy / día'],['week','Semana'],['month','Mes'],['schedule','Horario base'],['patio','Guardias de patio']].map(([k,t])=>`<button type="button" class="planner-view-btn ${mode===k?'active':''}" data-plan-mode="${k}" aria-pressed="${mode===k}">${t}</button>`).join('')}</div><div class="planner-date-controls">${action('‹',`id="plan-prev"`)}<input type="date" id="plan-date" value="${esc(focus)}" aria-label="Fecha mostrada"/>${action('Hoy',`id="plan-today"`)}${action('›',`id="plan-next"`)}</div><p class="hint">${esc(y.start)} a ${esc(y.end)} · ${numberClasses} sesiones de clase en el horario · ${count} eventos</p>${tools}</section>
- <section class="panel panel-pad planner-evaluation-shortcut"><div><h3>Sesiones de evaluación</h3><p class="hint">Gestiona reuniones y tutorías desde su apartado propio. Las citas programadas siguen visibles en el calendario.</p></div>${action('Abrir sesiones de evaluación',`id="plan-evaluation-shortcut"`,'btn primary')}</section>
+
  <section class="panel panel-pad planner-content"><div class="planner-content-head"><h2>${mode==='schedule'?'Horario semanal'+(activeScheduleMode(y)==='summer'?' · verano':' · ordinario'):mode==='patio'?'Guardias rotatorias':mode==='week'?'Semana del '+dayText(start):mode==='month'?new Date(monthStart+'T12:00:00Z').toLocaleDateString('es-ES',{month:'long',year:'numeric',timeZone:'UTC'}):'Agenda del día'}</h2>${mode==='schedule'?'<p class="hint">El horario se repite de lunes a viernes, excepto festivos y cambios puntuales.</p>':''}</div>${body}</section>
  <section class="panel panel-pad planner-bottom"><div><h3>Festivos y vacaciones</h3>${y.holidays.length?y.holidays.slice().sort((a,b)=>a.start.localeCompare(b.start)).map(h=>`<div class="planner-simple-row"><span>✦ ${esc(h.name)} · ${esc(h.start)}${h.end===h.start?'':' — '+esc(h.end)}</span>${action('Editar',`data-edit-holiday="${esc(h.id)}"`)}</div>`).join(''):'<p class="hint">Todavía no has señalado días no lectivos.</p>'}</div><div><h3>Tareas docentes pendientes</h3>${y.tasks.filter(t=>!t.done).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,12).map(t=>taskCard(doc,t)).join('')||'<p class="hint">Sin tareas pendientes.</p>'}</div></section>
  ${action('Exportar agenda a calendario (.ics)',`id="plan-export-ics"`)} ${action('Imprimir calendario',`id="plan-print"`)}<p class="hint">El registro de trabajo realizado solo se guarda cuando lo marcas o escribes expresamente. Todo forma parte de la misma copia cifrada .cdoc.</p></div>`;
@@ -154,6 +167,13 @@ export function bindPlanner(doc,ui,ctx){
  $('#plan-prev').onclick=()=>ui.plannerMode==='month'?moveMonth(-1):move(ui.plannerMode==='day'?-1:-7);
  $('#plan-next').onclick=()=>ui.plannerMode==='month'?moveMonth(1):move(ui.plannerMode==='day'?1:7);
  all('[data-go-date]').forEach(b=>b.onclick=()=>{ui.plannerDate=b.dataset.goDate;ui.plannerMode='day';redraw();});
+
+  // El menú es solo una envoltura visual: los controles de creación
+ // conservan sus identificadores y controladores originales.
+ const createMenu=$('#planner-create-menu');
+ createMenu?.querySelectorAll('button').forEach(button=>button.addEventListener('click',()=>{
+  createMenu.open=false;
+ }));
  $('#plan-add-slot').onclick=()=>slotModal();all('[data-slot-day]').forEach(b=>b.onclick=()=>slotModal(null,Number(b.dataset.slotDay)));
  all('[data-edit-slot]').forEach(b=>b.onclick=()=>slotModal(y.slots.find(s=>s.id===b.dataset.editSlot)));
  all('[data-band-slot]').forEach(b=>b.onclick=()=>{

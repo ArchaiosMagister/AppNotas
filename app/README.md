@@ -1,3 +1,13 @@
+## Primera fase de rediseño minimalista (v161)
+
+**Arquitectura de navegación.** Solo tres secciones diarias: **Cuaderno**, **Agenda** y **Evaluaciones**; bajo **Herramientas** quedan Currículo, Rúbricas y Ajustes/copia. El cuaderno conserva sus cinco vistas en una navegación secundaria de un toque: Notas, Cálculos, Competencias, Final y Vista alumno. Las pantallas, indicadores y cálculos no se han fusionado ni suprimido. La vista privada del alumno mantiene sus restricciones visuales.
+
+**Cuaderno.** Las acciones **+ Alumno** y **+ Actividad** permanecen visibles. Las calificaciones y sus estados NP/AJ mantienen sus controles de edición; las acciones secundarias **NP, AJ y Observaciones** se presentan desde «⋯» junto a cada celda mediante un diálogo accesible, que delega en los controladores originales. Las observaciones existentes se señalan con un indicador discreto. El redondeo de Ítaca y las procedencias se recogen en **Configuración del grupo** y las leyendas se despliegan a petición. Los cálculos y competencias se consultan desde la subnavegación, sin botones duplicados en la cabecera de la tabla.
+
+**Agenda.** El único botón principal **+ Nuevo** agrupa las siete acciones originales: clase/horario, examen o evento, trabajo diario, tarea, festivo/vacaciones, cambio excepcional e importación de guardias. Mantiene los identificadores anteriores y sus validaciones. La navegación a sesiones de evaluación permanece, pero se retira la tarjeta duplicada de Agenda.
+
+**Preservación y compatibilidad.** El cambio es exclusivamente visual y de navegación. No modifica el esquema, las funciones de cálculo, las notas, las matrículas ni el cifrado del cuaderno. Los menús y el diálogo utilizan controles accesibles con teclado y pantalla táctil. Se actualizan las pruebas automatizadas, la caché PWA y el manifiesto SHA256 antes de publicar.
+
 ## Fecha de sesión de evaluación en el cuaderno (PWA v160)
 
 Al abrir **Cuaderno** y elegir un grupo y trimestre aparece una línea discreta inmediatamente **debajo de los botones de 1.ª, 2.ª y 3.ª evaluación**, con la fecha y las horas de la convocatoria guardada. Si el docente cambia de grupo o trimestre, cambia automáticamente el aviso.

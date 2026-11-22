@@ -837,47 +837,52 @@ async function savePreparedCopy(prepared,filename){
 }
 
 
-/** Presentación únicamente: no altera el modelo, las notas ni la navegación interna. */
+/** Navegación minimalista: tres destinos diarios y un menú de herramientas.
+ * Las cinco vistas del cuaderno siguen existiendo como navegación secundaria. */
 const workspaceDisclosures={tools:false,course:false,group:false,academic:false};
 const PRIMARY_WORKSPACE_TABS=[
   ['cuaderno','Cuaderno','▦'],
-  ['alumno','Modo sesión de evaluación','◉'],
   ['planificador','Agenda','▣'],
-  ['evaluaciones','Sesiones de evaluación','◷'],
-  ['final','Evaluación final','★']
+  ['evaluaciones','Evaluaciones','◷']
 ];
 const ACADEMIC_WORKSPACE_TABS=[
   ['curriculo','Currículo','◇'],
-  ['rubricas','Rúbricas','▤']
+  ['rubricas','Rúbricas','▤'],
+  ['ajustes','Ajustes y copias','⚙']
+];
+const NOTEBOOK_WORKSPACE_TABS=[
+  ['cuaderno','Notas'],
+  ['calculos','Cálculos'],
+  ['competencias','Competencias'],
+  ['final','Final'],
+  ['alumno','Vista alumno']
 ];
 function workspaceTab([key,label,glyph]){
-  const active=STATE.tab===key;
+  const active=STATE.tab===key||
+    (key==='cuaderno'&&['calculos','competencias','final','alumno'].includes(STATE.tab));
   return `<button type="button" data-tab="${key}" class="tab ${active?'active':''}" ${active?'aria-current="page"':''} title="${label}"><span class="nav-glyph" aria-hidden="true">${glyph}</span><span class="nav-text">${label}</span></button>`;
 }
 function renderNavigation(){
-  const academicSelected=ACADEMIC_WORKSPACE_TABS.some(([id])=>id===STATE.tab);
-  return `<nav class="tabs" aria-label="Secciones del cuaderno">
+  const toolsSelected=ACADEMIC_WORKSPACE_TABS.some(([key])=>STATE.tab===key);
+  return `<nav class="tabs" aria-label="Navegación principal">
     <button type="button" class="nav-collapse" id="toggle-navigation" aria-label="Plegar o desplegar navegación" aria-expanded="${!STATE.navCollapsed}" title="Plegar o desplegar menú"><span class="nav-collapse-glyph" aria-hidden="true">☷</span><span class="nav-text">Menú</span></button>
     <div class="nav-primary" role="group" aria-label="Trabajo diario">${PRIMARY_WORKSPACE_TABS.map(workspaceTab).join('')}</div>
     <div class="nav-secondary">
-      <details class="academic-disclosure" data-shell-disclosure="academic" ${academicSelected||workspaceDisclosures.academic?'open':''}>
-        <summary title="Abrir gestión académica"><span class="nav-glyph" aria-hidden="true">⊞</span><span class="nav-text">Gestión académica</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
+      <details class="academic-disclosure" data-shell-disclosure="academic" ${toolsSelected||workspaceDisclosures.academic?'open':''}>
+        <summary title="Abrir herramientas y ajustes"><span class="nav-glyph" aria-hidden="true">⚙</span><span class="nav-text">Herramientas</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
         <div class="nav-academic-links" role="group" aria-label="Herramientas académicas">${ACADEMIC_WORKSPACE_TABS.map(workspaceTab).join('')}</div>
       </details>
-      ${workspaceTab(['ajustes','Ajustes y copias','⚙'])}
     </div>
-    <div class="nav-footer" aria-hidden="true">✦ Μνήμη · Studium</div>
   </nav>`;
 }
-
-/** Accesos a la evaluación desde las vistas analíticas.
- * Impiden tener que regresar al cuaderno para cambiar entre Cálculos
- * y Competencias cuando ambos salen del menú lateral. */
+/** Cuaderno, Cálculos, Competencias, Final y Vista alumno comparten contexto
+ * de grupo; cada destino conserva su motor y acciones originales. */
 function renderAcademicQuickNav(){
-  return `<nav class="academic-quick-nav" aria-label="Navegación entre cálculos y competencias">
-    <button type="button" class="btn small" data-academic-quick="cuaderno">‹ Cuaderno</button>
-    <button type="button" class="btn small ${STATE.tab==='calculos'?'academic-quick-active':''}" data-academic-quick="calculos" ${STATE.tab==='calculos'?'aria-current="page"':''}>∑ Cálculos</button>
-    <button type="button" class="btn small ${STATE.tab==='competencias'?'academic-quick-active':''}" data-academic-quick="competencias" ${STATE.tab==='competencias'?'aria-current="page"':''}>◎ Competencias</button>
+  return `<nav class="academic-quick-nav" aria-label="Vistas del cuaderno">
+    ${NOTEBOOK_WORKSPACE_TABS.map(([key,label])=>
+      `<button type="button" class="btn small ${STATE.tab===key?'academic-quick-active':''}"
+        data-academic-quick="${key}" aria-pressed="${STATE.tab===key}"
+        ${STATE.tab===key?'aria-current="page"':''}>${label}</button>`).join('')}
   </nav>`;
 }
 function renderPeriodButtons(){
@@ -941,7 +946,7 @@ function render(){
     </details>
     <input type="file" id="csv-file" class="hidden" accept=".csv,text/csv"/>
   </div>
-</div><div class="workspace">${renderNavigation()}<div class="work-area">${hasGroup&&['cuaderno','final'].includes(STATE.tab)?renderPeriodButtons():''}${hasGroup&&['calculos','competencias'].includes(STATE.tab)?renderAcademicQuickNav():''}<div id="tab-content">${!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'&&STATE.tab!=='evaluaciones'?`<section class="panel panel-pad no-group-state"><h2>No hay grupos de ${esc(subjectLabel)}</h2><p>Selecciona otro grupo o crea uno nuevo para esta asignatura. No se mezclarán las calificaciones de materias distintas.</p>${STATE.level==='legacy'?'<p>Clasifica primero el grupo anterior para utilizarlo en uno de los cursos disponibles.</p>':'<button class="btn primary" id="new-group-empty">+ Crear primer grupo</button>'}</section>`:STATE.tab==='cuaderno'?renderNotebook():STATE.tab==='planificador'?renderPlanner(STATE.doc,STATE):STATE.tab==='evaluaciones'?renderEvaluationWorkspace(STATE.doc,STATE):STATE.tab==='alumno'?renderStudentView():STATE.tab==='final'?renderFinalEvaluation():STATE.tab==='calculos'?renderRules():STATE.tab==='rubricas'?renderRubrics():STATE.tab==='competencias'?renderCompetencies():STATE.tab==='curriculo'?renderCurriculum():renderSettings()}</div></div></div></main></div>`;
+</div><div class="workspace">${renderNavigation()}<div class="work-area">${hasGroup&&['cuaderno','calculos','competencias','final','alumno'].includes(STATE.tab)?renderAcademicQuickNav():''}${hasGroup&&STATE.tab==='cuaderno'?renderPeriodButtons():''}<div id="tab-content">${!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'&&STATE.tab!=='evaluaciones'?`<section class="panel panel-pad no-group-state"><h2>No hay grupos de ${esc(subjectLabel)}</h2><p>Selecciona otro grupo o crea uno nuevo para esta asignatura. No se mezclarán las calificaciones de materias distintas.</p>${STATE.level==='legacy'?'<p>Clasifica primero el grupo anterior para utilizarlo en uno de los cursos disponibles.</p>':'<button class="btn primary" id="new-group-empty">+ Crear primer grupo</button>'}</section>`:STATE.tab==='cuaderno'?renderNotebook():STATE.tab==='planificador'?renderPlanner(STATE.doc,STATE):STATE.tab==='evaluaciones'?renderEvaluationWorkspace(STATE.doc,STATE):STATE.tab==='alumno'?renderStudentView():STATE.tab==='final'?renderFinalEvaluation():STATE.tab==='calculos'?renderRules():STATE.tab==='rubricas'?renderRubrics():STATE.tab==='competencias'?renderCompetencies():STATE.tab==='curriculo'?renderCurriculum():renderSettings()}</div></div></div></main></div>`;
   bindCommon();
   wirePwaButtons();
   updatePortableStatus();
@@ -990,6 +995,22 @@ function renderNotebook(){
     const label=note?'Editar observación':'Añadir observación';
     return `<button type="button" class="grade-observation-button ${note?'has-observation':''}" data-observation-student="${esc(studentId)}" data-observation-assessment="${esc(assessmentId)}" aria-label="${label} de ${esc(student?.name||'alumno')} en ${esc(activity?.name||'actividad')}" title="${label}">${note?'● ':''}Obs.</button>`;
   };
+  /** Todas las acciones antiguas permanecen enlazadas a los mismos controles.
+   * Solo se ocultan hasta abrir el diálogo de la celda; los cálculos no cambian. */
+  const gradeCellActions=(student,assessment,grade,npButton,ajButton)=>{
+    const note=gradeObservationsByPair.has(student.id+'|'+assessment.id);
+    const state=grade?.pendingJustified?'AJ':grade?.notSubmitted?'NP':'';
+    return `<span class="grade-cell-action-anchor">
+      <button type="button" class="grade-cell-actions-trigger ${note?'has-observation':''}"
+        data-grade-cell-actions-student="${esc(student.id)}"
+        data-grade-cell-actions-assessment="${esc(assessment.id)}"
+        aria-haspopup="dialog"
+        aria-label="Opciones de calificación de ${esc(student.name)} en ${esc(assessment.name)}"
+        title="NP, AJ y observaciones">⋯${note?'<span class="grade-cell-observation-mark" aria-label="Con observación">●</span>':''}</button>
+      <span class="grade-cell-original-actions" hidden>${npButton}${ajButton}${observationButton(student.id,assessment.id)}</span>
+      ${state?'<span class="visually-hidden">Estado: '+state+'</span>':''}
+    </span>`;
+  };
   const gradesByStudent=new Map();
   for(const grade of STATE.doc.grades){
     if(!visibleIds.has(grade.assessmentId))continue;
@@ -1010,23 +1031,23 @@ function renderNotebook(){
     // calificación sigue abriendo su editor, sin cambiar el valor registrado.
     const npGradeMarker='<span class="np-grade-marker" aria-label="No presentado">NP</span>';
     if(a.rubricId){const score=g?recordedScore(STATE.doc,a,g):null;
-      return `<td${categoryCell(a)}><div class="grade-entry rubric-grade-entry"><button class="rubric-grade-button" type="button" data-rubric-grade="${esc(a.id)}" data-rubric-student="${esc(s.id)}" aria-label="Evaluar ${esc(s.name)} en ${esc(a.name)} con rúbrica">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?npGradeMarker:g?gradeChip(score):'Evaluar'}<small>${g?.notSubmitted?'Pulsar para editar':'/10'}</small></button></div>${npButton}${ajButton}${observationButton(s.id,a.id)}</td>`;
+      return `<td${categoryCell(a)}><div class="grade-entry rubric-grade-entry"><button class="rubric-grade-button" type="button" data-rubric-grade="${esc(a.id)}" data-rubric-student="${esc(s.id)}" aria-label="Evaluar ${esc(s.name)} en ${esc(a.name)} con rúbrica">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?npGradeMarker:g?gradeChip(score):'Evaluar'}<small>${g?.notSubmitted?'Pulsar para editar':'/10'}</small></button></div>${gradeCellActions(s,a,g,npButton,ajButton)}</td>`;
     }
     if(a.orthography?.enabled){
       const value=g?effectiveAssessmentScore(STATE.doc,a,g):null;
       const faults=g?.orthographyFaults??0;
       const amount=g?orthographyPenalty(a,g):0;
       const note=g?`<small class="orthography-meta">Original: ${esc(rawFmt(g.score))}/${esc(rawFmt(a.maxScore))}${faults?` · ${g.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(amount))} (${faults} faltas)`}`:''}</small>`:'<small class="orthography-meta">Nota, faltas y entrega</small>';
-      return `<td${categoryCell(a)}><button class="orthography-grade-button" type="button" data-orthography-grade="${esc(a.id)}" data-orthography-student="${esc(s.id)}" aria-label="Corregir ${esc(s.name)} en ${esc(a.name)}: nota, faltas y entrega">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?`${npGradeMarker}<small class="np-edit-hint">Pulsar para editar</small>`:g?gradeChip(value):'<strong>+ Nota</strong>'}${g?.notSubmitted||g?.pendingJustified?'':note}</button>${npButton}${ajButton}${observationButton(s.id,a.id)}</td>`;
+      return `<td${categoryCell(a)}><button class="orthography-grade-button" type="button" data-orthography-grade="${esc(a.id)}" data-orthography-student="${esc(s.id)}" aria-label="Corregir ${esc(s.name)} en ${esc(a.name)}: nota, faltas y entrega">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?`${npGradeMarker}<small class="np-edit-hint">Pulsar para editar</small>`:g?gradeChip(value):'<strong>+ Nota</strong>'}${g?.notSubmitted||g?.pendingJustified?'':note}</button>${gradeCellActions(s,a,g,npButton,ajButton)}</td>`;
     }
     const isTenScale=a.maxScore===10||a.convertToTen;
     const converted=g&&!g.notSubmitted&&!g.pendingJustified&&isTenScale?normalizedScore(g.score,a.maxScore,a.convertToTen):null;
     const showConverted=g&&!g.notSubmitted&&!g.pendingJustified&&a.convertToTen&&a.maxScore!==10;
-    return `<td${categoryCell(a)}><div class="grade-entry ${showConverted?'converted-entry':''}">${showConverted?`<button type="button" class="converted-primary" data-focus-original="${esc(a.id)}:${esc(s.id)}" aria-label="Nota sobre diez: ${esc(gradeFmt(converted))}; editar nota original">${gradeChip(converted)}</button><small class="original-score">(<input class="note-input original-note-input" type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota original de ${esc(s.name)} en ${esc(a.name)}, sobre ${esc(rawFmt(a.maxScore))}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${esc(rawFmt(g.score))}"/> /${esc(rawFmt(a.maxScore))})</small>`:`<input class="note-input ${g?.notSubmitted?'np-grade-input':converted!==null?'grade-colored':''}" ${converted!==null?gradeStyle(converted):''} type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota de ${esc(s.name)} en ${esc(a.name)}" placeholder="${g?.pendingJustified?'AJ':g?.notSubmitted?'NP':'—'}" title="${g?.notSubmitted?'NP · No presentado. Escribe una nota para sustituirlo.':''}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${g&&!g.notSubmitted&&!g.pendingJustified?esc(rawFmt(g.score)):''}"/>`}</div>${npButton}${ajButton}${observationButton(s.id,a.id)}</td>`;
+    return `<td${categoryCell(a)}><div class="grade-entry ${showConverted?'converted-entry':''}">${showConverted?`<button type="button" class="converted-primary" data-focus-original="${esc(a.id)}:${esc(s.id)}" aria-label="Nota sobre diez: ${esc(gradeFmt(converted))}; editar nota original">${gradeChip(converted)}</button><small class="original-score">(<input class="note-input original-note-input" type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota original de ${esc(s.name)} en ${esc(a.name)}, sobre ${esc(rawFmt(a.maxScore))}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${esc(rawFmt(g.score))}"/> /${esc(rawFmt(a.maxScore))})</small>`:`<input class="note-input ${g?.notSubmitted?'np-grade-input':converted!==null?'grade-colored':''}" ${converted!==null?gradeStyle(converted):''} type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota de ${esc(s.name)} en ${esc(a.name)}" placeholder="${g?.pendingJustified?'AJ':g?.notSubmitted?'NP':'—'}" title="${g?.notSubmitted?'NP · No presentado. Escribe una nota para sustituirlo.':''}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${g&&!g.notSubmitted&&!g.pendingJustified?esc(rawFmt(g.score)):''}"/>`}</div>${gradeCellActions(s,a,g,npButton,ajButton)}</td>`;
   }).join('')}<td class="final-col"><button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip(overallGrade(STATE.doc,s.id,STATE.groupId,STATE.periodId))}</button></td><td class="itaca-col"><button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc,s.id,STATE.groupId,STATE.periodId)}${itacaStudentRule(STATE.doc,s.id,STATE.periodId)!=='general'?'<span class="itaca-exception" title="Excepción individual">*</span>':''}</button></td></tr>`).join('');
   const sum=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).reduce((s,c)=>s+c.weight,0);
   const problems=students.flatMap(st=>periodCalculationWarnings(STATE.doc,st.id,STATE.groupId,STATE.periodId)).filter(v=>v.includes('sin conversión'));
-  return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><div class="notebook-heading-kicker">TABULAE · EVALUACIÓN</div><strong>Calificaciones</strong><p>Pulsa o toca ⓘ en la cabecera de cada columna para ver la media y los aprobados de la clase. Introduce notas con hasta dos decimales. NP cuenta como cero; AJ marca una ausencia justificada pendiente que no computa. En los exámenes con faltas recuperables, pulsa la calificación para editar nota original, faltas y entrega. «⋯» configura una columna.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><button class="btn" id="notebook-calculations" type="button" data-academic-quick="calculos" title="Configurar porcentajes y reglas de evaluación">∑ Cálculos</button><button class="btn" id="notebook-competencies" type="button" data-academic-quick="competencias" title="Consultar niveles de adquisición competencial">◎ Competencias</button><details class="notebook-more-actions"><summary>Más acciones <span aria-hidden="true">⌄</span></summary><div class="notebook-more-panel"><button class="btn" id="copy-structure">⇉ Copiar actividades</button><button class="btn" id="schedule-exam">▣ Programar examen</button></div></details></div></div><div class="student-order-bar">${studentSortControls()}</div><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col">Nota Ítaca <small>/10 · clic para excepción</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><div class="legend"><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></div>`;
+  return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><strong>Calificaciones</strong><p>Introduce notas directamente. Pulsa «⋯» en una celda para NP, AJ y observaciones; «⋯» en una columna para configurarla.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><details class="notebook-more-actions"><summary>Más acciones <span aria-hidden="true">⌄</span></summary><div class="notebook-more-panel"><button class="btn" id="copy-structure">⇉ Copiar actividades</button><button class="btn" id="schedule-exam">▣ Programar examen</button></div></details></div></div><div class="student-order-bar">${studentSortControls()}</div><details class="notebook-grade-options"><summary>Configuración del grupo <span aria-hidden="true">⌄</span></summary><div class="notebook-grade-options-body"><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div></div></details><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col">Nota Ítaca <small>/10 · clic para excepción</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><details class="legend notebook-legend"><summary>ⓘ Significado de las notas y colores</summary><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></details>`;
 }
 const ITACA_OPTIONS=[['half','Redondear desde ,5'],['seven','Redondear desde ,7'],['none','No redondear']];
 const RULE_LABELS={mean:'Media aritmética',weighted_mean:'Media ponderada por actividad',highest:'Mejor nota',best_n:'Media de las N mejores',last:'Última evaluada',latest_if_highest:'Última si iguala o supera la mejor; si no, media'};
@@ -1583,7 +1604,8 @@ function bindCommon(){
   $('#accent-select')?.addEventListener('change',e=>commit(d=>setSubjectAccent(d,STATE.level,STATE.subject,e.target.value)).catch(fail));
   document.querySelectorAll('[data-academic-quick]').forEach(button=>button.addEventListener('click',()=>{
     const destination=button.dataset.academicQuick;
-    if(!['cuaderno','calculos','competencias'].includes(destination)||!STATE.groupId)return;
+    if(!['cuaderno','calculos','competencias','final','alumno'].includes(destination)||!STATE.groupId)return;
+    if(STATE.tab==='alumno'&&destination!=='alumno')STATE.studentId=null;
     STATE.tab=destination;render();
   }));
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{if(STATE.tab==='alumno'&&b.dataset.tab!=='alumno')STATE.studentId=null;if(b.dataset.tab==='curriculo'&&currentGroup()?.subject==='Latín II')STATE.curriculumVersion=officialCompetenciesForGroup(currentGroup(),STATE.competencyVersion)?.version||'2022';STATE.tab=b.dataset.tab;render();});
@@ -1861,6 +1883,41 @@ function openItacaStudentRule(studentId){
   }catch(err){fail(err);}};
   dialog.showModal();
 }
+/** Una única ventana de acciones por nota evita cientos de menús desplegados
+ * dentro del área desplazable. Reutiliza los controladores NP, AJ y observación
+ * ya validados, de modo que el modelo y la lógica de guardado permanecen intactos. */
+function openGradeCellActions(studentId,assessmentId){
+  const student=STATE.doc.students.find(x=>x.id===studentId&&x.groupId===STATE.groupId);
+  const activity=STATE.doc.assessments.find(x=>x.id===assessmentId&&x.groupId===STATE.groupId&&x.periodId===STATE.periodId);
+  if(!student||!activity)return;
+  const grade=STATE.doc.grades.find(x=>x.studentId===studentId&&x.assessmentId===assessmentId);
+  const observation=(STATE.doc.gradeObservations||[]).some(x=>x.studentId===studentId&&x.assessmentId===assessmentId);
+  dialog.innerHTML=`<div class="modal-inner grade-cell-actions-dialog">
+    <h2 id="modal-heading">Opciones de calificación</h2>
+    <p class="subtitle">${esc(student.name)} · ${esc(activity.name)}</p>
+    <p class="hint">La nota se edita directamente en la tabla. Estas acciones mantienen las reglas actuales de NP, AJ y observaciones.</p>
+    <div class="grade-cell-action-list">
+      <button type="button" class="btn" id="grade-action-np">${grade?.notSubmitted?'Quitar NP · No presentado':'Marcar NP · No presentado'}</button>
+      <button type="button" class="btn" id="grade-action-aj">${grade?.pendingJustified?'Quitar AJ · Ausencia justificada':'Marcar AJ · Ausencia justificada'}</button>
+      <button type="button" class="btn" id="grade-action-observation">${observation?'Editar observación':'Añadir observación'}</button>
+    </div>
+    <div class="modal-actions"><button type="button" class="btn" id="grade-action-close">Cerrar</button></div>
+  </div>`;
+  $('#grade-action-close',dialog).onclick=()=>dialog.close();
+  for(const [id,studentKey,assessmentKey] of [
+    ['grade-action-np','npStudent','npAssessment'],
+    ['grade-action-aj','ajStudent','ajAssessment'],
+    ['grade-action-observation','observationStudent','observationAssessment']]){
+    $('#'+id,dialog).onclick=()=>{
+      const original=[...document.querySelectorAll('['+
+        (studentKey==='npStudent'?'data-np-student':studentKey==='ajStudent'?'data-aj-student':'data-observation-student')+
+        ']')].find(b=>b.dataset[studentKey]===studentId&&b.dataset[assessmentKey]===assessmentId);
+      dialog.close();
+      original?.click();
+    };
+  }
+  dialog.showModal();
+}
 function bindNotebook(){
   $('#manage-origin-groups')?.addEventListener('click',openOriginGroupsManager);
   $('#itaca-general-rule')?.addEventListener('change',e=>{
@@ -1873,6 +1930,7 @@ function bindNotebook(){
   document.querySelectorAll('[data-view-student]').forEach(b=>b.onclick=()=>{STATE.studentId=b.dataset.viewStudent;STATE.tab='alumno';render();});
   document.querySelectorAll('[data-edit-student]').forEach(b=>b.onclick=()=>openStudentTools(b.dataset.editStudent));
   document.querySelectorAll('[data-observation-student]').forEach(b=>b.onclick=()=>openGradeObservation(b.dataset.observationStudent,b.dataset.observationAssessment));
+  document.querySelectorAll('[data-grade-cell-actions-student]').forEach(b=>b.onclick=()=>openGradeCellActions(b.dataset.gradeCellActionsStudent,b.dataset.gradeCellActionsAssessment));
   document.querySelectorAll('[data-rubric-grade]').forEach(b=>b.onclick=()=>openRubricGrade(b.dataset.rubricStudent,b.dataset.rubricGrade));
   document.querySelectorAll('[data-orthography-grade]').forEach(b=>b.onclick=()=>openOrthographyGrade(b.dataset.orthographyStudent,b.dataset.orthographyGrade));
   document.querySelectorAll('[data-aj-student]').forEach(button=>button.onclick=async()=>{
@@ -1899,7 +1957,7 @@ function bindNotebook(){
     }catch(err){fail(err);}
     finally{
       button.disabled=false;
-      const replacement=[...document.querySelectorAll('[data-np-student]')].find(b=>b.dataset.npStudent===studentId&&b.dataset.npAssessment===assessmentId);
+      const replacement=[...document.querySelectorAll('[data-grade-cell-actions-student]')].find(b=>b.dataset.gradeCellActionsStudent===studentId&&b.dataset.gradeCellActionsAssessment===assessmentId);
       if(replacement){const table=$('.table-scroller');table.scrollLeft=left;table.scrollTop=top;replacement.focus({preventScroll:true});}
     }
   });
@@ -2111,7 +2169,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v160-dev');
+      const cache=await caches.open('cuaderno-docente-static-v161-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
