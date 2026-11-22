@@ -1,4 +1,5 @@
 name: 'Temporary patio XLSX rotation verification'
+# Re-ejecutar tras reparar el simulador XML y el plegado ICS de la prueba.
 on:
   push:
     branches:
