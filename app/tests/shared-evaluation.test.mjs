@@ -94,7 +94,7 @@ test('convocatoria común aparece en agenda y calendario sin crear duplicados po
  const event=saveTutorshipEvaluation(f.doc,{tutorshipId:t.id,periodId:f.period.id,date:'2026-12-18',time:'15:30',notes:'Aula 4'});
  const again=saveTutorshipEvaluation(f.doc,{id:event.id,tutorshipId:t.id,periodId:f.period.id,date:'2026-12-19',time:'16:00'});
  assert.equal(again.id,event.id);assert.equal(activeYear(f.doc).events.length,1);
- assert.match(renderEvaluationWorkspace(f.doc,{evaluationWorkspaceTab:'sesiones'}),/Sesiones de evaluación · /);
+ assert.match(renderEvaluationWorkspace(f.doc,{evaluationWorkspaceTab:'sesiones'}),/Sesiones de evaluación/);
  assert.match(renderPlanner(f.doc,{plannerMode:'day',plannerDate:'2026-12-19'}),/1.º BACH A/);
  assertModel(f.doc);
 });

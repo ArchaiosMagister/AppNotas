@@ -1,3 +1,11 @@
+## Tarjetas de sesiones organizadas por evaluación
+
+La pestaña **Sesiones** del apartado **Sesiones de evaluación** se organiza por **1.ª, 2.ª y 3.ª evaluación**, en lugar de agrupar primero por materia o tutoría. Cada evaluación muestra una **cuadrícula compacta de tarjetas**, con la tutoría/grupo, asignaturas, fecha, hora de inicio y, si se ha indicado, hora de finalización.
+
+La acción **Programar sesión** está disponible directamente en las tarjetas vacías; **Editar sesión** permite cambiar una cita existente. Desde las tarjetas se conservan la exportación al calendario y, en tutorías confirmadas, el visor de notas.
+
+Las tutorías de materias distintas que ya están confirmadas aparecen en una sola tarjeta por evaluación. Las posibles coincidencias no confirmadas se muestran agrupadas visualmente, **pero sus convocatorias siguen siendo independientes**, con acciones de programación por asignatura y acceso a **Tutorías** para revisar la identificación. Si hay convocatorias históricas discordantes, se muestran las fechas antiguas y se mantiene **Unificar convocatorias**, siempre con selección explícita y archivo cifrado de los originales. No se modifican las calificaciones ni el modelo de datos.
+
 ## Apartado propio: Sesiones de evaluación
 
 La gestión de reuniones se encuentra en el menú principal, junto a **Agenda**, bajo **Sesiones de evaluación**. Agenda mantiene la visualización cronológica de las convocatorias y un botón que conduce al nuevo apartado, sin duplicar sus formularios.

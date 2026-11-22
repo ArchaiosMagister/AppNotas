@@ -186,7 +186,7 @@ test('sesión general previa se conserva si después se asignan subgrupos',()=>{
  assert(y.events.some(e=>e.id===one.id&&e.originGroup==='1.º BACH B'));
  const html=renderEvaluationWorkspace(d,{evaluationWorkspaceTab:'sesiones'});
  assert(html.includes('data-eval-origin="1.º BACH B"'));
- assert(html.includes('Sesiones de evaluación · '));
+ assert(html.includes('eval-period-small-card'));
  assertModel(d);
 });
 
