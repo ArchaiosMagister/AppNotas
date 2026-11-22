@@ -17,8 +17,8 @@ export const DEFAULT_TIMETABLE_BANDS=Object.freeze([
  {id:'patio-2',label:'Segundo patio',start:'14:00',end:'14:20',kind:'break'},
  {id:'hora-7',label:'7.ª hora',start:'14:20',end:'15:15',kind:'lesson'}
 ].map(row=>Object.freeze(row)));
-/** Horario de verano: 6 horas de 45 min + primer patio intacto de 30 min.
- * Entrada a las 08:00 y salida a las 13:00. No hay segundo patio ni 7.ª hora. */
+/** Horario de verano: 7 horas de 45 min + primer patio intacto de 30 min.
+ * Entrada a las 08:00 y salida a las 13:45. No hay segundo patio. */
 export const SUMMER_TIMETABLE_BANDS=Object.freeze([
  {id:'hora-1',label:'1.ª hora',start:'08:00',end:'08:45',kind:'lesson'},
  {id:'hora-2',label:'2.ª hora',start:'08:45',end:'09:30',kind:'lesson'},
@@ -26,14 +26,28 @@ export const SUMMER_TIMETABLE_BANDS=Object.freeze([
  {id:'patio-1',label:'Primer patio',start:'10:15',end:'10:45',kind:'break'},
  {id:'hora-4',label:'4.ª hora',start:'10:45',end:'11:30',kind:'lesson'},
  {id:'hora-5',label:'5.ª hora',start:'11:30',end:'12:15',kind:'lesson'},
- {id:'hora-6',label:'6.ª hora',start:'12:15',end:'13:00',kind:'lesson'}
+ {id:'hora-6',label:'6.ª hora',start:'12:15',end:'13:00',kind:'lesson'},
+ {id:'hora-7',label:'7.ª hora',start:'13:00',end:'13:45',kind:'lesson'}
 ].map(row=>Object.freeze(row)));
 export const activeScheduleMode=y=>y?.summerEnabled===true?'summer':'regular';
 export const slotScheduleMode=s=>s?.scheduleMode==='summer'?'summer':'regular';
-export const scheduleBands=(y,mode=activeScheduleMode(y))=>
- (mode==='summer'?(Array.isArray(y?.summerBands)?y.summerBands:SUMMER_TIMETABLE_BANDS)
- : (Array.isArray(y?.bands)?y.bands:DEFAULT_TIMETABLE_BANDS)).slice()
- .sort((a,b)=>a.start.localeCompare(b.start)||a.end.localeCompare(b.end));
+/** Compatibilidad con la vista previa de verano que terminaba a las 13:00.
+ * La ampliación solo se aplica a su plantilla exacta; una 7.ª hora
+ * eliminada deliberadamente en la versión nueva no reaparece. */
+const legacySummerTemplate=y=>{
+ if(y?.summerBandVersion===2||!Array.isArray(y?.summerBands)||y.summerBands.length!==7)return false;
+ const old=SUMMER_TIMETABLE_BANDS.slice(0,-1);
+ return old.every((b,i)=>y.summerBands[i]?.id===b.id&&
+  y.summerBands[i]?.start===b.start&&y.summerBands[i]?.end===b.end&&
+  y.summerBands[i]?.kind===b.kind);
+};
+export const scheduleBands=(y,mode=activeScheduleMode(y))=>{
+ const source=mode==='summer'?(Array.isArray(y?.summerBands)?y.summerBands:SUMMER_TIMETABLE_BANDS)
+  : (Array.isArray(y?.bands)?y.bands:DEFAULT_TIMETABLE_BANDS);
+ const rows=legacySummerTemplate(y)&&mode==='summer'
+  ?[...source,SUMMER_TIMETABLE_BANDS.at(-1)]:source;
+ return rows.slice().sort((a,b)=>a.start.localeCompare(b.start)||a.end.localeCompare(b.end));
+};
 export const slotsForMode=(y,mode=activeScheduleMode(y))=>
  (y?.slots||[]).filter(s=>slotScheduleMode(s)===mode);
 const cloneBands=()=>DEFAULT_TIMETABLE_BANDS.map(b=>({...b}));
@@ -43,14 +57,20 @@ const cloneSummerBands=()=>SUMMER_TIMETABLE_BANDS.map(b=>({...b}));
 export function setSummerSchedule(doc,enabled){
  const y=activeYear(doc);
  if(typeof enabled!=='boolean')throw new Error('Selecciona un horario válido.');
- if(enabled&&!y.summerInitialized){
+ const upgrading=enabled&&legacySummerTemplate(y);
+ if(upgrading){
+  y.summerBands=scheduleBands(y,'summer').map(b=>({...b}));
+  y.summerBandVersion=2;
+ }
+ if(enabled&&(!y.summerInitialized||upgrading)){
   const summerBands=scheduleBands(y,'summer'),ordinary=scheduleBands(y,'regular');
   const seen=new Set(slotsForMode(y,'summer').map(s=>s.day+'|'+s.bandId));
   const clones=[];
   for(const s of slotsForMode(y,'regular')){
    const from=ordinary.find(b=>b.id===s.bandId)||ordinary.find(b=>b.start===s.start&&b.end===s.end);
    const to=from&&summerBands.find(b=>b.id===from.id);
-   if(!to||seen.has(s.day+'|'+to.id))continue;
+   if(!to||(upgrading&&y.summerInitialized&&to.id!=='hora-7')||
+      seen.has(s.day+'|'+to.id))continue;
    clones.push({...s,id:uid(),scheduleMode:'summer',start:to.start,end:to.end,bandId:to.id});
    seen.add(s.day+'|'+to.id);
   }
@@ -78,7 +98,7 @@ export function saveTimetableBand(doc,{id=null,label,start,end,kind='lesson'}){
  const next=checkedBands(existing?before.map(b=>b.id===id?band:b):[...before,band]);
  // Validar todo ANTES de modificar el cuaderno. Las sesiones vinculadas
  // conservan su clase, aula y eventos al cambiar los tiempos de la franja.
- if(mode==='summer')y.summerBands=next;else y.bands=next;
+ if(mode==='summer'){y.summerBands=next;y.summerBandVersion=2;}else y.bands=next;
  if(existing&&(existing.start!==start||existing.end!==end)){
   for(const slot of y.slots.filter(s=>slotScheduleMode(s)===mode&&s.bandId===id)){
    slot.start=start;slot.end=end;
@@ -94,7 +114,7 @@ export function removeTimetableBand(doc,id){
  if(!bands.some(b=>b.id===id))throw new Error('Franja inexistente.');
  if(slotsForMode(y).some(s=>s.bandId===id))throw new Error('Retira primero las clases asignadas a esta franja.');
  const next=checkedBands(bands.filter(b=>b.id!==id));
- if(activeScheduleMode(y)==='summer')y.summerBands=next;else y.bands=next;
+ if(activeScheduleMode(y)==='summer'){y.summerBands=next;y.summerBandVersion=2;}else y.bands=next;
  doc.updatedAt=stamp();
 }
 export const EVENT_TYPES=Object.freeze({exam:'Examen',task:'Tarea',meeting:'Reunión',other:'Otro evento'});
@@ -112,7 +132,7 @@ export const localToday=()=>{const d=new Date();return `${d.getFullYear()}-${Str
 export const timeValid=v=>typeof v==='string'&&hm.test(v);
 function yearRange(label){const match=/^(\d{4})-(\d{4})$/.exec(label||'');const y=match?Number(match[1]):new Date().getFullYear();return {start:`${y}-09-01`,end:`${y+1}-06-30`};}
 export function createPlanner(course='2026-2027'){
- const name=/^\d{4}-\d{4}$/.test(course)?course:'2026-2027';const year={id:uid(),name,...yearRange(name),bands:cloneBands(),summerBands:cloneSummerBands(),summerEnabled:false,summerInitialized:false,slots:[],events:[],lessons:[],holidays:[],exceptions:[],tasks:[]};
+ const name=/^\d{4}-\d{4}$/.test(course)?course:'2026-2027';const year={id:uid(),name,...yearRange(name),bands:cloneBands(),summerBands:cloneSummerBands(),summerBandVersion:2,summerEnabled:false,summerInitialized:false,slots:[],events:[],lessons:[],holidays:[],exceptions:[],tasks:[]};
  return {activeYearId:year.id,years:[year]};
 }
 export function ensurePlanner(doc){if(!doc.planner)doc.planner=createPlanner(doc.groups[0]?.course);return doc.planner;}
@@ -126,6 +146,7 @@ export function addAcademicYear(doc,{name,start,end,copyFrom=null}){
  if(copyFrom&&!source)throw new Error('Curso de referencia inexistente.');
  const y={id:uid(),name:n,start,end,bands:source?structuredClone(scheduleBands(source,'regular')):cloneBands(),
  summerBands:source?structuredClone(scheduleBands(source,'summer')):cloneSummerBands(),
+ summerBandVersion:2,
  summerEnabled:source?.summerEnabled===true,summerInitialized:source?.summerInitialized===true,
  slots:[],events:[],lessons:[],holidays:[],exceptions:[],tasks:[]};
  if(source)y.slots=source.slots.map(s=>{const old=doc.groups.find(g=>g.id===s.groupId);const replacement=old&&doc.groups.find(g=>g.course===n&&g.subject===old.subject&&g.name===old.name);return {...s,id:uid(),groupId:replacement?.id||null,label:replacement?'':(s.label||[old?.subject,old?.name].filter(Boolean).join(' · '))};});
@@ -272,6 +293,7 @@ export function assertPlanner(doc){if(!doc.planner)return true;const p=doc.plann
   checkedBands(scheduleBands(y,'regular'));checkedBands(scheduleBands(y,'summer'));
   if(y.summerEnabled!==undefined&&typeof y.summerEnabled!=='boolean')throw new Error('Modo de verano inválido.');
   if(y.summerInitialized!==undefined&&typeof y.summerInitialized!=='boolean')throw new Error('Inicialización del horario de verano inválida.');
+  if(y.summerBandVersion!==undefined&&y.summerBandVersion!==2)throw new Error('Versión del horario de verano inválida.');
   // Invariantes que la interfaz impone al editar también deben comprobarse
   // al restaurar una copia: evita eventos o planes ambiguos por duplicación.
   const uniquePairs=(items,key)=>new Set(items.map(key)).size===items.length;

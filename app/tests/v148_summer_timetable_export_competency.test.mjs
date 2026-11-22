@@ -5,7 +5,7 @@ import {initialNotebook,assertModel,addGroup} from '../src/model.js';
 import {overallGrade,competencyAcquisitionLevel} from '../src/calculations.js';
 import {
  DEFAULT_TIMETABLE_BANDS,SUMMER_TIMETABLE_BANDS,activeYear,activeScheduleMode,
- setSummerSchedule,slotsForMode,scheduleBands,saveSlot,saveTimetableBand,
+ setSummerSchedule,slotsForMode,scheduleBands,saveSlot,saveTimetableBand,removeTimetableBand,
  assertPlanner,addAcademicYear
 } from '../src/planner.js';
 import {renderPlanner,renderTimetableGrid} from '../src/planner-ui.js';
@@ -16,7 +16,7 @@ const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const fixture=()=>{const doc=initialNotebook();return {doc,year:activeYear(doc),group:doc.groups[0],st:doc.students[0],period:doc.periods[0]};};
 const PASS='Clave de prueba de horario verano suficientemente larga';
 
-test('horario de verano: 6 clases de 45 min y 1 patio de 30 min, salida 13:00',()=>{
+test('horario de verano: 7 clases de 45 min y 1 patio de 30 min, salida 13:45',()=>{
  const {doc,year}=fixture();
  assert.equal(scheduleBands(year).length,9);
  assert.equal(DEFAULT_TIMETABLE_BANDS.at(-1).end,'15:15');
@@ -27,17 +27,18 @@ test('horario de verano: 6 clases de 45 min y 1 patio de 30 min, salida 13:00',(
  ['patio-1','10:15','10:45','break'],
  ['hora-4','10:45','11:30','lesson'],
  ['hora-5','11:30','12:15','lesson'],
- ['hora-6','12:15','13:00','lesson']]);
+ ['hora-6','12:15','13:00','lesson'],
+ ['hora-7','13:00','13:45','lesson']]);
  assert.equal(setSummerSchedule(doc,true),'summer');
- assert.equal(scheduleBands(year).length,7);
- assert.equal(scheduleBands(year).at(-1).end,'13:00');
- assert(!scheduleBands(year).some(b=>b.id==='patio-2'||b.id==='hora-7'));
+ assert.equal(scheduleBands(year).length,8);
+ assert.equal(scheduleBands(year).at(-1).end,'13:45');
+ assert(!scheduleBands(year).some(b=>b.id==='patio-2'));
  assert.equal(setSummerSchedule(doc,false),'regular');
  assert.equal(scheduleBands(year).length,9);
  assertModel(doc);
 });
 
-test('el toggle copia las seis franjas ocupadas, preserva la clase séptima y no toca notas',()=>{
+test('el toggle copia las siete clases sin borrar el horario ordinario ni tocar notas',()=>{
  const {doc,year,group,st,period}=fixture();
  const originalNote=overallGrade(doc,st.id,group.id,period.id),grades=structuredClone(doc.grades);
  for(const band of scheduleBands(year).filter(b=>b.kind==='lesson')){
@@ -48,15 +49,15 @@ test('el toggle copia las seis franjas ocupadas, preserva la clase séptima y no
  assert.equal(normal.length,7);
  setSummerSchedule(doc,true);
  const summer=slotsForMode(year);
- assert.equal(summer.length,6);
- assert(!summer.some(s=>s.bandId==='hora-7'));
+ assert.equal(summer.length,7);
+ assert(summer.some(s=>s.bandId==='hora-7'&&s.start==='13:00'&&s.end==='13:45'));
  assert(summer.every(s=>s.scheduleMode==='summer'));
  assert(summer.some(s=>s.bandId==='hora-6'&&s.start==='12:15'&&s.end==='13:00'));
  assert(summer.every(s=>!normal.some(n=>n.id===s.id)));
  assert.equal(overallGrade(doc,st.id,group.id,period.id),originalNote);
  assert.deepEqual(doc.grades,grades);
  setSummerSchedule(doc,false);assert.deepEqual(slotsForMode(year),normal);
- setSummerSchedule(doc,true);assert.equal(slotsForMode(year).length,6,'No duplica sesiones al volver');
+ setSummerSchedule(doc,true);assert.equal(slotsForMode(year).length,7,'No duplica sesiones al volver');
  assertModel(doc);
 });
 
@@ -115,7 +116,7 @@ test('copiar curso conserva tanto horario normal como verano sin modificar el or
  assert.equal(other.slots.filter(s=>s.scheduleMode==='regular').length,1);
  assert(other.slots.every(s=>s.groupId===null||s.groupId===replacement.id));
  assert.equal(other.summerEnabled,true);
- assert.equal(scheduleBands(other).at(-1).end,'13:00');
+ assert.equal(scheduleBands(other).at(-1).end,'13:45');
  assert.deepEqual(year,old);
  assertModel(doc);
 });
@@ -144,9 +145,10 @@ test('Word y PDF contienen horas, días y colores del horario activo sin notas d
  const zip=await timetableWordBlob(doc,year,FakeZip);
  assert(zip.size>200);
  setSummerSchedule(doc,true);
- assert.equal(timetableRows(doc,year).length,7);
+ assert.equal(timetableRows(doc,year).length,8);
  assert.equal(timetableFileBase(year).endsWith('-verano'),true);
- assert(Buffer.from(timetablePdfBytes(doc,year)).toString('latin1').includes('13:00'));
+ assert(timetableDocxXml(doc,year).includes('13:00–13:45'));
+ assert(Buffer.from(timetablePdfBytes(doc,year)).toString('latin1').includes('13:45'));
  assertModel(doc);
 });
 
@@ -187,4 +189,51 @@ test('UI accesible, formularios, exportación offline y criterios de CE al ponde
  assert(app.includes("'./src/timetable-export.js'"));
  assert(!ui.includes('fetch('));
  assertModel(initialNotebook());
+});
+
+test('compatibilidad: cuaderno de vista previa con 6 clases de verano recibe séptima franja sin perder horarios ni notas',()=>{
+ const {doc,year,group,st,period}=fixture();
+ const regular=scheduleBands(year,'regular').find(b=>b.id==='hora-7');
+ const original=saveSlot(doc,{day:3,start:regular.start,end:regular.end,type:'class',groupId:group.id,room:'Aula 7',bandId:regular.id});
+ setSummerSchedule(doc,true);
+ const summerSeventh=slotsForMode(year).find(s=>s.day===3&&s.bandId==='hora-7');
+ assert.equal(summerSeventh.start,'13:00');
+ assert.equal(summerSeventh.end,'13:45');
+ // Simula el formato de la primera vista previa: aún no existía la 7.ª hora.
+ year.summerBands=structuredClone(SUMMER_TIMETABLE_BANDS.slice(0,-1));
+ delete year.summerBandVersion;
+ year.slots=year.slots.filter(s=>s.id!==summerSeventh.id);
+ year.summerInitialized=true;
+ const previous=overallGrade(doc,st.id,group.id,period.id);
+ const grades=structuredClone(doc.grades);
+ const beforeRegular=structuredClone(slotsForMode(year,'regular'));
+ assert.equal(scheduleBands(year,'summer').length,8,'La vista previa antigua se amplía en lectura');
+ setSummerSchedule(doc,false);
+ setSummerSchedule(doc,true);
+ const upgraded=slotsForMode(year).find(s=>s.day===3&&s.bandId==='hora-7');
+ assert(upgraded);
+ assert.equal(upgraded.room,'Aula 7');
+ assert.equal(upgraded.start,'13:00');
+ assert.equal(upgraded.end,'13:45');
+ assert.notEqual(upgraded.id,original.id);
+ assert.equal(year.summerBandVersion,2);
+ assert.deepEqual(slotsForMode(year,'regular'),beforeRegular);
+ assert.equal(overallGrade(doc,st.id,group.id,period.id),previous);
+ assert.deepEqual(doc.grades,grades);
+ assertModel(doc);
+});
+test('eliminar deliberadamente la 7.ª hora de verano no la recrea ni afecta al horario normal',()=>{
+ const {doc,year}=fixture();
+ setSummerSchedule(doc,true);
+ const seven=scheduleBands(year,'summer').find(b=>b.id==='hora-7');
+ assert(seven);
+ removeTimetableBand(doc,seven.id);
+ assert.equal(scheduleBands(year,'summer').length,7);
+ assert.equal(scheduleBands(year,'summer').at(-1).end,'13:00');
+ assert.equal(year.summerBandVersion,2);
+ setSummerSchedule(doc,false);
+ assert.equal(scheduleBands(year).length,9);
+ setSummerSchedule(doc,true);
+ assert.equal(scheduleBands(year).length,7);
+ assertModel(doc);
 });
