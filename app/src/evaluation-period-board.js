@@ -76,8 +76,8 @@ function periodCard(doc,year,period,card){
 }
 /** El orden académico determina las secciones: 1.ª, 2.ª, 3.ª evaluación.
  * Cada una muestra todas las tutorías elegibles sin duplicar materias confirmadas. */
-export function renderEvaluationPeriodBoard(doc,year){
- const cards=sessionPresentation(doc,year),periods=[...doc.periods].sort((a,b)=>a.order-b.order);
+export function renderEvaluationPeriodBoard(doc,year,cards=sessionPresentation(doc,year)){
+ const periods=[...doc.periods].sort((a,b)=>a.order-b.order);
  const content=periods.map(period=>{
   const events=year.events.filter(e=>e.type==='evaluation'&&e.periodId===period.id);
   return '<section class="eval-period-section" data-evaluation-section="'+esc(period.id)+'">'+
