@@ -14,7 +14,7 @@ function navigationFor(tab='cuaderno',collapsed=false){
     const b=js.indexOf('function renderPeriodButtons(){',a);
     assert(a>=0&&b>a,'Bloque de navegación no encontrado');
     const nav=js.slice(a,b);
-    const api=runInNewContext(nav+';({renderNavigation,workspaceDisclosures})',{
+    const api=runInNewContext(nav+';({renderNavigation,renderAcademicQuickNav,workspaceDisclosures})',{
       STATE:{tab,navCollapsed:collapsed}
     });
     return {html:api.renderNavigation(),quick:api.renderAcademicQuickNav(),preferences:api.workspaceDisclosures};
