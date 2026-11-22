@@ -407,18 +407,11 @@ function setSubjectChoice(level,subject){
   STATE.groupId=groupsForSubject()[0]?.id||null;
   render();
 }
-/** Acentos visuales diferenciados sin migrar ni sobrescribir preferencias cifradas. */
-const CLASSICAL_SUBJECT_ACCENTS=Object.freeze({
-  '4eso:Latín 4.º':'#B17B54',
-  '1bach:Latín I':'#AD6A47',
-  '2bach:Latín II':'#984F3F',
-  '1bach:Griego I':'#438DB8',
-  '2bach:Griego II':'#2878AF'
-});
+/** Restaurar los acentos originales de cada materia, incluidos los personalizados.
+ * El rediseño clásico no sustituye los colores almacenados del docente. */
 function colorFor(level,subject){
-  const key=subjectKey(level,subject),stored=STATE.doc.settings.subjectAccents[key],original=SUBJECT_COLORS[key];
-  if(stored&&(!original||stored.toUpperCase()!==original.toUpperCase()))return stored;
-  return CLASSICAL_SUBJECT_ACCENTS[key]||stored||original||'#B17B54';
+  const key=subjectKey(level,subject);
+  return STATE.doc.settings.subjectAccents[key]||SUBJECT_COLORS[key]||'#F59E0B';
 }
 function contrastFor(hex){
   const vals=[1,3,5].map(pos=>parseInt(hex.slice(pos,pos+2),16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);
@@ -1250,7 +1243,7 @@ function renderStudentView(){
       :`<div class="student-activity-list">${ordered.map(a=>renderActivity(a,cats.find(c=>c.id===a.categoryId)?.name||'')).join('')||'<p class="hint">Sin actividades en esta evaluación.</p>'}</div>`;
     const opened=STATE.studentPeriodOpen[p.id]??index===0;
     return `<details class="panel panel-pad student-period" data-student-period="${esc(p.id)}" ${opened?'open':''}><summary class="student-period-summary"><span class="student-period-name">${esc(p.name)}</span><div class="student-period-grades"><span class="student-period-grade"><span class="student-period-grade-label">Media</span><strong class="student-score">${gradeChip(overallGrade(STATE.doc,student.id,STATE.groupId,p.id))} / 10</strong></span><span class="student-period-grade student-period-itaca"><span class="student-period-grade-label">Ítaca</span><strong class="student-score">${itacaChip(STATE.doc,student.id,STATE.groupId,p.id)}</strong></span></div></summary><div class="student-period-body"><label class="student-period-order-label">Orden de las actividades<select data-student-period-order="${esc(p.id)}" aria-label="Orden de actividades de ${esc(p.name)}">${STUDENT_ACTIVITY_SORT_OPTIONS.map(([key,label])=>opt(key,label,mode)).join('')}</select></label>${content}</div></details>`;
-  }).join('')}<section class="panel panel-pad"><div class="section-title-row"><strong>Evaluación final del curso</strong><strong class="student-score">${gradeChip(finalGrade(STATE.doc,student.id,STATE.groupId))} / 10</strong></div></section>`;
+  }).join('')}<section class="panel panel-pad student-final-summary"><div class="section-title-row"><strong>Evaluación final del curso</strong><strong class="student-score">${gradeChip(finalGrade(STATE.doc,student.id,STATE.groupId))} / 10</strong></div></section>`;
 }
 function bindStudentView(){
   document.querySelectorAll('[data-student-period]').forEach(details=>details.addEventListener('toggle',()=>{
