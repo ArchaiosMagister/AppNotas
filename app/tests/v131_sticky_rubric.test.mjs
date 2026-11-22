@@ -24,7 +24,7 @@ test('Rúbrica coloca valor y controles en dos niveles igual que la entrada ordi
   assert(begin>=0&&end>begin);
   const table=js.slice(begin,end);
   assert(table.includes('<div class="grade-entry rubric-grade-entry"><button class="rubric-grade-button"'));
-  assert(table.includes('<small>${g?.notSubmitted?\'Pulsar para editar\':\'/10\'}</small></button></div>${npButton}${ajButton}${observationButton(s.id,a.id)}</td>'));
+  assert(table.includes('<small>${g?.notSubmitted?\'Pulsar para editar\':\'/10\'}</small></button></div>${gradeCellActions(s,a,g,npButton,ajButton)}</td>'));
   assert(table.includes("g?.notSubmitted?npGradeMarker:g?gradeChip(score)"),
     'La rúbrica muestra NP en la nota sin desactivar el botón de edición');
   assert(table.includes('<div class="grade-entry ${showConverted?'));
