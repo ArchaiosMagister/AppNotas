@@ -51,8 +51,8 @@ test('Cambio visual no modifica modelo, cálculos ni contenido privado',async()=
   assert.equal(overallGrade(doc,student.id,group.id,period.id),score);
   assert.deepEqual(doc,before);
   const [app,sw]=await Promise.all([read('app.js'),read('sw.js')]);
-  assert(app.includes("caches.open('cuaderno-docente-static-v137-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v137-dev'"));
+  assert(app.includes("caches.open('cuaderno-docente-static-v140-dev')"));
+  assert(sw.includes("const CACHE='cuaderno-docente-static-v140-dev'"));
   assert(!app.includes('indexedDB.deleteDatabase'));
   assert(!sw.includes('indexedDB.deleteDatabase'));
 });
