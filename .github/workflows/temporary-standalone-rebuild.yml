@@ -1,0 +1,33 @@
+name: Temporary standalone reconstruction — v1.1
+on:
+  push:
+    branches:
+      - feat/horario-verano-exportacion-criterios-20261122
+    paths:
+      - .github/workflows/temporary-standalone-rebuild.yml
+permissions:
+  contents: write
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Prepare Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Regenerate self-contained HTML and its CSP
+        run: |
+          npm install --location=global --no-audit --no-fund typescript@5
+          node app/tools/build-standalone.mjs
+          python3 scripts/source_manifest.py --write
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/CuadernoDocente_sin_instalar.html app/MANIFEST_SHA256.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "build: regenerate secure standalone HTML from updated application modules"
+            git push origin HEAD:refs/heads/feat/horario-verano-exportacion-criterios-20261122
+          fi
