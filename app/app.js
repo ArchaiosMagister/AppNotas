@@ -1,4 +1,4 @@
-import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,catalogForNotebook,addNotebookSubject,removeNotebookSubject,defaultSubjectAccent,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
+import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,catalogForNotebook,addNotebookSubject,removeNotebookSubject,defaultSubjectAccent,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,setGroupWeeklyHours,setStudentOriginGroups,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
 import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,competencyArithmeticMean,gradeToFour,competencyAcquisitionLevel,competencyAcquisitionLabel,COMPETENCY_ACQUISITION_LABELS,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,itacaGrade} from './src/calculations.js';
 import {studentsFromCsv} from './src/csv.js';
 import {parseRubricText} from './src/rubric-import.js';
@@ -893,9 +893,11 @@ function render(){
   // Cada boton corresponde a una materia concreta, no solo a una etapa:
   // elegir entre Latin y Griego nunca depende de un segundo desplegable.
   const courseChoices=[...catalogForNotebook(STATE.doc).flatMap(({level,label,subjects})=>subjects.map(subject=>({
-    level,subject,subjectName:subject,stage:label
+    level,subject,subjectName:subject,stage:label,
+    groupNames:STATE.doc.groups.filter(g=>g.level===level&&g.subject===subject).map(g=>g.name)
   }))), ...[...new Set(STATE.doc.groups.filter(g=>g.level===null).map(g=>g.subject))].map(subject=>({
-    level:'legacy',subject,subjectName:subject||'Sin asignatura',stage:'Sin clasificar'
+    level:'legacy',subject,subjectName:subject||'Sin asignatura',stage:'Sin clasificar',
+    groupNames:STATE.doc.groups.filter(g=>g.level===null&&g.subject===subject).map(g=>g.name)
   }))];
   const subjectLabel=STATE.subject||'Sin asignatura';
   const levelLabel=COURSE_SUBJECTS[STATE.level]?.label||'Sin clasificar';
@@ -915,7 +917,7 @@ function render(){
 </div></header><main class="content"><div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level,STATE.subject)])} · CUADERNO ACADÉMICO · v1.0</div><h1>${esc(subjectLabel)} <span class="muted-slash">/</span> ${esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${esc(levelLabel)} · ${esc(group?.course||'Curso escolar por configurar')} · ${esc(period?.name||'')} · Almacenamiento cifrado local</p></div><span class="demo-tag">⚠ Copias solo en almacenamiento local</span></div><p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo">
   <div class="selectors">
     <div class="course-switch" role="group" aria-label="Seleccionar asignatura">
-      <div class="course-buttons">${courseChoices.map(x=>`<button type="button" class="btn course-choice" data-course-level="${esc(x.level)}" data-course-subject="${esc(x.subject)}" aria-pressed="${STATE.level===x.level&&STATE.subject===x.subject}" title="${esc(x.stage)}"><strong class="course-name">${esc(x.subjectName)}</strong></button>`).join('')}</div>
+      <div class="course-buttons">${courseChoices.map(x=>`<button type="button" class="btn course-choice" data-course-level="${esc(x.level)}" data-course-subject="${esc(x.subject)}" aria-pressed="${STATE.level===x.level&&STATE.subject===x.subject}" title="${esc(x.stage)}"><strong class="course-name">${esc(x.subjectName)}</strong><small class="course-group-caption" title="${esc(x.groupNames.join(' · ')||'Sin grupo creado')}">${esc(x.groupNames.length?x.groupNames.join(' · '):'Sin grupo · crear grupo')}</small></button>`).join('')}</div>
     </div>
     ${matching.length>1?`<div class="group-switch" role="group" aria-label="Seleccionar grupo de ${esc(subjectLabel)}"><span class="group-switch-label">Grupos</span><div class="group-buttons">${matching.map(x=>`<button type="button" class="btn group-choice" data-group-choice="${esc(x.id)}" aria-pressed="${x.id===STATE.groupId}">${esc(x.name)}</button>`).join('')}</div></div>`:''}
   </div>
@@ -1009,7 +1011,7 @@ function renderNotebook(){
   }).join('')}<td class="final-col"><button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip(overallGrade(STATE.doc,s.id,STATE.groupId,STATE.periodId))}</button></td><td class="itaca-col"><button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc,s.id,STATE.groupId,STATE.periodId)}${itacaStudentRule(STATE.doc,s.id,STATE.periodId)!=='general'?'<span class="itaca-exception" title="Excepción individual">*</span>':''}</button></td></tr>`).join('');
   const sum=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).reduce((s,c)=>s+c.weight,0);
   const problems=students.flatMap(st=>periodCalculationWarnings(STATE.doc,st.id,STATE.groupId,STATE.periodId)).filter(v=>v.includes('sin conversión'));
-  return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><div class="notebook-heading-kicker">TABULAE · EVALUACIÓN</div><strong>Calificaciones</strong><p>Pulsa o toca ⓘ en la cabecera de cada columna para ver la media y los aprobados de la clase. Introduce notas con hasta dos decimales. NP cuenta como cero; AJ marca una ausencia justificada pendiente que no computa. En los exámenes con faltas recuperables, pulsa la calificación para editar nota original, faltas y entrega. «⋯» configura una columna.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><button class="btn" id="notebook-calculations" type="button" data-academic-quick="calculos" title="Configurar porcentajes y reglas de evaluación">∑ Cálculos</button><button class="btn" id="notebook-competencies" type="button" data-academic-quick="competencias" title="Consultar niveles de adquisición competencial">◎ Competencias</button><details class="notebook-more-actions"><summary>Más acciones <span aria-hidden="true">⌄</span></summary><div class="notebook-more-panel"><button class="btn" id="copy-structure">⇉ Copiar actividades</button><button class="btn" id="schedule-exam">▣ Programar examen</button></div></details></div></div><div class="student-order-bar">${studentSortControls()}</div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col">Nota Ítaca <small>/10 · clic para excepción</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><div class="legend"><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></div>`;
+  return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><div class="notebook-heading-kicker">TABULAE · EVALUACIÓN</div><strong>Calificaciones</strong><p>Pulsa o toca ⓘ en la cabecera de cada columna para ver la media y los aprobados de la clase. Introduce notas con hasta dos decimales. NP cuenta como cero; AJ marca una ausencia justificada pendiente que no computa. En los exámenes con faltas recuperables, pulsa la calificación para editar nota original, faltas y entrega. «⋯» configura una columna.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><button class="btn" id="notebook-calculations" type="button" data-academic-quick="calculos" title="Configurar porcentajes y reglas de evaluación">∑ Cálculos</button><button class="btn" id="notebook-competencies" type="button" data-academic-quick="competencias" title="Consultar niveles de adquisición competencial">◎ Competencias</button><details class="notebook-more-actions"><summary>Más acciones <span aria-hidden="true">⌄</span></summary><div class="notebook-more-panel"><button class="btn" id="copy-structure">⇉ Copiar actividades</button><button class="btn" id="schedule-exam">▣ Programar examen</button></div></details></div></div><div class="student-order-bar">${studentSortControls()}<button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col">Nota Ítaca <small>/10 · clic para excepción</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><div class="legend"><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></div>`;
 }
 const ITACA_OPTIONS=[['half','Redondear desde ,5'],['seven','Redondear desde ,7'],['none','No redondear']];
 const RULE_LABELS={mean:'Media aritmética',weighted_mean:'Media ponderada por actividad',highest:'Mejor nota',best_n:'Media de las N mejores',last:'Última evaluada',latest_if_highest:'Última si iguala o supera la mejor; si no, media'};
@@ -1590,9 +1592,13 @@ function bindCommon(){
   }
   $('#new-group').onclick=()=>{
     if(!validSubject(STATE.level,STATE.subject,STATE.doc))return toast('Selecciona primero un curso y asignatura.');
-    fieldsModal(`Nuevo grupo · ${STATE.subject}`,[{id:'name',label:'Nombre del grupo',value:'Grupo A'},{id:'course',label:'Curso escolar',value:'2026-2027'}],async v=>{
-      let group;await commit(d=>{group=addGroup(d,v.name,STATE.subject,v.course,STATE.level);});STATE.groupId=group.id;render();
-    },`Asignatura: ${COURSE_SUBJECTS[STATE.level].label} · ${STATE.subject}.`);
+    fieldsModal(`Nuevo grupo · ${STATE.subject}`,[
+      {id:'name',label:'Nombre del grupo de la asignatura',value:'Grupo A'},
+      {id:'course',label:'Curso escolar',value:activeYear(STATE.doc)?.name||'2026-2027'},
+      {id:'weeklyHours',label:'Horas semanales (opcional; límite para el horario)',type:'number',value:'',min:1,max:30,required:false}
+    ],async v=>{
+      let group;await commit(d=>{group=addGroup(d,v.name,STATE.subject,v.course,STATE.level,v.weeklyHours);});STATE.groupId=group.id;render();
+    },`Asignatura: ${COURSE_SUBJECTS[STATE.level].label} · ${STATE.subject}. El grupo se verá bajo su materia y podrá reunir alumnos de varias tutorías.`);
   };
   $('#classify-group')?.addEventListener('click',()=>fieldsModal('Clasificar grupo anterior',[{id:'pair',label:'Curso y asignatura',type:'select',options:pairOptions()}],async v=>{
     const [level,...parts]=v.pair.split(':');const subject=parts.join(':');const groupId=STATE.groupId;
@@ -1621,9 +1627,17 @@ function bindCommon(){
 }
 function openGroupTools(){
   const g=currentGroup();if(!g)return;
-  dialog.innerHTML=`<div class="modal-inner"><h2>Gestión de grupo</h2><p class="subtitle">${esc(g.name)} · ${esc(g.course)}. Los cambios conservan los IDs, las notas y los cálculos.</p><div class="tool-actions"><button type="button" class="btn primary" id="rename-group-btn">Editar nombre y curso escolar</button><button type="button" class="btn" id="group-orth-refund-btn">Devolución de faltas: ${groupOrthographyRefundable(STATE.doc,g.id)?'Sí':'No'}</button></div><p class="hint">Se aplica a las actividades con penalización de este grupo y a los exámenes nuevos. No altera otros grupos ni las notas originales.</p><div class="modal-actions"><button type="button" class="btn" id="close-group-tools">Cerrar</button></div></div>`;
+  dialog.innerHTML=`<div class="modal-inner"><h2>Gestión de grupo</h2><p class="subtitle">${esc(g.name)} · ${esc(g.course)}. Los cambios conservan los IDs, las notas y los cálculos.</p><div class="tool-actions"><button type="button" class="btn primary" id="rename-group-btn">Editar nombre y curso escolar</button><button type="button" class="btn" id="group-weekly-hours">Horas semanales: ${g.weeklyHours??'Sin límite'}</button><button type="button" class="btn" id="group-orth-refund-btn">Devolución de faltas: ${groupOrthographyRefundable(STATE.doc,g.id)?'Sí':'No'}</button></div><p class="hint">Se aplica a las actividades con penalización de este grupo y a los exámenes nuevos. No altera otros grupos ni las notas originales.</p><div class="modal-actions"><button type="button" class="btn" id="close-group-tools">Cerrar</button></div></div>`;
   $('#close-group-tools',dialog).onclick=()=>dialog.close();
   $('#rename-group-btn',dialog).onclick=()=>{dialog.close();fieldsModal('Editar grupo',[{id:'name',label:'Nombre',value:g.name},{id:'course',label:'Curso escolar (año académico)',value:g.course}],async v=>commit(d=>updateGroupInfo(d,g.id,v.name,v.course)));};
+  $('#group-weekly-hours',dialog).onclick=()=>{
+    dialog.close();
+    fieldsModal('Horas semanales · '+g.subject+' · '+g.name,[
+      {id:'weeklyHours',label:'Máximo de clases por semana (1–30)',type:'number',
+        value:g.weeklyHours??'',min:1,max:30,required:false}
+    ],async values=>commit(d=>setGroupWeeklyHours(d,g.id,values.weeklyHours),'Límite semanal del grupo'),
+    'Deja vacío para no limitar. Se cuentan las clases por separado en el horario ordinario y el de verano. No se permite un máximo inferior a las sesiones ya guardadas.');
+  };
   $('#group-orth-refund-btn',dialog).onclick=()=>{
     dialog.close();
     fieldsModal('Devolución de nota por faltas · '+g.name,[
@@ -1657,6 +1671,25 @@ function openPeriodTools(){
   $('#rename-period-btn',dialog).onclick=()=>{dialog.close();fieldsModal('Renombrar periodo',[{id:'name',label:'Nombre del periodo',value:p.name}],async v=>commit(d=>renamePeriod(d,p.id,v.name)));};
   dialog.querySelectorAll('[data-move-period]').forEach(b=>b.onclick=async()=>{if(!window.confirm('El orden de los periodos interviene en las reglas de última evaluación. ¿Continuar?'))return;dialog.close();try{await commit(d=>movePeriod(d,p.id,Number(b.dataset.movePeriod)),'Reordenar periodos');}catch(err){fail(err);}});
   dialog.showModal();
+}
+/** Editar las tutorías de procedencia conjuntamente, conservando grupos,
+ * notas, observaciones y pertenencia a la materia optativa. */
+function openOriginGroupsManager(){
+ const group=currentGroup();if(!group)return;
+ const students=sortStudents(STATE.doc.students.filter(s=>s.groupId===group.id),'surname');
+ if(!students.length){toast('Añade primero alumnos a la asignatura.');return;}
+ fieldsModal('Procedencias · '+group.subject+' · '+group.name,
+  students.map(student=>({
+   id:'origin-'+student.id,label:student.name+' · tutoría de procedencia',
+   value:student.originGroup||'',maxlength:60,required:false
+  })),
+  async values=>{
+   await commit(doc=>setStudentOriginGroups(doc,group.id,students.map(student=>({
+     studentId:student.id,originGroup:values['origin-'+student.id]||''
+   }))),'Gestionar grupos de procedencia');
+   if(STATE.studentSort!=='originGroup')setStudentSort('originGroup');
+  },
+  'Ejemplos: 1.º BACH A, 1.º BACH B. En Agenda podrás programar sesiones de evaluación diferentes por tutoría. No se crean nuevos cuadernos ni se alteran calificaciones.');
 }
 function openStudentTools(studentId){
   const student=STATE.doc.students.find(s=>s.id===studentId&&s.groupId===STATE.groupId);if(!student)return;
@@ -1785,6 +1818,7 @@ function openItacaStudentRule(studentId){
   dialog.showModal();
 }
 function bindNotebook(){
+  $('#manage-origin-groups')?.addEventListener('click',openOriginGroupsManager);
   $('#itaca-general-rule')?.addEventListener('change',e=>{
     const groupId=STATE.groupId;
     commit(doc=>setItacaGroupRule(doc,groupId,e.target.value),'Redondeo general Nota Ítaca').catch(fail);
