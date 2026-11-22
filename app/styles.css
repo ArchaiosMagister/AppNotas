@@ -2112,3 +2112,135 @@ html[data-theme="dark"][data-course-variant="griego-ii"]{
 /* OLED permanece negro, sin banners luminosos. Se conserva el contraste
    de los botones y la diferencia de acentos personalizados. */
 html[data-theme="oled"][data-course-variant] .topbar::before{background:#000!important}
+
+
+/* v140 · Modo alumno: lectura próxima y tarjetas compactas. Solo presentación.
+ * Los datos, rúbricas, cálculos, navegación y colores semánticos son intactos. */
+.student-directory-grid{
+  grid-template-columns:repeat(auto-fill,minmax(205px,250px));
+  gap:9px;justify-content:start;
+}
+.student-directory-choice{
+  min-height:62px;padding:9px 11px;
+  font-family:var(--app-humanist);
+  font-size:15.5px;font-weight:800;line-height:1.35;
+  gap:9px;
+}
+.student-directory-choice>span:nth-child(2){
+  min-width:0;overflow-wrap:anywhere;
+}
+.student-directory-choice .student-origin-badge{
+  margin-left:0;flex:0 1 auto;max-width:100%;overflow-wrap:anywhere;white-space:normal;
+}
+.student-directory-choice .student-directory-arrow{margin-left:auto}
+.student-privacy,details.student-period,.student-final-summary{
+  width:100%;max-width:880px;margin-left:0;margin-right:auto;
+}
+details.student-period{
+  padding:14px 17px;
+}
+.student-period-summary{
+  justify-content:flex-start;gap:11px;flex-wrap:wrap;
+  font-size:18px;font-weight:800;line-height:1.32;
+}
+.student-period-summary>.student-period-name{
+  flex:0 1 auto;max-width:100%;font-weight:800;
+}
+.student-period-grades{
+  flex:0 1 auto;justify-content:flex-start;gap:12px;
+}
+.student-period-grade{gap:5px}
+.student-period-grade-label{
+  font-size:13px;font-weight:780;color:var(--ink);
+}
+.student-period-itaca{padding-left:10px}
+.student-period-grade .student-score{gap:4px;font-weight:850}
+.student-period-body{padding-top:11px}
+.student-period .student-category.student-category-tinted{
+  width:100%;max-width:710px;margin:10px 0;padding:9px 12px;
+}
+.student-period .student-category.student-category-tinted>.cardline{
+  display:flex;align-items:center;justify-content:flex-start;
+  flex-wrap:wrap;gap:8px 12px;
+  padding:8px 0;
+}
+.student-period .student-category>.cardline>strong{
+  flex:0 1 auto;min-width:0;
+  font-size:17px;line-height:1.35;font-weight:850;
+  color:var(--ink);overflow-wrap:anywhere;
+}
+.student-period .student-category>.cardline>.value{
+  display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;
+  margin-left:0;font-size:16px;font-weight:800;
+}
+.student-period .student-assessment-block.student-category-tinted{
+  width:100%;max-width:650px;
+  margin:5px 0;
+  padding:7px 11px;
+}
+.student-period .student-assessment{
+  display:flex;flex-flow:row wrap;
+  align-items:center;justify-content:flex-start;
+  gap:5px 12px;
+  padding:7px 0;font-size:16px;line-height:1.38;
+  border-top-color:var(--line);
+}
+.student-period .student-assessment>span:first-child{
+  min-width:0;max-width:100%;flex:0 1 auto;
+  font-size:16px;font-weight:800;
+  color:var(--ink);overflow-wrap:anywhere;
+}
+.student-period .student-assessment>strong{
+  flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;
+  gap:3px;margin:0;
+  font-size:16px;font-weight:850;line-height:1.3;
+  text-align:left;color:var(--ink);
+}
+.student-period .grade-chip,.student-final-summary .grade-chip{
+  font-family:var(--app-humanist);
+  font-size:17px;font-weight:850;line-height:1.22;
+  min-width:54px;padding:5px 9px;
+  font-variant-numeric:tabular-nums lining-nums;
+}
+.student-period .student-original,.student-period .student-activity-category{
+  font-size:12px;line-height:1.35;font-weight:650;
+}
+.student-period .student-original{
+  display:block;margin-top:0;white-space:normal;
+}
+.student-period .student-activity-list{
+  max-width:650px;gap:7px;
+}
+.student-period .student-activity-list .student-assessment-block{
+  max-width:650px;
+}
+.student-final-summary .section-title-row{
+  display:flex;justify-content:flex-start;align-items:center;
+  flex-wrap:wrap;gap:8px 14px;
+}
+.student-final-summary .section-title-row>strong:first-child{
+  font-family:var(--classical-heading);
+  font-size:19px;font-weight:800;
+}
+.student-final-summary .student-score{font-size:17px;font-weight:850}
+@media(max-width:700px){
+  .student-privacy,details.student-period,.student-final-summary{max-width:100%}
+  .student-period-summary{font-size:17px;gap:8px}
+  .student-period-grades{width:auto;margin-left:0;justify-content:flex-start;gap:10px}
+  .student-period .student-assessment{
+    flex-direction:row;flex-wrap:wrap;align-items:center;
+    gap:4px 10px;
+  }
+  .student-period .student-assessment>strong{text-align:left;align-items:flex-start}
+}
+@media(max-width:540px){
+  .student-directory-grid{grid-template-columns:minmax(0,1fr);gap:8px}
+  .student-directory-choice{width:100%;min-height:56px;font-size:16px}
+  details.student-period{padding:12px 10px}
+  .student-period .student-category.student-category-tinted{padding:8px 9px}
+  .student-period .student-category>.cardline>strong{font-size:16px}
+  .student-period .student-assessment>span:first-child,
+  .student-period .student-assessment>strong{font-size:15.5px}
+  .student-period .grade-chip{font-size:16px}
+  .student-period-grades{width:100%;margin-left:0;justify-content:flex-start}
+}
