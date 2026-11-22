@@ -146,7 +146,7 @@ function evaluationOverview(doc,y){
  return '<details id="plan-evaluations" class="panel panel-pad planner-evaluations"><summary>'+
   'Sesiones de evaluación por grupo, subgrupo y trimestre · '+scheduled+'/'+total+' programadas</summary>'+
   '<p class="hint">Las optativas comparten notas por materia, pero cada tutoría de procedencia puede tener distinta convocatoria. Para añadir o cambiar subgrupos utiliza «Gestionar procedencias» en Cuaderno.</p>'+
-  (html||'<p class="hint">Todavía no hay grupos de este curso académico.</p>')+'</details>';
+  (html||(groups.length?'<p class="hint">Las convocatorias asociadas a tutorías compartidas se muestran a continuación.</p>':'<p class="hint">Todavía no hay grupos de este curso académico.</p>'))+'</details>';
 }
 
 export function renderPlanner(doc,ui){
