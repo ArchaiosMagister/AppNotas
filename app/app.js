@@ -1056,7 +1056,7 @@ function renderNotebook(){
       const note=g?`<small class="orthography-meta">Original: ${esc(rawFmt(g.score))}/${esc(rawFmt(a.maxScore))}${faults?` · ${g.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(amount))} (${faults} faltas)`}`:''}</small>`:'<small class="orthography-meta">Nota, faltas y entrega</small>';
       const main=`<button class="orthography-grade-button" type="button" data-orthography-grade="${esc(a.id)}" data-orthography-student="${esc(s.id)}"
         aria-label="Corregir ${esc(s.name)} en ${esc(a.name)}: nota, faltas y entrega">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?npGradeMarker:g?gradeChip(value):'<strong>+ Nota</strong>'}</button>`;
-      const secondary=g?.notSubmitted||g?.pendingJustified?'':note;
+      const secondary=g?.notSubmitted?'<small class="np-edit-hint">Pulsar para editar</small>':g?.pendingJustified?'':note;
       return `<td${categoryCell(a)}>${gradeCellStack(main,gradeCellActions(s,a,g,npButton,ajButton),secondary)}</td>`;
     }
     const isTenScale=a.maxScore===10||a.convertToTen;
