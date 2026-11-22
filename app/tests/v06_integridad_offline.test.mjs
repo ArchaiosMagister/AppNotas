@@ -106,7 +106,10 @@ test('v0.6: service worker simulado precarga recursos y responde sin red desde c
  runInNewContext(js,{self,caches,fetch:fetchFn,URL,Promise});
  let installing;
  listeners.install({waitUntil(p){installing=p;}});await installing;
- assert.equal(stored.size,33);assert([...stored.keys()].some(k=>k.endsWith("/src/cuaderno.js")));assert.equal(skips,0);listeners.message({data:{type:"SKIP_WAITING"}});assert.equal(skips,1);
+ const expectedAssets=js.match(/const ASSETS=\[([^\]]+)\]/)?.[1];assert(expectedAssets);
+ assert.equal(stored.size,[...expectedAssets.matchAll(/'\.\//g)].length,'Se deben precargar todos los recursos declarados');
+ assert([...stored.keys()].some(k=>k.endsWith("/src/timetable-export.js")),'El exportador offline es obligatorio');
+ assert([...stored.keys()].some(k=>k.endsWith("/src/cuaderno.js")));assert.equal(skips,0);listeners.message({data:{type:"SKIP_WAITING"}});assert.equal(skips,1);
  let activating;
  listeners.activate({waitUntil(p){activating=p;}});await activating;assert.equal(claims,1);
  online=false;
