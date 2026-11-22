@@ -17,16 +17,17 @@ function navigationFor(tab='cuaderno',collapsed=false){
     const api=runInNewContext(nav+';({renderNavigation,workspaceDisclosures})',{
       STATE:{tab,navCollapsed:collapsed}
     });
-    return {html:api.renderNavigation(),preferences:api.workspaceDisclosures};
+    return {html:api.renderNavigation(),quick:api.renderAcademicQuickNav(),preferences:api.workspaceDisclosures};
   });
 }
 
-test('cuatro accesos principales, cuatro herramientas académicas y Ajustes siguen disponibles sin duplicados',async()=>{
+test('cuatro accesos principales, dos recursos académicos y Ajustes, con Cálculos/Competencias juntos en cuaderno',async()=>{
   const {html}=await navigationFor();
   const ids=[...html.matchAll(/data-tab="([^"]+)"/g)].map(x=>x[1]);
   assert.deepEqual(ids,['cuaderno','alumno','planificador','final',
-    'calculos','competencias','curriculo','rubricas','ajustes']);
-  assert.equal(new Set(ids).size,9);
+    'curriculo','rubricas','ajustes']);
+  assert.equal(new Set(ids).size,7);
+  assert(!ids.includes('calculos')&&!ids.includes('competencias'));
   for(const key of ids)assert(html.includes('data-tab="'+key+'"'));
   assert(html.includes('id="toggle-navigation"'),'La opción de plegar el menú permanece');
   assert(html.includes('aria-label="Trabajo diario"'));
@@ -40,10 +41,16 @@ test('el destino activo se marca y Gestión académica abre automáticamente la 
   const main=await navigationFor('alumno');
   assert(main.html.includes('data-tab="alumno" class="tab active" aria-current="page"'));
   assert(!/class="academic-disclosure"[^>]*\bopen\b/.test(main.html));
-  for(const screen of ['calculos','competencias','curriculo','rubricas']){
+  for(const screen of ['curriculo','rubricas']){
     const result=await navigationFor(screen);
     assert(result.html.includes('data-tab="'+screen+'" class="tab active" aria-current="page"'));
     assert(/class="academic-disclosure"[^>]*\bopen\b/.test(result.html),screen);
+  }
+  for(const screen of ['calculos','competencias']){
+    const result=await navigationFor(screen);
+    assert(result.quick.includes('data-academic-quick="'+screen+'"'));
+    assert(result.quick.includes('class="btn small academic-quick-active" data-academic-quick="'+screen+'" aria-current="page"'));
+    assert(!result.html.includes('data-tab="'+screen+'"'),'No duplicar en menú lateral');
   }
   const final=await navigationFor('final');
   assert(final.html.includes('data-tab="final" class="tab active" aria-current="page"'));
@@ -84,6 +91,8 @@ test('en la tabla se conservan notas, NP, AJ, Obs, rúbricas, cambios y navegaci
   const table=js.slice(start,end);
   assert(table.includes('id="new-student"'));
   assert(table.includes('id="new-assessment"'));
+  assert(table.includes('id="notebook-calculations"'));
+  assert(table.includes('id="notebook-competencies"'));
   assert(table.includes('id="copy-structure"'));
   assert(table.includes('id="schedule-exam"'));
   assert(table.includes('notebook-more-actions'));
