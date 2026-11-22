@@ -117,7 +117,7 @@ export function removeTimetableBand(doc,id){
  if(activeScheduleMode(y)==='summer'){y.summerBands=next;y.summerBandVersion=2;}else y.bands=next;
  doc.updatedAt=stamp();
 }
-export const EVENT_TYPES=Object.freeze({exam:'Examen',task:'Tarea',meeting:'Reunión',other:'Otro evento'});
+export const EVENT_TYPES=Object.freeze({exam:'Examen',task:'Tarea',meeting:'Reunión',evaluation:'Sesión de evaluación',other:'Otro evento'});
 export const EXCEPTION_TYPES=Object.freeze({cancel:'Clase cancelada',replace:'Actividad sustituta',move:'Cambio de hora'});
 export function isoDate(v){
  if(typeof v!=='string'||!iso.test(v))throw new Error('Fecha inválida.');
@@ -270,16 +270,60 @@ export function carryLesson(doc,id){
  lesson.done=false;lesson.planned='';lesson.updatedAt=stamp();doc.updatedAt=stamp();return obj;
 }
 export function findExamSlots(y,groupId,date){return daySessions(y,date).filter(s=>s.type==='class'&&s.groupId===groupId&&s.exception?.type!=='cancel'&&s.exception?.type!=='replace');}
-export function saveEvent(doc,{id=null,date,type,title,groupId=null,assessmentId=null,slotId=null,time='',notes=''}){
+export function saveEvent(doc,{id=null,date,type,title,groupId=null,assessmentId=null,slotId=null,time='',notes='',periodId=null}){
  const y=activeYear(doc);needDate(y,date);if(!Object.hasOwn(EVENT_TYPES,type))throw new Error('Tipo de evento inválido.');checkGroup(doc,groupId);
  if(time&&!timeValid(time))throw new Error('Hora del evento inválida.');
  if(String(notes).length>4000)throw new Error('Notas demasiado largas.');
+ if(type==='evaluation'){
+  const group=doc.groups.find(g=>g.id===groupId);
+  if(!group||group.course!==y.name||!doc.periods.some(p=>p.id===periodId)||!time||slotId||assessmentId)
+    throw new Error('La sesión de evaluación requiere grupo del curso, trimestre y hora manual.');
+  if(y.events.some(e=>e.id!==id&&e.type==='evaluation'&&e.groupId===groupId&&e.periodId===periodId))
+    throw new Error('Este grupo ya tiene una sesión programada para esa evaluación. Edita la existente.');
+ }else if(periodId!==null)throw new Error('Solo las sesiones de evaluación pueden vincularse a un trimestre.');
  let slot=null;if(slotId){slot=y.slots.find(s=>s.id===slotId);if(!slot||slot.day!==weekday(date)||isHoliday(y,date)||y.exceptions.some(e=>e.date===date&&e.slotId===slotId&&['cancel','replace'].includes(e.type)))throw new Error('Esta sesión no está disponible en esa fecha.');if(slot.type==='class'&&slot.groupId!==groupId)throw new Error('El grupo y la sesión no coinciden.');
   if(type==='exam'&&slot.type!=='class')throw new Error('Un examen solo se puede vincular a una sesión de clase. Indica una hora manual para una convocatoria excepcional.');}
  if(assessmentId){const a=doc.assessments.find(a=>a.id===assessmentId);if(!a||type!=='exam'||a.groupId!==groupId)throw new Error('La actividad del cuaderno no corresponde a este examen.');if(y.events.some(e=>e.id!==id&&e.assessmentId===assessmentId))throw new Error('El examen ya está programado en este curso. Edita su fecha en lugar de duplicarlo.');}
- const obj={id:id||uid(),date,type,title:trimmed(title,150),groupId:groupId||null,assessmentId:assessmentId||null,slotId:slotId||null,time:slot?(y.exceptions.find(e=>e.date===date&&e.slotId===slotId&&e.type==='move')?.start||slot.start):time,notes:String(notes).trim()};
+ const obj={id:id||uid(),date,type,title:trimmed(title,150),groupId:groupId||null,assessmentId:assessmentId||null,slotId:slotId||null,time:slot?(y.exceptions.find(e=>e.date===date&&e.slotId===slotId&&e.type==='move')?.start||slot.start):time,notes:String(notes).trim(),...(type==='evaluation'?{periodId}:{})};
  const old=y.events.find(e=>e.id===id);if(id&&!old)throw new Error('Evento inexistente.');if(old)Object.assign(old,obj);else y.events.push(obj);doc.updatedAt=stamp();return obj;
 }
+
+/** Una convocatoria por grupo y evaluación del curso académico activo.
+ * Son citas de agenda, no calificaciones ni actas de evaluación. */
+export function saveEvaluationSession(doc,{id=null,groupId,periodId,date,time,notes=''}){
+ const period=doc.periods.find(p=>p.id===periodId);
+ if(!period)throw new Error('Selecciona una evaluación válida.');
+ return saveEvent(doc,{id,groupId,periodId,date,time,notes,type:'evaluation',
+  title:'Sesión de evaluación · '+period.name});
+}
+/** VEVENT individual, sin cuentas ni red: las horas son flotantes/locales
+ * y el calendario de destino elegirá su propia zona horaria.
+ * Importar un .ics NO sincroniza modificaciones posteriores de la agenda. */
+export function calendarEventIcs(event,generatedAt=new Date()){
+ if(!event||typeof event.id!=='string'||!event.id||!Object.hasOwn(EVENT_TYPES,event.type)||!event.title||!isoDate(event.date)||!Number.isFinite(generatedAt.getTime())||
+    (event.time&&!timeValid(event.time)))throw new Error('Evento inválido para exportar.');
+ const escapeIcs=value=>String(value??'').replace(/\r\n?/g,'\n').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');
+ const fold=line=>{let out='',count=0;const encoder=new TextEncoder();
+  for(const char of line){const bytes=encoder.encode(char).length;if(count+bytes>75){out+='\r\n ';count=1;}out+=char;count+=bytes;}return out;
+ };
+ const date=event.date.replaceAll('-',''),next=addDays(event.date,1).replaceAll('-','');
+ const mins=event.time?Number(event.time.slice(0,2))*60+Number(event.time.slice(3)):0;
+ const finalMins=(mins+60)%1440;
+ const finalDay=event.time&&mins+60>=1440?next:date;
+ const start=event.time?date+'T'+event.time.replace(':','')+'00':date;
+ const end=event.time?finalDay+'T'+String(Math.floor(finalMins/60)).padStart(2,'0')+
+  String(finalMins%60).padStart(2,'0')+'00':next;
+ const stamp=generatedAt.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+ const content=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//AppNotas//AgendaDocente//ES','CALSCALE:GREGORIAN',
+  'BEGIN:VEVENT','UID:'+event.id+'@cuadernodocente.local','DTSTAMP:'+stamp,
+  event.time?'DTSTART:'+start:'DTSTART;VALUE=DATE:'+start,
+  event.time?'DTEND:'+end:'DTEND;VALUE=DATE:'+end,
+  'SUMMARY:'+escapeIcs(EVENT_TYPES[event.type]+': '+event.title),
+  'DESCRIPTION:'+escapeIcs(event.notes),
+  'END:VEVENT','END:VCALENDAR'];
+ return content.map(fold).join('\r\n')+'\r\n';
+}
+
 export function saveTask(doc,{id=null,title,dueDate,groupId=null,done=false,notes=''}){const y=activeYear(doc);needDate(y,dueDate);checkGroup(doc,groupId);if(String(notes).length>4000)throw new Error('Notas demasiado largas.');const obj={id:id||uid(),title:trimmed(title,150),dueDate,groupId:groupId||null,done:!!done,notes:String(notes).trim()};const old=y.tasks.find(t=>t.id===id);if(id&&!old)throw new Error('Tarea inexistente.');if(old)Object.assign(old,obj);else y.tasks.push(obj);doc.updatedAt=stamp();return obj;}
 export function deletePlannerItem(doc,collection,id){if(!['events','tasks','holidays','exceptions','lessons'].includes(collection))throw new Error('Apartado inválido.');const y=activeYear(doc);if(!y[collection].some(x=>x.id===id))throw new Error('Elemento inexistente.');
  const original=y[collection].find(x=>x.id===id);
@@ -299,7 +343,8 @@ export function assertPlanner(doc){if(!doc.planner)return true;const p=doc.plann
   const uniquePairs=(items,key)=>new Set(items.map(key)).size===items.length;
   if(!uniquePairs(y.exceptions,e=>`${e.date}|${e.slotId}`)||
      !uniquePairs(y.lessons.filter(l=>l.slotId),l=>`${l.date}|${l.slotId}`)||
-     !uniquePairs(y.events.filter(e=>e.assessmentId),e=>e.assessmentId))
+     !uniquePairs(y.events.filter(e=>e.assessmentId),e=>e.assessmentId)||
+     !uniquePairs(y.events.filter(e=>e.type==='evaluation'),e=>e.groupId+'|'+e.periodId))
     throw new Error('Agenda duplicada: revisa excepciones, clases y exámenes vinculados.');
   for(const s of y.slots){if(!Number.isInteger(s.day)||s.day<0||s.day>4||!Object.hasOwn(SLOT_TYPES,s.type)||!timeValid(s.start)||!timeValid(s.end)||s.end<=s.start||(s.groupId&&!doc.groups.some(g=>g.id===s.groupId))||(s.type==='class'&&!s.groupId&&!s.label)||(s.type!=='class'&&s.groupId)||
   s.room!==undefined&&(typeof s.room!=='string'||s.room.length>60)||
@@ -309,7 +354,10 @@ export function assertPlanner(doc){if(!doc.planner)return true;const p=doc.plann
   for(const h of y.holidays){isoDate(h.start);isoDate(h.end);if(h.start>h.end||!inYear(y,h.start)||!inYear(y,h.end)||!h.name)throw new Error('Festivo inválido.');}
   for(const x of y.exceptions){if(!inYear(y,isoDate(x.date))||!y.slots.some(s=>s.id===x.slotId&&s.day===weekday(x.date))||!Object.hasOwn(EXCEPTION_TYPES,x.type)||(x.type==='move'&&(!timeValid(x.start)||!timeValid(x.end)||x.end<=x.start)))throw new Error('Cambio de horario inválido.');}
   for(const item of [...y.events,...y.lessons]){if(!inYear(y,isoDate(item.date))||(item.groupId&&!doc.groups.some(g=>g.id===item.groupId))||(item.slotId&&!y.slots.some(s=>s.id===item.slotId&&s.day===weekday(item.date))))throw new Error('Agenda de clase inválida.');}
-  for(const e of y.events){if(!Object.hasOwn(EVENT_TYPES,e.type)||!e.title||(e.time&&!timeValid(e.time))||(e.slotId&&y.slots.find(s=>s.id===e.slotId)?.type==='class'&&y.slots.find(s=>s.id===e.slotId)?.groupId!==e.groupId)||(e.assessmentId&&(e.type!=='exam'||!doc.assessments.some(a=>a.id===e.assessmentId&&a.groupId===e.groupId))))throw new Error('Evento inválido.');}
+  for(const e of y.events){if(!Object.hasOwn(EVENT_TYPES,e.type)||!e.title||(e.time&&!timeValid(e.time))||(e.slotId&&y.slots.find(s=>s.id===e.slotId)?.type==='class'&&y.slots.find(s=>s.id===e.slotId)?.groupId!==e.groupId)||(e.assessmentId&&(e.type!=='exam'||!doc.assessments.some(a=>a.id===e.assessmentId&&a.groupId===e.groupId)))||
+    (e.type==='evaluation'&&(!e.groupId||!e.periodId||!e.time||e.slotId||e.assessmentId||!doc.periods.some(p=>p.id===e.periodId)||!doc.groups.some(g=>g.id===e.groupId&&g.course===y.name)))||
+    (e.type!=='evaluation'&&e.periodId!==undefined&&e.periodId!==null))
+    throw new Error('Evento inválido.');}
   for(const l of y.lessons){if(typeof l.planned!=='string'||typeof l.done!=='boolean'||typeof l.actual!=='string')throw new Error('Plan de clase inválido.');}
   for(const t of y.tasks){if(!inYear(y,isoDate(t.dueDate))||!t.title||typeof t.done!=='boolean'||(t.groupId&&!doc.groups.some(g=>g.id===t.groupId)))throw new Error('Tarea inválida.');}
  }
