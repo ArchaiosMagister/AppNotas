@@ -1373,3 +1373,45 @@ html[data-theme="oled"] .notebook-more-actions>summary{background:#000!important
 .shell.student-focus .header-tools{
   display:none!important
 }
+
+/* v131 · Esquina fija Alumno y presentación homogénea de rúbricas.
+ * La celda de cabecera combina sticky en los dos ejes y ha de superar
+ * a los títulos de actividades (z-index:3) y los nombres (z-index:2). */
+.grade-table thead th.name-col{
+  position:sticky;
+  top:0;
+  left:0;
+  z-index:8;
+  background:var(--raised, #f6f9fd)!important;
+  background-clip:padding-box;
+}
+/* Conservar el fondo de cabecera oscuro del tema OLED. */
+html[data-theme="oled"] .grade-table thead th.name-col{
+  background:#080808!important;
+}
+/* El bloque numérico de rúbrica debe ocupar la misma línea independiente
+ * que los demás valores: NP, AJ y Obs. quedan en la fila inferior. */
+.grade-table .rubric-grade-entry{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+  min-width:84px;
+}
+.grade-table .rubric-grade-entry .rubric-grade-button{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  min-height:54px;
+  min-width:86px;
+  padding:4px 6px;
+}
+.grade-table .rubric-grade-entry .rubric-grade-button .grade-chip{
+  font-size:16px;
+  line-height:1.2;
+  min-width:64px;
+  width:auto;
+  padding:6px 10px;
+}
