@@ -133,8 +133,10 @@ test('rediseño no modifica cálculos: el cuaderno de demostración conserva sus
 
 test('SW y aplicación usan una misma nueva caché sin borrar IndexedDB',async()=>{
   const [app,sw]=await Promise.all([read('app.js'),read('sw.js')]);
-  assert(app.includes("caches.open('cuaderno-docente-static-v142-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v142-dev'"));
+  const cacheId=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/)?.[1];
+  assert(cacheId&&Number(cacheId.match(/v(\d+)/)?.[1])>=142,'La caché PWA debe tener versión actualizada');
+  assert(app.includes(`caches.open('${cacheId}')`));
+  assert(sw.includes(`const CACHE='${cacheId}'`));
   assert(!sw.includes('indexedDB.deleteDatabase'));
   assert(!app.includes('indexedDB.deleteDatabase'));
 });
