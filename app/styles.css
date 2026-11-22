@@ -1550,3 +1550,43 @@ html[data-theme="oled"] .class-toolbar .selectors #group-select{
 .portable-dialog .import-risk-phrase input{width:100%;max-width:100%;min-width:0;min-height:44px}
 .portable-dialog #import-confirm:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:600px){.portable-dialog .import-risk-check{padding:11px}.portable-choices .btn{min-height:44px}}
+
+/* v136 · Cerrar siempre a mano y ordenación docente por procedencia. */
+.topbar .topbar-close-btn{
+  min-height:42px;min-width:137px;padding:8px 12px;
+  background:#ffffff1e;border:1px solid #ffffff77;color:#fff;
+  font-size:12px;font-weight:800;white-space:nowrap
+}
+.topbar .topbar-close-btn:hover{background:#fff;border-color:#fff;color:#142845}
+.topbar .topbar-close-btn:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.student-mode-toolbar{display:inline-flex;align-items:center;gap:12px;flex-wrap:wrap}
+.student-mode-title{font-size:13px;font-weight:850;color:var(--ink)}
+.student-group-switch{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;font-size:12px;font-weight:760;color:var(--ink);touch-action:manipulation}
+.student-group-switch input{position:absolute;width:1px;height:1px;margin:0;opacity:0}
+.student-group-switch-track{
+  position:relative;display:block;flex:0 0 42px;width:42px;height:24px;
+  border:1px solid var(--line);background:var(--raised);border-radius:99px;
+  transition:background-color .15s,border-color .15s
+}
+.student-group-switch-track::after{
+  content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;
+  background:var(--ink);border-radius:50%;transition:transform .15s,background-color .15s
+}
+.student-group-switch input:checked+.student-group-switch-track{background:var(--accent);border-color:var(--accent)}
+.student-group-switch input:checked+.student-group-switch-track::after{background:var(--accent-ink);transform:translateX(18px)}
+.student-group-switch input:focus-visible+.student-group-switch-track{outline:3px solid var(--accent);outline-offset:3px}
+.student-group-switch input:disabled+.student-group-switch-track{opacity:.45}
+@media(max-width:600px){
+  .topmeta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:7px}
+  .topmeta #save-status{grid-column:1/-1;justify-content:center;min-height:35px;max-width:none}
+  .topmeta .topbar-close-btn{min-width:0;width:100%;min-height:44px;padding:7px 4px;white-space:normal;line-height:1.2;font-size:11px}
+  .topmeta .header-tools{width:100%;min-width:0}
+  .topmeta .header-tools>summary{min-height:44px;padding:7px 3px;gap:3px;font-size:11px;white-space:normal;line-height:1.2;justify-content:center}
+  .topmeta .lock-btn{width:100%;min-height:44px;padding:7px 3px;font-size:11px}
+  .student-mode-toolbar{gap:9px}
+  .student-order-bar{gap:8px 12px}
+}
+
+/* El cierre se mantiene fuera del visor individual del alumno y Abrir usa todo el ancho del desplegable. */
+.shell.student-focus .topbar-close-btn{display:none!important}
+.header-tools-panel .portable-controls{grid-template-columns:minmax(0,1fr)}
