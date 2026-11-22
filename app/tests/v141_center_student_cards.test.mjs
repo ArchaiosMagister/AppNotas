@@ -63,6 +63,6 @@ test('centrar no altera el cuaderno, la fórmula de medias ni los colores existe
 
 test('la PWA utiliza identificadores de caché nuevos e idénticos en SW y app',async()=>{
   const [js,sw]=await Promise.all([read('app.js'),read('sw.js')]);
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v141-dev'"));
-  assert(js.includes("caches.open('cuaderno-docente-static-v141-dev')"));
+  assert(sw.includes("const CACHE='cuaderno-docente-static-v142-dev'"));
+  assert(js.includes("caches.open('cuaderno-docente-static-v142-dev')"));
 });
