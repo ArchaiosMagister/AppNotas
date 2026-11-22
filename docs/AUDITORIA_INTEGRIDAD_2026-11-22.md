@@ -31,9 +31,9 @@
 - El guardado y la restauración de demostración se cotejan mediante pruebas automatizadas de equivalencia de notas, notas Ítaca, competencias y datos íntegros.
 
 ## Regresiones
-- `tests/v149_audit_grade_reactivation_and_backups.test.mjs`: 8 casos.
+- `tests/v149_audit_grade_reactivation_and_backups.test.mjs`: 9 casos, incluido un barrido de los límites 0, 5, 6,5, 8 y 10.
 - `tests/v150_audit_np_aj_preservation.test.mjs`: 6 casos.
-- Se vuelve a ejecutar toda la suite anterior (incluidos los oráculos aleatorios de notas y las simulaciones de fallos atómicos) y se verifica el manifiesto SHA-256 y la reconstrucción autónoma.
+- Las **15 pruebas nuevas** han resultado satisfactorias. Se vuelve a ejecutar toda la suite anterior (incluidos los oráculos aleatorios de notas y las simulaciones de fallos atómicos) y se verifica el manifiesto SHA-256 y la reconstrucción autónoma.
 
 ## Riesgos residuales y condiciones de uso
 - No se puede garantizar que un navegador o su sistema operativo conserven indefinidamente IndexedDB: borrar los datos del sitio, cambiar de perfil o agotar el almacenamiento puede hacer inaccesible el cuaderno.
