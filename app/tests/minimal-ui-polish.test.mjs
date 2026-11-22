@@ -128,7 +128,7 @@ test('Evaluaciones no oculta las materias: cabecera consistente entre módulos',
  assert(app.includes('title="${esc(x.subjectName+\' · \'+x.stage)}"'));
 });
 test('iPhone/iPad: controles de 44 px y scroll horizontal accesible',()=>{
- const stable=css.slice(css.indexOf('/* v163 · Materias estables'));
+ const stable=css.slice(css.indexOf('/* v163 · Materias estables'),css.indexOf('/* v164 · Uso íntegro'));
  assert(stable.includes('scroll-snap-type:x proximity'));
  assert(stable.includes('-webkit-overflow-scrolling:touch'));
  assert(stable.includes('max-width:min(175px,58vw)'));
@@ -138,4 +138,33 @@ test('iPhone/iPad: controles de 44 px y scroll horizontal accesible',()=>{
  assert(stable.includes('.class-toolbar .group-choice{min-height:44px'));
  assert(stable.includes('.academic-quick-nav .btn'));
  assert(!stable.includes('@media(max-width:900px)'));
+});
+
+test('v164: cuatro espacios ocupados en navegación móvil sin pista vacía',()=>{
+ const responsive=css.slice(css.indexOf('/* v164 · Uso íntegro'));
+ for(const rule of [
+  'grid-template-columns:repeat(4,minmax(0,1fr))',
+  '.tabs .academic-disclosure',
+  'grid-column:4;grid-row:1',
+  '.tabs .nav-secondary',
+  'display:contents',
+  '.tabs .nav-academic-links',
+  '.tabs .academic-disclosure:not([open]) .nav-academic-links{display:none}'
+ ])assert(responsive.includes(rule),rule);
+ assert(app.includes("revealSelectedButton($('.academic-quick-nav')"));
+});
+test('v164: acciones de iPhone e iPad crecen para llenar filas y no degradan tacto',()=>{
+ const css164=css.slice(css.indexOf('/* v164 · Uso íntegro'));
+ for(const token of [
+  '.planner-view-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))',
+  '.planner-view-tabs{grid-template-columns:repeat(2,minmax(0,1fr))',
+  '.planner-view-btn:last-child:nth-child(odd){grid-column:1/-1}',
+  '.notebook-primary-actions{',
+  '.planner-tools-minimal{',
+  '.planner-year-chooser{',
+  '.planner-date-controls{',
+  '.term-buttons>.term-add:last-child:nth-child(odd){grid-column:1/-1}',
+  '.eval-period-more>summary{min-height:44px;min-width:44px}',
+  '@media(pointer:coarse)'
+ ])assert(css164.includes(token),token);
 });
