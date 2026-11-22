@@ -1,6 +1,6 @@
 /** Importador local de rotaciones del primer patio. Solo admite el formato
  * concreto de tres hojas y fórmulas verificadas; nunca evalúa Excel/JS. */
-import {activeYear,isoDate,addDays,weekday,isHoliday,scheduleBands,saveEvent} from './planner.js';
+import {activeYear,isoDate,timeValid,addDays,weekday,isHoliday,scheduleBands,saveEvent} from './planner.js';
 
 const MAX_FILE=3_000_000,MAX_XML=2_000_000;
 const normalise=value=>String(value??'').trim().toLocaleLowerCase('es');
@@ -173,7 +173,7 @@ export function addPatioRotationEvents(doc,preview){
   isoDate(entry.date);
   if(entry.date<y.start||entry.date>y.end||!entry.zone||!entry.rainZone||
      entry.zone.length>150||entry.rainZone.length>150||
-     !/^\d{2}:\d{2}$/.test(entry.start)||!/^\d{2}:\d{2}$/.test(entry.end)||
+     !timeValid(entry.start)||!timeValid(entry.end)||
      entry.end<=entry.start)
    throw new Error('Una guardia tiene fecha, zona o franja inválida.');
  }
