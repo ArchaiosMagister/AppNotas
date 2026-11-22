@@ -217,7 +217,7 @@ export function initialNotebook({empty=false}={}) {
   ];
   const grades = students.flatMap((s,i)=>assessments.map((p,j)=>mark({id:uid(),studentId:s.id,assessmentId:p.id,score:matrix[i][j],createdAt:now()})));
   const competencies = empty?[]:[mark({id:uid(),name:'CE1 · Interpretación de textos',links:[{categoryId:e.id,weight:70},{categoryId:t.id,weight:30}],createdAt:now()})];
-  return {schemaVersion:SCHEMA_VERSION,planner:createPlanner(group.course),gradingProfiles:[],individualCategoryRules:[],rubrics:[],finalConfigs:[],finalOverrides:[],id:uid(),title:'CuadernoDocente',createdAt:now(),updatedAt:now(),settings:{decimals:2,rounding:'half-up',orthographyDefaults:{...ORTHOGRAPHY_DEFAULTS},subjectAccents:{...SUBJECT_COLORS},customSubjects:[],hiddenSubjects:[]},groups:empty?[]:[group],periods:[period,...otherPeriods],categories:[e,t,a],students,assessments,grades,gradeObservations:[],competencies};
+  return {schemaVersion:SCHEMA_VERSION,tutorships:[],evaluationArchive:[],planner:createPlanner(group.course),gradingProfiles:[],individualCategoryRules:[],rubrics:[],finalConfigs:[],finalOverrides:[],id:uid(),title:'CuadernoDocente',createdAt:now(),updatedAt:now(),settings:{decimals:2,rounding:'half-up',orthographyDefaults:{...ORTHOGRAPHY_DEFAULTS},subjectAccents:{...SUBJECT_COLORS},customSubjects:[],hiddenSubjects:[]},groups:empty?[]:[group],periods:[period,...otherPeriods],categories:[e,t,a],students,assessments,grades,gradeObservations:[],competencies};
 }
 
 /** Cuaderno sin datos de demostración: conserva solo tres evaluaciones y categorías base. */
@@ -258,6 +258,48 @@ export function assertModel(doc) {
   const has = key => new Set(doc[key].map(x=>x.id));
   const gs = has('groups'), ps = has('periods'), cs = has('categories'), ss=has('students'), as=has('assessments'), rs=has('rubrics');
   if(doc.students.some(x=>!gs.has(x.groupId))) throw new Error('Estudiante sin grupo válido.');
+  // Vínculos de identidad opcionales: copias v8 antiguas siguen siendo válidas.
+  if(doc.students.some(s=>s.personId!==undefined&&(typeof s.personId!=='string'||!/^[a-f0-9-]{36}$/i.test(s.personId))))
+    throw new Error('Identidad compartida de alumno inválida.');
+  const identityGroups=new Set();
+  for(const s of doc.students.filter(s=>s.personId)){
+    const key=s.personId+'|'+s.groupId;
+    if(identityGroups.has(key))throw new Error('La misma identidad aparece dos veces en una asignatura.');
+    identityGroups.add(key);
+  }
+  const shared=new Map();
+  for(const s of doc.students.filter(s=>s.personId)){
+    const g=doc.groups.find(g=>g.id===s.groupId);
+    const prev=shared.get(s.personId);
+    if(prev&&(prev.course!==g.course||prev.level!==g.level||
+      prev.origin&&s.originGroup&&prev.origin.normalize('NFD').toLowerCase()!==s.originGroup.normalize('NFD').toLowerCase()))
+      throw new Error('Identidad vinculada a cursos o tutorías incompatibles.');
+    shared.set(s.personId,{course:g.course,level:g.level,origin:prev?.origin||s.originGroup||''});
+  }
+  if(doc.tutorships!==undefined){
+    if(!Array.isArray(doc.tutorships)||new Set(doc.tutorships.map(t=>t.id)).size!==doc.tutorships.length)
+      throw new Error('Tutorías compartidas inválidas.');
+    const used=new Set();
+    for(const t of doc.tutorships){
+      if(!t||typeof t.id!=='string'||typeof t.name!=='string'||!t.name.trim()||
+       t.name.length>100||typeof t.course!=='string'||!Array.isArray(t.sources)||!t.sources.length||t.sources.length>80)
+        throw new Error('Tutoría compartida incompleta.');
+      for(const source of t.sources){
+        const g=doc.groups.find(g=>g.id===source?.groupId);
+        if(!g||g.course!==t.course||g.level!==t.level||typeof source.originGroup!=='string'||source.originGroup.length>60)
+         throw new Error('Procedencia de tutoría incompatible.');
+        const key=g.id+'|'+source.originGroup.normalize('NFD').toLocaleLowerCase('es').trim();
+        if(used.has(key))throw new Error('Procedencia vinculada a varias tutorías.');
+        used.add(key);
+      }
+    }
+  }
+  if(doc.evaluationArchive!==undefined){
+    if(!Array.isArray(doc.evaluationArchive)||new Set(doc.evaluationArchive.map(a=>a.event?.id)).size!==doc.evaluationArchive.length||
+      doc.evaluationArchive.some(a=>!a?.tutorshipId||!doc.tutorships?.some(t=>t.id===a.tutorshipId)||
+        !a.event||a.event.type!=='evaluation'||typeof a.academicYear!=='string'))
+       throw new Error('Archivo histórico de convocatorias inválido.');
+  }
   if(doc.students.some(student=>{
     if(typeof student.name!=='string'||!student.name.trim())return true; // Un registro histórico podía superar 150 caracteres; no bloquear su lectura.
     if(student.originGroup!==undefined&&(typeof student.originGroup!=='string'||student.originGroup.length>60))return true;
