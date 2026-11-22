@@ -246,6 +246,8 @@ async function audit(engine,name){
     assert(await page.locator('.grade-cell-actions-dialog').isVisible(),
      name+' menú ⋯ dejó de funcionar');
     await page.locator('#grade-action-close').click();
+    // La configuración se encuentra dentro de «Configuración del grupo».
+    await page.locator('.notebook-grade-options>summary').click();
     await page.locator('#configure-itaca-attitude').click();
     assert(await page.locator('#itaca-attitude-form').isVisible(),
      name+' no abre la configuración de actitud');
