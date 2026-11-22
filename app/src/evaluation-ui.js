@@ -120,7 +120,7 @@ export function renderSharedEvaluation(doc,year,ui){
  const open=ui.plannerEvaluationsOpen!==false;
  const sessions='<details id="plan-evaluations" class="panel panel-pad eval-shared-section eval-session-overview" '+
   (open?'open':'')+'><summary>Sesiones de evaluación · '+cards.length+
-  ' '+(cards.length===1?'grupo':'grupos')+' · '+scheduled+' citas registradas</summary>'+
+  ' '+(cards.length===1?'grupo':'grupos')+' · '+scheduled+' '+(scheduled===1?'cita registrada':'citas registradas')+'</summary>'+
   '<p class="hint">Agrupadas por tutoría; despliega cada grupo y después la evaluación. '+
   'Las coincidencias se proponen, pero necesitan confirmación para tener una convocatoria común.</p>'+
   (cards.some(c=>c.kind==='suggested')?'<p class="eval-suggestion-notice">Hay tutorías de Latín y Griego posiblemente repetidas. '+
