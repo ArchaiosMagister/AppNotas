@@ -154,3 +154,13 @@ test('el visor incluye gestión de vinculaciones, sesiones comunes y lectura de 
  assert.match(html,/Ítaca/);
  assert.doesNotMatch(html,/data-student=.*data-assessment=/);
 });
+
+test('la detección de tutorías equipara 1ºBACH, 1.º Bachillerato y divisiones A/B',()=>{
+ const f=fixture();
+ f.latin.name='1.º Bachillerato';
+ f.greek.name='1ºBACH';
+ const suggestions=suggestTutorships(f.doc,'2026-2027');
+ assert.equal(suggestions.length,2);
+ assert.deepEqual(suggestions.map(s=>s.sources.length),[2,2]);
+ assertModel(f.doc);
+});
