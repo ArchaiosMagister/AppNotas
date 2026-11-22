@@ -109,3 +109,34 @@ test('guardado y acuse de exportación rechazan copias desactualizadas',async()=
   assert.deepEqual(db.snapshot(),before);
   assert(sameEnvelope(db.snapshot().main,saved));
 });
+
+test('restauraciones consecutivas conservan solamente el rescate inmediato sin alterar sobres ajenos',async()=>{
+  const original=envelope('ipad'),version2=envelope('iphone'),version3=envelope('ipad-again');
+  const db=memoryDb({main:original,'last-verified-export-v1':{version:1,bookId:'ficticio',head:'revision-1',exportedAt:'2026-11-22T08:00:00Z'}});
+  const first=await replaceEnvelopeWithRecovery(db,version2,original);
+  assert.deepEqual(first.envelope,original);
+  const second=await replaceEnvelopeWithRecovery(db,version3,version2);
+  assert.deepEqual(second.envelope,version2);
+  assert.deepEqual(db.snapshot().main,version3);
+  const restored=await swapRecoveryEnvelope(db,version3,second);
+  assert.deepEqual(db.snapshot().main,version2);
+  assert.deepEqual(restored.envelope,version3);
+  const restoredAgain=await swapRecoveryEnvelope(db,version2,restored);
+  assert.deepEqual(db.snapshot().main,version3);
+  assert.deepEqual(restoredAgain.envelope,version2);
+  assert.deepEqual(db.snapshot()['last-verified-export-v1'].bookId,'ficticio');
+});
+test('interrupción al guardar el rescate revierte el principal y no elimina un rescate anterior',async()=>{
+  const previous=envelope('version-anterior'),replacement=envelope('nueva');
+  const existingRescue={version:1,createdAt:'2026-11-19T08:00:00Z',envelope:envelope('anterior-al-anterior')};
+  const db=memoryDb({main:previous,'pre-restore':existingRescue},{failPut:'pre-restore'});
+  const before=db.snapshot();
+  await assert.rejects(replaceEnvelopeWithRecovery(db,replacement,previous),/Fallo de escritura/);
+  assert.deepEqual(db.snapshot(),before);
+});
+test('sin versión esperada nunca se inicia una sustitución',async()=>{
+  const previous=envelope('actual'),db=memoryDb({main:previous});
+  const before=db.snapshot();
+  await assert.rejects(replaceEnvelopeWithRecovery(db,envelope('otra'),undefined),/versión esperada/);
+  assert.deepEqual(db.snapshot(),before);
+});
