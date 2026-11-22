@@ -1586,3 +1586,7 @@ html[data-theme="oled"] .class-toolbar .selectors #group-select{
   .student-mode-toolbar{gap:9px}
   .student-order-bar{gap:8px 12px}
 }
+
+/* El cierre se mantiene fuera del visor individual del alumno y Abrir usa todo el ancho del desplegable. */
+.shell.student-focus .topbar-close-btn{display:none!important}
+.header-tools-panel .portable-controls{grid-template-columns:minmax(0,1fr)}
