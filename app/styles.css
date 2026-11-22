@@ -3493,6 +3493,12 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
     flex:1 0 92px;min-width:92px;max-width:none;width:auto;
     white-space:normal;overflow-wrap:anywhere;
   }
+  .academic-quick-nav .btn{
+    flex:1 1 92px;min-width:0;min-height:44px;
+    text-align:center;white-space:normal;
+  }
+  .planner-view-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  .planner-view-btn{min-height:44px;min-width:0;width:100%;white-space:normal}
 }
 @media(max-width:900px){
   .tabs,.shell.nav-collapsed .tabs{
@@ -3537,8 +3543,6 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   }
   .class-toolbar .course-switch .course-buttons{width:100%}
   .class-toolbar .course-switch .course-choice{min-height:44px}
-  .planner-view-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
-  .planner-view-btn{min-height:44px;min-width:0;width:100%;white-space:normal}
   .planner-tools-minimal .planner-create-menu>summary,
   .planner-tools-minimal .planner-sessions-shortcut{min-height:44px}
 }
