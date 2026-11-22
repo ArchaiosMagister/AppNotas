@@ -2624,3 +2624,117 @@ html[data-theme="oled"] .onboarding-guide .onboarding-critical{
     line-height:1.22;
   }
 }
+
+
+/* v145 · Adquisición competencial 1–4: número principal, descriptor
+   accesible y media 0–10 secundaria, sin tocar las calificaciones guardadas. */
+.competency-scale-legend{
+  display:grid;gap:9px;margin:14px 0;
+  padding:13px 15px;border:1px solid var(--line);border-radius:11px;
+  background:var(--raised);color:var(--ink);
+}
+.competency-scale-legend>strong{
+  font-size:13px;font-weight:850;line-height:1.35;
+}
+.competency-scale-items{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  align-items:stretch;gap:7px;
+}
+.competency-scale-item{
+  display:flex;align-items:center;gap:8px;min-width:0;
+  padding:8px;border:1px solid var(--line);border-radius:9px;
+  background:var(--surface);
+}
+.competency-scale-item>span:last-child{
+  display:flex;flex-direction:column;align-items:flex-start;
+  gap:3px;min-width:0;
+}
+.competency-scale-item strong{
+  font-size:12px;font-weight:800;line-height:1.35;
+}
+.competency-scale-item small{
+  font-size:11px;font-weight:650;color:var(--muted);
+  line-height:1.3;overflow-wrap:anywhere;
+}
+.competency-legend-number{
+  display:grid;place-items:center;flex:0 0 33px;
+  min-height:33px;border-radius:9px;
+  border:1px solid currentColor;
+  font-size:17px;font-weight:900;
+}
+.competency-level-cell{
+  display:inline-flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:4px;vertical-align:middle;
+  min-width:105px;max-width:185px;
+}
+.competency-level-badge{
+  display:inline-flex;flex-wrap:wrap;align-items:center;justify-content:center;
+  gap:5px;padding:5px 8px;
+  min-height:38px;min-width:105px;max-width:100%;
+  border:1px solid currentColor;border-radius:10px;
+  font-family:var(--app-humanist,system-ui,sans-serif);
+}
+.competency-level-badge strong{
+  font-size:20px;font-weight:900;line-height:1;
+  font-variant-numeric:tabular-nums;
+}
+.competency-level-badge span{
+  font-size:11px;font-weight:800;line-height:1.25;
+  white-space:normal;
+}
+.competency-level-1{background:#e2f6eb;color:#12563c}
+.competency-level-2{background:#e5f0ff;color:#204e82}
+.competency-level-3{background:#fff1d4;color:#765012}
+.competency-level-4{background:#fce1e3;color:#83272e}
+.competency-source-grade{
+  color:var(--muted);font-size:10.5px;font-weight:650;
+  line-height:1.3;white-space:normal;text-align:center;
+  font-variant-numeric:tabular-nums;
+}
+.competency-view .comp-table td{vertical-align:middle}
+.class-stat-popover .class-stat-line:has(.competency-level-cell){
+  flex-wrap:wrap;gap:7px;
+}
+.class-stat-popover .competency-level-cell{max-width:165px}
+.class-stat-popover .competency-level-badge{min-width:105px}
+html[data-theme="dark"] .competency-level-1,
+html[data-theme="oled"] .competency-level-1{background:#10392d;color:#b2f3cc}
+html[data-theme="dark"] .competency-level-2,
+html[data-theme="oled"] .competency-level-2{background:#15344f;color:#c3e2ff}
+html[data-theme="dark"] .competency-level-3,
+html[data-theme="oled"] .competency-level-3{background:#4a3618;color:#ffe6a8}
+html[data-theme="dark"] .competency-level-4,
+html[data-theme="oled"] .competency-level-4{background:#4e1f29;color:#ffd7de}
+html[data-theme="oled"] .competency-level-1,
+html[data-theme="oled"] .competency-level-2,
+html[data-theme="oled"] .competency-level-3,
+html[data-theme="oled"] .competency-level-4{background:#000!important}
+.notebook-primary-actions #notebook-calculations{
+  background:var(--raised);color:var(--ink);border:1px solid var(--line);
+  border-radius:10px;font-weight:800;
+}
+.notebook-primary-actions #notebook-calculations:hover,
+.notebook-primary-actions #notebook-calculations:focus-visible{
+  background:var(--accent-soft);border-color:var(--accent);
+}
+html[data-theme="oled"] .notebook-primary-actions #notebook-calculations{
+  background:#000!important;border-color:var(--line);color:#fff;
+}
+.class-toolbar .group-actions-disclosure>summary{
+  white-space:normal;text-align:center;line-height:1.3;
+}
+@media(max-width:850px){
+  .competency-scale-items{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:540px){
+  .competency-scale-legend{padding:10px}
+  .competency-scale-items{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .competency-scale-item{padding:7px;gap:6px}
+  .competency-level-badge{padding:5px 6px}
+  .notebook-primary-actions #notebook-calculations{
+    grid-column:1/-1;width:100%;
+  }
+}
+@media(max-width:350px){
+  .competency-scale-items{grid-template-columns:minmax(0,1fr)}
+}
