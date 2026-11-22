@@ -8,6 +8,7 @@ import {
  deletePlannerItem,addAcademicYear,assertPlanner
 } from '../src/planner.js';
 import {renderPlanner} from '../src/planner-ui.js';
+import {renderEvaluationWorkspace} from '../src/evaluation-workspace.js';
 import {ensureBookMetadata,markBookChange,createPortableCopy,readBackupFile} from '../src/cuaderno.js';
 import {createVault,saltFromEnvelope} from '../src/vault.js';
 
@@ -141,8 +142,8 @@ test('ICS escapa comas, saltos de línea y Unicode, con líneas de hasta 75 octe
 test('edición de fechas y exportación individual aparecen en la vista, sin exposición de notas',()=>{
  const {doc,group,period,student}=fixture();
  const e=saveEvaluationSession(doc,{groupId:group.id,periodId:period.id,date:'2026-12-18',time:'16:00'});
- const html=renderPlanner(doc,{plannerMode:'day',plannerDate:e.date});
- assert(html.includes('plan-show-evaluations'));
+ const html=renderEvaluationWorkspace(doc,{evaluationWorkspaceTab:'sesiones'});
+ assert(renderPlanner(doc,{plannerMode:'day',plannerDate:e.date}).includes('plan-show-evaluations'));
  assert(html.includes('id="plan-evaluations"'));
  assert(html.includes('data-eval-group="'+group.id+'" data-eval-period="'+period.id+'"'));
  assert(html.includes('data-export-event="'+e.id+'"'));
