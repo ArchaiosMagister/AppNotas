@@ -141,7 +141,7 @@ test('cifrado, exportación y recuperación preservan apellidos, etiquetas, nota
 
 test('la interfaz agrupa solo para ver y muestra las mismas fichas y notas',async()=>{
  const [app,css]=await Promise.all(['app.js','styles.css'].map(file=>readFile(new URL('../'+file,import.meta.url),'utf8')));
- assert(app.includes("studentSort:savedStudentSort()"));
+ assert(app.includes("studentSort:savedStudentSort(),studentPlainSort:savedStudentPlainSort()"));
  assert(app.includes("sortStudents(STATE.doc.students.filter(x=>x.groupId===STATE.groupId),STATE.studentSort)"));
  assert(app.includes("const studentSortControls=()=>"));
  assert(app.includes("originGroupHeader(students,i,assessments.length+3)"));
