@@ -2609,3 +2609,18 @@ html[data-theme="oled"] .onboarding-guide .onboarding-critical{
   .subject-manager .subject-manager-fields label:last-child{grid-column:2;grid-row:1}
   .unlock-box .unlock-help-primary{min-height:52px;font-size:17px}
 }
+
+
+/* v143 · La etiqueta completa «Modo sesión de evaluación» no debe quedar
+   recortada al apilar la navegación principal en pantallas estrechas. */
+@media(max-width:640px){
+  .tabs .nav-primary>.tab,
+  .shell.nav-collapsed .tabs .nav-primary>.tab{
+    min-height:68px;
+  }
+  .tabs .nav-primary>.tab .nav-text{
+    white-space:normal;
+    overflow-wrap:anywhere;
+    line-height:1.22;
+  }
+}
