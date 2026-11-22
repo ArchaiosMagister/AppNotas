@@ -22,8 +22,9 @@ const checkSources=(doc,tutorship)=>tutorship.sources.map(s=>{
 }).join(' / ');
 /** Una sola relación desplegable: nunca se muestran dos inventarios de
  * sesiones (uno por materia y otro por tutoría) como ocurría antes. */
-export function renderSharedEvaluation(doc,year,ui,section='all'){
- if(section==='sesiones')return renderEvaluationPeriodBoard(doc,year);
+export function renderSharedEvaluation(doc,year,ui,section='all',prefetchedCards=null){
+ if(section==='sesiones')return renderEvaluationPeriodBoard(doc,year,prefetchedCards??undefined);
+ if(section==='notas')return ui.plannerEvaluationView?renderTutorViewer(doc,ui.plannerEvaluationView):'';
  const tutors=(doc.tutorships||[]).filter(t=>t.course===year.name);
  const suggestions=suggestStudentLinks(doc,year.name).slice(0,30);
  const families=linkedStudentFamilies(doc,year.name);
@@ -54,6 +55,7 @@ export function renderSharedEvaluation(doc,year,ui,section='all'){
    btn('Añadir asignatura','data-eval-add-source="'+esc(t.id)+'"')+
    btn('Gestionar','data-eval-manage-tutor="'+esc(t.id)+'"')+'</div>').join('')||
    '<p class="hint">Puedes confirmar las tutorías propuestas arriba o crearlas manualmente.</p>')+'</details>';
+ if(section==='tutorias')return management;
  const summarize=(events,hasSingle=false)=>{
   if(!events.length)return 'Sin programar';
   const when=[...new Set(events.map(e=>e.date+' · '+evaluationHours(e)))];
@@ -206,9 +208,12 @@ export function bindSharedEvaluation(doc,ui,ctx,exportEvent){
  const all=selector=>[...document.querySelectorAll(selector)];
  const by=selector=>document.querySelector(selector);
  const redraw=()=>ctx.render();
- const suggestions=suggestStudentLinks(doc,activeYear(doc).name).slice(0,30);
- const proposed=suggestTutorships(doc,activeYear(doc).name).slice(0,24);
- const cards=sessionPresentation(doc,activeYear(doc));
+ // Las búsquedas de coincidencias tienen coste cuadrático: solo se necesitan
+ // cuando realmente está visible la gestión de tutorías.
+ const hasManagement=!!by('#plan-shared-management');
+ const suggestions=hasManagement?suggestStudentLinks(doc,activeYear(doc).name).slice(0,30):[];
+ const proposed=hasManagement?suggestTutorships(doc,activeYear(doc).name).slice(0,24):[];
+ const cards=hasManagement?sessionPresentation(doc,activeYear(doc)):[];
  const suggestionsToConfirm=cards.filter(c=>c.kind==='suggested');
  by('#plan-evaluations')?.addEventListener('toggle',event=>{
   ui.plannerEvaluationsOpen=event.currentTarget.open;
