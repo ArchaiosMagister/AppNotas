@@ -11,7 +11,7 @@ test('v1.0 integra catálogo de materias y horario en el modelo y la agenda',()=
  for(const token of ['catalogForNotebook','addNotebookSubject','removeNotebookSubject','renderAcademicQuickNav','openSubjectsManager','Materias y grupos','Modo sesión de evaluación'])
    assert(app.includes(token),'Falta '+token);
  assert(model.includes('catalogForNotebook'));assert(model.includes('addNotebookSubject'));
- assert(planner.includes('timetable'));assert(ui.includes('planner-timetable'));
+ assert(planner.includes('DEFAULT_TIMETABLE_BANDS'));assert(ui.includes('planner-timetable'));
 });
 test('v1.0 conserva currículo con criterios dentro de cada CE',()=>{
  const app=read('app.js');
