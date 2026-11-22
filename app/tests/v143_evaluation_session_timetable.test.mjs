@@ -176,7 +176,8 @@ test('no modifica el cálculo académico al usar la sesión de evaluación',asyn
   assert.deepEqual(doc.grades,grades);
   assertModel(doc);
   const js=await read('app.js');
-  assert(js.includes("['alumno','Modo sesión de evaluación','◉']"));
+  assert(js.includes("['alumno','Vista alumno']"));
+   assert(js.includes('data-academic-quick="${key}"'), 'El modo alumno conserva un acceso en la subnavegación');
   assert(js.includes('Modo sesión de evaluación · '));
   assert(js.includes('Mostrar también en el Modo sesión de evaluación'));
   assert(js.includes("STATE.tab==='alumno'"),'El ID interno sigue estable por compatibilidad');
