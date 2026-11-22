@@ -3076,3 +3076,37 @@ dialog:has(.student-link-manager){width:min(860px,calc(100vw - 30px));max-width:
 .student-link-proposal button,.student-link-family button{min-height:38px}
 html[data-theme="oled"] .student-link-side,html[data-theme="oled"] .student-link-family{background:#000}
 @media(max-width:620px){.student-link-manual-grid{grid-template-columns:minmax(0,1fr)}.student-link-manual-grid>.btn{justify-self:stretch}.student-link-section{padding:10px}.student-link-side{padding:10px}.student-link-proposal button,.student-link-family button{width:100%}}
+
+
+/* v1.0 · Agenda: sesiones de evaluación agrupadas por tutoría y por trimestre. */
+.eval-session-overview>summary{cursor:pointer;font-size:16px;font-weight:800;color:var(--ink);padding:3px 0 9px}
+.eval-session-overview>.hint{margin:8px 0 12px;line-height:1.55}
+.eval-suggestion-notice{padding:11px 13px;background:var(--accent-soft);border:1px solid var(--line);border-radius:9px;font-weight:720;font-size:12px;color:var(--ink);line-height:1.5;margin:10px 0}
+.eval-session-overview .eval-session-card{display:block;margin:9px 0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.eval-session-overview .eval-session-card[open]{border-color:color-mix(in srgb,var(--accent) 43%,var(--line))}
+.eval-session-card-heading{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--raised);padding:13px 15px;list-style:revert;color:var(--ink)}
+.eval-session-card-heading::marker{color:var(--accent)}
+.eval-session-card-title{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1 1 180px}
+.eval-session-card-title strong{font-size:14px;overflow-wrap:anywhere}
+.eval-session-card-title small{font-size:11px;color:var(--muted);overflow-wrap:anywhere;line-height:1.5}
+.eval-session-card-meta{font-size:11px;font-weight:750;color:var(--muted);flex:0 1 auto}
+.eval-session-card-body{display:grid;gap:8px;padding:12px}
+.eval-session-recognition{background:var(--accent-soft);border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.eval-session-recognition p{flex:1 1 230px;font-size:12px;line-height:1.55;color:var(--ink);margin:0}
+.eval-session-recognition button{min-height:40px;white-space:normal}
+.eval-session-period{border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface)}
+.eval-session-period>summary{cursor:pointer;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:11px 12px;font-size:12px;list-style:revert;color:var(--ink)}
+.eval-session-period>summary strong{font-size:12px}
+.eval-session-period>summary span{font-size:11px;color:var(--muted);text-align:right}
+.eval-session-period[open]>summary{border-bottom:1px solid var(--line);background:var(--raised)}
+.eval-session-period-content{padding:8px 10px;display:grid;gap:6px}
+.eval-session-period-content .planner-evaluation-row{padding:9px 5px;margin:0}
+.eval-session-period-content .planner-evaluation-when{font-variant-numeric:tabular-nums}
+.eval-source-row>span:first-child{display:grid;gap:3px;min-width:115px}
+.eval-source-row small{font-size:10px;color:var(--muted)}
+.eval-legacy-preview{border-top:1px solid var(--line);padding:6px 12px;font-size:11px}
+.eval-legacy-preview p{color:var(--muted);margin:6px 0;overflow-wrap:anywhere}
+html[data-theme="oled"] .eval-session-card-heading,
+html[data-theme="oled"] .eval-session-period[open]>summary{background:#000}
+@media(max-width:640px){.eval-session-card-heading{align-items:start;gap:6px}.eval-session-card-meta{width:100%}.eval-session-period>summary{align-items:start}.eval-session-period>summary span{text-align:left}.eval-session-recognition button{width:100%}.eval-session-period-content .planner-evaluation-row button{flex:1 1 115px}}
+@media print{.eval-session-overview .eval-session-card,.eval-session-overview .eval-session-period{break-inside:avoid}}
