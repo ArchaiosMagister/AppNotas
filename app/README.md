@@ -1,3 +1,12 @@
+## Hora de finalización de las sesiones de evaluación
+
+En **Agenda → Sesiones de evaluación**, al pulsar **Programar** o **Editar fecha y hora** puedes indicar:
+- Día y hora de inicio (obligatorios).
+- **Hora de finalización (opcional)**, posterior a la de inicio.
+- Lugar u observaciones.
+
+Funciona tanto en las tutorías compartidas como en convocatorias antiguas de Latín y Griego por separado. Las horas se muestran como intervalo (por ejemplo, 15:30–17:15) y se incorporan a la exportación del calendario (.ics). Si dejas el fin vacío, las citas anteriores siguen siendo válidas y el calendario utiliza su duración predeterminada de una hora, sin escribir un fin ficticio en el cuaderno. Se puede modificar o borrar la hora de finalización sin alterar las notas ni las otras sesiones.
+
 ## Sesiones de evaluación unificadas por tutoría
 
 En **Agenda → Sesiones de evaluación** se muestra **una única lista**. Cada tutoría es un desplegable y contiene desplegables por trimestre. Las materias de un mismo grupo (p. ej. Latín I / Griego I de 1.º BACH A) aparecen juntas cuando ya están vinculadas.

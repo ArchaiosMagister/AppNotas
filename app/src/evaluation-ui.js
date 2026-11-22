@@ -14,6 +14,7 @@ const groupLabel=(doc,s)=>{
  return s.name+' ('+(g?.subject||'?')+' · '+(g?.name||'?')+')';
 };
 const format=(value,digits=2)=>value===null?'—':value.toLocaleString('es-ES',{maximumFractionDigits:digits,minimumFractionDigits:digits});
+const evaluationHours=event=>event.time+(event.endTime?'–'+event.endTime:'');
 const checkSources=(doc,tutorship)=>tutorship.sources.map(s=>{
  const g=doc.groups.find(g=>g.id===s.groupId);
  return g?g.subject+' · '+g.name+(s.originGroup?' · '+s.originGroup:' · grupo completo'):'Grupo anterior';
@@ -47,7 +48,7 @@ export function renderSharedEvaluation(doc,year,ui){
    '<p class="hint">Puedes confirmar las tutorías propuestas arriba o crearlas manualmente.</p>')+'</details>';
  const summarize=(events,hasSingle=false)=>{
   if(!events.length)return 'Sin programar';
-  const when=[...new Set(events.map(e=>e.date+' · '+e.time))];
+  const when=[...new Set(events.map(e=>e.date+' · '+evaluationHours(e)))];
   if(when.length===1)return when[0]+(events.length>1?' · '+events.length+' citas':'');
   return events.length+' convocatorias con fechas distintas';
  };
@@ -65,7 +66,7 @@ export function renderSharedEvaluation(doc,year,ui){
   let body='';
   if(t){
    body='<div class="planner-evaluation-row">'+
-    '<span class="planner-evaluation-when">'+(canonical?esc(canonical.date+' · '+canonical.time):
+    '<span class="planner-evaluation-when">'+(canonical?esc(canonical.date+' · '+evaluationHours(canonical)):
      prior.length?'Convocatorias anteriores pendientes de unificar':'Sin programar')+'</span>'+
     (hasPrevious&&!hasCanonical?btn('Unificar convocatorias','data-eval-consolidate="'+esc(t.id)+'" data-eval-period="'+esc(period.id)+'"'):
      btn(canonical?'Editar fecha y hora':'Programar','data-eval-tutor-session="'+esc(t.id)+'" data-eval-period="'+esc(period.id)+'"'))+
@@ -78,7 +79,7 @@ export function renderSharedEvaluation(doc,year,ui){
    if(hasPrevious)body+='<div class="eval-legacy-preview">'+prior.map(e=>{
     const group=doc.groups.find(g=>g.id===e.groupId);
     return '<p>'+esc(group?.subject||'Materia')+' · '+esc(e.originGroup||'Grupo completo')+
-     ' · '+esc(e.date+' '+e.time)+(e.notes?' · '+esc(e.notes):'')+'</p>';
+     ' · '+esc(e.date+' '+evaluationHours(e))+(e.notes?' · '+esc(e.notes):'')+'</p>';
    }).join('')+'</div>';
   }else{
    body=bySource.map(({source,events})=>{
@@ -161,7 +162,8 @@ export function openTutorshipSessionModal(doc,ctx,tutorshipId,periodId){
  const date=e?.date||(today>=y.start&&today<=y.end?today:y.start);
  ctx.fieldsModal('Sesión de evaluación · '+t.name+' · '+period.name,[
   {id:'date',label:'Fecha',type:'date',value:date},
-  {id:'time',label:'Hora',type:'time',value:e?.time||'15:30'},
+  {id:'time',label:'Hora de inicio',type:'time',value:e?.time||'15:30'},
+  {id:'endTime',label:'Hora de finalización (opcional)',type:'time',value:e?.endTime||'',required:false},
   {id:'notes',label:'Lugar u observaciones',required:false,value:e?.notes||'',maxlength:1000}
  ],values=>ctx.commit(d=>saveTutorshipEvaluation(d,{tutorshipId:t.id,periodId,...values,id:e?.id||null}),'Programar tutoría compartida'),
  'Una sola convocatoria para todas tus asignaturas de esta tutoría. Las calificaciones permanecen separadas.');
