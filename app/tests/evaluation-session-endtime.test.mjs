@@ -7,6 +7,7 @@ import {initialNotebook,addGroup,addStudent,assertModel} from '../src/model.js';
 import {activeYear,saveEvaluationSession,calendarEventIcs} from '../src/planner.js';
 import {saveTutorship,saveTutorshipEvaluation,consolidateTutorshipEvaluation,tutorshipEvent} from '../src/evaluation-groups.js';
 import {renderPlanner} from '../src/planner-ui.js';
+import {renderEvaluationWorkspace} from '../src/evaluation-workspace.js';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 function fixture(){
@@ -100,13 +101,13 @@ test('sesiones históricas sin hora final se abren sin migraciones destructivas'
  assert.equal('endTime' in e,false);
  const raw=structuredClone(f.doc);
  assertModel(raw);
- const html=renderPlanner(f.doc,{plannerMode:'week',plannerDate:'2026-12-18'});
+ const html=renderEvaluationWorkspace(f.doc,{evaluationWorkspaceTab:'sesiones'});
  assert(html.includes('15:30'));
  assert(!html.includes('15:30–'));
 });
 test('la agenda muestra inicio y fin en la tutoría y en sesiones por asignatura',()=>{
  const f=fixture(),shared=saveTutorshipEvaluation(f.doc,appointment(f,{endTime:'17:15'}));
- const html=renderPlanner(f.doc,{plannerMode:'week',plannerDate:'2026-12-18'});
+ const html=renderEvaluationWorkspace(f.doc,{evaluationWorkspaceTab:'sesiones'});
  assert(html.includes('15:30–17:15'));
  assert(html.includes('data-eval-tutor-session="'+f.tutorship.id+'"'));
  assert(html.includes('data-eval-tutor-export="'+shared.id+'"'));
@@ -115,7 +116,7 @@ test('la agenda muestra inicio y fin en la tutoría y en sesiones por asignatura
  addStudent(separate,group.id,{name:'Ejemplo',originGroup:'A'});
  saveEvaluationSession(separate,{groupId:group.id,periodId:separate.periods[0].id,
   originGroup:'A',date:'2026-12-18',time:'16:00',endTime:'18:30'});
- assert(renderPlanner(separate,{plannerMode:'day',plannerDate:'2026-12-18'}).includes('16:00–18:30'));
+ assert(renderEvaluationWorkspace(separate,{evaluationWorkspaceTab:'sesiones'}).includes('16:00–18:30'));
 });
 test('ambos diálogos ofrecen campo de fin editable y opcional',()=>{
  const tutorUI=readFileSync(path.join(root,'src/evaluation-ui.js'),'utf8');

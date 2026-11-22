@@ -8,6 +8,7 @@ import {saveEvaluationSession,activeYear} from '../src/planner.js';
 import {saveTutorship,consolidateTutorshipEvaluation,tutorshipLegacyEvents,tutorshipEvent} from '../src/evaluation-groups.js';
 import {sessionPresentation} from '../src/evaluation-session-presentation.js';
 import {renderPlanner} from '../src/planner-ui.js';
+import {renderEvaluationWorkspace} from '../src/evaluation-workspace.js';
 
 const base=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 function fixture(){
@@ -31,24 +32,25 @@ test('dos asignaturas con procedencias equivalentes producen solo una propuesta 
  assertModel(f.doc);
 });
 test('el panel de evaluación aparece una vez y utiliza desplegables anidados, no dos listados',()=>{
- const f=fixture(),html=renderPlanner(f.doc,{plannerMode:'week',plannerDate:'2026-12-15'});
+ const f=fixture(),html=renderEvaluationWorkspace(f.doc,{evaluationWorkspaceTab:'sesiones'});
  assert.equal(html.split('id="plan-evaluations"').length-1,1);
  assert(!html.includes('id="plan-tutorship-sessions"'));
- assert(html.includes('data-eval-confirm-session'));
+ assert(html.includes('data-eval-switch-tab="tutorias"'));
+ assert(renderEvaluationWorkspace(f.doc,{evaluationWorkspaceTab:'tutorias'}).includes('data-eval-confirm-session'));
  assert(html.includes('eval-session-card-heading'));
  assert(html.includes('eval-session-period'));
  assert(html.includes('data-eval-origin="A"'));
  assert(html.includes('data-eval-origin="1.º BACH A"'));
  const src=readFileSync(path.join(base,'src/planner-ui.js'),'utf8');
  assert(!src.includes('function evaluationOverview('),'El antiguo listado independiente debe desaparecer');
- assert(src.includes("panel=$('#plan-evaluations')"));
+ assert(src.includes('ctx.openEvaluations()'));
  assertModel(f.doc);
 });
 test('se muestran dos convocatorias de Latín y Griego, sin modificarlas ni elegir una automáticamente',()=>{
  const f=fixture();
  const a=saveEvaluationSession(f.doc,{groupId:f.latin.id,originGroup:'1.º BACH A',periodId:f.period.id,date:'2026-12-18',time:'15:30',notes:'Latín'});
  const b=saveEvaluationSession(f.doc,{groupId:f.greek.id,originGroup:'A',periodId:f.period.id,date:'2026-12-19',time:'16:00',notes:'Griego'});
- const before=structuredClone(f.doc),html=renderPlanner(f.doc,{plannerMode:'day',plannerDate:'2026-12-18'});
+ const before=structuredClone(f.doc),html=renderEvaluationWorkspace(f.doc,{evaluationWorkspaceTab:'sesiones'});
  assert(html.includes('2 convocatorias con fechas distintas'));
  assert(html.includes('data-export-event="'+a.id+'"'));
  assert(html.includes('data-export-event="'+b.id+'"'));
@@ -67,7 +69,7 @@ test('al confirmar tutoría se consolida el panel pero no la agenda ni los datos
  const cards=sessionPresentation(f.doc,f.y);
  assert.equal(cards.filter(c=>c.kind==='confirmed').length,1);
  assert.equal(cards.filter(c=>c.kind==='suggested').length,1);
- const html=renderPlanner(f.doc,{plannerMode:'week',plannerDate:'2026-12-18'});
+ const html=renderEvaluationWorkspace(f.doc,{evaluationWorkspaceTab:'sesiones'});
  assert(html.includes('data-eval-consolidate="'+t.id+'"'));
  assert(!html.includes('data-eval-confirm-session="'+candidate.id+'"'));
  assert.equal(tutorshipLegacyEvents(f.doc,t.id,f.period.id).length,2);
@@ -103,7 +105,7 @@ test('una asignatura sin alumnado o fechas no se identifica automáticamente com
 });
 test('el HTML escapa nombres de grupos no confiables y conserva accesibilidad del acordeón',()=>{
  const f=fixture();f.latin.name='<script>alert(1)</script>';
- const html=renderPlanner(f.doc,{plannerMode:'week',plannerDate:'2026-11-26'});
+ const html=renderEvaluationWorkspace(f.doc,{evaluationWorkspaceTab:'sesiones'});
  assert(!html.includes('<script>alert(1)</script>'));
  assert(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
  assert(html.includes('<details')&&html.includes('<summary'));
@@ -111,7 +113,7 @@ test('el HTML escapa nombres de grupos no confiables y conserva accesibilidad de
 test('cache PWA renovada y módulo agrupador incluido para modo offline',()=>{
  const app=readFileSync(path.join(base,'app.js'),'utf8');
  const sw=readFileSync(path.join(base,'sw.js'),'utf8');
- assert(app.includes('cuaderno-docente-static-v155-dev'));
- assert(sw.includes('cuaderno-docente-static-v155-dev'));
+ assert(app.includes('cuaderno-docente-static-v156-dev'));
+ assert(sw.includes('cuaderno-docente-static-v156-dev'));
  assert(sw.includes("'./src/evaluation-session-presentation.js'"));
 });

@@ -11,6 +11,7 @@ import {
 } from '../src/planner.js';
 import {timetableRows} from '../src/timetable-export.js';
 import {renderPlanner,renderTimetableGrid} from '../src/planner-ui.js';
+import {renderEvaluationWorkspace} from '../src/evaluation-workspace.js';
 import {overallGrade,finalGrade,competencyGrade} from '../src/calculations.js';
 import {createVault,saltFromEnvelope} from '../src/vault.js';
 import {ensureBookMetadata,markBookChange,createPortableCopy,readBackupFile} from '../src/cuaderno.js';
@@ -183,7 +184,7 @@ test('sesión general previa se conserva si después se asignan subgrupos',()=>{
  const one=saveEvaluationSession(d,{groupId:g.id,periodId:p.id,originGroup:'1.º BACH B',date:'2026-12-19',time:'17:00'});
  assert(y.events.some(e=>e.id===all.id&&!e.originGroup));
  assert(y.events.some(e=>e.id===one.id&&e.originGroup==='1.º BACH B'));
- const html=renderPlanner(d,{plannerMode:'week',plannerDate:'2026-12-18'});
+ const html=renderEvaluationWorkspace(d,{evaluationWorkspaceTab:'sesiones'});
  assert(html.includes('data-eval-origin="1.º BACH B"'));
  assert(html.includes('Sesiones de evaluación · '));
  assertModel(d);

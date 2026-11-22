@@ -3110,3 +3110,66 @@ html[data-theme="oled"] .eval-session-card-heading,
 html[data-theme="oled"] .eval-session-period[open]>summary{background:#000}
 @media(max-width:640px){.eval-session-card-heading{align-items:start;gap:6px}.eval-session-card-meta{width:100%}.eval-session-period>summary{align-items:start}.eval-session-period>summary span{text-align:left}.eval-session-recognition button{width:100%}.eval-session-period-content .planner-evaluation-row button{flex:1 1 115px}}
 @media print{.eval-session-overview .eval-session-card,.eval-session-overview .eval-session-period{break-inside:avoid}}
+
+
+/* Apartado independiente de sesiones de evaluación: jerarquía y modo táctil. */
+.evaluation-workspace{display:grid;gap:17px;min-width:0}
+.evaluation-workspace .panel+.panel{margin-top:0}
+.eval-workspace-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.eval-workspace-header h2{font-size:clamp(21px,2vw,26px);letter-spacing:-.03em;margin:5px 0 8px}
+.eval-workspace-header .subtitle{max-width:650px;font-size:13px;line-height:1.7}
+.eval-workspace-year,.eval-workspace-selectors label{display:grid;gap:6px;font-weight:720;font-size:12px;color:var(--ink)}
+.eval-workspace-year select{min-width:165px;max-width:100%;background:var(--surface);color:var(--ink)}
+.eval-workspace-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+.eval-workspace-stats>.panel{display:grid;gap:4px;padding:15px 18px;background:var(--surface)}
+.eval-workspace-stats strong{font-size:26px;font-weight:850;font-variant-numeric:tabular-nums;letter-spacing:-.035em;color:var(--ink)}
+.eval-workspace-stats span{font-size:12px;color:var(--muted);line-height:1.4}
+.eval-workspace-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:5px;border:1px solid var(--line);border-radius:12px;background:var(--raised)}
+.eval-workspace-tab{border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);padding:13px 10px;min-height:45px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:13px;font-weight:730;cursor:pointer}
+.eval-workspace-tab.active{background:var(--surface);color:var(--ink);box-shadow:0 2px 7px #0001;border-color:var(--line)}
+.eval-workspace-tab:focus-visible,.evaluation-workspace summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.eval-workspace-body{display:grid;gap:12px;min-width:0}
+.eval-workspace-body .eval-session-overview{padding:18px 20px}
+.eval-workspace-body .eval-session-overview>summary{font-size:15px}
+.eval-workspace-body .eval-session-card-heading{padding:17px;min-height:65px}
+.eval-workspace-body .eval-session-card-title strong{font-size:15px}
+.eval-workspace-management-top{padding:16px 19px;background:var(--surface);border:1px solid var(--line);border-radius:13px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 15px}
+.eval-workspace-management-top h3{font-size:16px;margin:0;flex:1 1 300px}
+.eval-workspace-management-top .hint{flex:1 1 100%;margin:0}
+.eval-workspace-management-top button{min-height:42px}
+.eval-workspace-body .eval-shared-management{padding:17px 19px}
+.eval-workspace-body .eval-shared-management>summary{font-size:15px}
+.eval-workspace-body .eval-tutor-proposal{border:1px solid var(--line);padding:11px;border-radius:9px;margin:8px 0;background:var(--accent-soft)}
+.eval-workspace-selectors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:17px 19px;border:1px solid var(--line);border-radius:13px;background:var(--surface)}
+.eval-workspace-selectors select{width:100%;min-width:0;min-height:43px;background:var(--surface);color:var(--ink)}
+.eval-workspace-empty{display:grid;gap:10px;justify-items:start}
+.eval-workspace-empty h3{margin:0}
+.eval-workspace-footer{margin:0 2px}
+.planner-evaluation-shortcut{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.planner-evaluation-shortcut h3{font-size:15px;margin:0 0 5px}
+.planner-evaluation-shortcut p{margin:0}
+.planner-evaluation-shortcut .btn{white-space:normal;min-height:40px}
+dialog.evaluation-session-dialog{position:fixed;inset:0 0 0 auto;margin:0 0 0 auto;width:min(500px,calc(100vw - 15px));max-width:min(500px,calc(100vw - 15px));max-height:100dvh;height:100dvh;border-radius:17px 0 0 17px;box-shadow:-12px 0 55px #0004}
+dialog.evaluation-session-dialog .modal-inner{min-height:100%;display:flex;flex-direction:column;padding:25px}
+dialog.evaluation-session-dialog .modal-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:14px}
+dialog.evaluation-session-dialog .modal-fields>label{grid-column:1/-1;min-width:0}
+dialog.evaluation-session-dialog .modal-fields>label.eval-form-time{grid-column:auto}
+dialog.evaluation-session-dialog .modal-fields input{min-height:44px;background:var(--surface);color:var(--ink)}
+dialog.evaluation-session-dialog .modal-actions{margin-top:auto;flex-wrap:wrap;justify-content:end;gap:7px}
+dialog.evaluation-session-dialog .modal-actions .btn{min-height:40px}
+html[data-theme="oled"] .eval-workspace-tabs,html[data-theme="oled"] .eval-session-card-heading{background:#000}
+@media(max-width:720px){
+ .eval-workspace-header{gap:12px}
+ .eval-workspace-header>.eval-workspace-year{width:100%}
+ .eval-workspace-header>.eval-workspace-year select{width:100%}
+ .eval-workspace-stats>.panel{padding:13px 11px}
+ .eval-workspace-stats strong{font-size:23px}
+ .eval-workspace-stats span{font-size:11px}
+ .eval-workspace-tab{font-size:11.5px;padding:12px 5px;flex-wrap:wrap}
+ .eval-workspace-selectors{grid-template-columns:minmax(0,1fr)}
+ .planner-evaluation-shortcut .btn{width:100%}
+ dialog.evaluation-session-dialog{inset:auto 0 0 0;margin:0;width:100%;max-width:100%;height:auto;max-height:94dvh;border-radius:18px 18px 0 0}
+ dialog.evaluation-session-dialog .modal-inner{min-height:0;padding:20px 16px}
+ dialog.evaluation-session-dialog .modal-actions{margin-top:16px}
+}
+@media print{.evaluation-workspace .eval-workspace-tabs,.evaluation-workspace .eval-workspace-stats{display:none!important}}

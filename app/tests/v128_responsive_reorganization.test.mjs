@@ -21,12 +21,12 @@ function navigationFor(tab='cuaderno',collapsed=false){
   });
 }
 
-test('cuatro accesos principales, dos herramientas académicas y accesos directos separados',async()=>{
+test('cinco accesos principales, dos herramientas académicas y accesos directos separados',async()=>{
   const {html}=await navigationFor();
   const ids=[...html.matchAll(/data-tab="([^"]+)"/g)].map(x=>x[1]);
-  assert.deepEqual(ids,['cuaderno','alumno','planificador','final',
+  assert.deepEqual(ids,['cuaderno','alumno','planificador','evaluaciones','final',
     'curriculo','rubricas','ajustes']);
-  assert.equal(new Set(ids).size,7);
+  assert.equal(new Set(ids).size,8);
   assert(!ids.includes('calculos')&&!ids.includes('competencias'),'Los accesos rápidos no deben duplicarse');
   for(const key of ids)assert(html.includes('data-tab="'+key+'"'));
   assert(html.includes('id="toggle-navigation"'),'La opción de plegar el menú permanece');
@@ -52,6 +52,8 @@ test('el destino activo se marca y Gestión académica abre automáticamente la 
     assert(result.quick.includes('data-academic-quick="'+screen+'" aria-current="page"'));
     assert(!result.html.includes('data-tab="'+screen+'"'),'No duplicar en el lateral');
   }
+  const sessions=await navigationFor('evaluaciones');
+  assert(sessions.html.includes('data-tab="evaluaciones" class="tab active" aria-current="page"'));
   const final=await navigationFor('final');
   assert(final.html.includes('data-tab="final" class="tab active" aria-current="page"'));
   assert(!final.html.includes('data-tab="cuaderno" class="tab active"'));
