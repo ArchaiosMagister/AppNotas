@@ -37,8 +37,8 @@ test('Rúbrica coloca valor y controles en dos niveles igual que la entrada ordi
 
 test('La PWA activa la nueva caché sin borrar notas almacenadas',async()=>{
   const [js,sw]=await Promise.all([read('app.js'),read('sw.js')]);
-  assert(js.includes("caches.open('cuaderno-docente-static-v141-dev')"));
-  assert(sw.includes("const CACHE='cuaderno-docente-static-v141-dev'"));
+  assert(js.includes("caches.open('cuaderno-docente-static-v142-dev')"));
+  assert(sw.includes("const CACHE='cuaderno-docente-static-v142-dev'"));
   assert(!js.includes('indexedDB.deleteDatabase'));
   assert(!sw.includes('indexedDB.deleteDatabase'));
 });
