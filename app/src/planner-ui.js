@@ -261,7 +261,7 @@ export function bindPlanner(doc,ui,ctx){
   ctx.fieldsModal('Sesión de evaluación · '+group.name+' · '+period.name,[
    {id:'date',label:'Día de la sesión',type:'date',value:date},
    {id:'time',label:'Hora de inicio',type:'time',value:existing?.time||'15:30'},
-   {id:'notes',label:'Lugar o indicaciones (opcional)',required:false,value:existing?.notes||''}
+   {id:'notes',label:'Lugar o indicaciones (opcional)',required:false,value:existing?.notes||'',maxlength:1000}
   ],values=>ctx.commit(d=>saveEvaluationSession(d,{
    id:existing?.id||null,groupId,periodId,...values
   }),'Programar sesión de evaluación'),

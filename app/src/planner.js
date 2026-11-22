@@ -291,16 +291,16 @@ export function saveEvent(doc,{id=null,date,type,title,groupId=null,assessmentId
 /** Una convocatoria por grupo y evaluación del curso académico activo.
  * Son citas de agenda, no calificaciones ni actas de evaluación. */
 export function saveEvaluationSession(doc,{id=null,groupId,periodId,date,time,notes=''}){
- const period=doc.periods.find(p=>p.id===periodId);
- if(!period)throw new Error('Selecciona una evaluación válida.');
+ const period=doc.periods.find(p=>p.id===periodId),group=doc.groups.find(g=>g.id===groupId);
+ if(!period||!group)throw new Error('Selecciona un grupo y una evaluación válidos.');
  return saveEvent(doc,{id,groupId,periodId,date,time,notes,type:'evaluation',
-  title:'Sesión de evaluación · '+period.name});
+  title:period.name+' · '+group.name});
 }
 /** VEVENT individual, sin cuentas ni red: las horas son flotantes/locales
  * y el calendario de destino elegirá su propia zona horaria.
  * Importar un .ics NO sincroniza modificaciones posteriores de la agenda. */
 export function calendarEventIcs(event,generatedAt=new Date()){
- if(!event||typeof event.id!=='string'||!event.id||!Object.hasOwn(EVENT_TYPES,event.type)||!event.title||!isoDate(event.date)||!Number.isFinite(generatedAt.getTime())||
+ if(!event||typeof event.id!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(event.id)||!Object.hasOwn(EVENT_TYPES,event.type)||!event.title||!isoDate(event.date)||!Number.isFinite(generatedAt.getTime())||
     (event.time&&!timeValid(event.time)))throw new Error('Evento inválido para exportar.');
  const escapeIcs=value=>String(value??'').replace(/\r\n?/g,'\n').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');
  const fold=line=>{let out='',count=0;const encoder=new TextEncoder();
