@@ -111,7 +111,10 @@ test('los controles y datos del modo alumno siguen presentes, sin exponer a otro
 
 test('el visor sigue legible con pantalla estrecha, claro, oscuro y OLED',async()=>{
   const css=await read('styles.css');
-  const patch=css.slice(css.indexOf('/* v140 · Modo alumno:'));
+  const start=css.indexOf('/* v140 · Modo alumno:');
+  const next=css.indexOf('/* v141 · Centrado',start);
+  assert(start>=0&&next>start);
+  const patch=css.slice(start,next);
   assert(patch.includes('@media(max-width:700px)'));
   assert(patch.includes('@media(max-width:540px)'));
   assert(patch.includes('flex-direction:row;flex-wrap:wrap;align-items:center'));
