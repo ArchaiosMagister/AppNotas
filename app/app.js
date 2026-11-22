@@ -13,6 +13,7 @@ import {CURRICULA} from './src/curriculum-data.js';
 import {officialCompetenciesForGroup,groupCompetencies,linkedOfficialCompetency,curriculumCompetenciesWithCriteria} from './src/official-competencies.js';
 import {ensurePlanner,localToday,activeYear,setActiveYear,addAcademicYear} from './src/planner.js';
 import {renderPlanner,bindPlanner} from './src/planner-ui.js';
+import {renderEvaluationWorkspace,bindEvaluationWorkspace} from './src/evaluation-workspace.js';
 import {openStudentLinksManager} from './src/student-link-ui.js';
 import {assessmentClassStatistics,periodClassStatistics,finalClassStatistics,categoryClassStatistics,competencyClassStatistics} from './src/statistics.js';
 
@@ -146,7 +147,7 @@ const savedStudentActivityOrders=()=>{try{
 }catch{return {};}};
 const STUDENT_ACTIVITY_SORT_OPTIONS=[['category','Por categoría'],['column','Orden del cuaderno'],['alphabetical','Nombre de actividad (A–Z)'],['reverse','Últimas actividades primero']];
 
-const STATE={plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),studentPlainSort:savedStudentPlainSort(),studentActivityOrders:savedStudentActivityOrders(),studentPeriodOpen:{},db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
+const STATE={evaluationWorkspaceTab:'sesiones',plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),studentPlainSort:savedStudentPlainSort(),studentActivityOrders:savedStudentActivityOrders(),studentPeriodOpen:{},db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const $=(sel,context=document)=>context.querySelector(sel);
 const opt=(id,label,chosen)=>`<option value="${esc(id)}" ${chosen===id?'selected':''}>${esc(label)}</option>`;
@@ -841,6 +842,7 @@ const PRIMARY_WORKSPACE_TABS=[
   ['cuaderno','Cuaderno','▦'],
   ['alumno','Modo sesión de evaluación','◉'],
   ['planificador','Agenda','▣'],
+  ['evaluaciones','Sesiones de evaluación','◷'],
   ['final','Evaluación final','★']
 ];
 const ACADEMIC_WORKSPACE_TABS=[
@@ -938,7 +940,7 @@ function render(){
     </details>
     <input type="file" id="csv-file" class="hidden" accept=".csv,text/csv"/>
   </div>
-</div><div class="workspace">${renderNavigation()}<div class="work-area">${hasGroup&&['cuaderno','final'].includes(STATE.tab)?renderPeriodButtons():''}${hasGroup&&['calculos','competencias'].includes(STATE.tab)?renderAcademicQuickNav():''}<div id="tab-content">${!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'?`<section class="panel panel-pad no-group-state"><h2>No hay grupos de ${esc(subjectLabel)}</h2><p>Selecciona otro grupo o crea uno nuevo para esta asignatura. No se mezclarán las calificaciones de materias distintas.</p>${STATE.level==='legacy'?'<p>Clasifica primero el grupo anterior para utilizarlo en uno de los cursos disponibles.</p>':'<button class="btn primary" id="new-group-empty">+ Crear primer grupo</button>'}</section>`:STATE.tab==='cuaderno'?renderNotebook():STATE.tab==='planificador'?renderPlanner(STATE.doc,STATE):STATE.tab==='alumno'?renderStudentView():STATE.tab==='final'?renderFinalEvaluation():STATE.tab==='calculos'?renderRules():STATE.tab==='rubricas'?renderRubrics():STATE.tab==='competencias'?renderCompetencies():STATE.tab==='curriculo'?renderCurriculum():renderSettings()}</div></div></div></main></div>`;
+</div><div class="workspace">${renderNavigation()}<div class="work-area">${hasGroup&&['cuaderno','final'].includes(STATE.tab)?renderPeriodButtons():''}${hasGroup&&['calculos','competencias'].includes(STATE.tab)?renderAcademicQuickNav():''}<div id="tab-content">${!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'&&STATE.tab!=='evaluaciones'?`<section class="panel panel-pad no-group-state"><h2>No hay grupos de ${esc(subjectLabel)}</h2><p>Selecciona otro grupo o crea uno nuevo para esta asignatura. No se mezclarán las calificaciones de materias distintas.</p>${STATE.level==='legacy'?'<p>Clasifica primero el grupo anterior para utilizarlo en uno de los cursos disponibles.</p>':'<button class="btn primary" id="new-group-empty">+ Crear primer grupo</button>'}</section>`:STATE.tab==='cuaderno'?renderNotebook():STATE.tab==='planificador'?renderPlanner(STATE.doc,STATE):STATE.tab==='evaluaciones'?renderEvaluationWorkspace(STATE.doc,STATE):STATE.tab==='alumno'?renderStudentView():STATE.tab==='final'?renderFinalEvaluation():STATE.tab==='calculos'?renderRules():STATE.tab==='rubricas'?renderRubrics():STATE.tab==='competencias'?renderCompetencies():STATE.tab==='curriculo'?renderCurriculum():renderSettings()}</div></div></div></main></div>`;
   bindCommon();
   wirePwaButtons();
   updatePortableStatus();
@@ -949,9 +951,19 @@ function render(){
     if(inner.left<outer.left)tabStrip.scrollLeft+=inner.left-outer.left-8;
     else if(inner.right>outer.right)tabStrip.scrollLeft+=inner.right-outer.right+8;
   }
-  if(!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'){$('#new-group-empty')?.addEventListener('click',()=>$('#new-group').click());}
+  if(!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'&&STATE.tab!=='evaluaciones'){$('#new-group-empty')?.addEventListener('click',()=>$('#new-group').click());}
   else if(STATE.tab==='cuaderno')bindNotebook();
-  else if(STATE.tab==='planificador'){const api=bindPlanner(STATE.doc,STATE,{render,commit,fieldsModal,dialog,toast,fail,getDoc:()=>STATE.doc});if(STATE.plannerEventRequest){const request=STATE.plannerEventRequest;STATE.plannerEventRequest=null;api.eventModal(request);}}
+  else if(STATE.tab==='planificador'){const api=bindPlanner(STATE.doc,STATE,{
+    render,commit,fieldsModal,dialog,toast,fail,getDoc:()=>STATE.doc,
+    openEvaluations:()=>{STATE.evaluationWorkspaceTab='sesiones';STATE.tab='evaluaciones';render();}
+   });if(STATE.plannerEventRequest){const request=STATE.plannerEventRequest;STATE.plannerEventRequest=null;api.eventModal(request);}}
+  else if(STATE.tab==='evaluaciones')bindEvaluationWorkspace(STATE.doc,STATE,{
+    render,commit,fieldsModal,dialog,toast,fail,getDoc:()=>STATE.doc,
+    openStudentLinks:()=>openStudentLinksManager({
+      dialog,getDoc:()=>STATE.doc,commit,toast,fail,groupId:STATE.groupId,
+      defaultYear:activeYear(STATE.doc).name
+    })
+  });
   else if(STATE.tab==='alumno')bindStudentView();
   else if(STATE.tab==='final')bindFinalEvaluation();
   else if(STATE.tab==='rubricas')bindRubrics();
@@ -2073,7 +2085,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v155-dev');
+      const cache=await caches.open('cuaderno-docente-static-v156-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
