@@ -39,10 +39,16 @@ async function audit(engine,name){
   await page.locator('[data-create-mode="demo"]').click();
   await page.locator('.nav-primary [data-tab="cuaderno"]').waitFor({timeout:30000});
   assert((await page.locator('.course-choice').count())>=4,'Debe haber materias visibles');
+  // El último botón puede pertenecer a una materia aún sin grupo: recordar el
+  // grupo inicial de demostración para probar las acciones del cuaderno.
+  const defaultCourse=await page.locator('.course-choice[aria-pressed="true"]').evaluate(node=>({
+   level:node.dataset.courseLevel,subject:node.dataset.courseSubject
+  }));
 
   for(const size of [
-    {width:320,height:700},{width:390,height:844},{width:430,height:932},
-    {width:768,height:1024},{width:834,height:1112},{width:1024,height:768}
+    {width:320,height:700},{width:375,height:812},{width:390,height:844},
+    {width:430,height:932},{width:768,height:1024},{width:834,height:1112},
+    {width:1024,height:768},{width:1180,height:820}
   ]){
    await page.setViewportSize(size);
    await page.locator('.nav-primary [data-tab="evaluaciones"]').click();
@@ -64,9 +70,90 @@ async function audit(engine,name){
    assert(geometry.subjectHeight>=43.5,name+' materia táctil pequeña');
    assert(geometry.evalTabHeight>=43.5,name+' pestaña Evaluaciones demasiado pequeña');
    assert(geometry.actionHeight>=43.5,name+' menú grupos demasiado pequeño');
+   // Regresión detectada en v163: una cuadrícula de 4 columnas con 3 botones
+   // dejaba aproximadamente el 25 % de la barra de navegación sin utilizar.
+   if(size.width<=900){
+    const nav=await page.evaluate(()=>{
+     const bar=document.querySelector('.tabs');
+     const cards=[...bar.querySelectorAll('.nav-primary>.tab'),
+      bar.querySelector('.academic-disclosure>summary')];
+     const rect=n=>{const r=n.getBoundingClientRect();return {left:r.left,right:r.right,width:r.width,height:r.height}};
+     return {bar:rect(bar),cards:cards.map(rect),
+      visible:cards.map(c=>getComputedStyle(c).display!=='none')};
+    });
+    assert.equal(nav.cards.length,4,'Deben ocupar la barra 3 módulos + Herramientas');
+    assert(nav.visible.every(Boolean),name+' hay botones de navegación ocultos');
+    const min=Math.min(...nav.cards.map(c=>c.width)),max=Math.max(...nav.cards.map(c=>c.width));
+    assert(max-min<=3,name+' botones de navegación con anchuras desiguales: '+JSON.stringify(nav));
+    assert(Math.abs(nav.cards[0].left-nav.bar.left)<=11,name+' hueco inicial de navegación');
+    assert(Math.abs(nav.bar.right-nav.cards[3].right)<=11,name+' cuarta columna vacía');
+    assert(nav.cards.every(c=>c.height>=43.5),name+' navegación táctil insuficiente');
+    // Herramientas debe ser un control real y el menú no debe salir del viewport.
+    await page.locator('.tabs .academic-disclosure>summary').click();
+    const tools=await page.evaluate(()=>{
+     const menu=document.querySelector('.tabs .nav-academic-links');
+     const r=menu.getBoundingClientRect();
+     return {left:r.left,right:r.right,visible:!!r.width};
+    });
+    assert(tools.visible&&tools.left>=-2&&tools.right<=size.width+2,
+      name+' panel Herramientas fuera de pantalla '+JSON.stringify(tools));
+    await page.locator('.tabs .academic-disclosure>summary').click();
+   }
+   if(size.width<=650){
+    const slots=await page.evaluate(()=>{
+     const rect=q=>{const node=document.querySelector(q);if(!node)return null;
+      const r=node.getBoundingClientRect();return {left:r.left,right:r.right,width:r.width,height:r.height};};
+     return {toolbar:rect('.class-more-actions'),summary:rect('.group-actions-disclosure>summary')};
+    });
+    assert(Math.abs(slots.toolbar.width-slots.summary.width)<=3,
+      name+' el botón Materias y grupos no rellena su espacio: '+JSON.stringify(slots));
+    assert(slots.summary.height>=43.5,name+' menú Materias/grupos demasiado pequeño');
+   }
+   if(size.width>=651&&size.width<=900){
+    const courses=await page.evaluate(()=>{
+     const strip=document.querySelector('.course-buttons');
+     const last=strip.querySelector('.course-choice:last-child');
+     const a=strip.getBoundingClientRect(),b=last.getBoundingClientRect();
+     return {left:a.left,right:a.right,final:b.right,overflow:strip.scrollWidth>strip.clientWidth+3};
+    });
+    if(!courses.overflow)assert(Math.abs(courses.right-courses.final)<=10,
+     name+' tira de materias no aprovecha el ancho iPad: '+JSON.stringify(courses));
+   }
    // Elegir la última materia, cambiar de módulo y comprobar scroll horizontal conservado.
    await page.locator('.course-choice').last().click();
    await page.locator('.nav-primary [data-tab="planificador"]').click();
+   if(size.width<=1200){
+    const agenda=await page.evaluate(()=>{
+     const box=q=>{const e=document.querySelector(q);if(!e)return null;const r=e.getBoundingClientRect();
+      return {left:r.left,right:r.right,width:r.width,height:r.height};};
+     const buttonBoxes=q=>[...document.querySelectorAll(q)].map(e=>{const r=e.getBoundingClientRect();
+      return {left:r.left,right:r.right,width:r.width,height:r.height}});
+     return {tabs:buttonBoxes('.planner-view-tabs .planner-view-btn'),
+      tabContainer:box('.planner-view-tabs'),
+      tools:buttonBoxes('.planner-tools-minimal>.planner-create-menu, .planner-tools-minimal>.planner-sessions-shortcut'),
+      toolContainer:box('.planner-tools-minimal'),
+      header:buttonBoxes('.planner-year-chooser>.btn'),
+      dates:buttonBoxes('.planner-date-controls>.btn')};
+    });
+    assert.equal(agenda.tabs.length,5,'Agenda: cinco vistas');
+    assert(agenda.tabs.every(x=>x.height>=43.5),name+' pestañas Agenda demasiado bajas');
+    assert.equal(agenda.tools.length,2,'Agenda: dos acciones principales');
+    assert(agenda.tools.every(x=>x.width>0),'Agenda: botón principal oculto');
+    if(size.width<=650){
+     assert(Math.abs(agenda.tabs[0].width-agenda.tabs[1].width)<3,
+      name+' pestañas Agenda mal distribuidas');
+     assert(Math.abs(agenda.tabs[4].width-agenda.tabContainer.width)<=4,
+      name+' quinta pestaña Agenda deja hueco en fila');
+     assert(Math.abs(agenda.tools[0].width-agenda.tools[1].width)<=3,
+      name+' botones Crear/Sesiones no rellenan sus dos columnas');
+     assert(agenda.header.length===2&&Math.abs(agenda.header[0].width-agenda.header[1].width)<3,
+      name+' botones Curso de Agenda con anchura desigual');
+     assert(agenda.dates.every(x=>x.height>=43.5),'Agenda: flechas de fecha demasiado pequeñas');
+    }else{
+     assert(Math.max(...agenda.tabs.map(x=>x.width))-Math.min(...agenda.tabs.map(x=>x.width))<=3,
+      name+' pestañas Agenda con tamaños diferentes en iPad');
+    }
+   }
    await page.locator('.nav-primary [data-tab="evaluaciones"]').click();
    const selected=await page.evaluate(()=>{
     const list=document.querySelector('.course-buttons'),btn=list.querySelector('.course-choice[aria-pressed="true"]');
@@ -81,6 +168,51 @@ async function audit(engine,name){
    }
    await page.locator('.nav-primary [data-tab="cuaderno"]').click();
    assert(await page.locator('.class-toolbar').isVisible());
+   await page.locator('.course-choice[data-course-level="'+defaultCourse.level+
+    '"][data-course-subject="'+defaultCourse.subject+'"]').click();
+   if(size.width<=650){
+    const actions=await page.evaluate(()=>{
+     const primary=[...document.querySelectorAll('.notebook-primary-actions>.btn')].map(n=>n.getBoundingClientRect());
+     const more=document.querySelector('.notebook-primary-actions .notebook-more-actions>summary')?.getBoundingClientRect();
+     const box=document.querySelector('.notebook-primary-actions')?.getBoundingClientRect();
+     return {primary:primary.map(x=>({left:x.left,width:x.width,height:x.height})),
+      more:more&&{width:more.width,height:more.height},container:box&&{width:box.width}};
+    });
+    assert(actions.primary.length>=2,'Los botones + Alumno y + Actividad deben existir');
+    assert(Math.abs(actions.primary[0].width-actions.primary[1].width)<=3,
+     name+' botones del Cuaderno de anchura desigual '+JSON.stringify(actions));
+    assert(actions.primary[0].height>=43.5&&actions.primary[1].height>=43.5,
+     name+' botones Cuaderno demasiado bajos');
+    assert(actions.more&&Math.abs(actions.more.width-actions.container.width)<=4,
+     name+' Acciones del Cuaderno no ocupan todo el ancho '+JSON.stringify(actions));
+   }
+   if(size.width<=1200){
+    await page.locator('[data-academic-quick="alumno"]').click();
+    const quick=await page.evaluate(()=>{
+     const strip=document.querySelector('.academic-quick-nav');
+     const active=strip?.querySelector('.academic-quick-active');
+     if(!strip||!active)return {visible:false};
+     const a=strip.getBoundingClientRect(),b=active.getBoundingClientRect();
+     return {visible:b.left>=a.left-3&&b.right<=a.right+3,
+      buttonWidth:b.width,containerWidth:a.width};
+    });
+    assert(quick.visible,name+' pestaña académica activa fuera de vista '+JSON.stringify(quick));
+    if(size.width===390){
+     await page.locator('[data-open-student]').first().click();
+     assert(await page.locator('.shell.student-focus').count()===1,
+      name+' vista privada sin su estado visual');
+     const privateHeader=await page.evaluate(()=>{
+      const parent=document.querySelector('.student-focus .topmeta');
+      const status=parent?.querySelector('#save-status');
+      const a=parent?.getBoundingClientRect(),b=status?.getBoundingClientRect();
+      return {parentWidth:a?.width,statusWidth:b?.width};
+     });
+     assert(Math.abs(privateHeader.parentWidth-privateHeader.statusWidth)<=3,
+      name+' cabecera privada deja media fila libre: '+JSON.stringify(privateHeader));
+     await page.locator('#hide-student').click();
+    }
+    await page.locator('[data-academic-quick="cuaderno"]').click();
+   }
    await page.locator('.nav-primary [data-tab="evaluaciones"]').click();
    console.log(name+' '+size.width+'x'+size.height+': materias, táctil y overflow correctos');
   }
@@ -100,4 +232,4 @@ try{
 }finally{
  await new Promise(ok=>server.close(ok));
 }
-console.log('Pruebas táctiles terminadas: 6 tamaños, Chromium y WebKit; solo alumnado ficticio.');
+console.log('Pruebas de distribución y tactilidad: 8 tamaños, Chromium y WebKit; solo alumnado ficticio.');

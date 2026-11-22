@@ -3484,3 +3484,170 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
  .class-toolbar .course-switch .course-buttons{overflow:visible}
  .eval-workspace-stats{border:0}
 }
+
+/* v164 · Uso íntegro del ancho disponible y geometría táctil coherente.
+   En móviles la navegación tiene tres destinos y un cuarto acceso real:
+   eliminar las columnas vacías heredadas del layout de cuatro pestañas. */
+@media(max-width:1200px){
+  .class-toolbar .course-switch .course-choice{
+    flex:1 0 92px;min-width:92px;max-width:none;width:auto;
+    white-space:normal;overflow-wrap:anywhere;
+  }
+  .academic-quick-nav .btn{
+    flex:1 1 92px;min-width:0;min-height:44px;
+    text-align:center;white-space:normal;
+  }
+  .planner-view-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  .planner-view-btn{min-height:44px;min-width:0;width:100%;white-space:normal}
+}
+@media(max-width:900px){
+  .tabs,.shell.nav-collapsed .tabs{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    align-items:stretch;
+  }
+  .tabs .nav-secondary,.shell.nav-collapsed .tabs .nav-secondary{
+    display:contents;
+  }
+  .tabs .academic-disclosure{
+    grid-column:4;grid-row:1;min-width:0;
+    position:relative;z-index:40;margin:0;padding:0;
+  }
+  .tabs .academic-disclosure>summary{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2px;width:100%;height:100%;min-height:53px;min-width:0;
+    padding:7px 3px;font-size:11px;line-height:1.2;text-align:center;
+    border:1px solid transparent;border-bottom:3px solid transparent;
+    border-radius:8px;background:transparent;
+  }
+  .tabs .academic-disclosure>summary .nav-glyph{
+    flex:0 0 19px;height:19px;line-height:19px;font-size:17px;
+  }
+  .tabs .academic-disclosure>summary .nav-text{font-size:11px;line-height:1.2}
+  .tabs .academic-disclosure>summary .disclosure-chevron{display:none}
+  .tabs .academic-disclosure[open]>summary{
+    color:var(--ink);background:var(--accent-soft);
+    border:1px solid var(--line);border-bottom:3px solid var(--accent);
+  }
+  .tabs .nav-academic-links{
+    position:absolute;right:0;top:calc(100% + 6px);z-index:45;
+    width:min(300px,calc(100vw - 36px));min-width:0;
+    display:grid;grid-template-columns:minmax(0,1fr);gap:5px;
+    padding:8px;border:1px solid var(--line);border-radius:11px;
+    background:var(--surface);box-shadow:0 10px 30px #0003;
+  }
+  .tabs .academic-disclosure:not([open]) .nav-academic-links{display:none}
+  .tabs .nav-academic-links .tab{width:100%;min-height:44px;white-space:normal}
+  .academic-quick-nav .btn{
+    flex:1 0 104px;min-width:104px;min-height:44px;
+    text-align:center;white-space:nowrap;
+  }
+  .class-toolbar .course-switch .course-buttons{width:100%}
+  .class-toolbar .course-switch .course-choice{min-height:44px}
+  .planner-tools-minimal .planner-create-menu>summary,
+  .planner-tools-minimal .planner-sessions-shortcut{min-height:44px}
+}
+@media(max-width:650px){
+  .tabs .academic-disclosure>summary{min-height:52px;padding:6px 2px}
+  .tabs .academic-disclosure>summary .nav-text{font-size:10px;overflow-wrap:anywhere}
+  .topmeta{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    width:100%;align-items:stretch;gap:7px;
+  }
+  .topmeta #save-status{
+    grid-column:1;min-width:0;width:100%;min-height:44px;
+    justify-content:center;white-space:normal;text-align:center;
+  }
+  .topmeta .topbar-close-btn{
+    grid-column:2;min-width:0;width:100%;min-height:44px;
+  }
+  .topmeta .header-tools{grid-column:1;min-width:0;width:100%}
+  .topmeta .header-tools>summary{width:100%;min-height:44px;justify-content:center}
+  .topmeta .header-tools-panel{
+    left:0;right:auto;width:min(340px,calc(100vw - 24px));
+  }
+  .topmeta .lock-btn{
+    grid-column:2;min-width:0;width:100%;min-height:44px;
+  }
+  /* En el visor privado, Cerrar se oculta: el guardado utiliza ambas columnas. */
+  .shell.student-focus .topmeta #save-status{grid-column:1/-1}
+  .class-toolbar .course-switch .course-choice{
+    flex:1 0 92px;min-width:92px;max-width:none;min-height:48px;
+    padding:8px 9px;white-space:normal;
+  }
+  .class-toolbar .class-more-actions{
+    flex:1 1 100%;width:100%;min-width:0;
+  }
+  .class-toolbar .group-actions-disclosure{
+    flex:1 1 100%;width:100%;min-width:0;
+  }
+  .class-toolbar .group-actions-disclosure>summary{
+    width:100%;min-height:44px;justify-content:center;
+  }
+  .notebook-primary-actions{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;width:100%;
+  }
+  .notebook-primary-actions>.btn{min-height:44px;width:100%;min-width:0}
+  .notebook-primary-actions .notebook-more-actions{
+    grid-column:1/-1;min-width:0;width:100%;
+  }
+  .notebook-primary-actions .notebook-more-actions>summary{
+    width:100%;min-height:44px;justify-content:center;
+  }
+  .term-buttons>.term-add:last-child:nth-child(odd){grid-column:1/-1}
+  .term-add{min-height:44px}
+  .planner-year-chooser{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    width:100%;align-items:stretch;gap:7px;
+  }
+  .planner-year-chooser>label{grid-column:1/-1;min-width:0}
+  .planner-year-chooser select{width:100%;min-width:0;max-width:none}
+  .planner-year-chooser>.btn{min-width:0;width:100%;min-height:44px}
+  .planner-view-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .planner-view-btn:last-child:nth-child(odd){grid-column:1/-1}
+  .planner-date-controls{
+    display:grid;grid-template-columns:minmax(44px,1fr) minmax(0,3fr)
+      minmax(44px,1fr) minmax(44px,1fr);
+    align-items:stretch;gap:6px;width:100%;
+  }
+  .planner-date-controls>.btn,.planner-date-controls>input{
+    width:100%;min-width:0;min-height:44px;
+  }
+  .planner-date-controls>input{font-size:16px}
+  .planner-tools-minimal{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:7px;align-items:stretch;width:100%;
+  }
+  .planner-tools-minimal .planner-create-menu{
+    flex:none;min-width:0;width:100%;
+  }
+  .planner-tools-minimal .planner-create-menu>summary{
+    width:100%;min-height:44px;justify-content:center;
+  }
+  .planner-tools-minimal .planner-sessions-shortcut{
+    min-width:0;width:100%;min-height:44px;white-space:normal;
+  }
+  .eval-period-actions>.btn.primary{min-width:0}
+  .eval-period-actions .btn,.eval-period-source .btn{min-height:44px}
+  .eval-period-more>summary{min-height:44px;min-width:44px}
+  .eval-period-more-items>.btn{min-height:44px}
+  dialog.evaluation-session-dialog .modal-actions{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:7px;width:100%;
+  }
+  dialog.evaluation-session-dialog .modal-actions .btn{
+    width:100%;min-width:0;min-height:44px;white-space:normal;
+  }
+  dialog.evaluation-session-dialog .modal-actions .btn:last-child:nth-child(odd){
+    grid-column:1/-1;
+  }
+}
+@media(pointer:coarse){
+  .term-edit{min-width:44px;min-height:44px}
+  .student-navigation .btn,
+  .planner-view-btn,.planner-create-options>.btn,
+  .eval-workspace-management-top button,
+  .eval-period-actions .btn,.eval-period-source .btn,
+  .eval-period-more>summary,.eval-period-more-items>.btn{
+    min-height:44px;
+  }
+}
