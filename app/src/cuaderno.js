@@ -81,6 +81,27 @@ export function compareBookVersions(local,incoming){
   const shared=new Set(a.ancestors);
   return b.ancestors.some(head=>shared.has(head))?'divergent':'unknown';
 }
+/**
+ * Permite comprobar una importación desde la pantalla BLOQUEADA sin escribir ni
+ * migrar el almacén local. La contraseña del archivo se prueba también con el
+ * sobre local; si difiere o el historial no es demostrable, se mantiene nivel 3.
+ * No atribuye precedencia por la fecha del archivo ni por el número de revisión.
+ */
+export async function compareBackupAgainstLocal(localDoc,localEnvelope,incomingDoc,password){
+  if(localDoc)return compareBookVersions(localDoc,incomingDoc);
+  if(!localEnvelope)return 'empty';
+  try{
+    const local=await unlockVault(password,localEnvelope);
+    const prepared=migrateNotebook(local.doc);
+    assertModel(prepared.doc);
+    if(!prepared.doc._portability)return 'unknown';
+    return compareBookVersions(prepared.doc,incomingDoc);
+  }catch{
+    // Contraseña local diferente, archivo antiguo sin historial o error de
+    // autenticación: nunca dar permiso implícito a una sustitución.
+    return 'unknown';
+  }
+}
 export function bookStatus(doc,receipt){
   if(!doc)return 'none';
   const p=validateBookMetadata(doc);
