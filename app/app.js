@@ -1104,7 +1104,7 @@ function curriculumCards(data){
 }
 function renderCurriculum(){
   const data=currentCurriculum();
-  if(!data)return `<section class="panel panel-pad"><h2>Currículo de la materia</h2><p>Selecciona Latín de 4.º de ESO, Latín I o II, o Griego I o II para consultar su normativa.</p></section>`;
+  if(!data)return `<section class="panel panel-pad"><h2>Currículo de ${esc(STATE.subject)}</h2><p>No hay un currículo oficial incorporado para esta materia. Puedes utilizar el cuaderno, las categorías y las competencias personalizadas; la normativa deberá consultarse por separado.</p></section>`;
   const isLatin2=STATE.level==='2bach'&&STATE.subject==='Latín II';
   const available=data.estado!=='fuente_pendiente';
   const nSab=data.saberes.reduce((total,b)=>total+(b.items?.length||0)+(b.subbloques||[]).reduce((sum,x)=>sum+x.items.length,0),0);
