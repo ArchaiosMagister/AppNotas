@@ -5,6 +5,57 @@ const uid=()=>crypto.randomUUID();
 const stamp=()=>new Date().toISOString();
 const trimmed=(v,max=250)=>{const x=String(v??'').trim();if(!x||x.length>max)throw new Error('Escribe un texto válido.');return x;};
 export const SLOT_TYPES=Object.freeze({class:'Clase',guardia:'Guardia',familias:'Atención a familias',complementaria:'Hora complementaria',departamento:'Reunión de departamento',jefatura:'Jefatura de departamento',otro:'Otra actividad'});
+/** Plantilla horaria por centro, independiente de clases y calificaciones. */
+export const DEFAULT_TIMETABLE_BANDS=Object.freeze([
+ {id:'hora-1',label:'1.ª hora',start:'08:00',end:'08:55',kind:'lesson'},
+ {id:'hora-2',label:'2.ª hora',start:'08:55',end:'09:50',kind:'lesson'},
+ {id:'hora-3',label:'3.ª hora',start:'09:50',end:'10:45',kind:'lesson'},
+ {id:'patio-1',label:'Primer patio',start:'10:45',end:'11:15',kind:'break'},
+ {id:'hora-4',label:'4.ª hora',start:'11:15',end:'12:10',kind:'lesson'},
+ {id:'hora-5',label:'5.ª hora',start:'12:10',end:'13:05',kind:'lesson'},
+ {id:'hora-6',label:'6.ª hora',start:'13:05',end:'14:00',kind:'lesson'},
+ {id:'patio-2',label:'Segundo patio',start:'14:00',end:'14:20',kind:'break'},
+ {id:'hora-7',label:'7.ª hora',start:'14:20',end:'15:15',kind:'lesson'}
+].map(row=>Object.freeze(row)));
+export const scheduleBands=y=>(Array.isArray(y?.bands)?y.bands:DEFAULT_TIMETABLE_BANDS).slice()
+ .sort((a,b)=>a.start.localeCompare(b.start)||a.end.localeCompare(b.end));
+const cloneBands=()=>DEFAULT_TIMETABLE_BANDS.map(b=>({...b}));
+const checkedBands=bands=>{
+ if(!Array.isArray(bands)||!bands.length||bands.length>30)throw new Error('El horario necesita entre 1 y 30 franjas.');
+ const ids=new Set();
+ const rows=[...bands].sort((a,b)=>a.start.localeCompare(b.start)||a.end.localeCompare(b.end));
+ rows.forEach((b,i)=>{
+  if(!b||typeof b.id!=='string'||!b.id||ids.has(b.id)||typeof b.label!=='string'||!b.label.trim()||b.label.length>70||
+     !['lesson','break'].includes(b.kind)||!timeValid(b.start)||!timeValid(b.end)||b.end<=b.start||
+     i>0&&rows[i-1].end>b.start)throw new Error('Franjas inválidas, repetidas o solapadas.');
+  ids.add(b.id);
+ });
+ return rows;
+};
+export function saveTimetableBand(doc,{id=null,label,start,end,kind='lesson'}){
+ const y=activeYear(doc),before=scheduleBands(y),existing=before.find(b=>b.id===id);
+ if(id&&!existing)throw new Error('La franja no existe.');
+ const band={id:id||uid(),label:trimmed(label,70),start,end,kind};
+ const next=checkedBands(existing?before.map(b=>b.id===id?band:b):[...before,band]);
+ // Validar todo ANTES de modificar el cuaderno. Las sesiones vinculadas
+ // conservan su clase, aula y eventos al cambiar los tiempos de la franja.
+ y.bands=next;
+ if(existing&&(existing.start!==start||existing.end!==end)){
+  for(const slot of y.slots.filter(s=>s.bandId===id)){
+   slot.start=start;slot.end=end;
+   y.events.filter(e=>e.slotId===slot.id).forEach(e=>{
+    e.time=y.exceptions.find(x=>x.slotId===slot.id&&x.date===e.date&&x.type==='move')?.start||start;
+   });
+  }
+ }
+ doc.updatedAt=stamp();return band;
+}
+export function removeTimetableBand(doc,id){
+ const y=activeYear(doc),bands=scheduleBands(y);
+ if(!bands.some(b=>b.id===id))throw new Error('Franja inexistente.');
+ if(y.slots.some(s=>s.bandId===id))throw new Error('Retira primero las clases asignadas a esta franja.');
+ y.bands=checkedBands(bands.filter(b=>b.id!==id));doc.updatedAt=stamp();
+}
 export const EVENT_TYPES=Object.freeze({exam:'Examen',task:'Tarea',meeting:'Reunión',other:'Otro evento'});
 export const EXCEPTION_TYPES=Object.freeze({cancel:'Clase cancelada',replace:'Actividad sustituta',move:'Cambio de hora'});
 export function isoDate(v){
@@ -20,7 +71,7 @@ export const localToday=()=>{const d=new Date();return `${d.getFullYear()}-${Str
 export const timeValid=v=>typeof v==='string'&&hm.test(v);
 function yearRange(label){const match=/^(\d{4})-(\d{4})$/.exec(label||'');const y=match?Number(match[1]):new Date().getFullYear();return {start:`${y}-09-01`,end:`${y+1}-06-30`};}
 export function createPlanner(course='2026-2027'){
- const name=/^\d{4}-\d{4}$/.test(course)?course:'2026-2027';const year={id:uid(),name,...yearRange(name),slots:[],events:[],lessons:[],holidays:[],exceptions:[],tasks:[]};
+ const name=/^\d{4}-\d{4}$/.test(course)?course:'2026-2027';const year={id:uid(),name,...yearRange(name),bands:cloneBands(),slots:[],events:[],lessons:[],holidays:[],exceptions:[],tasks:[]};
  return {activeYearId:year.id,years:[year]};
 }
 export function ensurePlanner(doc){if(!doc.planner)doc.planner=createPlanner(doc.groups[0]?.course);return doc.planner;}
@@ -32,7 +83,7 @@ export function addAcademicYear(doc,{name,start,end,copyFrom=null}){
  if(p.years.some(y=>y.name===n))throw new Error('Ese curso académico ya existe.');
  const source=p.years.find(y=>y.id===copyFrom);
  if(copyFrom&&!source)throw new Error('Curso de referencia inexistente.');
- const y={id:uid(),name:n,start,end,slots:[],events:[],lessons:[],holidays:[],exceptions:[],tasks:[]};
+ const y={id:uid(),name:n,start,end,bands:source?structuredClone(scheduleBands(source)):cloneBands(),slots:[],events:[],lessons:[],holidays:[],exceptions:[],tasks:[]};
  if(source)y.slots=source.slots.map(s=>{const old=doc.groups.find(g=>g.id===s.groupId);const replacement=old&&doc.groups.find(g=>g.course===n&&g.subject===old.subject&&g.name===old.name);return {...s,id:uid(),groupId:replacement?.id||null,label:replacement?'':(s.label||[old?.subject,old?.name].filter(Boolean).join(' · '))};});
  p.years.push(y);p.activeYearId=y.id;doc.updatedAt=stamp();return y;
 }
@@ -53,13 +104,17 @@ const inYear=(y,date)=>date>=y.start&&date<=y.end;
 const needDate=(y,date)=>{isoDate(date);if(!inYear(y,date))throw new Error('La fecha está fuera del curso académico.');return date;};
 const checkGroup=(doc,groupId)=>{if(groupId&&!doc.groups.some(g=>g.id===groupId))throw new Error('Grupo inexistente.');};
 const checkTime=(start,end)=>{if(!timeValid(start)||!timeValid(end)||end<=start)throw new Error('Indica horas válidas, con fin posterior al inicio.');};
-export function saveSlot(doc,{id=null,day,start,end,type,groupId=null,label=''}){
+export function saveSlot(doc,{id=null,day,start,end,type,groupId=null,label='',room='',bandId=null}){
  const y=activeYear(doc),kind=trimmed(type,20);if(!Object.hasOwn(SLOT_TYPES,kind))throw new Error('Tipo de sesión inválido.');
  if(!Number.isInteger(Number(day))||Number(day)<0||Number(day)>4)throw new Error('El horario es de lunes a viernes.');checkTime(start,end);checkGroup(doc,groupId);
  if(kind==='class'&&!groupId&&!String(label).trim())throw new Error('Selecciona un grupo o indica una asignatura manual.');
  if(kind!=='class'&&groupId)throw new Error('Solo las clases pueden asociarse a grupos.');
- if(String(label).length>150)throw new Error('Nombre demasiado largo.');
- const record={id:id||uid(),day:Number(day),start,end,type:kind,groupId:groupId||null,label:String(label).trim()};
+ if(String(label).length>150||typeof room!=='string'||room.length>60)throw new Error('El nombre o el aula son demasiado largos.');
+ if(bandId!==null){
+  const band=scheduleBands(y).find(b=>b.id===bandId);
+  if(!band||band.start!==start||band.end!==end)throw new Error('La sesión debe corresponder a su franja horaria.');
+ }
+ const record={id:id||uid(),day:Number(day),start,end,type:kind,groupId:groupId||null,label:String(label).trim(),room:room.trim(),...(bandId?{bandId}:{})};
  const existing=y.slots.find(s=>s.id===id);if(id&&!existing)throw new Error('Sesión inexistente.');
  // Horas iguales pueden coincidir (guardias compartidas, docencia simultánea); se muestran separadas.
  if(existing){
@@ -165,6 +220,7 @@ const unique=a=>Array.isArray(a)&&a.every(x=>x&&typeof x.id==='string')&&new Set
 export function assertPlanner(doc){if(!doc.planner)return true;const p=doc.planner;if(!Array.isArray(p.years)||!p.years.length||!unique(p.years)||!p.years.some(y=>y.id===p.activeYearId))throw new Error('Planificador inválido.');
  for(const y of p.years){isoDate(y.start);isoDate(y.end);if(y.start>=y.end||typeof y.name!=='string'||!y.name.trim())throw new Error('Curso académico inválido.');
   if(!['slots','events','lessons','holidays','exceptions','tasks'].every(k=>unique(y[k])))throw new Error('Elementos del planificador inválidos.');
+  checkedBands(scheduleBands(y));
   // Invariantes que la interfaz impone al editar también deben comprobarse
   // al restaurar una copia: evita eventos o planes ambiguos por duplicación.
   const uniquePairs=(items,key)=>new Set(items.map(key)).size===items.length;
@@ -172,7 +228,9 @@ export function assertPlanner(doc){if(!doc.planner)return true;const p=doc.plann
      !uniquePairs(y.lessons.filter(l=>l.slotId),l=>`${l.date}|${l.slotId}`)||
      !uniquePairs(y.events.filter(e=>e.assessmentId),e=>e.assessmentId))
     throw new Error('Agenda duplicada: revisa excepciones, clases y exámenes vinculados.');
-  for(const s of y.slots){if(!Number.isInteger(s.day)||s.day<0||s.day>4||!Object.hasOwn(SLOT_TYPES,s.type)||!timeValid(s.start)||!timeValid(s.end)||s.end<=s.start||(s.groupId&&!doc.groups.some(g=>g.id===s.groupId))||(s.type==='class'&&!s.groupId&&!s.label)||(s.type!=='class'&&s.groupId))throw new Error('Horario inválido.');}
+  for(const s of y.slots){if(!Number.isInteger(s.day)||s.day<0||s.day>4||!Object.hasOwn(SLOT_TYPES,s.type)||!timeValid(s.start)||!timeValid(s.end)||s.end<=s.start||(s.groupId&&!doc.groups.some(g=>g.id===s.groupId))||(s.type==='class'&&!s.groupId&&!s.label)||(s.type!=='class'&&s.groupId)||
+  s.room!==undefined&&(typeof s.room!=='string'||s.room.length>60)||
+  s.bandId!==undefined&&(!scheduleBands(y).some(b=>b.id===s.bandId&&b.start===s.start&&b.end===s.end)))throw new Error('Horario inválido.');}
   for(const h of y.holidays){isoDate(h.start);isoDate(h.end);if(h.start>h.end||!inYear(y,h.start)||!inYear(y,h.end)||!h.name)throw new Error('Festivo inválido.');}
   for(const x of y.exceptions){if(!inYear(y,isoDate(x.date))||!y.slots.some(s=>s.id===x.slotId&&s.day===weekday(x.date))||!Object.hasOwn(EXCEPTION_TYPES,x.type)||(x.type==='move'&&(!timeValid(x.start)||!timeValid(x.end)||x.end<=x.start)))throw new Error('Cambio de horario inválido.');}
   for(const item of [...y.events,...y.lessons]){if(!inYear(y,isoDate(item.date))||(item.groupId&&!doc.groups.some(g=>g.id===item.groupId))||(item.slotId&&!y.slots.some(s=>s.id===item.slotId&&s.day===weekday(item.date))))throw new Error('Agenda de clase inválida.');}
