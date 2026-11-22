@@ -59,34 +59,35 @@ test('resultados de competencias oficiales y personalizadas muestran nivel, desc
   assert(level.includes('Sin evidencias'));
   assert(app.includes('Nivel de adquisición de la media'),'Estadísticas de clase usan el nivel medio');
 });
-test('Cálculos y Competencias permanecen juntos en cabecera y fuera del menú lateral',async()=>{
-  const app=await read('app.js');
-  const start=app.indexOf('const ACADEMIC_WORKSPACE_TABS='),end=app.indexOf('function workspaceTab(',start);
-  const sidebar=app.slice(start,end);
-  assert(!sidebar.includes("['calculos'"));
-  assert(!sidebar.includes("['competencias'"));
-  assert(sidebar.includes("['curriculo'"));
-  assert(sidebar.includes("['rubricas'"));
-  const header=app.slice(app.indexOf('function renderNotebook(){'),app.indexOf('const ITACA_OPTIONS=',app.indexOf('function renderNotebook(){')));
-  const calc=header.indexOf('id="notebook-calculations"'),comp=header.indexOf('id="notebook-competencies"');
-  assert(calc>0&&comp>calc);
-  assert(comp-calc<350,'Botones contiguos en la misma línea de acciones');
-  assert(header.includes('id="new-student"')&&header.includes('id="new-assessment"'));
-  assert(header.includes('data-academic-quick="calculos"'));
-  assert(header.includes('data-academic-quick="competencias"'));
+test('Cálculos y Competencias se encuentran juntos en la navegación secundaria del cuaderno',async()=>{
+ const app=await read('app.js');
+ const start=app.indexOf('const ACADEMIC_WORKSPACE_TABS='),end=app.indexOf('const NOTEBOOK_WORKSPACE_TABS=',start);
+ const tools=app.slice(start,end);
+ assert(!tools.includes("['calculos'"));
+ assert(!tools.includes("['competencias'"));
+ assert(tools.includes("['curriculo'"));
+ assert(tools.includes("['rubricas'"));
+ const secondary=app.slice(end,app.indexOf('function renderPeriodButtons(){',end));
+ for(const key of ['cuaderno','calculos','competencias','final','alumno'])
+  assert(secondary.includes("['"+key+"'"),key);
+ const notebook=app.slice(app.indexOf('function renderNotebook(){'),app.indexOf('const ITACA_OPTIONS='));
+ assert(notebook.includes('id="new-student"')&&notebook.includes('id="new-assessment"'));
+ assert(!notebook.includes('id="notebook-calculations"'));
+ assert(!notebook.includes('id="notebook-competencies"'));
 });
-test('navegación directa entre Cuaderno, Cálculos y Competencias sin volver a la portada',async()=>{
-  const app=await read('app.js');
-  const start=app.indexOf('function renderAcademicQuickNav(){'),end=app.indexOf('function renderPeriodButtons(){',start);
-  assert(start>0&&end>start);
-  const quick=app.slice(start,end);
-  for(const value of ['cuaderno','calculos','competencias'])
-    assert(quick.includes('data-academic-quick="'+value+'"'));
-  assert(quick.includes('aria-current="page"'));
-  assert(app.includes("hasGroup&&['calculos','competencias'].includes(STATE.tab)?renderAcademicQuickNav():''"));
-  assert(app.includes("document.querySelectorAll('[data-academic-quick]').forEach"));
-  assert(app.includes("if(!['cuaderno','calculos','competencias'].includes(destination)||!STATE.groupId)return"));
-  assert(!app.includes("$('#notebook-calculations')?.addEventListener("),'No duplicar los manejadores');
+test('navegación directa entre las cinco vistas del cuaderno sin volver a la portada',async()=>{
+ const app=await read('app.js');
+ const start=app.indexOf('const NOTEBOOK_WORKSPACE_TABS='),end=app.indexOf('function renderPeriodButtons(){',start);
+ assert(start>0&&end>start);
+ const quick=app.slice(start,end);
+ for(const value of ['cuaderno','calculos','competencias','final','alumno'])
+  assert(quick.includes("['"+value+"'"),value);
+ assert(quick.includes('data-academic-quick="${key}"'));
+ assert(quick.includes('aria-current="page"'));
+ assert(app.includes("hasGroup&&['cuaderno','calculos','competencias','final','alumno'].includes(STATE.tab)?renderAcademicQuickNav():''"));
+ assert(app.includes("document.querySelectorAll('[data-academic-quick]').forEach"));
+ assert(app.includes("if(!['cuaderno','calculos','competencias','final','alumno'].includes(destination)||!STATE.groupId)return"));
+ assert(!app.includes("$('#notebook-calculations')?.addEventListener("),'No duplicar los manejadores');
 });
 test('legibilidad en iPad, teléfono, temas oscuro y OLED',async()=>{
   const css=await read('styles.css');
