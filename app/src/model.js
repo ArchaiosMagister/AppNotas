@@ -1,6 +1,11 @@
 import {ATTITUDE_2BACH_CRITERIA} from './attitude-template.js';
 import {createPlanner,assertPlanner,weeklySlotCount} from './planner.js';
 export const SCHEMA_VERSION = 8;
+/** Solo una preferencia de visualización: nunca elimina ni modifica citas. */
+export function setEvaluationPastMode(doc,mode){
+  if(!['auto','all'].includes(mode))throw new Error('Modo de sesiones pasadas inválido.');
+  doc.settings.evaluationPastMode=mode;doc.updatedAt=now();return doc;
+}
 export const INDIVIDUAL_RULES = Object.freeze(['np_mean','mean','last']);
 /** Nota Ítaca: aplica únicamente a la salida trimestral, no modifica las medias. */
 export const ITACA_ROUNDING = Object.freeze(['half','seven','none']);
@@ -289,6 +294,7 @@ export function assertModel(doc) {
  if(Object.entries(doc.settings.subjectAccents).some(([key,color])=>!subjectKeys.has(key)||!/^#[0-9A-Fa-f]{6}$/.test(color))||
     custom.some(x=>!/^#[0-9A-Fa-f]{6}$/.test(doc.settings.subjectAccents[subjectKey(x.level,x.subject)]??'')))
   throw new Error('Colores de asignatura inválidos.');
+  if(doc.settings?.evaluationPastMode!==undefined&&!['auto','all'].includes(doc.settings.evaluationPastMode))throw new Error('Modo de sesiones pasadas inválido.');
   if(!doc.settings || !Number.isInteger(doc.settings.decimals) || doc.settings.decimals<0 || doc.settings.decimals>3 || !['half-up','floor','ceil'].includes(doc.settings.rounding))throw new Error('Configuración de redondeo inválida.');
   const od=doc.settings.orthographyDefaults;
   if(!od||typeof od.enabledForExams!=='boolean'||!validOrthographyConfig({...od,enabled:true}))throw new Error('Preferencias ortográficas inválidas.');
