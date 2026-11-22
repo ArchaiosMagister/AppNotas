@@ -52,7 +52,7 @@ test('la cabecera, los textos, la selección, las notas y el bloqueo cambian rea
   };
   const first=block('griego-i'),second=block('griego-ii');
   const match=(text,key)=>{const m=text.match(new RegExp('--'+key+':(#[0-9a-fA-F]{6})'));assert(m,key);return m[1];};
-  for(const token of ['attica-banner-start','attica-banner-end','attica-title','attica-line','attica-button','attica-selected','attica-table-final'])
+  for(const token of ['attica-banner-start','attica-banner-end','attica-title','attica-line','attica-selected','attica-table-final'])
     assert.notEqual(match(first,token),match(second,token),token+' debe variar');
   const rgb1=hexChannels(match(first,'attica-banner-start')),
     rgb2=hexChannels(match(second,'attica-banner-start'));
@@ -63,6 +63,9 @@ test('la cabecera, los textos, la selección, las notas y el bloqueo cambian rea
   }
   assert(part.includes('background:linear-gradient(108deg,var(--attica-banner-start)'));
   assert(part.includes('color:var(--attica-title)'));
+  assert(part.includes('background:var(--accent)'));
+  assert(part.includes('border-left-color:var(--accent)'));
+  assert(!part.includes('--attica-button:'),'Los colores docentes prevalecen sobre los de las maquetas');
 });
 
 test('se utiliza una familia tipográfica editorial común para todos los cursos',async()=>{
