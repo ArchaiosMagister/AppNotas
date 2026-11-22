@@ -1,6 +1,6 @@
 import {
  suggestStudentLinks,linkedStudentFamilies,linkStudentRecords,unlinkStudentRecord,
- tutoringSources,availableTutoringSources,suggestTutorships,saveTutorship,removeTutorship,
+ tutoringSources,availableTutoringSources,saveTutorship,
  tutorGradeRows,tutorGradeBreakdown,tutorshipLegacyEvents,tutorshipEvent,
  saveTutorshipEvaluation,consolidateTutorshipEvaluation
 } from './evaluation-groups.js';
@@ -212,7 +212,6 @@ export function bindSharedEvaluation(doc,ui,ctx,exportEvent){
  // cuando realmente está visible la gestión de tutorías.
  const hasManagement=!!by('#plan-shared-management');
  const suggestions=hasManagement?suggestStudentLinks(doc,activeYear(doc).name).slice(0,30):[];
- const proposed=hasManagement?suggestTutorships(doc,activeYear(doc).name).slice(0,24):[];
  const cards=hasManagement?sessionPresentation(doc,activeYear(doc)):[];
  const suggestionsToConfirm=cards.filter(c=>c.kind==='suggested');
  by('#plan-evaluations')?.addEventListener('toggle',event=>{
@@ -250,11 +249,6 @@ export function bindSharedEvaluation(doc,ui,ctx,exportEvent){
  all('[data-eval-unlink]').forEach(button=>button.onclick=()=>{
   if(!window.confirm('¿Desvincular esta ficha? Sus notas se conservarán.'))return;
   ctx.commit(d=>unlinkStudentRecord(d,button.dataset.evalUnlink),'Desvincular identidad').catch(ctx.fail);
- });
- all('[data-eval-tutor-suggestion]').forEach(button=>button.onclick=()=>{
-  const item=proposed[Number(button.dataset.evalTutorSuggestion)];if(!item)return;
-  if(!window.confirm('¿Crear la tutoría '+item.name+' con las asignaturas propuestas?'))return;
-  ctx.commit(d=>saveTutorship(d,item),'Crear tutoría compartida').catch(ctx.fail);
  });
  function manualTutorship(){
   const sources=availableTutoringSources(doc,activeYear(doc).name);
