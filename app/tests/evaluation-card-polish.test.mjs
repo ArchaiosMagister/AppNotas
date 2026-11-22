@@ -86,7 +86,7 @@ test('A/B: coincidencia no confirmada conserva programaciones separadas y muestr
  assert(html.includes('data-eval-group="'+f.greek.id+'"'));
  assert(html.includes('data-export-event="'+l.id+'"'));
  assert(html.includes('data-export-event="'+g.id+'"'));
- assert.equal((html.match(/class="eval-period-more"/g)||[]).length,2);
+ assert.equal((html.match(/class="eval-period-more"/g)||[]).length,2*f.doc.periods.length);
  assert.deepEqual(f.doc,before);
  assertModel(f.doc);
 });
