@@ -11,7 +11,7 @@ import {
 import {renderPlanner,renderTimetableGrid} from '../src/planner-ui.js';
 import {timetableRows,timetableDocxXml,timetablePdfBytes,timetableWordBlob,timetableFileBase} from '../src/timetable-export.js';
 import {createVault,saltFromEnvelope} from '../src/vault.js';
-import {createPortableCopy,readBackupFile} from '../src/cuaderno.js';
+import {ensureBookMetadata,markBookChange,createPortableCopy,readBackupFile} from '../src/cuaderno.js';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const fixture=()=>{const doc=initialNotebook();return {doc,year:activeYear(doc),group:doc.groups[0],st:doc.students[0],period:doc.periods[0]};};
 const PASS='Clave de prueba de horario verano suficientemente larga';
@@ -152,9 +152,12 @@ test('Word y PDF contienen horas, días y colores del horario activo sin notas d
 
 test('la copia cifrada conserva colores, horarios alternativos y todas las notas',async()=>{
  const {doc,year,group,st,period}=fixture(),band=scheduleBands(year)[0];
+ ensureBookMetadata(doc);
+ const beforeChanges=structuredClone(doc);
  saveSlot(doc,{day:0,start:band.start,end:band.end,bandId:band.id,type:'guardia',color:'#AA3366'});
  setSummerSchedule(doc,true);
  const summer=scheduleBands(year)[0];saveSlot(doc,{day:1,start:summer.start,end:summer.end,bandId:summer.id,type:'class',groupId:group.id});
+ markBookChange(doc,beforeChanges);
  const copy=structuredClone(doc),before=overallGrade(doc,st.id,group.id,period.id);
  const {key,envelope}=await createVault(PASS,doc);
  const zipped=await createPortableCopy(doc,key,saltFromEnvelope(envelope));
