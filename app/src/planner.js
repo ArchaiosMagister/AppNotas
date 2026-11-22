@@ -398,7 +398,7 @@ export function assertPlanner(doc){if(!doc.planner)return true;const p=doc.plann
   if(!uniquePairs(y.exceptions,e=>`${e.date}|${e.slotId}`)||
      !uniquePairs(y.lessons.filter(l=>l.slotId),l=>`${l.date}|${l.slotId}`)||
      !uniquePairs(y.events.filter(e=>e.assessmentId),e=>e.assessmentId)||
-     !uniquePairs(y.events.filter(e=>e.type==='evaluation'),e=>e.groupId+'|'+e.periodId+'|'+(e.originGroup||'')))
+     !uniquePairs(y.events.filter(e=>e.type==='evaluation'),e=>(e.tutorshipId?'tutorship:'+e.tutorshipId:'group:'+e.groupId+'|'+(e.originGroup||''))+'|'+e.periodId))
     throw new Error('Agenda duplicada: revisa excepciones, clases y exámenes vinculados.');
   for(const group of doc.groups.filter(g=>g.weeklyHours!==undefined)){
    if(['regular','summer'].some(mode=>weeklySlotCount(y,group.id,mode)>group.weeklyHours))
@@ -415,8 +415,13 @@ export function assertPlanner(doc){if(!doc.planner)return true;const p=doc.plann
   for(const e of y.events){if(!Object.hasOwn(EVENT_TYPES,e.type)||!e.title||(e.time&&!timeValid(e.time))||
     (e.endTime!==undefined&&(!timeValid(e.endTime)||!e.time||e.endTime<=e.time))||
     (e.patioRotationSource!==undefined&&(e.type!=='patio'||e.patioRotationSource!=='xlsx-first-break-v1'))||(e.slotId&&y.slots.find(s=>s.id===e.slotId)?.type==='class'&&y.slots.find(s=>s.id===e.slotId)?.groupId!==e.groupId)||(e.assessmentId&&(e.type!=='exam'||!doc.assessments.some(a=>a.id===e.assessmentId&&a.groupId===e.groupId)))||
-    (e.type==='evaluation'&&(!e.groupId||!e.periodId||!e.time||e.slotId||e.assessmentId||!doc.periods.some(p=>p.id===e.periodId)||!doc.groups.some(g=>g.id===e.groupId&&g.course===y.name)||
-      (e.originGroup!==undefined&&(typeof e.originGroup!=='string'||!e.originGroup.trim()||e.originGroup!==e.originGroup.trim()||e.originGroup.length>60))))||
+    (e.type==='evaluation'&&(!e.periodId||!e.time||e.slotId||e.assessmentId||!doc.periods.some(p=>p.id===e.periodId)||
+      (e.tutorshipId?(
+       e.groupId||e.originGroup!==undefined||!doc.tutorships?.some(t=>t.id===e.tutorshipId&&t.course===y.name)
+      ):(
+       !e.groupId||!doc.groups.some(g=>g.id===e.groupId&&g.course===y.name)||
+       (e.originGroup!==undefined&&(typeof e.originGroup!=='string'||!e.originGroup.trim()||e.originGroup!==e.originGroup.trim()||e.originGroup.length>60))
+      ))))||
     (e.type!=='evaluation'&&(e.periodId!==undefined&&e.periodId!==null||e.originGroup!==undefined)))
     throw new Error('Evento inválido.');}
   for(const l of y.lessons){if(typeof l.planned!=='string'||typeof l.done!=='boolean'||typeof l.actual!=='string')throw new Error('Plan de clase inválido.');}

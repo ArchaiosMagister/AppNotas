@@ -3010,3 +3010,39 @@ html[data-theme="oled"] .planner-timetable-assignment{border-left-width:5px}
 /* Botón opcional: la barra de ordenación se comparte con el modo alumno. */
 .origin-manage-tools{display:flex;justify-content:flex-end;gap:8px;padding:4px 15px 9px;border-bottom:1px solid var(--line);background:var(--surface)}
 html[data-theme="oled"] .origin-manage-tools{background:#000}
+
+
+/* Tutorías transversales: el visor no altera las tablas de calificación. */
+.eval-shared-section,.eval-shared-management,.eval-combined-view{min-width:0}
+.eval-shared-management>summary{cursor:pointer;font-weight:800;font-size:14px;color:var(--ink)}
+.eval-shared-management h3{margin:15px 0 9px}.eval-shared-management h4{margin:13px 0 7px}
+.eval-link-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;border-top:1px solid var(--line);padding:10px 0;font-size:12px}
+.eval-link-row>span{flex:1 1 230px;overflow-wrap:anywhere}
+.eval-link-row small{font-size:11px;color:var(--muted);display:block;margin-top:3px}
+.eval-link-row button{flex-shrink:0}
+.eval-title-row{display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap}
+.eval-title-row h3{font-size:18px;margin:0 0 6px}
+.eval-tutor-card{border:1px solid var(--line);border-radius:10px;margin-top:12px;overflow:hidden}
+.eval-tutor-card>header{display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;padding:10px 13px;background:var(--raised);color:var(--ink)}
+.eval-tutor-card>header small{color:var(--muted);font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.eval-tutor-card .planner-evaluation-row{padding:10px 13px;flex-wrap:wrap;gap:9px}
+.eval-combined-view .eval-table-scroll{width:100%;overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:10px}
+.eval-combined-table{border-spacing:0;border-collapse:separate;min-width:560px;width:100%;text-align:center;font-size:13px}
+.eval-combined-table th,.eval-combined-table td{padding:11px;border-bottom:1px solid var(--line);border-right:1px solid var(--line)}
+.eval-combined-table thead th{position:sticky;top:0;background:var(--raised);z-index:2;text-align:center}
+.eval-combined-table thead th:first-child,.eval-combined-table tbody th{position:sticky;left:0;text-align:left;min-width:170px;z-index:3;background:var(--surface)}
+.eval-combined-table thead th:first-child{z-index:4;background:var(--raised)}
+.eval-combined-table thead th small,.eval-combined-table td small{display:block;font-size:10px;color:var(--muted);font-weight:500;margin-top:3px}
+.eval-grade-detail{cursor:pointer;display:block;width:100%;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--ink);padding:7px}
+.eval-grade-detail:hover,.eval-grade-detail:focus-visible{border-color:var(--accent);background:var(--accent-soft)}
+.eval-grade-detail strong{font-size:14px;font-variant-numeric:tabular-nums}
+.eval-no-enrollment{color:var(--muted)}
+.eval-breakdown{display:grid;gap:7px;margin-top:12px}
+.eval-breakdown>div{padding:9px;border:1px solid var(--line);border-radius:8px;display:grid;gap:5px}
+.eval-breakdown strong{color:var(--ink)}.eval-breakdown span{color:var(--accent-text);font-weight:730}
+.eval-breakdown small{color:var(--muted)}
+html[data-theme="oled"] .eval-combined-table tbody th,html[data-theme="oled"] .eval-combined-table thead th,
+html[data-theme="oled"] .eval-tutor-card>header{background:#000}
+@media(max-width:640px){.eval-link-row button{flex:1 1 auto}.eval-tutor-card>header{align-items:start}.eval-tutor-card .planner-evaluation-row button{flex:1 1 105px}}
+@media print{.eval-shared-management,.eval-shared-section .btn,.eval-combined-view .btn{display:none!important}
+.eval-table-scroll{max-height:none!important;overflow:visible!important}.eval-combined-table{min-width:0;font-size:10px}}
