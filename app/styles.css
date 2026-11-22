@@ -3651,3 +3651,73 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
     min-height:44px;
   }
 }
+
+/* v165 · Alineación geométrica de las cuatro pestañas y tipografía de notas.
+   El texto de Herramientas heredaba flex:1; su centro óptico no coincidía
+   con las tres pestañas normales. Fijamos filas equivalentes de icono y etiqueta. */
+@media(max-width:900px){
+  .tabs .nav-primary>.tab,
+  .tabs .academic-disclosure>summary{
+    display:grid;
+    grid-template-rows:19px auto;
+    justify-items:center;
+    align-content:center;
+    row-gap:3px;
+    text-align:center;
+    min-height:53px;
+    padding:7px 3px;
+  }
+  .tabs .academic-disclosure{align-self:stretch}
+  .tabs .academic-disclosure>summary{height:100%;width:100%}
+  .tabs .nav-primary>.tab .nav-glyph,
+  .tabs .academic-disclosure>summary .nav-glyph{
+    display:flex;align-items:center;justify-content:center;
+    flex:none;width:25px;height:19px;line-height:1;
+    margin:0;font-size:17px;
+  }
+  .tabs .nav-primary>.tab .nav-text,
+  .tabs .academic-disclosure>summary .nav-text{
+    display:block;flex:none;align-self:start;
+    width:100%;min-width:0;max-width:100%;
+    margin:0;font-size:11px;line-height:1.2;
+    overflow-wrap:anywhere;text-align:center;
+  }
+}
+@media(max-width:640px){
+  .tabs .nav-primary>.tab,
+  .tabs .academic-disclosure>summary{min-height:68px;padding:6px 2px}
+  .tabs .nav-primary>.tab .nav-text,
+  .tabs .academic-disclosure>summary .nav-text{font-size:10px;line-height:1.22}
+}
+@media(max-width:360px){
+  .tabs .nav-primary>.tab .nav-text,
+  .tabs .academic-disclosure>summary .nav-text{font-size:9px}
+  .tabs .nav-primary>.tab .nav-glyph,
+  .tabs .academic-disclosure>summary .nav-glyph{font-size:16px}
+}
+
+/* La cifra principal de cualquier actividad se presenta a 16px.
+   No alterar el formato numérico, los colores ni la precisión de cálculo.
+   Las anotaciones de origen y el automático de la evaluación final
+   son información secundaria y mantienen un tamaño reducido. */
+.grade-table tbody td .grade-chip{
+  font-size:16px;line-height:1.2;min-width:64px;
+  padding:6px 10px;font-weight:850;font-variant-numeric:tabular-nums;
+}
+.grade-table tbody td .note-input:not(.original-note-input){
+  font-size:16px;line-height:1.2;font-variant-numeric:tabular-nums;
+}
+.grade-table tbody td .converted-score .grade-chip{
+  font-size:11px;min-width:35px;padding:2px 6px;font-weight:780;
+}
+.grade-table tbody td .final-period-cell .hint .grade-chip{
+  font-size:11px;min-width:35px;padding:2px 6px;font-weight:780;
+}
+.grade-table tbody td .original-note-input{font-size:12px}
+.grade-table tbody td.final-col .grade-empty,
+.grade-table tbody td.itaca-col .grade-empty{font-size:16px}
+.grade-table tbody td.final-col .score-button,
+.grade-table tbody td.itaca-col .itaca-edit{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:44px;
+}
