@@ -1930,13 +1930,13 @@ function openItacaAttitudeCondition(){
   const criterion=criteria.find(c=>c.id===wantedCriterion)||criteria[0];
   const score=wantedMin!==null&&wantedMin!==undefined&&
    Number.isFinite(Number(wantedMin))&&Number(wantedMin)<=criterion.maxScore
-    ?wantedMin:criterion.maxScore/2;
+    ?wantedMin:Math.round(criterion.maxScore*50)/100;
   $('#itaca-guard-criterion-fields',form).innerHTML=
    `<label>Criterio de la rúbrica<select name="guardCriterion">${criteria.map(c=>opt(c.id,c.name,criterion.id)).join('')}</select></label>
    <label>Puntuación mínima (sobre ${esc(criterion.maxScore)})<input name="guardMin" type="number" inputmode="decimal" min="0" max="${esc(criterion.maxScore)}" step="0.01" value="${esc(score)}" required></label>`;
   form.elements.guardCriterion.onchange=()=>{
    const next=criteria.find(c=>c.id===form.elements.guardCriterion.value);
-   if(next)renderCriteria(activity.id,next.id,next.maxScore/2);
+   if(next)renderCriteria(activity.id,next.id,Math.round(next.maxScore*50)/100);
   };
  };
  const renderMode=()=>{
