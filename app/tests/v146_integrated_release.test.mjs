@@ -35,8 +35,8 @@ test('v1.0: escala categórica estricta 1=alta y 4=no adquirida, media sin ponde
 });
 test('v1.0: PWA única y clases de navegación responsivas',()=>{
  const app=read('app.js'),sw=read('sw.js'),css=read('styles.css');
- assert(app.includes("caches.open('cuaderno-docente-static-v147-dev')"));
- assert(sw.includes("const CACHE='cuaderno-docente-static-v147-dev'"));
+ assert(app.includes("caches.open('cuaderno-docente-static-v148-dev')"));
+ assert(sw.includes("const CACHE='cuaderno-docente-static-v148-dev'"));
  assert(css.includes('.academic-quick-nav'));
  assert(css.includes('.planner-timetable'));
  assert(css.includes('.curr-criteria-group'));
