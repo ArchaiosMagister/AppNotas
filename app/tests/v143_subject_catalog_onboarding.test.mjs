@@ -129,7 +129,7 @@ test('la portada presenta ayuda visible con advertencias de seguridad, restaurac
  assert(app.includes('id="how-it-works"'));
  assert(app.includes("$('#how-it-works').onclick="));
  assert(app.includes('¿Cómo funciona AppNotas?'));
- for(const marker of ['onboarding-guide','NP','AJ','Modo sesión de evaluación','Ajustes → Copias de seguridad cifradas',
+ for(const marker of ['onboarding-guide','NP','AJ','Modo sesión de evaluación','Recursos → Ajustes y copias → Copias de seguridad cifradas',
   'Verificar copia','Restaurar copia','.cuaderno','dos copias','no es recuperable',
   'No uses información real de alumnado','Atención Educativa'])
   assert(app.includes(marker),'No aparece en la guía: '+marker);
