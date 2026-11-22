@@ -35,8 +35,10 @@ test('v1.0: escala categórica estricta 1=alta y 4=no adquirida, media sin ponde
 });
 test('v1.0: PWA única y clases de navegación responsivas',()=>{
  const app=read('app.js'),sw=read('sw.js'),css=read('styles.css');
- assert(app.includes("caches.open('cuaderno-docente-static-v150-dev')"));
- assert(sw.includes("const CACHE='cuaderno-docente-static-v150-dev'"));
+ const current=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/);
+  assert(current&&Number(current[2])>=150,'La nueva caché no puede retroceder de v150');
+  assert(app.includes(`caches.open('${current[1]}')`),'La UI y el service worker deben usar la misma caché');
+ 
  assert(css.includes('.academic-quick-nav'));
  assert(css.includes('.planner-timetable'));
  assert(css.includes('.curr-criteria-group'));
