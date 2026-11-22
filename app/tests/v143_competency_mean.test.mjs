@@ -45,22 +45,27 @@ test('la calificación cero sí cuenta, se recalcula tras modificar evidencias',
   assert.equal(updated,(competencyGrade(doc,student.id,first.id,group.id,period.id)+competencyGrade(doc,student.id,zero.id,group.id,period.id))/2);
   assert.notEqual(updated,firstValue/2);
 });
-test('validación de pertenencia y conversión continua exacta de 0–10 a 1–4',()=>{
+test('validación de pertenencia y clasificación discreta de 0–10 en niveles 1–4',()=>{
   const {doc,group,period,student}=fixture();
   const ids=[doc.competencies[0].id];
   assert.equal(competencyArithmeticMean(doc,'sin-alumno',ids,group.id,period.id),null);
   assert.equal(competencyArithmeticMean(doc,student.id,ids,'otro-grupo',period.id),null);
   assert.equal(competencyArithmeticMean(doc,student.id,ids,group.id,'otro-periodo'),null);
   assert.throws(()=>competencyArithmeticMean(doc,student.id,null,group.id,period.id),/inválida/);
-  assert.equal(gradeToFour(0),1);
-  assert.equal(gradeToFour(5),2.5);
-  assert.equal(gradeToFour(7),3.1);
-  assert.equal(gradeToFour(10),4);
+  assert.equal(gradeToFour(0),4);
+  assert.equal(gradeToFour(4.999999),4);
+  assert.equal(gradeToFour(5),3);
+  assert.equal(gradeToFour(6.499999),3);
+  assert.equal(gradeToFour(6.5),2);
+  assert.equal(gradeToFour(7),2);
+  assert.equal(gradeToFour(7.999999),2);
+  assert.equal(gradeToFour(8),1);
+  assert.equal(gradeToFour(10),1);
   assert.equal(gradeToFour(null),null);
   assert.equal(gradeToFour(-1),null);
   assert.equal(gradeToFour(11),null);
 });
-test('la columna muestra ambas escalas y no interviene en Ítaca ni en las notas académicas',()=>{
+test('la columna conserva media /10 y nivel /4 sin afectar a Ítaca ni a notas académicas',()=>{
   const app=readFileSync(new URL('../app.js',import.meta.url),'utf8');
   const styles=readFileSync(new URL('../styles.css',import.meta.url),'utf8');
   assert.match(app,/Media de competencias <small>sin ponderar/);

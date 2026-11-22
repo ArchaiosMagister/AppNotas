@@ -23,7 +23,8 @@ test('hay cinco materias visibles y ninguna necesita desplegable de asignatura o
   assert(html.includes('class="course-switch" role="group" aria-label="Seleccionar asignatura"'));
   assert(html.includes('courseChoices.map('));
   assert(html.includes('<strong class="course-name">${esc(x.subjectName)}</strong>'));
-  assert(html.includes('level,subject,subjectName:subject,stage:entry.label'));
+  assert(html.includes('level,subject,subjectName:subject,stage:label'));
+  assert(html.includes('catalogForNotebook(STATE.doc).flatMap'));
   assert(!html.includes('class="course-picker course-disclosure"'));
   assert(!html.includes('id="group-select"'));
   const pairs=Object.entries(COURSE_SUBJECTS).flatMap(([level,entry])=>entry.subjects.map(subject=>[level,subject]));

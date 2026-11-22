@@ -1,5 +1,5 @@
-import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
-import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,competencyArithmeticMean,gradeToFour,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,itacaGrade} from './src/calculations.js';
+import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,catalogForNotebook,addNotebookSubject,removeNotebookSubject,defaultSubjectAccent,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
+import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,competencyArithmeticMean,gradeToFour,competencyAcquisitionLevel,competencyAcquisitionLabel,COMPETENCY_ACQUISITION_LABELS,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,itacaGrade} from './src/calculations.js';
 import {studentsFromCsv} from './src/csv.js';
 import {parseRubricText} from './src/rubric-import.js';
 import {parseRubricFile} from './src/rubric-xlsx.js';
@@ -182,6 +182,25 @@ function paintStudentCategoryCards(context=document){
   });
 }
 const gradeChip=(score,suffix='')=>score===null||score===undefined||!Number.isFinite(score)?'<span class="grade-empty">—</span>':`<span class="grade-chip"${gradeStyle(score)}>${esc(gradeFmt(score))}${suffix?`<span class="grade-suffix">${esc(suffix)}</span>`:''}</span>`;
+/** La media 0–10 se conserva intacta. Solo su presentación competencial
+ * emplea niveles 1–4, con 1 como la mayor adquisición. */
+const competencySourceGrade=score=>Number(score).toLocaleString('es-ES',{maximumFractionDigits:8});
+function competencyLevelChip(score){
+  const level=competencyAcquisitionLevel(score);
+  if(level===null)return '<span class="grade-empty" aria-label="Sin evidencias">—</span>';
+  const label=competencyAcquisitionLabel(score);
+  return `<span class="competency-level-cell" title="Nivel ${level}: ${esc(label)} · Media original ${esc(competencySourceGrade(score))} / 10">
+    <span class="competency-level-badge competency-level-${level}" aria-label="Nivel ${level}: ${esc(label)}"><strong>${level}</strong><span>${esc(label)}</span></span>
+    <small class="competency-source-grade">Media original: ${esc(competencySourceGrade(score))} / 10</small>
+  </span>`;
+}
+function competencyScaleLegend(){
+  const bounds={1:'8–10',2:'6,5–menos de 8',3:'5–menos de 6,5',4:'0–menos de 5'};
+  return `<div class="competency-scale-legend" role="note" aria-label="Leyenda de niveles de adquisición competencial"><strong>Escala de adquisición · 1 = máximo, 4 = mínimo</strong>
+    <div class="competency-scale-items">${[1,2,3,4].map(level=>`<span class="competency-scale-item"><b class="competency-legend-number competency-level-${level}">${level}</b><span><strong>${esc(COMPETENCY_ACQUISITION_LABELS[level])}</strong><small>${esc(bounds[level])} / 10</small></span></span>`).join('')}</div>
+    <p class="hint">Cada nivel se obtiene de la media original, sin redondeos previos. Sin evidencias se muestra «—». La media 0–10 sigue intacta para los cálculos.</p>
+  </div>`;
+}
 /** Ítaca usa enteros para umbrales y media con dos decimales en modo «sin redondear»,
  * incluso cuando el usuario configura otra precisión visual en el cuaderno. */
 function itacaChip(doc,studentId,groupId,periodId){
@@ -194,7 +213,7 @@ function itacaChip(doc,studentId,groupId,periodId){
 }
 
 // Indicadores visibles únicamente en las vistas docentes, nunca en el modo alumno.
-const classStatButton=(kind,id,label)=>`<button type="button" class="class-stat-trigger" data-class-stat="${esc(kind+':'+id)}" aria-label="Estadísticas de ${esc(label)}: media y aprobados" aria-expanded="false"><span class="class-stat-info" aria-hidden="true">ⓘ</span></button>`;
+const classStatButton=(kind,id,label)=>`<button type="button" class="class-stat-trigger" data-class-stat="${esc(kind+':'+id)}" aria-label="Estadísticas de ${esc(label)}: ${kind==='competency'?'nivel medio y aprobados':'media y aprobados'}" aria-expanded="false"><span class="class-stat-info" aria-hidden="true">ⓘ</span></button>`;
 let unbindClassStats=()=>{};
 function bindClassStatistics(){
   unbindClassStats();unbindClassStats=()=>{};
@@ -233,7 +252,11 @@ function bindClassStatistics(){
     popup=document.createElement('div');
     popup.id='class-stat-popover';popup.className='class-stat-popover';popup.setAttribute('role','region');
     popup.setAttribute('aria-label','Estadísticas de la clase');
-    popup.innerHTML=`<strong>Estadísticas de la clase</strong><div class="class-stat-line"><span>Media</span><b>${stats.mean===null?'Sin notas':esc(formatGrade(stats.mean,settings))+' /'+esc(stats.maximum)}</b></div><div class="class-stat-line"><span>Aprobados</span><b>${stats.passed} / ${stats.total} (${stats.percentTotal===null?'—':formatNumber(stats.percentTotal)+' %'})</b></div><div class="class-stat-line"><span>Con nota</span><b>${stats.graded} / ${stats.total}</b></div><small>${stats.graded?`De los evaluados, aprueba el ${formatNumber(stats.percentGraded)} %.`:'Todavía no hay calificaciones.'} Las notas vacías no se cuentan en la media ni como suspensos.</small>`;
+    const isCompetency=trigger.dataset.classStat.startsWith('competency:');
+    const meanDisplay=isCompetency
+      ?competencyLevelChip(stats.mean)
+      :stats.mean===null?'Sin notas':esc(formatGrade(stats.mean,settings))+' /'+esc(stats.maximum);
+    popup.innerHTML=`<strong>Estadísticas de la clase</strong><div class="class-stat-line"><span>${isCompetency?'Nivel de adquisición de la media':'Media'}</span><b>${meanDisplay}</b></div><div class="class-stat-line"><span>Aprobados</span><b>${stats.passed} / ${stats.total} (${stats.percentTotal===null?'—':formatNumber(stats.percentTotal)+' %'})</b></div><div class="class-stat-line"><span>Con nota</span><b>${stats.graded} / ${stats.total}</b></div><small>${stats.graded?`De los evaluados, aprueba el ${formatNumber(stats.percentGraded)} %.`:'Todavía no hay calificaciones.'} Las notas vacías no se cuentan en la media ni como suspensos.</small>`;
     document.body.appendChild(popup);
     place(trigger);
   }
@@ -398,7 +421,7 @@ function navigateHistory(direction){
 function chooseInitial(){
   const group=STATE.doc.groups[0];STATE.groupId=group?.id||null;
   STATE.level=group?.level||'legacy';STATE.subject=group?group.subject:'Latín I';
-  if(!group){STATE.level='1bach';STATE.subject='Latín I';}
+  if(!group){const available=catalogForNotebook(STATE.doc).flatMap(entry=>entry.subjects.map(subject=>({level:entry.level,subject})));const selected=available.find(x=>x.level==='1bach'&&x.subject==='Latín I')||available[0];STATE.level=selected?.level||'1bach';STATE.subject=selected?.subject||'Latín I';}
   STATE.periodId=[...STATE.doc.periods].sort((a,b)=>a.order-b.order)[0]?.id||null;
 }
 const groupsForSubject=()=>STATE.doc.groups.filter(g=>(g.level??'legacy')===STATE.level&&g.subject===STATE.subject);
@@ -411,7 +434,7 @@ function setSubjectChoice(level,subject){
  * El rediseño clásico no sustituye los colores almacenados del docente. */
 function colorFor(level,subject){
   const key=subjectKey(level,subject);
-  return STATE.doc.settings.subjectAccents[key]||SUBJECT_COLORS[key]||'#F59E0B';
+  return STATE.doc.settings.subjectAccents[key]||defaultSubjectAccent(level,subject);
 }
 function contrastFor(hex){
   const vals=[1,3,5].map(pos=>parseInt(hex.slice(pos,pos+2),16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);
@@ -435,7 +458,7 @@ function applyTheme(){
   document.documentElement.style.setProperty('--classic-accent',color);
   document.documentElement.style.setProperty('--accent-ink',contrastFor(color));
 }
-const pairOptions=()=>Object.entries(COURSE_SUBJECTS).flatMap(([level,x])=>x.subjects.map(subject=>({value:subjectKey(level,subject),label:`${x.label} · ${subject}`})));
+const pairOptions=()=>catalogForNotebook(STATE.doc).flatMap(({level,label,subjects})=>subjects.map(subject=>({value:subjectKey(level,subject),label:`${label} · ${subject}`})));
 
 async function init(){
   try{
@@ -458,7 +481,7 @@ async function init(){
 }
 function showUnlock(isNew){
   STATE.doc=null;STATE.key=null;STATE.salt=null;STATE.history=emptyHistory();
-  root.innerHTML=`<main class="unlock-screen"><div class="unlock-box"><div class="brand-mini">▦</div><div class="eyebrow">Solo uso experimental</div><h1>CuadernoDocente</h1><p>${isNew?'Elige un cuaderno vacío o uno de demostración con ocho alumnos ficticios. Ambos se guardan cifrados en este dispositivo.':'Desbloquea tu cuaderno local cifrado para continuar.'}</p>${STATE.reloadProbe?`<p class="${STATE.reloadProbe.ok?'section-note':'unlock-error'}" role="status">${STATE.reloadProbe.ok?'Recarga verificada: la misma copia cifrada continúa en IndexedDB. Desbloquéala para validar las notas.':'No se ha podido verificar el guardado tras recargar. Revisa el almacenamiento y no introduzcas más datos hasta comprobar la copia.'}</p>`:''}${pwaButtons()}<form id="unlock-form"><label for="password">${isNew?'Crea una contraseña de 12 caracteres como mínimo':'Contraseña del cuaderno'}</label><input id="password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>${isNew?'<label for="confirm-password">Repite la contraseña</label><input id="confirm-password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>':''}<div id="unlock-error" class="unlock-error" role="alert"></div>${isNew?'<div class="modal-actions"><button class="btn primary" type="submit" data-create-mode="empty">Crear cuaderno vacío</button><button class="btn" type="submit" data-create-mode="demo">Crear cuaderno de demostración</button></div>':'<button class="btn primary" type="submit">Desbloquear</button>'}</form><p class="hint">La contraseña no se envía ni se almacena. Si la pierdes, no podrás recuperar los datos cifrados.</p><p class="hint">No utilizar con datos reales del alumnado: versión experimental pendiente de auditoría institucional y de seguridad.</p><button class="btn" id="restore-locked">Restaurar una copia cifrada</button><input class="hidden" type="file" id="restore-locked-file" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/>${STATE.recovery?'<div class="recovery-choice"><p class="hint">Hay una copia cifrada de rescate anterior a la última restauración.</p><button class="btn" id="recover-locked">Recuperar versión anterior</button><button class="btn" id="download-recovery-locked">Descargar copia de rescate</button></div>':''}</div></main>`;
+  root.innerHTML=`<main class="unlock-screen"><div class="unlock-box"><div class="brand-mini">▦</div><div class="eyebrow">AppNotas · versión 1.0</div><h1>CuadernoDocente</h1><p>${isNew?'Elige un cuaderno vacío o uno de demostración con ocho alumnos ficticios. Ambos se guardan cifrados en este dispositivo.':'Desbloquea tu cuaderno local cifrado para continuar.'}</p>${STATE.reloadProbe?`<p class="${STATE.reloadProbe.ok?'section-note':'unlock-error'}" role="status">${STATE.reloadProbe.ok?'Recarga verificada: la misma copia cifrada continúa en IndexedDB. Desbloquéala para validar las notas.':'No se ha podido verificar el guardado tras recargar. Revisa el almacenamiento y no introduzcas más datos hasta comprobar la copia.'}</p>`:''}${pwaButtons()}<button type="button" class="btn unlock-help-primary" id="how-it-works" aria-label="Cómo funciona AppNotas y cómo guardar copias de seguridad">¿Cómo funciona? <span aria-hidden="true">ⓘ</span></button><form id="unlock-form"><label for="password">${isNew?'Crea una contraseña de 12 caracteres como mínimo':'Contraseña del cuaderno'}</label><input id="password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>${isNew?'<label for="confirm-password">Repite la contraseña</label><input id="confirm-password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>':''}<div id="unlock-error" class="unlock-error" role="alert"></div>${isNew?'<div class="modal-actions"><button class="btn primary" type="submit" data-create-mode="empty">Crear cuaderno vacío</button><button class="btn" type="submit" data-create-mode="demo">Crear cuaderno de demostración</button></div>':'<button class="btn primary" type="submit">Desbloquear</button>'}</form><p class="hint">La contraseña no se envía ni se almacena. Si la pierdes, no podrás recuperar los datos cifrados.</p><p class="hint">Almacena los cuadernos cifrados únicamente en dispositivos autorizados. Guarda y verifica copias en ubicaciones locales no sincronizadas; nunca en servicios en la nube.</p><button class="btn" id="restore-locked">Restaurar una copia cifrada</button><input class="hidden" type="file" id="restore-locked-file" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/>${STATE.recovery?'<div class="recovery-choice"><p class="hint">Hay una copia cifrada de rescate anterior a la última restauración.</p><button class="btn" id="recover-locked">Recuperar versión anterior</button><button class="btn" id="download-recovery-locked">Descargar copia de rescate</button></div>':''}</div></main>`;
   $('#unlock-form').addEventListener('submit',e=>{
     e.preventDefault();
     const password=$('#password').value, confirmation=$('#confirm-password')?.value, button=e.submitter||$('#unlock-form button');
@@ -488,6 +511,28 @@ function showUnlock(isNew){
     }).catch(fail);
   });
   wirePwaButtons();
+  $('#how-it-works').onclick=()=>showInfo('¿Cómo funciona AppNotas?',`
+    <div class="onboarding-guide">
+      <section><h3>1. Crear y desbloquear un cuaderno</h3>
+        <p>AppNotas guarda grupos, materias, actividades, notas, rúbricas y agenda en un <strong>cuaderno cifrado en este navegador</strong>. La primera vez crea una contraseña de 12 caracteres como mínimo. Apúntala en un lugar seguro: no se envía a servidores y no es recuperable.</p></section>
+      <section><h3>2. Introducir notas</h3>
+        <p>Selecciona la materia mediante sus botones, crea grupos y añade alumnos y actividades. Puedes configurar categorías, porcentajes, escalas de 0–10 u otras, rúbricas y las reglas de evaluación. Una casilla vacía no es un cero; <strong>NP</strong> indica no presentado y computa como cero; <strong>AJ</strong> es ausencia justificada pendiente y no computa.</p></section>
+      <section><h3>3. Consultar el resultado</h3>
+        <p>En <strong>Modo sesión de evaluación</strong> puedes consultar individualmente las calificaciones del alumno seleccionado, por trimestre y categoría, sin mostrar simultáneamente las fichas de los demás. La evaluación final calcula las medias según la configuración del grupo. Desde el cuaderno, los botones <strong>∑ Cálculos</strong> y <strong>◎ Competencias</strong> abren sus respectivos apartados. Las competencias se muestran con niveles: 1 (adquisición alta, 8–10), 2 (media, de 6,5 a menos de 8), 3 (baja, de 5 a menos de 6,5) y 4 (no adquirida, nota inferior a 5). La media original se conserva.</p></section>
+      <section><h3>4. Utilizar la agenda</h3>
+        <p>El horario base trae siete horas de clase y dos patios. Toca una franja para asignar una materia del cuaderno o escribir otra, indica el aula y personaliza los intervalos. La agenda permite añadir exámenes, clases, tareas y festivos.</p></section>
+      <section class="onboarding-critical"><h3>5. Guardar y comprobar una copia de seguridad</h3>
+        <p>El guardado automático protege los cambios <strong>solo en este dispositivo y navegador</strong>. No hay sincronización entre móviles y ordenadores. El navegador podría borrar los datos, por lo que debes hacer copias externas:</p>
+        <ol><li>Abre <strong>Ajustes → Copias de seguridad cifradas</strong> o utiliza <strong>Cerrar cuaderno</strong> para exportar un archivo <code>.cuaderno</code>.</li>
+        <li>Guárdalo <strong>solo en un destino local</strong> —por ejemplo, «En mi iPad», «En mi iPhone», la carpeta local del ordenador o una memoria USB— y conserva <strong>dos copias locales en lugares distintos</strong>. Evita iCloud Drive, OneDrive y carpetas sincronizadas.</li>
+        <li>Vuelve a seleccionarlo en <strong>Verificar copia</strong> e introduce la contraseña: descargar no basta para asegurar que es recuperable.</li>
+        <li>Si cambias de dispositivo o de navegador, utiliza <strong>Restaurar copia</strong> desde el archivo verificado. La restauración sustituye el cuaderno local después de las advertencias pertinentes.</li></ol>
+        <p><strong>Frecuencia recomendada:</strong> al menos semanalmente, después de introducir muchas notas y al cerrar una evaluación. La aplicación no puede detectar si la carpeta elegida se sincroniza con la nube: compruébalo en los ajustes del sistema.</p></section>
+      <section><h3>6. Instalación y uso sin conexión</h3>
+        <p>Instala la PWA desde la web oficial de Cloudflare. El modo sin conexión requiere que los recursos se hayan almacenado antes; compruébalo en Ajustes. Instalar la aplicación no es una copia de seguridad ni sincroniza los datos.</p></section>
+      <section><h3>7. Privacidad y precauciones</h3>
+        <p>Las notas no se envían al servidor de Cloudflare: quedan cifradas localmente. <strong>No uses información real de alumnado</strong> hasta que la aplicación tenga la autorización institucional y la evaluación de protección de datos que corresponda. Nunca compartas tu contraseña ni exportes archivos sin cifrar que incluyan datos personales.</p></section>
+    </div>`);
   $('#restore-locked').onclick=()=>$('#restore-locked-file').click();
   $('#restore-locked-file').onchange=async e=>{try{const f=e.target.files[0];e.target.value='';if(f)await restoreBackup(f);}catch(err){fail(err);}e.target.value='';};
   $('#recover-locked')?.addEventListener('click',()=>recoverPreviousVersion().catch(fail));
@@ -733,7 +778,7 @@ async function closeNotebook(){
   const prepared=await createPortableCopy(snapshot,STATE.key,STATE.salt,exportedDate);
   const filename=portableFilename(exportedDate);
   if(dialog.open)throw new Error('Cierra el diálogo actual para exportar.');
-  dialog.innerHTML=`<div class="modal-inner portable-dialog"><h2 id="modal-heading">Cerrar cuaderno · copia cifrada</h2><p>Los cambios se han guardado en este dispositivo. La copia completa está cifrada con la contraseña de este cuaderno.</p><p><strong>${esc(filename)}</strong></p><p class="hint">Selecciona una carpeta de OneDrive institucional, iCloud Drive o Archivos si el sistema la ofrece. Esta aplicación no accede a ninguna nube ni confirma la sincronización posterior.</p><p id="close-result" class="hint" role="status">El cuaderno local permanece intacto aunque canceles.</p><div class="modal-actions portable-choices"><button class="btn" id="close-cancel">Cancelar</button><button class="btn primary" id="close-save">Guardar archivo cifrado</button><button class="btn hidden" id="close-lock">Bloquear cuaderno</button></div></div>`;
+  dialog.innerHTML=`<div class="modal-inner portable-dialog"><h2 id="modal-heading">Cerrar cuaderno · copia cifrada</h2><p>Los cambios se han guardado en este dispositivo. La copia completa está cifrada con la contraseña de este cuaderno.</p><p><strong>${esc(filename)}</strong></p><p class="hint"><strong>Solo almacenamiento local autorizado por el centro:</strong> elige «En mi iPad» / «En mi iPhone», una carpeta local del ordenador o un USB sin sincronización. No elijas iCloud Drive, OneDrive ni carpetas sincronizadas. Esta aplicación no accede a ninguna nube ni confirma la sincronización posterior.</p><p id="close-result" class="hint" role="status">El cuaderno local permanece intacto aunque canceles.</p><div class="modal-actions portable-choices"><button class="btn" id="close-cancel">Cancelar</button><button class="btn primary" id="close-save">Guardar archivo cifrado</button><button class="btn hidden" id="close-lock">Bloquear cuaderno</button></div></div>`;
   $('#close-cancel',dialog).onclick=()=>{dialog.close();toast('Exportación cancelada. El cuaderno local permanece guardado.');};
   $('#close-save',dialog).onclick=()=>savePreparedCopy(prepared,filename);
   dialog.showModal();
@@ -757,7 +802,7 @@ async function savePreparedCopy(prepared,filename){
     }else if(typeof navigator.share==='function'&&typeof navigator.canShare==='function'&&navigator.canShare({files:[downloadable]})){
       mode='share';
       await navigator.share({files:[downloadable],title:'Copia cifrada Tabularium'});
-      message.textContent='Archivo compartido con el destino elegido. El navegador no puede verificar que se haya almacenado o sincronizado. El cuaderno local sigue intacto.';
+      message.textContent='Archivo enviado al destino seleccionado. Comprueba que sea una ubicación exclusivamente local, no sincronizada con una nube, y verifica el archivo guardado. El cuaderno local sigue intacto.';
       preparedSaveCompleted();toast('Copia compartida. Comprueba manualmente que se ha guardado.');return;
     }
     button.disabled=true;
@@ -769,7 +814,7 @@ async function savePreparedCopy(prepared,filename){
       try{
         await recordExportReceipt(STATE.db,receipt,STATE.envelope);
         STATE.exportReceipt=receipt;
-        message.textContent='Archivo escrito en la ubicación seleccionada. No podemos comprobar si OneDrive/iCloud ya lo ha sincronizado.';
+        message.textContent='Archivo escrito en la ubicación elegida. Comprueba que sea exclusivamente local y que el archivo se puede abrir desde «Verificar copia».';
       }catch(e){message.textContent='Archivo escrito, pero no se pudo registrar la exportación local: '+e.message;}
       updatePortableStatus();preparedSaveCompleted();toast('Copia cifrada escrita. Verifica su presencia en la carpeta elegida.');
     }else{
@@ -793,13 +838,11 @@ async function savePreparedCopy(prepared,filename){
 const workspaceDisclosures={tools:false,course:false,group:false,academic:false};
 const PRIMARY_WORKSPACE_TABS=[
   ['cuaderno','Cuaderno','▦'],
-  ['alumno','Modo alumno','◉'],
+  ['alumno','Modo sesión de evaluación','◉'],
   ['planificador','Agenda','▣'],
   ['final','Evaluación final','★']
 ];
 const ACADEMIC_WORKSPACE_TABS=[
-  ['calculos','Cálculos','∑'],
-  ['competencias','Competencias','◎'],
   ['curriculo','Currículo','◇'],
   ['rubricas','Rúbricas','▤']
 ];
@@ -823,6 +866,16 @@ function renderNavigation(){
   </nav>`;
 }
 
+/** Accesos a la evaluación desde las vistas analíticas.
+ * Impiden tener que regresar al cuaderno para cambiar entre Cálculos
+ * y Competencias cuando ambos salen del menú lateral. */
+function renderAcademicQuickNav(){
+  return `<nav class="academic-quick-nav" aria-label="Navegación entre cálculos y competencias">
+    <button type="button" class="btn small" data-academic-quick="cuaderno">‹ Cuaderno</button>
+    <button type="button" class="btn small ${STATE.tab==='calculos'?'academic-quick-active':''}" data-academic-quick="calculos" ${STATE.tab==='calculos'?'aria-current="page"':''}>∑ Cálculos</button>
+    <button type="button" class="btn small ${STATE.tab==='competencias'?'academic-quick-active':''}" data-academic-quick="competencias" ${STATE.tab==='competencias'?'aria-current="page"':''}>◎ Competencias</button>
+  </nav>`;
+}
 function renderPeriodButtons(){
   const periods=[...STATE.doc.periods].sort((a,b)=>a.order-b.order);
   return `<nav class="term-bar" aria-label="Evaluación actual"><div class="term-buttons" role="group" aria-label="Períodos">${periods.map(p=>`<span class="term-item ${STATE.tab==='cuaderno'&&STATE.periodId===p.id?'active':''}"><button type="button" class="term-button ${STATE.tab==='cuaderno'&&STATE.periodId===p.id?'active':''}" data-period-choice="${esc(p.id)}" aria-pressed="${STATE.tab==='cuaderno'&&STATE.periodId===p.id}" title="Seleccionar ${esc(p.name)} (doble clic para renombrar)">${esc(p.name)}</button><button type="button" class="term-edit" data-rename-period="${esc(p.id)}" aria-label="Renombrar ${esc(p.name)}" title="Renombrar ${esc(p.name)}">✎</button></span>`).join('')}<button type="button" class="term-add" id="new-period" aria-label="Añadir período" title="Crear período">+ <span>Período</span></button></div><button type="button" class="term-button term-final ${STATE.tab==='final'?'active':''}" data-final-choice="1" aria-pressed="${STATE.tab==='final'}">★ Evaluación final</button></nav>`;
@@ -839,8 +892,8 @@ function render(){
   applyTheme();
   // Cada boton corresponde a una materia concreta, no solo a una etapa:
   // elegir entre Latin y Griego nunca depende de un segundo desplegable.
-  const courseChoices=[...Object.entries(COURSE_SUBJECTS).flatMap(([level,entry])=>entry.subjects.map(subject=>({
-    level,subject,subjectName:subject,stage:entry.label
+  const courseChoices=[...catalogForNotebook(STATE.doc).flatMap(({level,label,subjects})=>subjects.map(subject=>({
+    level,subject,subjectName:subject,stage:label
   }))), ...[...new Set(STATE.doc.groups.filter(g=>g.level===null).map(g=>g.subject))].map(subject=>({
     level:'legacy',subject,subjectName:subject||'Sin asignatura',stage:'Sin clasificar'
   }))];
@@ -859,7 +912,7 @@ function render(){
     </div>
   </details>
   <button class="lock-btn" id="lock">Bloquear</button>
-</div></header><main class="content"><div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level,STATE.subject)])} · CUADERNO ACADÉMICO · V1.19</div><h1>${esc(subjectLabel)} <span class="muted-slash">/</span> ${esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${esc(levelLabel)} · ${esc(group?.course||'Curso escolar por configurar')} · ${esc(period?.name||'')} · Datos ficticios</p></div><span class="demo-tag">⚠ No introducir datos personales reales</span></div><p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo">
+</div></header><main class="content"><div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level,STATE.subject)])} · CUADERNO ACADÉMICO · v1.0</div><h1>${esc(subjectLabel)} <span class="muted-slash">/</span> ${esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${esc(levelLabel)} · ${esc(group?.course||'Curso escolar por configurar')} · ${esc(period?.name||'')} · Almacenamiento cifrado local</p></div><span class="demo-tag">⚠ Copias solo en almacenamiento local</span></div><p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo">
   <div class="selectors">
     <div class="course-switch" role="group" aria-label="Seleccionar asignatura">
       <div class="course-buttons">${courseChoices.map(x=>`<button type="button" class="btn course-choice" data-course-level="${esc(x.level)}" data-course-subject="${esc(x.subject)}" aria-pressed="${STATE.level===x.level&&STATE.subject===x.subject}" title="${esc(x.stage)}"><strong class="course-name">${esc(x.subjectName)}</strong></button>`).join('')}</div>
@@ -868,9 +921,10 @@ function render(){
   </div>
   <div class="actions class-more-actions">
     <details class="group-actions-disclosure" data-shell-disclosure="group" ${workspaceDisclosures.group?'open':''}>
-      <summary>Opciones de grupo <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
+      <summary>Materias y grupos <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
       <div class="group-actions-panel">
         <button class="btn small" id="new-group" ${STATE.level==='legacy'?'disabled':''}>+ Crear grupo</button>
+        <button class="btn small" id="manage-subjects">Gestionar materias</button>
         <button class="btn small" id="edit-group" ${hasGroup?'':'disabled'} title="Editar nombre y curso escolar del grupo">⋯ Gestionar grupo</button>
         ${STATE.level==='legacy'?'':`<label class="color-select-label">Color de acento<input id="accent-select" type="color" value="${esc(color)}" aria-label="Color de acento para ${esc(subjectLabel)}"/></label>`}
         ${group?.level===null?'<button class="btn" id="classify-group">Clasificar grupo</button>':''}
@@ -880,7 +934,7 @@ function render(){
     </details>
     <input type="file" id="csv-file" class="hidden" accept=".csv,text/csv"/>
   </div>
-</div><div class="workspace">${renderNavigation()}<div class="work-area">${hasGroup&&['cuaderno','final'].includes(STATE.tab)?renderPeriodButtons():''}<div id="tab-content">${!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'?`<section class="panel panel-pad no-group-state"><h2>No hay grupos de ${esc(subjectLabel)}</h2><p>Selecciona otro grupo o crea uno nuevo para esta asignatura. No se mezclarán las calificaciones de materias distintas.</p>${STATE.level==='legacy'?'<p>Clasifica primero el grupo anterior para utilizarlo en uno de los cursos disponibles.</p>':'<button class="btn primary" id="new-group-empty">+ Crear primer grupo</button>'}</section>`:STATE.tab==='cuaderno'?renderNotebook():STATE.tab==='planificador'?renderPlanner(STATE.doc,STATE):STATE.tab==='alumno'?renderStudentView():STATE.tab==='final'?renderFinalEvaluation():STATE.tab==='calculos'?renderRules():STATE.tab==='rubricas'?renderRubrics():STATE.tab==='competencias'?renderCompetencies():STATE.tab==='curriculo'?renderCurriculum():renderSettings()}</div></div></div></main></div>`;
+</div><div class="workspace">${renderNavigation()}<div class="work-area">${hasGroup&&['cuaderno','final'].includes(STATE.tab)?renderPeriodButtons():''}${hasGroup&&['calculos','competencias'].includes(STATE.tab)?renderAcademicQuickNav():''}<div id="tab-content">${!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'?`<section class="panel panel-pad no-group-state"><h2>No hay grupos de ${esc(subjectLabel)}</h2><p>Selecciona otro grupo o crea uno nuevo para esta asignatura. No se mezclarán las calificaciones de materias distintas.</p>${STATE.level==='legacy'?'<p>Clasifica primero el grupo anterior para utilizarlo en uno de los cursos disponibles.</p>':'<button class="btn primary" id="new-group-empty">+ Crear primer grupo</button>'}</section>`:STATE.tab==='cuaderno'?renderNotebook():STATE.tab==='planificador'?renderPlanner(STATE.doc,STATE):STATE.tab==='alumno'?renderStudentView():STATE.tab==='final'?renderFinalEvaluation():STATE.tab==='calculos'?renderRules():STATE.tab==='rubricas'?renderRubrics():STATE.tab==='competencias'?renderCompetencies():STATE.tab==='curriculo'?renderCurriculum():renderSettings()}</div></div></div></main></div>`;
   bindCommon();
   wirePwaButtons();
   updatePortableStatus();
@@ -955,7 +1009,7 @@ function renderNotebook(){
   }).join('')}<td class="final-col"><button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip(overallGrade(STATE.doc,s.id,STATE.groupId,STATE.periodId))}</button></td><td class="itaca-col"><button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc,s.id,STATE.groupId,STATE.periodId)}${itacaStudentRule(STATE.doc,s.id,STATE.periodId)!=='general'?'<span class="itaca-exception" title="Excepción individual">*</span>':''}</button></td></tr>`).join('');
   const sum=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).reduce((s,c)=>s+c.weight,0);
   const problems=students.flatMap(st=>periodCalculationWarnings(STATE.doc,st.id,STATE.groupId,STATE.periodId)).filter(v=>v.includes('sin conversión'));
-  return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><div class="notebook-heading-kicker">TABULAE · EVALUACIÓN</div><strong>Calificaciones</strong><p>Pulsa o toca ⓘ en la cabecera de cada columna para ver la media y los aprobados de la clase. Introduce notas con hasta dos decimales. NP cuenta como cero; AJ marca una ausencia justificada pendiente que no computa. En los exámenes con faltas recuperables, pulsa la calificación para editar nota original, faltas y entrega. «⋯» configura una columna.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><details class="notebook-more-actions"><summary>Más acciones <span aria-hidden="true">⌄</span></summary><div class="notebook-more-panel"><button class="btn" id="copy-structure">⇉ Copiar actividades</button><button class="btn" id="schedule-exam">▣ Programar examen</button></div></details></div></div><div class="student-order-bar">${studentSortControls()}</div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col">Nota Ítaca <small>/10 · clic para excepción</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><div class="legend"><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></div>`;
+  return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><div class="notebook-heading-kicker">TABULAE · EVALUACIÓN</div><strong>Calificaciones</strong><p>Pulsa o toca ⓘ en la cabecera de cada columna para ver la media y los aprobados de la clase. Introduce notas con hasta dos decimales. NP cuenta como cero; AJ marca una ausencia justificada pendiente que no computa. En los exámenes con faltas recuperables, pulsa la calificación para editar nota original, faltas y entrega. «⋯» configura una columna.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><button class="btn" id="notebook-calculations" type="button" data-academic-quick="calculos" title="Configurar porcentajes y reglas de evaluación">∑ Cálculos</button><button class="btn" id="notebook-competencies" type="button" data-academic-quick="competencias" title="Consultar niveles de adquisición competencial">◎ Competencias</button><details class="notebook-more-actions"><summary>Más acciones <span aria-hidden="true">⌄</span></summary><div class="notebook-more-panel"><button class="btn" id="copy-structure">⇉ Copiar actividades</button><button class="btn" id="schedule-exam">▣ Programar examen</button></div></details></div></div><div class="student-order-bar">${studentSortControls()}</div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col">Nota Ítaca <small>/10 · clic para excepción</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><div class="legend"><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></div>`;
 }
 const ITACA_OPTIONS=[['half','Redondear desde ,5'],['seven','Redondear desde ,7'],['none','No redondear']];
 const RULE_LABELS={mean:'Media aritmética',weighted_mean:'Media ponderada por actividad',highest:'Mejor nota',best_n:'Media de las N mejores',last:'Última evaluada',latest_if_highest:'Última si iguala o supera la mejor; si no, media'};
@@ -968,7 +1022,29 @@ function renderRules(){
 }
 function renderCompetencies(){
   const group=currentGroup(),catalog=officialCompetenciesForGroup(group,STATE.competencyVersion);
-  if(!catalog)return '<section class="panel panel-pad"><h2>Competencias</h2><p>Selecciona un grupo con asignatura clasificada.</p></section>';
+  if(!catalog){
+    if(!group)return '<section class="panel panel-pad"><h2>Competencias</h2><p>Selecciona primero un grupo.</p></section>';
+    // Las materias nuevas no tienen repertorio oficial: se pueden definir
+    // competencias propias, sin atribuirles normativa inventada.
+    const personal=groupCompetencies(STATE.doc,group.id).filter(c=>!c.curriculumKey);
+    const visible=visibleCategories(),students=allStudents();
+    return `<div class="competency-view">
+      <section class="panel panel-pad">
+        <div class="section-title-row"><div><h2>Competencias personalizadas · ${esc(group.subject)}</h2>
+          <p class="subtitle">Esta materia no tiene currículo oficial precargado. Puedes crear competencias propias y asociarlas a categorías, sin modificar las notas por defecto.</p></div>
+          <button class="btn small" id="new-competency">+ Competencia propia</button></div>
+        ${personal.map(c=>`<article class="competency-item">
+          <h3>${esc(c.name)}</h3>
+          <div class="comp-table"><table class="full-width"><tbody>
+          ${visible.map(cat=>`<tr><td>${esc(cat.name)}</td><td class="align-right">
+            <label class="visually-hidden" for="custom-link-${esc(c.id)}-${esc(cat.id)}">Peso de ${esc(cat.name)} en ${esc(c.name)}</label>
+            <input class="number-field" id="custom-link-${esc(c.id)}-${esc(cat.id)}" type="number" min="0" max="1000" step="1"
+              data-comp="${esc(c.id)}" data-linkcat="${esc(cat.id)}" value="${esc(c.links.find(x=>x.categoryId===cat.id)?.weight??0)}"/></td></tr>`).join('')}
+          </tbody></table></div></article>`).join('')||'<p class="hint">No hay competencias propias. Pulsa «+ Competencia propia» para comenzar.</p>'}</section>
+      <section class="panel panel-pad"><h2>Resultados competenciales</h2>
+      ${competencyScaleLegend()}<div class="overflow-auto"><table class="comp-table"><thead><tr><th>Alumno</th>${personal.map(c=>`<th>${esc(c.name)}</th>`).join('')}</tr></thead>
+      <tbody>${students.map(student=>`<tr><td>${esc(student.name)}</td>${personal.map(c=>`<td>${competencyLevelChip(competencyGrade(STATE.doc,student.id,c.id,group.id,STATE.periodId))}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section></div>`;
+  }
   const students=allStudents();
   const official=catalog.competencias.map(ce=>({...ce,stored:linkedOfficialCompetency(STATE.doc,group.id,ce.key)}));
   const custom=groupCompetencies(STATE.doc,group.id).filter(c=>!c.curriculumKey);
@@ -978,20 +1054,21 @@ function renderCompetencies(){
     const l=stored?.links.find(x=>x.categoryId===cat.id);
     return `<tr><td>${esc(cat.name)}</td><td class="align-right"><label class="visually-hidden" for="link-${esc(key)}-${esc(cat.id)}">Peso de ${esc(cat.name)} en ${esc(key)}</label><input class="number-field" id="link-${esc(key)}-${esc(cat.id)}" type="number" min="0" max="1000" step="1" value="${esc(l?.weight??0)}" ${id?`data-comp="${esc(id)}"`:`data-official="${esc(key)}"`} data-linkcat="${esc(cat.id)}"/></td></tr>`;}).join('')}</tbody></table></div>`;
   const meanIds=official.map(ce=>ce.stored?.id).filter(Boolean);
-  const currentGrade=(student,comp)=>comp?.id?gradeChip(competencyGrade(STATE.doc,student.id,comp.id,group.id,STATE.periodId)):gradeChip(null);
   const currentMean=student=>{
     const score=competencyArithmeticMean(STATE.doc,student.id,meanIds,group.id,STATE.periodId);
     if(score===null)return '<span class="grade-empty">—</span>';
     const display={decimals:2,rounding:'half-up'};
-    return `<span class="competency-mean-values"><span class="grade-chip"${gradeStyle(score)}>${esc(formatGrade(score,display))}<span class="grade-suffix">/10</span></span><small>${esc(formatGrade(gradeToFour(score),display))} /4</small></span>`;
+    const level=gradeToFour(score);
+    return `<span class="competency-mean-values"><span class="grade-chip"${gradeStyle(score)}>${esc(formatGrade(score,display))}<span class="grade-suffix">/10</span></span><small title="Nivel de adquisición: ${esc(competencyAcquisitionLabel(score))}">Nivel ${esc(level)} /4 · ${esc(competencyAcquisitionLabel(score))}</small></span>`;
   };
+  const currentGrade=(student,comp)=>comp?.id?competencyLevelChip(competencyGrade(STATE.doc,student.id,comp.id,group.id,STATE.periodId)):competencyLevelChip(null);
   return `<div class="competency-view"><section class="panel panel-pad"><div class="section-title-row"><div><h2>Competencias específicas · ${esc(group.subject)}</h2><p class="subtitle">${esc(catalog.data.norma)} · ${catalog.competencias.length} competencias oficiales · selección de pesos opcional</p></div><button class="btn small" id="new-competency">+ Competencia propia</button></div>
   ${group.subject==='Latín II'?`<label class="competency-version">Normativa para Latín II <select id="comp-curr-version">${[['auto','Según curso escolar'],['2022','2022 · 2026–2027'],['2026','2026 · desde 2027–2028']].map(([v,t])=>opt(v,t,STATE.competencyVersion)).join('')}</select></label>`:''}
   ${catalog.warning?`<p class="comp-curr-warning">⚠ ${esc(catalog.warning)}</p>`:''}
   <p class="section-note">Los enunciados son los del decreto. Cada competencia empieza sin cálculo: solo tendrá nota si asignas explícitamente pesos a categorías. Ninguna ponderación se presume oficial.</p>
   <div class="official-competency-grid">${official.map(ce=>`<article class="competency-item official-competency"><div class="comp-head"><strong class="ce-number">${esc(ce.code)}</strong><h3>${esc(ce.enunciado)}</h3></div><details class="comp-weights"><summary>Vincular categorías para calificar ${esc(ce.code)}</summary><p class="hint">0 = categoría sin vínculo. Los pesos son relativos y no se requiere sumarlos a 100.</p>${linkRows(ce.stored?.id,ce.key)}</details></article>`).join('')}</div>
   ${custom.length?`<details class="custom-competencies"><summary>Competencias personalizadas o de versiones anteriores (${custom.length})</summary>${custom.map(c=>`<div class="competency-item"><h3>${esc(c.name)}</h3>${linkRows(c.id,c.id)}</div>`).join('')}</details>`:''}</section>
-  <section class="panel panel-pad"><h2>Resultados por competencia</h2><p class="subtitle">${esc(group.name)} · ${esc(currentPeriod()?.name)} · las casillas sin vínculo permanecen vacías</p><div class="overflow-auto"><table class="comp-table"><thead><tr><th>Alumno</th>${official.map(c=>`<th title="${esc(c.enunciado)}"><span class="class-stat-heading">${esc(c.code)} ${c.stored?.id?classStatButton('competency',c.stored.id,c.code):''}</span></th>`).join('')}<th class="competency-mean-heading" scope="col">Media de competencias <small>sin ponderar · /10 y /4</small></th></tr></thead><tbody>${students.map(st=>`<tr><td class="comp-name">${esc(st.name)}</td>${official.map(c=>`<td>${currentGrade(st,c.stored)}</td>`).join('')}<td class="competency-mean-cell">${currentMean(st)}</td></tr>`).join('')}</tbody></table></div><p class="section-note">La media de competencias es aritmética y sin ponderación entre las CE oficiales con nota; las no evaluadas se excluyen. Se calcula con precisión completa y se muestra sobre 10 y en equivalencia lineal de 1 a 4 (0/10 = 1/4; 10/10 = 4/4). No afecta a la nota final. Puedes consultar los criterios completos en «Currículo».</p></section></div>`;
+  <section class="panel panel-pad"><h2>Resultados por competencia</h2><p class="subtitle">${esc(group.name)} · ${esc(currentPeriod()?.name)} · las casillas sin vínculo permanecen vacías</p>${competencyScaleLegend()}<div class="overflow-auto"><table class="comp-table"><thead><tr><th>Alumno</th>${official.map(c=>`<th title="${esc(c.enunciado)}"><span class="class-stat-heading">${esc(c.code)} ${c.stored?.id?classStatButton('competency',c.stored.id,c.code):''}</span></th>`).join('')}<th class="competency-mean-heading" scope="col">Media de competencias <small>sin ponderar · /10 y /4</small></th></tr></thead><tbody>${students.map(st=>`<tr><td class="comp-name">${esc(st.name)}</td>${official.map(c=>`<td>${currentGrade(st,c.stored)}</td>`).join('')}<td class="competency-mean-cell">${currentMean(st)}</td></tr>`).join('')}</tbody></table></div><p class="section-note">La media de competencias es aritmética y sin ponderación entre las CE oficiales con nota; las no evaluadas se excluyen. Se calcula con precisión completa y se muestra sobre 10 y como nivel de adquisición discreto: 1 = alta (8–10); 2 = media (6,5–<8); 3 = baja (5–<6,5); 4 = no adquirida (<5). No afecta a la nota final. Puedes consultar los criterios completos en «Currículo».</p></section></div>`;
 }
 
 /** La consulta curricular es de solo lectura, completamente separada de las calificaciones. */
@@ -1027,7 +1104,7 @@ function curriculumCards(data){
 }
 function renderCurriculum(){
   const data=currentCurriculum();
-  if(!data)return `<section class="panel panel-pad"><h2>Currículo de la materia</h2><p>Selecciona Latín de 4.º de ESO, Latín I o II, o Griego I o II para consultar su normativa.</p></section>`;
+  if(!data)return `<section class="panel panel-pad"><h2>Currículo de ${esc(STATE.subject)}</h2><p>No hay un currículo oficial incorporado para esta materia. Puedes utilizar el cuaderno, las categorías y las competencias personalizadas; la normativa deberá consultarse por separado.</p></section>`;
   const isLatin2=STATE.level==='2bach'&&STATE.subject==='Latín II';
   const available=data.estado!=='fuente_pendiente';
   const nSab=data.saberes.reduce((total,b)=>total+(b.items?.length||0)+(b.subbloques||[]).reduce((sum,x)=>sum+x.items.length,0),0);
@@ -1058,7 +1135,7 @@ function renderSettings(){
   const s=STATE.doc.settings;
   const originWarning=location.hostname==='archaiosmagister.github.io'
     ? '<p class="section-note">Aviso de aislamiento: las aplicaciones de este dominio GitHub Pages comparten origen y acceso al almacenamiento del navegador, aunque estén en rutas distintas. El cuaderno está cifrado, pero otro código del mismo origen podría copiar su sobre cifrado o borrar el almacén. No introduzcas datos reales hasta alojar AppNotas en un origen independiente y autorizar su uso.</p>' : '';
-  return `<div class="grid-two"><section class="panel panel-pad"><h2>Precisión y presentación</h2><div class="settings-grid"><div class="setting-box"><label for="decimals"><strong>Decimales mostrados</strong></label><select id="decimals">${[0,1,2].map(n=>opt(String(n),String(n),String(Math.min(2,s.decimals)))).join('')}</select><p class="hint">El cálculo interno mantiene toda la precisión.</p></div><div class="setting-box"><label for="rounding"><strong>Tipo de redondeo</strong></label><select id="rounding">${[['half-up','Matemático'],['floor','Hacia abajo'],['ceil','Hacia arriba']].map(([k,v])=>opt(k,v,s.rounding)).join('')}</select><p class="hint">Se aplica al mostrar el resultado.</p></div></div><div class="section-note">Periodo, grupo, categorías y actividades se almacenan en un modelo versionado. OneDrive no está conectado y la webapp no envía datos del cuaderno a servidores.</div></section><section class="panel panel-pad"><h2>Colores por curso y asignatura</h2><p class="subtitle">Cada materia conserva su color independientemente del grupo y del periodo. Los cambios se guardan en el cuaderno local cifrado.</p><div class="accent-list">${pairOptions().map(x=>{const [level,subject]=x.value.split(':');return `<label class="accent-row"><span>${esc(x.label)}</span><input type="color" data-accent="${esc(x.value)}" value="${esc(colorFor(level,subject))}" aria-label="Color de ${esc(x.label)}"/></label>`;}).join('')}</div><button class="btn small" id="reset-accents">Restablecer colores predeterminados</button></section><section class="panel panel-pad"><h2>Valores predeterminados para faltas</h2><p class="subtitle">Se aplican a <strong>nuevos exámenes</strong> de la categoría Exámenes. Los exámenes existentes mantienen sus propias reglas.</p><div class="settings-grid"><div class="setting-box"><label><input id="orth-default-on" type="checkbox" ${s.orthographyDefaults?.enabledForExams?'checked':''}/> Activar en exámenes nuevos</label></div><div class="setting-box"><label for="orth-default-rate">Puntos a restar por falta</label><input id="orth-default-rate" class="text-field" type="number" min="0" max="10" step="0.01" value="${esc(s.orthographyDefaults?.penaltyPerFault??0.1)}"/></div><div class="setting-box"><label for="orth-default-copies">Veces que debe copiar cada falta</label><input id="orth-default-copies" class="text-field" type="number" min="1" max="1000" step="1" value="${esc(s.orthographyDefaults?.repetitions??30)}"/></div><div class="setting-box"><label><input id="orth-default-refundable" type="checkbox" ${s.orthographyDefaults?.refundable?'checked':''}/> Restaurar la nota cuando se entreguen</label></div></div><button type="button" class="btn primary" id="save-orth-defaults">Guardar valores para nuevos exámenes</button><p class="hint">Los cambios no alteran las notas ya guardadas ni las actividades existentes. La devolución por faltas específica de cada curso se configura desde «Gestión de grupo».</p></section><section class="panel panel-pad"><h2>Copias de seguridad cifradas</h2><p>Descarga una copia del cuaderno. Para recuperarla necesitarás la contraseña con la que se cifró. Guárdala fuera del almacenamiento del navegador.</p><p class="hint">Política recomendada: conserva al menos dos copias cifradas en ubicaciones distintas, realiza una copia cada semana y después de introducir muchas notas o cerrar una evaluación. Reabre el archivo con «Verificar copia»; una descarga iniciada no equivale a una copia comprobada.</p><div class="actions"><button class="btn primary" id="backup-portable">↓ Guardar copia portátil (.cuaderno)</button><button class="btn" id="backup-download">Descargar copia histórica (.cdoc)</button>${STATE.failedEnvelope?'<button class="btn warn" id="backup-draft">Descargar intento cifrado</button>':''}<button class="btn" id="backup-verify">✓ Verificar copia</button><button class="btn" id="backup-restore">↑ Restaurar copia</button>${STATE.recovery?'<button class="btn" id="backup-recover">↶ Recuperar versión anterior</button><button class="btn" id="backup-download-recovery">↓ Descargar rescate</button>':''}</div><input type="file" id="backup-file" class="hidden" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/><input type="file" id="backup-verify-file" class="hidden" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/><p class="recovery-help">Al restaurar una copia se guarda automáticamente la versión anterior, todavía cifrada. Solo se conserva <strong>un punto de rescate</strong> dentro del navegador; la siguiente restauración lo sustituye. Descarga siempre una copia externa antes de restaurar.</p><div class="section-note">No se ha realizado una auditoría independiente. Esta versión solo debe utilizarse con datos ficticios y no constituye una autorización para tratar datos reales del alumnado.</div></section><section class="panel panel-pad"><h2>Empezar de cero</h2><p>Reinicia el cuaderno para dejar las tres evaluaciones y las categorías básicas, sin grupos, alumnos, actividades, notas ni agenda anterior.</p><p class="hint">Antes debes guardar fuera del navegador un archivo .cuaderno de esta misma revisión y volver a seleccionarlo para verificarlo. Después tendrás que escribir REINICIAR. Se conserva un único rescate cifrado en el dispositivo; se sustituirá si vuelves a importar o reiniciar.</p><div class="actions"><button class="btn warn" id="reset-notebook">Reiniciar cuaderno (requiere copia comprobada)</button></div><input type="file" id="reset-notebook-file" class="hidden" accept=".cuaderno,application/octet-stream"/></section><section class="panel panel-pad"><h2>Conservación del almacenamiento local</h2><p>El navegador puede eliminar los datos de IndexedDB. La protección persistente reduce el riesgo de eliminación automática, pero no sustituye copias cifradas externas.</p><div class="actions"><button type="button" class="btn" id="storage-check">Comprobar protección</button><button type="button" class="btn" id="storage-protect">Solicitar almacenamiento persistente</button></div><p id="storage-status" class="hint" role="status" aria-live="polite">Sin comprobar.</p>${originWarning}</section><section class="panel panel-pad"><h2>Preparación para trabajar offline</h2><p>Comprueba que el navegador tiene almacenados los recursos estáticos de esta versión. La comprobación no sustituye la prueba real desconectando internet.</p><div class="actions"><button class="btn" id="check-offline">Comprobar recursos offline</button><button class="btn" id="check-reload">Probar guardado y recarga</button></div><p class="hint">La prueba de recarga compara la misma copia cifrada antes y después de recargar, sin alterar calificaciones. No verifica un cierre completo del navegador ni la apertura sin red.</p><p id="offline-result" class="hint" role="status" aria-live="polite"></p></section></div>`;
+  return `<div class="grid-two"><section class="panel panel-pad"><h2>Precisión y presentación</h2><div class="settings-grid"><div class="setting-box"><label for="decimals"><strong>Decimales mostrados</strong></label><select id="decimals">${[0,1,2].map(n=>opt(String(n),String(n),String(Math.min(2,s.decimals)))).join('')}</select><p class="hint">El cálculo interno mantiene toda la precisión.</p></div><div class="setting-box"><label for="rounding"><strong>Tipo de redondeo</strong></label><select id="rounding">${[['half-up','Matemático'],['floor','Hacia abajo'],['ceil','Hacia arriba']].map(([k,v])=>opt(k,v,s.rounding)).join('')}</select><p class="hint">Se aplica al mostrar el resultado.</p></div></div><div class="section-note">Periodo, grupo, categorías y actividades se almacenan en un modelo versionado. OneDrive no está conectado y la webapp no envía datos del cuaderno a servidores.</div></section><section class="panel panel-pad"><h2>Colores por curso y asignatura</h2><p class="subtitle">Cada materia conserva su color independientemente del grupo y del periodo. Los cambios se guardan en el cuaderno local cifrado.</p><div class="accent-list">${pairOptions().map(x=>{const [level,subject]=x.value.split(':');return `<label class="accent-row"><span>${esc(x.label)}</span><input type="color" data-accent="${esc(x.value)}" value="${esc(colorFor(level,subject))}" aria-label="Color de ${esc(x.label)}"/></label>`;}).join('')}</div><button class="btn small" id="reset-accents">Restablecer colores predeterminados</button></section><section class="panel panel-pad"><h2>Valores predeterminados para faltas</h2><p class="subtitle">Se aplican a <strong>nuevos exámenes</strong> de la categoría Exámenes. Los exámenes existentes mantienen sus propias reglas.</p><div class="settings-grid"><div class="setting-box"><label><input id="orth-default-on" type="checkbox" ${s.orthographyDefaults?.enabledForExams?'checked':''}/> Activar en exámenes nuevos</label></div><div class="setting-box"><label for="orth-default-rate">Puntos a restar por falta</label><input id="orth-default-rate" class="text-field" type="number" min="0" max="10" step="0.01" value="${esc(s.orthographyDefaults?.penaltyPerFault??0.1)}"/></div><div class="setting-box"><label for="orth-default-copies">Veces que debe copiar cada falta</label><input id="orth-default-copies" class="text-field" type="number" min="1" max="1000" step="1" value="${esc(s.orthographyDefaults?.repetitions??30)}"/></div><div class="setting-box"><label><input id="orth-default-refundable" type="checkbox" ${s.orthographyDefaults?.refundable?'checked':''}/> Restaurar la nota cuando se entreguen</label></div></div><button type="button" class="btn primary" id="save-orth-defaults">Guardar valores para nuevos exámenes</button><p class="hint">Los cambios no alteran las notas ya guardadas ni las actividades existentes. La devolución por faltas específica de cada curso se configura desde «Gestión de grupo».</p></section><section class="panel panel-pad"><h2>Copias de seguridad cifradas</h2><p>Descarga una copia del cuaderno. Para recuperarla necesitarás la contraseña con la que se cifró. Guárdala fuera del almacenamiento del navegador.</p><p class="hint">Política de uso local: conserva dos copias cifradas en ubicaciones físicas distintas del dispositivo (carpeta local/USB), <strong>sin iCloud Drive, OneDrive ni servicios sincronizados</strong>. Realiza una copia cada semana y después de introducir muchas notas o cerrar una evaluación. Reabre el archivo con «Verificar copia»: iniciar una descarga no garantiza que se haya guardado correctamente.</p><div class="actions"><button class="btn primary" id="backup-portable">↓ Guardar copia portátil (.cuaderno)</button><button class="btn" id="backup-download">Descargar copia histórica (.cdoc)</button>${STATE.failedEnvelope?'<button class="btn warn" id="backup-draft">Descargar intento cifrado</button>':''}<button class="btn" id="backup-verify">✓ Verificar copia</button><button class="btn" id="backup-restore">↑ Restaurar copia</button>${STATE.recovery?'<button class="btn" id="backup-recover">↶ Recuperar versión anterior</button><button class="btn" id="backup-download-recovery">↓ Descargar rescate</button>':''}</div><input type="file" id="backup-file" class="hidden" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/><input type="file" id="backup-verify-file" class="hidden" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/><p class="recovery-help">Al restaurar una copia se guarda automáticamente la versión anterior, todavía cifrada. Solo se conserva <strong>un punto de rescate</strong> dentro del navegador; la siguiente restauración lo sustituye. Descarga siempre una copia externa antes de restaurar.</p><div class="section-note">No se ha realizado una auditoría independiente de seguridad. Utiliza esta aplicación solo en los dispositivos autorizados por tu centro y conforme a su política de protección de datos. Conserva copias cifradas locales no sincronizadas y verifica periódicamente que puedes restaurarlas.</div></section><section class="panel panel-pad"><h2>Empezar de cero</h2><p>Reinicia el cuaderno para dejar las tres evaluaciones y las categorías básicas, sin grupos, alumnos, actividades, notas ni agenda anterior.</p><p class="hint">Antes debes guardar fuera del navegador un archivo .cuaderno de esta misma revisión y volver a seleccionarlo para verificarlo. Después tendrás que escribir REINICIAR. Se conserva un único rescate cifrado en el dispositivo; se sustituirá si vuelves a importar o reiniciar.</p><div class="actions"><button class="btn warn" id="reset-notebook">Reiniciar cuaderno (requiere copia comprobada)</button></div><input type="file" id="reset-notebook-file" class="hidden" accept=".cuaderno,application/octet-stream"/></section><section class="panel panel-pad"><h2>Conservación del almacenamiento local</h2><p>El navegador puede eliminar los datos de IndexedDB. La protección persistente reduce el riesgo de eliminación automática, pero no sustituye copias cifradas externas.</p><div class="actions"><button type="button" class="btn" id="storage-check">Comprobar protección</button><button type="button" class="btn" id="storage-protect">Solicitar almacenamiento persistente</button></div><p id="storage-status" class="hint" role="status" aria-live="polite">Sin comprobar.</p>${originWarning}</section><section class="panel panel-pad"><h2>Preparación para trabajar offline</h2><p>Comprueba que el navegador tiene almacenados los recursos estáticos de esta versión. La comprobación no sustituye la prueba real desconectando internet.</p><div class="actions"><button class="btn" id="check-offline">Comprobar recursos offline</button><button class="btn" id="check-reload">Probar guardado y recarga</button></div><p class="hint">La prueba de recarga compara la misma copia cifrada antes y después de recargar, sin alterar calificaciones. No verifica un cierre completo del navegador ni la apertura sin red.</p><p id="offline-result" class="hint" role="status" aria-live="polite"></p></section></div>`;
 }
 function renderRubrics(){
   const rubrics=STATE.doc.rubrics;
@@ -1124,7 +1201,7 @@ function openGradeObservation(studentId,assessmentId){
     <p class="subtitle"><strong>${esc(student.name)}</strong> · ${esc(activity.name)}</p>
     <label for="grade-observation-text">Observación (máximo 1500 caracteres)</label>
     <textarea id="grade-observation-text" class="text-field" rows="6" maxlength="1500" placeholder="Ej.: Realizó el examen otro día.">${esc(saved?.text||'')}</textarea>
-    <label class="grade-observation-visibility"><input type="checkbox" id="grade-observation-visible" ${saved?.visibleToStudent?'checked':''}/> Mostrar también en el modo alumno</label>
+    <label class="grade-observation-visibility"><input type="checkbox" id="grade-observation-visible" ${saved?.visibleToStudent?'checked':''}/> Mostrar también en el Modo sesión de evaluación</label>
     <p class="hint">Privada por defecto. Puedes escribir antes de calificar o modificar la nota sin perder este comentario. Dejar el texto vacío y guardar elimina la observación.</p>
     <p class="modal-error" role="alert"></p>
     <div class="modal-actions"><button type="button" class="btn" id="cancel-grade-observation">Cancelar</button><button type="submit" class="btn primary" id="save-grade-observation">Guardar observación</button></div>
@@ -1217,7 +1294,7 @@ function openRubricGrade(studentId,assessmentId){
 function renderStudentView(){
   const student=STATE.doc.students.find(s=>s.id===STATE.studentId&&s.groupId===STATE.groupId);
   const students=allStudents();
-  if(!student)return `<section class="panel panel-pad student-directory"><div class="section-title-row"><div><span class="eyebrow">CONSULTA INDIVIDUAL</span><h2 id="student-list-heading" tabindex="-1">Modo alumno · ${esc(currentGroup()?.name||'Grupo')}</h2><p class="subtitle">Selecciona un alumno para consultar sus calificaciones y medias.</p></div><span class="student-count">${students.length} ${students.length===1?'alumno':'alumnos'}</span></div><div class="student-order-bar">${studentSortControls()}</div><div class="student-directory-grid">${students.map((s,i)=>`${originDirectoryHeader(students,i)}<button type="button" class="student-directory-choice" data-open-student="${esc(s.id)}"><span class="student-directory-avatar" aria-hidden="true">◉</span><span>${esc(s.name)}</span>${studentOriginBadge(s)}<span class="student-directory-arrow" aria-hidden="true">›</span></button>`).join('')||'<p class="hint">Todavía no hay alumnos en este grupo.</p>'}</div><p class="section-note">La lista contiene nombres del grupo. Antes de compartir la pantalla, selecciona el alumno correspondiente: la consulta individual oculta los demás nombres.</p><button class="btn" id="return-notebook">Volver al cuaderno</button></section>`;
+  if(!student)return `<section class="panel panel-pad student-directory"><div class="section-title-row"><div><span class="eyebrow">CONSULTA INDIVIDUAL</span><h2 id="student-list-heading" tabindex="-1">Modo sesión de evaluación · ${esc(currentGroup()?.name||'Grupo')}</h2><p class="subtitle">Selecciona un alumno para consultar sus calificaciones y medias.</p></div><span class="student-count">${students.length} ${students.length===1?'alumno':'alumnos'}</span></div><div class="student-order-bar">${studentSortControls()}</div><div class="student-directory-grid">${students.map((s,i)=>`${originDirectoryHeader(students,i)}<button type="button" class="student-directory-choice" data-open-student="${esc(s.id)}"><span class="student-directory-avatar" aria-hidden="true">◉</span><span>${esc(s.name)}</span>${studentOriginBadge(s)}<span class="student-directory-arrow" aria-hidden="true">›</span></button>`).join('')||'<p class="hint">Todavía no hay alumnos en este grupo.</p>'}</div><p class="section-note">La lista contiene nombres del grupo. Antes de compartir la pantalla, selecciona el alumno correspondiente: la consulta individual oculta los demás nombres.</p><button class="btn" id="return-notebook">Volver al cuaderno</button></section>`;
   const position=students.findIndex(s=>s.id===student.id);
   const previous=students[position-1],next=students[position+1];
   const periods=[...STATE.doc.periods].sort((a,b)=>a.order-b.order);
@@ -1427,7 +1504,7 @@ function bindCommon(){
     button.onclick=()=>{
     const {courseLevel:level,courseSubject:subject}=button.dataset;
     if(level===STATE.level&&subject===STATE.subject)return;
-    if(level==='legacy'?!STATE.doc.groups.some(g=>g.level===null&&g.subject===subject):!validSubject(level,subject))return;
+    if(level==='legacy'?!STATE.doc.groups.some(g=>g.level===null&&g.subject===subject):!validSubject(level,subject,STATE.doc))return;
     setSubjectChoice(level,subject);
     [...document.querySelectorAll('[data-course-level][data-course-subject]')]
       .find(b=>b.dataset.courseLevel===level&&b.dataset.courseSubject===subject)?.focus({preventScroll:true});
@@ -1455,17 +1532,63 @@ function bindCommon(){
   document.querySelectorAll('[data-rename-period]').forEach(b=>b.onclick=()=>renamePeriodFromTab(b.dataset.renamePeriod));
   $('[data-final-choice]')?.addEventListener('click',()=>{STATE.tab='final';render();});
   $('#accent-select')?.addEventListener('change',e=>commit(d=>setSubjectAccent(d,STATE.level,STATE.subject,e.target.value)).catch(fail));
+  document.querySelectorAll('[data-academic-quick]').forEach(button=>button.addEventListener('click',()=>{
+    const destination=button.dataset.academicQuick;
+    if(!['cuaderno','calculos','competencias'].includes(destination)||!STATE.groupId)return;
+    STATE.tab=destination;render();
+  }));
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{if(STATE.tab==='alumno'&&b.dataset.tab!=='alumno')STATE.studentId=null;if(b.dataset.tab==='curriculo'&&currentGroup()?.subject==='Latín II')STATE.curriculumVersion=officialCompetenciesForGroup(currentGroup(),STATE.competencyVersion)?.version||'2022';STATE.tab=b.dataset.tab;render();});
   $('#edit-group')?.addEventListener('click',openGroupTools);
+  $('#manage-subjects')?.addEventListener('click',openSubjectsManager);
 
+  function openSubjectsManager(){
+    const list=catalogForNotebook(STATE.doc).flatMap(({level,label,subjects})=>subjects.map(subject=>({level,label,subject})));
+    const hidden=Object.entries(COURSE_SUBJECTS).flatMap(([level,entry])=>entry.subjects
+      .filter(subject=>!validSubject(level,subject,STATE.doc)).map(subject=>({level,subject,label:entry.label})));
+    dialog.innerHTML=`<div class="modal-inner subject-manager"><h2 id="modal-heading">Gestionar materias</h2>
+      <p class="subtitle">Las cinco materias originales vienen incluidas. Añade otras o retira las que no utilices; nunca se borran alumnos, notas ni grupos.</p>
+      <div class="subject-manager-list">${list.map(x=>`<div class="subject-manager-row"><span><strong>${esc(x.subject)}</strong><small>${esc(x.label)}</small></span>
+        <button class="btn small warn" type="button" data-remove-subject="${esc(subjectKey(x.level,x.subject))}">Retirar</button></div>`).join('')}</div>
+      <h3>Añadir materia</h3><form id="subject-manager-create">
+       <div class="subject-manager-fields"><label>Etapa<select name="level">${Object.entries(COURSE_SUBJECTS).map(([level,x])=>opt(level,x.label)).join('')}</select></label>
+       <label>Materia<input class="text-field" name="subject" maxlength="65" required placeholder="Ej. Historia o Atención Educativa"/></label>
+       <label>Color<input type="color" name="color" value="#64748B"/></label></div>
+       <div class="modal-error" role="alert"></div><div class="modal-actions"><button type="button" class="btn" id="subject-manager-close">Cerrar</button>
+       <button type="submit" class="btn primary">+ Añadir materia</button></div>
+      </form>
+      ${hidden.length?`<p class="hint">Materias predeterminadas retiradas: ${hidden.map(x=>esc(x.subject)).join(', ')}. Para recuperarlas, escribe exactamente su nombre en la etapa correspondiente.</p>`:''}
+      <p class="hint">Por seguridad, no puedes retirar una materia mientras tenga grupos asociados. Gestiona o elimina esos grupos explícitamente antes.</p></div>`;
+    dialog.querySelector('#subject-manager-close').onclick=()=>dialog.close();
+    dialog.querySelectorAll('[data-remove-subject]').forEach(button=>button.onclick=async()=>{
+      const key=button.dataset.removeSubject,pivot=key.indexOf(':'),level=key.slice(0,pivot),subject=key.slice(pivot+1);
+      if(!window.confirm('¿Retirar «'+subject+'» de los botones? No se eliminará ningún grupo ni calificación.'))return;
+      try{
+        await commit(doc=>removeNotebookSubject(doc,level,subject),'Retirar materia');
+        if(STATE.level===level&&STATE.subject===subject){
+          const first=catalogForNotebook(STATE.doc).flatMap(x=>x.subjects.map(subject=>({level:x.level,subject})))[0];
+          STATE.level=first.level;STATE.subject=first.subject;STATE.groupId=null;
+        }
+        dialog.close();render();
+      }catch(error){dialog.querySelector('.modal-error').textContent=error.message;}
+    });
+    dialog.querySelector('#subject-manager-create').onsubmit=async event=>{
+      event.preventDefault();const form=event.currentTarget,values=Object.fromEntries(new FormData(form));
+      try{
+        await commit(doc=>addNotebookSubject(doc,values.level,values.subject,values.color),'Añadir materia');
+        STATE.level=values.level;STATE.subject=values.subject;STATE.groupId=null;
+        dialog.close();render();
+      }catch(error){form.querySelector('.modal-error').textContent=error.message;}
+    };
+    dialog.showModal();
+  }
   $('#new-group').onclick=()=>{
-    if(!validSubject(STATE.level,STATE.subject))return toast('Selecciona primero un curso y asignatura.');
+    if(!validSubject(STATE.level,STATE.subject,STATE.doc))return toast('Selecciona primero un curso y asignatura.');
     fieldsModal(`Nuevo grupo · ${STATE.subject}`,[{id:'name',label:'Nombre del grupo',value:'Grupo A'},{id:'course',label:'Curso escolar',value:'2026-2027'}],async v=>{
       let group;await commit(d=>{group=addGroup(d,v.name,STATE.subject,v.course,STATE.level);});STATE.groupId=group.id;render();
     },`Asignatura: ${COURSE_SUBJECTS[STATE.level].label} · ${STATE.subject}.`);
   };
   $('#classify-group')?.addEventListener('click',()=>fieldsModal('Clasificar grupo anterior',[{id:'pair',label:'Curso y asignatura',type:'select',options:pairOptions()}],async v=>{
-    const [level,subject]=v.pair.split(':');const groupId=STATE.groupId;
+    const [level,...parts]=v.pair.split(':');const subject=parts.join(':');const groupId=STATE.groupId;
     await commit(d=>classifyGroup(d,groupId,level,subject));STATE.level=level;STATE.subject=subject;STATE.groupId=groupId;render();
   },'No se modificará ningún alumno, actividad o calificación.'));
   $('#new-period')?.addEventListener('click',()=>fieldsModal('Nuevo periodo',[{id:'name',label:'Nombre del periodo',value:`${STATE.doc.periods.length+1}.ª evaluación`}],async v=>{let p;await commit(d=>{p=addPeriod(d,v.name);});STATE.periodId=p.id;STATE.tab='cuaderno';render();}));
@@ -1880,7 +2003,7 @@ function bindSettings(){
   });
   $('#reset-accents').onclick=async()=>{
     if(!window.confirm('¿Restablecer los cinco colores de acento?'))return;
-    try{await commit(d=>{d.settings.subjectAccents={...SUBJECT_COLORS};d.updatedAt=new Date().toISOString();});}catch(e){fail(e);}
+    try{await commit(d=>{d.settings.subjectAccents={...SUBJECT_COLORS,...Object.fromEntries((d.settings.customSubjects||[]).map(x=>[subjectKey(x.level,x.subject),defaultSubjectAccent(x.level,x.subject)]))};d.updatedAt=new Date().toISOString();});}catch(e){fail(e);}
   };
   $('#decimals').onchange=e=>commit(d=>{d.settings.decimals=Number(e.target.value);d.updatedAt=new Date().toISOString();}).catch(fail);
   $('#rounding').onchange=e=>commit(d=>{d.settings.rounding=e.target.value;d.updatedAt=new Date().toISOString();}).catch(fail);
@@ -1903,7 +2026,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v143-dev');
+      const cache=await caches.open('cuaderno-docente-static-v147-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

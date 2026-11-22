@@ -1,4 +1,4 @@
-import {SLOT_TYPES,EVENT_TYPES,EXCEPTION_TYPES,activeYear,localToday,weekday,addDays,daySlots,daySessions,isHoliday,findExamSlots,saveSlot,removeSlot,saveEvent,saveLesson,carryLesson,saveHoliday,saveTask,saveException,deletePlannerItem,setActiveYear,addAcademicYear,updateAcademicYear} from './planner.js';
+import {SLOT_TYPES,EVENT_TYPES,EXCEPTION_TYPES,activeYear,localToday,weekday,addDays,daySlots,daySessions,isHoliday,findExamSlots,saveSlot,removeSlot,saveEvent,saveLesson,carryLesson,saveHoliday,saveTask,saveException,deletePlannerItem,setActiveYear,addAcademicYear,updateAcademicYear,scheduleBands,saveTimetableBand,removeTimetableBand} from './planner.js';
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const shortDays=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
@@ -7,13 +7,33 @@ const dayText=d=>new Date(`${d}T12:00:00Z`).toLocaleDateString('es-ES',{day:'num
 const longDate=d=>new Date(`${d}T12:00:00Z`).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
 const labels=(doc,slot)=>{const g=doc.groups.find(x=>x.id===slot.groupId);return slot.type==='class'?(g?[g.subject,g.name].filter(Boolean).join(' · '):slot.label):(slot.label||SLOT_TYPES[slot.type]);};
 const eventGroup=(doc,e)=>doc.groups.find(g=>g.id===e.groupId);
-const pickGroup=(doc,y)=>doc.groups.filter(g=>g.course===y.name).map(g=>({value:g.id,label:`${g.subject} · ${g.name}`}));
+const pickGroup=(doc,y)=>[...doc.groups].sort((a,b)=>Number(b.course===y.name)-Number(a.course===y.name))
+  .map(g=>({value:g.id,label:`${g.subject} · ${g.name}${g.course===y.name?'':' · '+g.course}`}));
 const action=(txt,attrs,cls='btn small')=>`<button type="button" class="${cls}" ${attrs}>${txt}</button>`;
+/** Horario con filas fijas editables y celdas táctiles por día. Si existen
+ * sesiones anteriores sin franja, se siguen mostrando por separado. */
+export function renderTimetableGrid(doc,y){
+ const bands=scheduleBands(y),paired=new Set();
+ const rows=bands.map(b=>{
+  const cells=longDays.map((day,i)=>{
+   const matches=y.slots.filter(slot=>slot.day===i&&(slot.bandId===b.id||(!slot.bandId&&slot.start===b.start&&slot.end===b.end)));
+   matches.forEach(slot=>paired.add(slot.id));
+   const entries=matches.map(slot=>`<button type="button" class="planner-timetable-assignment" data-edit-slot="${esc(slot.id)}" data-plan-group="${esc(slot.groupId||'')}" data-plan-type="${esc(slot.type)}" aria-label="Editar ${esc(labels(doc,slot))} del ${esc(day)} a las ${esc(b.start)}"><strong>${esc(labels(doc,slot))}</strong>${slot.room?`<small>Aula: ${esc(slot.room)}</small>`:''}</button>`).join('');
+   const free=action(matches.length?'+ Otra clase':b.kind==='break'?'+ Actividad':' + Asignar clase',`data-band-slot="${esc(b.id)}" data-band-day="${i}" aria-label="Asignar clase o actividad el ${esc(day)} en ${esc(b.label)}"`,'planner-timetable-empty');
+   return `<td class="${b.kind==='break'?'planner-timetable-break':''}">${entries}${free}</td>`;
+  }).join('');
+  return `<tr><th scope="row" class="planner-timetable-band ${b.kind==='break'?'planner-timetable-break':''}"><strong>${esc(b.label)}</strong><span>${esc(b.start)}–${esc(b.end)}</span>${action('Editar franja',`data-edit-band="${esc(b.id)}" aria-label="Editar horas de ${esc(b.label)}"`,'planner-timetable-band-edit')}</th>${cells}</tr>`;
+ }).join('');
+ const extras=y.slots.filter(slot=>!paired.has(slot.id));
+ return `<div class="planner-timetable-tools"><p class="hint">Toca cualquier casilla para asignar una materia del cuaderno o escribir otra, como Atención Educativa. Puedes indicar el aula y modificar las horas desde «Editar franja».</p>${action('+ Añadir franja','id="plan-add-band"')}</div>
+ <div class="planner-timetable-scroll" role="region" aria-label="Horario semanal personalizable" tabindex="0"><table class="planner-timetable"><thead><tr><th scope="col">Franja</th>${longDays.map(day=>`<th scope="col">${esc(day)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
+ ${extras.length?`<section class="planner-extra-sessions"><h3>Otras sesiones guardadas</h3><p class="hint">Estas sesiones anteriores o de horario especial se conservan fuera de las franjas predeterminadas.</p><div class="planner-extra-list">${extras.map(slot=>`<div class="planner-schedule-item"><div><small>${esc(longDays[slot.day])} · ${esc(slot.start)}–${esc(slot.end)}</small><strong>${esc(labels(doc,slot))}</strong>${slot.room?`<small>Aula: ${esc(slot.room)}</small>`:''}</div>${action('Editar',`data-edit-slot="${esc(slot.id)}"`)}</div>`).join('')}</div></section>`:''}`;
+}
 const slotCard=(doc,y,date,s,compact=false)=>{
  const lesson=y.lessons.find(x=>x.date===date&&x.slotId===s.id),label=labels(doc,s);
  const canceled=s.exception?.type==='cancel',replacement=s.exception?.type==='replace';
  const tit=replacement?(s.exception.label||label):label;
- return `<div class="planner-slot ${canceled?'planner-cancelled':''}" data-plan-group="${esc(s.groupId||'')}" data-plan-type="${esc(s.type)}"><div class="planner-slot-time">${esc(s.effectiveStart)}–${esc(s.effectiveEnd)}</div><strong>${esc(tit)}</strong>${canceled?'<em>Cancelada</em>':''}${replacement?'<em>Actividad sustituta</em>':''}${s.exception?`<button type="button" class="planner-exception-edit" data-edit-exception="${esc(s.exception.id)}">✎ Cambio excepcional</button>`:''}${lesson?.planned?`<span>${esc(lesson.planned.slice(0,compact?85:240))}</span>`:''}${lesson?.done?'<span class="planner-done">✓ Realizada</span>':''}<button type="button" class="planner-slot-edit" data-lesson-date="${esc(date)}" data-lesson-slot="${esc(s.id)}" aria-label="Planificar ${esc(label)} el ${esc(date)}" ${canceled?'disabled':''}>${lesson?'Editar':'+ Plan'}</button></div>`;
+ return `<div class="planner-slot ${canceled?'planner-cancelled':''}" data-plan-group="${esc(s.groupId||'')}" data-plan-type="${esc(s.type)}"><div class="planner-slot-time">${esc(s.effectiveStart)}–${esc(s.effectiveEnd)}</div><strong>${esc(tit)}</strong>${s.room?`<span class="planner-slot-room">Aula: ${esc(s.room)}</span>`:''}${canceled?'<em>Cancelada</em>':''}${replacement?'<em>Actividad sustituta</em>':''}${s.exception?`<button type="button" class="planner-exception-edit" data-edit-exception="${esc(s.exception.id)}">✎ Cambio excepcional</button>`:''}${lesson?.planned?`<span>${esc(lesson.planned.slice(0,compact?85:240))}</span>`:''}${lesson?.done?'<span class="planner-done">✓ Realizada</span>':''}<button type="button" class="planner-slot-edit" data-lesson-date="${esc(date)}" data-lesson-slot="${esc(s.id)}" aria-label="Planificar ${esc(label)} el ${esc(date)}" ${canceled?'disabled':''}>${lesson?'Editar':'+ Plan'}</button></div>`;
 };
 function dayItems(doc,y,date){
  const sessions=daySessions(y,date),holiday=isHoliday(y,date),events=y.events.filter(x=>x.date===date).sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
@@ -36,7 +56,7 @@ export function renderPlanner(doc,ui){
  const tools=`<div class="planner-tools">${action('+ Clase / horario','id="plan-add-slot"','btn primary')}${action('+ Examen o evento','id="plan-add-event"')}${action('+ Trabajo diario','id="plan-add-lesson"')}${action('+ Tarea','id="plan-add-task"')}${action('+ Festivo / vacaciones','id="plan-add-holiday"')}${action('+ Cambio excepcional','id="plan-add-exception"')}</div>`;
  let body='';
  if(mode==='schedule'){
-  body=`<div class="planner-schedule">${longDays.map((day,i)=>`<section class="planner-schedule-day"><h3>${day}${action('+',`data-slot-day="${i}"`,'btn small planner-day-add')}</h3>${y.slots.filter(s=>s.day===i).sort((a,b)=>a.start.localeCompare(b.start)).map(s=>`<div class="planner-schedule-item" data-plan-group="${esc(s.groupId||'')}" data-plan-type="${esc(s.type)}"><div><small>${esc(s.start)}–${esc(s.end)}</small><strong>${esc(labels(doc,s))}</strong></div>${action('Editar',`data-edit-slot="${esc(s.id)}"`)}</div>`).join('')||'<p class="hint">Sin sesiones</p>'}</section>`).join('')}</div>`;
+  body=renderTimetableGrid(doc,y);
  } else if(mode==='day')body=dayItems(doc,y,focus);
  else if(mode==='week')body=`<div class="planner-week">${Array.from({length:5},(_,i)=>{const d=addDays(start,i),holiday=isHoliday(y,d),events=y.events.filter(e=>e.date===d);return `<section class="planner-weekday"><button type="button" class="planner-date-heading" data-go-date="${d}">${shortDays[i]} <strong>${dayText(d)}</strong></button>${holiday?`<div class="planner-holiday">${esc(holiday.name)}</div>`:''}${daySessions(y,d).map(s=>slotCard(doc,y,d,s,true)).join('')}${events.map(e=>`<button type="button" class="planner-week-event" data-edit-event="${esc(e.id)}">${isHoliday(y,d)||y.exceptions.some(x=>x.date===d&&x.slotId===e.slotId&&['cancel','replace'].includes(x.type))?'⚠ ':''}${esc(e.time||'')} · ${esc(e.title)}</button>`).join('')}${y.tasks.filter(t=>t.dueDate===d).map(t=>`<button type="button" class="planner-week-task" data-edit-task="${esc(t.id)}">${t.done?'✓ ':'☐ '}${esc(t.title)}</button>`).join('')}${action('+ Nota',`data-add-lesson="${d}"`,'planner-add-note')}</section>`;}).join('')}</div>`;
  else{
@@ -69,6 +89,12 @@ export function bindPlanner(doc,ui,ctx){
  all('[data-go-date]').forEach(b=>b.onclick=()=>{ui.plannerDate=b.dataset.goDate;ui.plannerMode='day';redraw();});
  $('#plan-add-slot').onclick=()=>slotModal();all('[data-slot-day]').forEach(b=>b.onclick=()=>slotModal(null,Number(b.dataset.slotDay)));
  all('[data-edit-slot]').forEach(b=>b.onclick=()=>slotModal(y.slots.find(s=>s.id===b.dataset.editSlot)));
+ all('[data-band-slot]').forEach(b=>b.onclick=()=>{
+  const band=scheduleBands(activeYear(ctx.getDoc())).find(x=>x.id===b.dataset.bandSlot);
+  if(band)slotModal(null,Number(b.dataset.bandDay),band);
+ });
+ all('[data-edit-band]').forEach(b=>b.onclick=()=>bandModal(scheduleBands(activeYear(ctx.getDoc())).find(x=>x.id===b.dataset.editBand)));
+ $('#plan-add-band')?.addEventListener('click',()=>bandModal());
  $('#plan-add-event').onclick=()=>eventModal({date:dateNow()});
  all('[data-add-event]').forEach(b=>b.onclick=()=>eventModal({date:b.dataset.addEvent}));
  all('[data-edit-event]').forEach(b=>b.onclick=()=>eventModal({event:y.events.find(e=>e.id===b.dataset.editEvent)}));
@@ -87,9 +113,49 @@ export function bindPlanner(doc,ui,ctx){
  $('#plan-export-ics').onclick=()=>exportIcs();$('#plan-print').onclick=()=>window.print();
  const groupOptions=()=>[{value:'',label:'Sin grupo (personal)'},...pickGroup(ctx.getDoc(),activeYear(ctx.getDoc()))];
  const delButton=(collection,id)=>{const b=document.createElement('button');b.className='btn warn';b.type='button';b.textContent='Eliminar';b.onclick=async()=>{if(!window.confirm('¿Eliminar este elemento de la agenda? Las notas del cuaderno no cambian.'))return;ctx.dialog.close();try{await ctx.commit(d=>deletePlannerItem(d,collection,id),'Eliminar del planificador');}catch(e){ctx.fail(e);}};ctx.dialog.querySelector('.modal-actions').prepend(b);};
- function slotModal(s=null,selectedDay=(weekday(dateNow())<5?weekday(dateNow()):0)){
-  ctx.fieldsModal(s?'Editar sesión semanal':'Añadir sesión semanal',[{id:'day',label:'Día',type:'select',value:String(s?.day??selectedDay),options:longDays.map((l,i)=>({value:String(i),label:l}))},{id:'start',label:'Desde',type:'time',value:s?.start||'08:00'},{id:'end',label:'Hasta',type:'time',value:s?.end||'08:55'},{id:'type',label:'Tipo',type:'select',value:s?.type||'class',options:Object.entries(SLOT_TYPES).map(([value,label])=>({value,label}))},{id:'groupId',label:'Grupo (si es clase del cuaderno)',type:'select',required:false,value:s?.groupId||'',options:groupOptions()},{id:'label',label:'Asignatura manual o detalle (si procede)',required:false,value:s?.label||''}],v=>ctx.commit(d=>saveSlot(d,{...v,id:s?.id||null,groupId:v.groupId||null}),'Configurar horario'));
-  if(s){const button=document.createElement('button');button.className='btn warn';button.type='button';button.textContent='Eliminar sesión';button.onclick=async()=>{if(!window.confirm('¿Eliminar esta sesión semanal? Los planes ya escritos conservarán su fecha y texto.'))return;ctx.dialog.close();try{await ctx.commit(d=>removeSlot(d,s.id),'Eliminar sesión del horario');}catch(e){ctx.fail(e);}};ctx.dialog.querySelector('.modal-actions').prepend(button);}
+ function bandModal(b=null){
+  ctx.fieldsModal(b?'Editar franja horaria':'Añadir franja horaria',[
+   {id:'label',label:'Nombre de la franja',value:b?.label||'Nueva franja',maxlength:70},
+   {id:'start',label:'Desde',type:'time',value:b?.start||'15:15'},
+   {id:'end',label:'Hasta',type:'time',value:b?.end||'16:10'},
+   {id:'kind',label:'Tipo',type:'select',value:b?.kind||'lesson',options:[{value:'lesson',label:'Hora lectiva'},{value:'break',label:'Patio / descanso'}]}
+  ],v=>ctx.commit(d=>saveTimetableBand(d,{...v,id:b?.id||null}),'Editar franjas del horario'),
+  'Las horas de las clases asignadas a esta franja se actualizarán junto a ella.');
+  if(b){
+   const button=document.createElement('button');
+   button.type='button';button.className='btn warn';button.textContent='Eliminar franja';
+   button.onclick=async()=>{
+    if(!window.confirm('¿Eliminar esta franja? Las clases asignadas impedirán borrarla hasta que las retires.'))return;
+    try{await ctx.commit(d=>removeTimetableBand(d,b.id),'Eliminar franja del horario');ctx.dialog.close();}
+    catch(error){ctx.dialog.querySelector('.modal-error').textContent=error.message;}
+   };
+   ctx.dialog.querySelector('.modal-actions').prepend(button);
+  }
+ }
+ function slotModal(s=null,selectedDay=(weekday(dateNow())<5?weekday(dateNow()):0),band=null){
+  const linked=band||scheduleBands(y).find(x=>x.id===s?.bandId);
+  ctx.fieldsModal(s?'Editar sesión semanal':'Asignar clase o actividad',[
+   {id:'day',label:'Día',type:'select',value:String(s?.day??selectedDay),options:longDays.map((l,i)=>({value:String(i),label:l}))},
+   {id:'start',label:'Desde',type:'time',value:s?.start||linked?.start||'08:00'},
+   {id:'end',label:'Hasta',type:'time',value:s?.end||linked?.end||'08:55'},
+   {id:'type',label:'Tipo',type:'select',value:s?.type||(linked?.kind==='break'?'otro':'class'),options:Object.entries(SLOT_TYPES).map(([value,label])=>({value,label}))},
+   {id:'groupId',label:'Clase del cuaderno (opcional)',type:'select',required:false,value:s?.groupId||'',options:groupOptions()},
+   {id:'label',label:'Otra asignatura / actividad (si no eliges clase)',required:false,value:s?.label||(linked?.kind==='break'?'Patio':'')},
+   {id:'room',label:'Aula (opcional)',required:false,value:s?.room||'',maxlength:60}
+  ],v=>ctx.commit(d=>{
+   const validBand=linked&&v.start===linked.start&&v.end===linked.end?linked.id:null;
+   saveSlot(d,{...v,id:s?.id||null,groupId:v.groupId||null,bandId:validBand});
+  },'Configurar horario'),
+  'Selecciona una clase del cuaderno o escribe una materia manual (p. ej. Atención Educativa). Aula y horas son editables.');
+  if(s){
+   const button=document.createElement('button');button.className='btn warn';button.type='button';button.textContent='Eliminar sesión';
+   button.onclick=async()=>{
+    if(!window.confirm('¿Eliminar esta sesión semanal? Los planes ya escritos conservarán su fecha y texto.'))return;
+    try{await ctx.commit(d=>removeSlot(d,s.id),'Eliminar sesión del horario');ctx.dialog.close();}
+    catch(error){ctx.dialog.querySelector('.modal-error').textContent=error.message;}
+   };
+   ctx.dialog.querySelector('.modal-actions').prepend(button);
+  }
  }
  function holidayModal(h=null){ctx.fieldsModal(h?'Editar día no lectivo':'Añadir festivo o vacaciones',[{id:'name',label:'Motivo',value:h?.name||'Festivo'},{id:'start',label:'Desde',type:'date',value:h?.start||dateNow()},{id:'end',label:'Hasta (mismo día si es festivo suelto)',type:'date',value:h?.end||dateNow()}],v=>ctx.commit(d=>saveHoliday(d,{...v,id:h?.id||null}),'Festivo o vacaciones'));if(h)delButton('holidays',h.id);}
  function taskModal(t=null){ctx.fieldsModal(t?'Editar recordatorio':'Nueva tarea personal',[{id:'title',label:'Tarea',value:t?.title||''},{id:'dueDate',label:'Fecha prevista',type:'date',value:t?.dueDate||dateNow()},{id:'groupId',label:'Grupo (opcional)',type:'select',required:false,value:t?.groupId||'',options:groupOptions()},{id:'notes',label:'Observaciones',required:false,value:t?.notes||''},{id:'done',label:'Estado',type:'select',value:String(t?.done||false),options:[{value:'false',label:'Pendiente'},{value:'true',label:'Realizada'}]}],v=>ctx.commit(d=>saveTask(d,{...v,id:t?.id||null,groupId:v.groupId||null,done:v.done==='true'}),'Tarea personal'));if(t)delButton('tasks',t.id);}

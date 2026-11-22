@@ -102,6 +102,29 @@ export function itacaGrade(doc,studentId,groupId,periodId){
   const fraction=average-base;
   return Math.min(10,base+(fraction+1e-10>=(rule==='seven'?0.7:0.5)?1:0));
 }
+/** Escala competencial descendente: 1 = máxima adquisición; 4 = no adquirida.
+ * Se convierte la media íntegra de 0–10, SIN redondeos intermedios.
+ * Los límites exactos 5, 6.5 y 8 pasan al nivel inmediatamente superior.
+ * Sin evidencias o fuera de 0–10 no debe mostrarse nivel alguno.
+ */
+export const COMPETENCY_ACQUISITION_LABELS=Object.freeze({
+  1:'Adquisición alta',
+  2:'Adquisición media',
+  3:'Adquisición baja',
+  4:'No adquirida'
+});
+export function competencyAcquisitionLevel(grade){
+  if(typeof grade!=='number'||!Number.isFinite(grade)||grade<0||grade>10+1e-8)return null;
+  if(grade<5)return 4;
+  if(grade<6.5)return 3;
+  if(grade<8)return 2;
+  return 1;
+}
+export function competencyAcquisitionLabel(grade){
+  const level=competencyAcquisitionLevel(grade);
+  return level===null?null:COMPETENCY_ACQUISITION_LABELS[level];
+}
+
 export function competencyGrade(doc,studentId,competencyId,groupId,periodId) {
   const comp=doc.competencies.find(c=>c.id===competencyId);
   if(!comp||!doc.students.some(s=>s.id===studentId&&s.groupId===groupId)||
@@ -113,9 +136,7 @@ export function competencyGrade(doc,studentId,competencyId,groupId,periodId) {
   const grade=weightedGrade(entries,e=>e.grade,e=>e.weight);
   return grade===null||!isTenGrade(grade)?null:grade;
 }
-/* Media aritmética de competencias ya calculadas: cada CE aporta una sola nota,
- * sin reutilizar ni sumar los pesos con los que se obtuvo cada una de ellas.
- * Solo intervienen competencias evaluadas, sin redondeos intermedios ni persistencia. */
+/** Media aritmética REAL de competencias evaluadas, sin ponderación entre CE. */
 export function competencyArithmeticMean(doc,studentId,competencyIds,groupId,periodId){
   if(!Array.isArray(competencyIds))throw new Error('Lista de competencias inválida.');
   if(!doc.students.some(s=>s.id===studentId&&s.groupId===groupId)||!doc.periods.some(p=>p.id===periodId))return null;
@@ -124,9 +145,9 @@ export function competencyArithmeticMean(doc,studentId,competencyIds,groupId,per
     .filter(grade=>grade!==null);
   return mean(values);
 }
-/** Equivalencia lineal continua: 0/10 -> 1/4; 10/10 -> 4/4. */
+/** Escala de adquisición 1–4: 1 = alta; 4 = no adquirida. No es lineal. */
 export function gradeToFour(scoreTen){
-  return isTenGrade(scoreTen)?1+scoreTen*3/10:null;
+  return competencyAcquisitionLevel(scoreTen);
 }
 export function roundGrade(n,decimals=2,method='half-up') {
   if(n===null || n===undefined || !Number.isFinite(n))return null;

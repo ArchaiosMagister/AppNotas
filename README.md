@@ -148,6 +148,10 @@ El ZIP original v1.19 sigue disponible sin cambios en `releases/v1.19/part_*.b64
 
 Para reproducir la extracción histórica en una carpeta vacía, usa `CUADERNO_OUTPUT_DIR=/ruta/temporal python3 scripts/export_source_tree.py`. No utilices ese procedimiento para editar o desplegar la PWA habitual.
 
-## Comprobación manual aún necesaria
+## Aceptación docente de v1.0 y cautelas de uso
 
-Antes de usar datos reales, probar con un cuaderno ficticio: entrada y cálculo de calificaciones, reglas Ítaca, excepciones individuales, exportación e importación cifrada, cierre y reapertura, funcionamiento sin conexión y actualización de la PWA en Safari de macOS, iPhone y iPad. Las pruebas automáticas no sustituyen esta verificación.
+El 22/11/2026 el usuario validó **las nueve comprobaciones** en la vista previa de Cloudflare de la PR #27 con datos ficticios, sin comunicar incidencias: desbloqueo, guía, nombres y botones, vista individual, catálogo seguro de materias, horario editable con siete clases y dos patios, currículo/escala competencial, verificación y restauración de copia cifrada en otro navegador o dispositivo de prueba y trabajo offline tras cerrar y reabrir. Confirmó también legibilidad en temas claro, oscuro y OLED.
+
+La aceptación docente **no equivale a una auditoría independiente de seguridad**. Para los datos académicos reales se deben respetar las instrucciones del centro, trabajar solo en dispositivos autorizados y conservar las copias cifradas en soportes locales **no sincronizados**; una carpeta de iCloud Drive, OneDrive o Google Drive no cumple la condición de almacenamiento exclusivamente local. La aplicación sirve archivos estáticos desde Cloudflare y almacena los cuadernos cifrados en el dispositivo. Una contraseña perdida no se puede recuperar.
+
+La versión de producción se despliega **solo en Cloudflare Pages** desde `main`. El contenido de vistas previas de otras ramas pertenece a otro origen y **no se traslada** automáticamente al sitio oficial. Ante actualizaciones importantes, exportar, verificar y conservar una copia local antes de modificar el cuaderno.
