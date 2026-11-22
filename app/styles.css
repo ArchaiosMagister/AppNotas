@@ -2398,3 +2398,120 @@ html[data-theme="oled"] .grade-table .np-button[aria-pressed="true"]{
   .grade-table .note-input.np-grade-input,
   .grade-table .note-input.np-grade-input::placeholder{font-size:17px}
 }
+
+
+/* v143 · Horario base docente: filas de horas y patios que se pueden pulsar.
+   La tabla se desplaza horizontalmente en iPhone sin reducir las casillas. */
+.planner-timetable-tools{
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:9px;margin-bottom:12px;
+}
+.planner-timetable-tools .hint{flex:1 1 290px;max-width:800px;line-height:1.5}
+.planner-timetable-scroll{
+  width:100%;overflow-x:auto;overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;border:1px solid var(--line);
+  border-radius:12px;background:var(--surface);
+}
+.planner-timetable{
+  table-layout:fixed;border-collapse:separate;border-spacing:0;
+  min-width:910px;width:100%;
+  font-family:var(--app-humanist,system-ui,sans-serif);font-size:12px;
+}
+.planner-timetable th,.planner-timetable td{
+  padding:8px;border-right:1px solid var(--line);
+  border-bottom:1px solid var(--line);vertical-align:top;
+}
+.planner-timetable tr>:last-child{border-right:0}
+.planner-timetable tbody tr:last-child>*{border-bottom:0}
+.planner-timetable thead th{
+  background:var(--raised);font-weight:800;text-align:center;
+  position:sticky;top:0;z-index:2;
+}
+.planner-timetable thead th:first-child,
+.planner-timetable .planner-timetable-band{
+  position:sticky;left:0;z-index:3;
+  width:150px;min-width:150px;max-width:150px;
+  background:var(--raised);
+  box-shadow:4px 0 9px -6px #0005;
+  text-align:left;
+}
+.planner-timetable thead th:first-child{z-index:4}
+.planner-timetable .planner-timetable-band strong,
+.planner-timetable .planner-timetable-band span{
+  display:block;line-height:1.3;overflow-wrap:anywhere;
+}
+.planner-timetable .planner-timetable-band strong{
+  color:var(--ink);font-size:13px;font-weight:850;
+}
+.planner-timetable .planner-timetable-band span{
+  color:var(--muted);font-size:11px;font-weight:720;margin:5px 0;
+}
+.planner-timetable-band-edit{
+  font:750 11px/1.3 var(--app-humanist,system-ui,sans-serif);
+  border:1px solid var(--line);border-radius:7px;
+  background:var(--surface);color:var(--ink);
+  min-height:34px;padding:5px 7px;width:100%;
+}
+.planner-timetable td{width:calc((100% - 150px)/5);min-width:145px;background:var(--surface)}
+.planner-timetable .planner-timetable-break{
+  background:color-mix(in srgb,#d5a858 11%,var(--surface));
+}
+.planner-timetable .planner-timetable-band.planner-timetable-break{
+  border-left:4px solid #be954d;
+}
+.planner-timetable-assignment,.planner-timetable-empty{
+  border-radius:9px;display:flex;flex-direction:column;
+  align-items:stretch;justify-content:center;
+  gap:4px;line-height:1.3;width:100%;min-height:48px;
+  padding:8px 7px;text-align:left;
+  font:650 12px/1.35 var(--app-humanist,system-ui,sans-serif);
+  overflow-wrap:anywhere;
+}
+.planner-timetable-assignment{
+  border:1px solid color-mix(in srgb,var(--planner-color,var(--accent)) 45%,var(--line));
+  border-left:4px solid var(--planner-color,var(--accent));
+  background:color-mix(in srgb,var(--planner-color,var(--accent)) 11%,var(--surface));
+  color:var(--ink);margin-bottom:6px;
+}
+.planner-timetable-assignment strong{font-size:12px;font-weight:800}
+.planner-timetable-assignment small{color:var(--muted);font-size:11px;font-weight:750}
+.planner-timetable-empty{
+  border:1px dashed var(--line);background:var(--surface);color:var(--muted);
+  font-weight:730;align-items:center;text-align:center;
+}
+.planner-timetable button:hover,.planner-timetable button:focus-visible{
+  border-color:var(--accent);outline-offset:2px;
+}
+.planner-timetable-empty:hover,.planner-timetable-empty:focus-visible{
+  background:var(--accent-soft);color:var(--ink);
+}
+.planner-extra-sessions{
+  padding:13px 0;margin-top:12px;border-top:1px solid var(--line);
+}
+.planner-extra-sessions h3{margin:0;font-size:17px}
+.planner-extra-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:9px}
+.planner-extra-list .planner-schedule-item{display:flex;justify-content:space-between}
+html[data-theme="oled"] .planner-timetable-scroll,
+html[data-theme="oled"] .planner-timetable td,
+html[data-theme="oled"] .planner-timetable th,
+html[data-theme="oled"] .planner-timetable-assignment,
+html[data-theme="oled"] .planner-timetable-empty{
+  background:#000!important;color:var(--ink);
+}
+html[data-theme="oled"] .planner-timetable .planner-timetable-break{
+  background:#000!important;border-left-color:#bb9456;
+}
+@media(max-width:640px){
+  .planner-timetable{min-width:815px}
+  .planner-timetable thead th:first-child,
+  .planner-timetable .planner-timetable-band{
+    width:130px;min-width:130px;max-width:130px;
+  }
+  .planner-timetable td{min-width:137px}
+}
+@media print{
+  .planner-timetable-scroll{overflow:visible;border:0}
+  .planner-timetable{min-width:0;font-size:10px}
+  .planner-timetable td{min-width:0}
+  .planner-timetable-band-edit,.planner-timetable-empty{display:none!important}
+}
