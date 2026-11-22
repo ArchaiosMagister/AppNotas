@@ -23,11 +23,14 @@ test('Rúbrica coloca valor y controles en dos niveles igual que la entrada ordi
   const end=js.indexOf('const ITACA_OPTIONS=',begin);
   assert(begin>=0&&end>begin);
   const table=js.slice(begin,end);
-  assert(table.includes('<div class="grade-entry rubric-grade-entry"><button class="rubric-grade-button"'));
-  assert(table.includes('<small>${g?.notSubmitted?\'Pulsar para editar\':\'/10\'}</small></button></div>${gradeCellActions(s,a,g,npButton,ajButton)}</td>'));
+  assert(table.includes('const gradeCellStack=(main,actions,secondary='));
+  assert(table.includes('gradeCellStack(main,gradeCellActions(s,a,g,npButton,ajButton),secondary)'));
+  assert(!table.includes("g?.notSubmitted?'Pulsar para editar':'/10'"),
+    'El /10 es redundante junto a la cifra principal');
   assert(table.includes("g?.notSubmitted?npGradeMarker:g?gradeChip(score)"),
     'La rúbrica muestra NP en la nota sin desactivar el botón de edición');
-  assert(table.includes('<div class="grade-entry ${showConverted?'));
+  assert(table.includes('const main=showConverted'));
+  assert(table.includes('const secondary=showConverted'));
   for(const control of ['data-rubric-grade','data-rubric-student','data-np-student',
                         'data-aj-student','data-observation-student','data-orthography-grade'])
     assert(table.includes(control),'Control desaparecido: '+control);
