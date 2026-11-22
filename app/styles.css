@@ -3659,7 +3659,7 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   .tabs .nav-primary>.tab,
   .tabs .academic-disclosure>summary{
     display:grid;
-    grid-template-rows:19px auto;
+    grid-template-rows:19px minmax(26px,auto);
     justify-items:center;
     align-content:center;
     row-gap:3px;
@@ -3677,8 +3677,8 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   }
   .tabs .nav-primary>.tab .nav-text,
   .tabs .academic-disclosure>summary .nav-text{
-    display:block;flex:none;align-self:start;
-    width:100%;min-width:0;max-width:100%;
+    display:flex;flex:none;align-items:center;justify-content:center;
+    width:100%;min-width:0;max-width:100%;min-height:26px;
     margin:0;font-size:11px;line-height:1.2;
     overflow-wrap:anywhere;text-align:center;
   }
