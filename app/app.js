@@ -1898,7 +1898,7 @@ function openAssessmentTools(id){
 function openItacaAttitudeCondition(){
  const groupId=STATE.groupId,periodId=STATE.periodId,doc=STATE.doc;
  const eligible=effectiveCategories(doc,groupId,periodId).filter(c=>
-  c.name.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').trim().toLowerCase().startsWith('actitud'));
+  c.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().startsWith('actitud'));
  if(!eligible.length){
   toast('Primero debes disponer de una categoría Actitud para este grupo.');return;
  }
