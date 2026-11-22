@@ -7,19 +7,20 @@ import {overallGrade} from '../src/calculations.js';
 const read=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
 const v132=css=>css.slice(css.indexOf('/* v132 · Los selectores'));
 
-test('Asignatura y Grupo ofrecen títulos equivalentes y campos de igual altura',async()=>{
+test('materias en botones visibles y grupos contextuales, sin desplegables',async()=>{
   const [app,css]=await Promise.all([read('app.js'),read('styles.css')]);
-  assert(app.includes('<span class="course-picker-label">Asignatura</span><span class="course-selection">'));
-  assert(app.includes('<label class="current-group-label"><span class="group-picker-label">Grupo</span><select id="group-select"'));
-  const patch=v132(css);
-  assert(patch.startsWith('/* v132 · Los selectores'));
-  assert(patch.includes('.course-picker-label,\n.class-toolbar .selectors label.current-group-label .group-picker-label'));
-  assert(patch.includes('line-height:14px'));
-  assert(patch.includes('min-height:44px'));
-  assert(patch.includes('height:44px'));
-  assert(patch.includes('text-overflow:ellipsis'));
-  assert(patch.includes('label.current-group-label{\n    flex:none;'));
-  assert(patch.includes('html[data-theme="oled"] .class-toolbar'));
+  const view=app.slice(app.indexOf('function render(){'),app.indexOf('function renderNotebook(){'));
+  assert(view.includes('class="course-switch"'));
+  assert(view.includes('class="course-buttons"'));
+  assert(view.includes('class="group-buttons"'));
+  assert(view.includes('data-group-choice='));
+  assert(!view.includes('id="group-select"'));
+  assert(!view.includes('data-shell-disclosure="course"'));
+  assert(css.includes('/* v138 · Selección directa de materia y grupos contextuales'));
+  assert(css.includes('.class-toolbar .course-switch .course-buttons'));
+  assert(css.includes('grid-template-columns:repeat(5,minmax(0,1fr))'));
+  assert(css.includes('.class-toolbar .group-choice[aria-pressed="true"]'));
+  assert(css.includes('min-height:44px'));
 });
 
 test('Herramientas cabe en el ancho disponible de iPhone y mantiene desplazamiento vertical',async()=>{
