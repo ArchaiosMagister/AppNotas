@@ -1,3 +1,14 @@
+## Auditoría de estabilidad de evaluaciones (v158)
+
+Se han revisado los flujos de tutorías, convocatorias, calendario, conciliación histórica, formularios y carga del visor conjunto, sin modificar criterios ni fórmulas de calificación.
+
+- **Renombrado:** al cambiar el nombre de una tutoría confirmada, se actualizan también los títulos de sus convocatorias comunes en Agenda y en archivos de calendario (.ics); conservando IDs, fechas, horas, notas y archivo histórico cifrado. Los títulos archivados conservan la denominación original.
+- **Cancelación segura:** si se rechaza la segunda confirmación de unificación, no se guarda ningún cambio y el formulario permanece abierto con la elección realizada. La acción de guardar normal sigue cerrándose y los errores continúan visibles.
+- **Rendimiento:** se reutilizan las tarjetas de grupos ya calculadas; la pestaña de notas evita búsquedas de coincidencias de alumnado y la pestaña de tutorías evita construir el listado de sesiones. Retirado un manejador sin botones activos para sugerencias antiguas.
+- **Regresión:** pruebas específicas de títulos, ICS, no mutación de notas ni fechas, historial conservado, cancelación de modales y renderizado por pestaña; comprobaciones globales de integridad, modelo cifrado y despliegue Cloudflare.
+
+No se han introducido cambios en el diseño ni en las acciones de botones sin aprobación docente.
+
 ## Tarjetas de sesiones organizadas por evaluación
 
 La pestaña **Sesiones** del apartado **Sesiones de evaluación** se organiza por **1.ª, 2.ª y 3.ª evaluación**, en lugar de agrupar primero por materia o tutoría. Cada evaluación muestra una **cuadrícula compacta de tarjetas**, con la tutoría/grupo, asignaturas, fecha, hora de inicio y, si se ha indicado, hora de finalización.
