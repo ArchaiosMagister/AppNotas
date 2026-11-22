@@ -267,12 +267,17 @@ export function assertModel(doc) {
     if(identityGroups.has(key))throw new Error('La misma identidad aparece dos veces en una asignatura.');
     identityGroups.add(key);
   }
+  // El cotejo no depende de tildes, puntos de ordinales ni de «Bachillerato/BACH»:
+  // la validación debe aceptar las mismas equivalencias que el vinculador.
+  const canonicalTutoringName=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLocaleLowerCase('es').replace(/bachillerato/g,'bach').replace(/1\.?[º°ª]/g,'1').replace(/2\.?[º°ª]/g,'2')
+    .replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
   const shared=new Map();
   for(const s of doc.students.filter(s=>s.personId)){
     const g=doc.groups.find(g=>g.id===s.groupId);
     const prev=shared.get(s.personId);
     if(prev&&(prev.course!==g.course||prev.level!==g.level||
-      prev.origin&&s.originGroup&&prev.origin.normalize('NFD').toLowerCase()!==s.originGroup.normalize('NFD').toLowerCase()))
+      prev.origin&&s.originGroup&&canonicalTutoringName(prev.origin)!==canonicalTutoringName(s.originGroup)))
       throw new Error('Identidad vinculada a cursos o tutorías incompatibles.');
     shared.set(s.personId,{course:g.course,level:g.level,origin:prev?.origin||s.originGroup||''});
   }
