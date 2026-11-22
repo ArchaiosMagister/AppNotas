@@ -134,7 +134,7 @@ export const catalogForNotebook=doc=>Object.entries(COURSE_SUBJECTS).map(([level
 const existingSubject=(doc,level,subject)=>catalogForNotebook(doc).some(entry=>entry.level===level&&entry.subjects.includes(subject));
 const validSubjectName=subject=>typeof subject==='string'&&subject===subject.trim()&&subject.length>0&&subject.length<=65&&!/[:<>\x00-\x1f]/.test(subject);
 export function addNotebookSubject(doc,level,subject,color='#64748B'){
- if(!COURSE_SUBJECTS[level]||!validSubjectName(subject)||!/^#[0-9A-Fa-f]{6}$/.test(color))throw new Error('Etapa, nombre o color de la materia no válido.');
+ if(!Object.hasOwn(COURSE_SUBJECTS,level)||!validSubjectName(subject)||!/^#[0-9A-Fa-f]{6}$/.test(color))throw new Error('Etapa, nombre o color de la materia no válido.');
  if(existingSubject(doc,level,subject))throw new Error('Esa materia ya está disponible en esta etapa.');
  const key=subjectKey(level,subject);
  const settings=doc.settings;
@@ -217,7 +217,7 @@ export function initialNotebook({empty=false}={}) {
   ];
   const grades = students.flatMap((s,i)=>assessments.map((p,j)=>mark({id:uid(),studentId:s.id,assessmentId:p.id,score:matrix[i][j],createdAt:now()})));
   const competencies = empty?[]:[mark({id:uid(),name:'CE1 · Interpretación de textos',links:[{categoryId:e.id,weight:70},{categoryId:t.id,weight:30}],createdAt:now()})];
-  return {schemaVersion:SCHEMA_VERSION,planner:createPlanner(group.course),gradingProfiles:[],individualCategoryRules:[],rubrics:[],finalConfigs:[],finalOverrides:[],id:uid(),title:'CuadernoDocente',createdAt:now(),updatedAt:now(),settings:{decimals:2,rounding:'half-up',orthographyDefaults:{...ORTHOGRAPHY_DEFAULTS},subjectAccents:{...SUBJECT_COLORS}},groups:empty?[]:[group],periods:[period,...otherPeriods],categories:[e,t,a],students,assessments,grades,gradeObservations:[],competencies};
+  return {schemaVersion:SCHEMA_VERSION,planner:createPlanner(group.course),gradingProfiles:[],individualCategoryRules:[],rubrics:[],finalConfigs:[],finalOverrides:[],id:uid(),title:'CuadernoDocente',createdAt:now(),updatedAt:now(),settings:{decimals:2,rounding:'half-up',orthographyDefaults:{...ORTHOGRAPHY_DEFAULTS},subjectAccents:{...SUBJECT_COLORS},customSubjects:[],hiddenSubjects:[]},groups:empty?[]:[group],periods:[period,...otherPeriods],categories:[e,t,a],students,assessments,grades,gradeObservations:[],competencies};
 }
 
 /** Cuaderno sin datos de demostración: conserva solo tres evaluaciones y categorías base. */
@@ -243,7 +243,7 @@ export function assertModel(doc) {
   )))throw new Error('Grupo con curso o asignatura inválidos.');
   if(!doc.settings||!doc.settings.subjectAccents||Object.keys(SUBJECT_COLORS).some(k=>!/^#[0-9A-Fa-f]{6}$/.test(doc.settings.subjectAccents[k]??'')))throw new Error('Colores de asignatura inválidos.');
  const custom=doc.settings.customSubjects||[],hidden=doc.settings.hiddenSubjects||[];
- if(!Array.isArray(custom)||custom.length>100||custom.some(x=>!x||!COURSE_SUBJECTS[x.level]||!validSubjectName(x.subject)||COURSE_SUBJECTS[x.level].subjects.includes(x.subject))||
+ if(!Array.isArray(custom)||custom.length>100||custom.some(x=>!x||!Object.hasOwn(COURSE_SUBJECTS,x.level)||!validSubjectName(x.subject)||COURSE_SUBJECTS[x.level].subjects.includes(x.subject))||
     new Set(custom.map(x=>subjectKey(x.level,x.subject))).size!==custom.length||
     !Array.isArray(hidden)||hidden.some(x=>!Object.hasOwn(SUBJECT_COLORS,x))||new Set(hidden).size!==hidden.length||
     catalogForNotebook(doc).every(entry=>!entry.subjects.length))throw new Error('Catálogo de materias inválido.');
