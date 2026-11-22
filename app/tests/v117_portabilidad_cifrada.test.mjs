@@ -136,5 +136,5 @@ test('copia histórica .cdoc puede migrarse sin atribuirle falsamente un histori
 });
 test('nombres portátiles apropiados y sin nombres del alumnado',()=>{
   const file=portableFilename(new Date('2026-11-21T16:30:00Z'));
-  assert.match(file,/^Tabularium_\d{4}-\d\d-\d\d_\d{4}\.cuaderno$/);
+  assert.match(file,/^Tabularium_\d{4}-\d\d-\d\d_\d{6}\.cuaderno$/);
 });

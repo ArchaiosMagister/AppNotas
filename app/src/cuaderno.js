@@ -40,16 +40,67 @@ export function markBookChange(next,previous){
   next._portability={...p,head:crypto.randomUUID(),revision:p.revision+1,ancestors};
   validateBookMetadata(next);
 }
-/** `older` significa que la copia que se quiere importar antecede al contenido local. */
+/** Protección por relación acreditada, sin usar el nombre ni la fecha del archivo.
+ * Nivel 0: posterior/vacío; nivel 1: anterior/divergente; nivel 2: diferente/desconocido.
+ * Un estado no reconocido nunca rebaja el nivel de seguridad.
+ */
+export const IMPORT_CONFIRMATION_TEXT='SUSTITUIR';
+export function importRiskLevel(conflict,hasLocal){
+  if(!hasLocal)return 0;
+  if(conflict==='newer'||conflict==='same')return 0;
+  if(conflict==='older'||conflict==='divergent')return 1;
+  return 2;
+}
+export function highRiskImport(conflict,hasLocal){
+  return importRiskLevel(conflict,hasLocal)>0;
+}
+export function canConfirmImport(conflict,hasLocal,approval={}){
+  if(conflict==='same')return false; // Evita sustituir datos idénticos.
+  const level=importRiskLevel(conflict,hasLocal);
+  if(level===0)return conflict==='newer'||conflict==='empty';
+  if(level===1)return approval?.accepted===true;
+  return approval?.phrase===IMPORT_CONFIRMATION_TEXT;
+}
+/** Distingue cambios divergentes demostrados de historia desconocida.
+ * No basta un head igual para afirmar identidad si el contenido o la revisión difieren.
+ * Una relación posterior/anterior debe concordar con la distancia de ascendencia.
+ */
 export function compareBookVersions(local,incoming){
   if(!local)return 'empty';
   if(local.id!==incoming.id)return 'different';
   if(!local._portability||!incoming._portability)return 'unknown';
   const a=validateBookMetadata(local),b=validateBookMetadata(incoming);
-  if(a.head===b.head)return 'same';
-  if(a.ancestors.includes(b.head))return 'older';
-  if(b.ancestors.includes(a.head))return 'newer';
-  return 'divergent';
+  if(a.head===b.head){
+    return a.revision===b.revision&&JSON.stringify(local)===JSON.stringify(incoming)?'same':'unknown';
+  }
+  const oldIndex=a.ancestors.indexOf(b.head);
+  const newIndex=b.ancestors.indexOf(a.head);
+  if(oldIndex!==-1&&newIndex!==-1)return 'unknown';
+  if(oldIndex!==-1)return a.revision-b.revision===a.ancestors.length-oldIndex?'older':'unknown';
+  if(newIndex!==-1)return b.revision-a.revision===b.ancestors.length-newIndex?'newer':'unknown';
+  const shared=new Set(a.ancestors);
+  return b.ancestors.some(head=>shared.has(head))?'divergent':'unknown';
+}
+/**
+ * Permite comprobar una importación desde la pantalla BLOQUEADA sin escribir ni
+ * migrar el almacén local. La contraseña del archivo se prueba también con el
+ * sobre local; si difiere o el historial no es demostrable, se mantiene nivel 3.
+ * No atribuye precedencia por la fecha del archivo ni por el número de revisión.
+ */
+export async function compareBackupAgainstLocal(localDoc,localEnvelope,incomingDoc,password){
+  if(localDoc)return compareBookVersions(localDoc,incomingDoc);
+  if(!localEnvelope)return 'empty';
+  try{
+    const local=await unlockVault(password,localEnvelope);
+    const prepared=migrateNotebook(local.doc);
+    assertModel(prepared.doc);
+    if(!prepared.doc._portability)return 'unknown';
+    return compareBookVersions(prepared.doc,incomingDoc);
+  }catch{
+    // Contraseña local diferente, archivo antiguo sin historial o error de
+    // autenticación: nunca dar permiso implícito a una sustitución.
+    return 'unknown';
+  }
 }
 export function bookStatus(doc,receipt){
   if(!doc)return 'none';
@@ -123,5 +174,5 @@ export function backupSummary(doc,exportedAt){
 }
 export function portableFilename(date=new Date()){
   const n=x=>String(x).padStart(2,'0');
-  return `Tabularium_${date.getFullYear()}-${n(date.getMonth()+1)}-${n(date.getDate())}_${n(date.getHours())}${n(date.getMinutes())}.cuaderno`;
+  return `Tabularium_${date.getFullYear()}-${n(date.getMonth()+1)}-${n(date.getDate())}_${n(date.getHours())}${n(date.getMinutes())}${n(date.getSeconds())}.cuaderno`;
 }

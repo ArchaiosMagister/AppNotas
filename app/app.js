@@ -5,7 +5,7 @@ import {parseRubricText} from './src/rubric-import.js';
 import {parseRubricFile} from './src/rubric-xlsx.js';
 import {createVault,seal,unlockVault,saltFromEnvelope,validateEnvelope} from './src/vault.js';
 import {openDb,readEnvelope,writeEnvelope,sameEnvelope,readRecoveryEnvelope,replaceEnvelopeWithRecovery,swapRecoveryEnvelope,readExportReceipt,recordExportReceipt} from './src/storage.js';
-import {ensureBookMetadata,markBookChange,compareBookVersions,backupProtection,createPortableCopy,readBackupFile,backupSummary,portableFilename} from './src/cuaderno.js';
+import {ensureBookMetadata,markBookChange,compareBookVersions,compareBackupAgainstLocal,importRiskLevel,canConfirmImport,IMPORT_CONFIRMATION_TEXT,backupProtection,createPortableCopy,readBackupFile,backupSummary,portableFilename} from './src/cuaderno.js';
 import {emptyHistory,recordChange,stepHistory} from './src/history.js';
 import {previewRubric,validateRubricDraft} from './src/rubric-ui.js';
 import {RELOAD_PROBE_KEY,makeReloadProbe,evaluateReloadProbe} from './src/diagnostics.js';
@@ -509,27 +509,47 @@ async function verifyBackup(file){
   showInfo('Copia íntegra y autenticada',`<p>Archivo válido · ${esc(info.modelVersion)} (versión de datos) · ${info.courses.length} grupos · ${info.students} alumnos · ${info.grades} notas.</p><p class="hint">${esc(result)}</p>`);
 }
 const conflictMessage={
-  empty:'No hay cuaderno local que sustituir.',
-  same:'El archivo y el cuaderno local tienen la misma revisión registrada.',
-  newer:'La copia contiene una revisión posterior del mismo cuaderno.',
-  older:'⚠ Esta copia es anterior: importarla descartaría cambios locales posteriores.',
-  divergent:'⚠ CONFLICTO: existen cambios diferentes entre los dispositivos. No se fusionarán.',
-  different:'⚠ El archivo pertenece a OTRO cuaderno. Se sustituiría el cuaderno completo de este dispositivo.',
-  unknown:'⚠ No se puede determinar el orden de las versiones (copia histórica o cuaderno bloqueado).'
+  empty:'No hay cuaderno local que sustituir. Esta importación creará una copia local cifrada.',
+  same:'Copia idéntica: el archivo y el cuaderno local contienen los mismos datos y la misma revisión. No es necesario importarla otra vez.',
+  newer:'Copia válida y posterior: esta revisión continúa el historial del mismo cuaderno. Puedes importarla sin confirmaciones adicionales.',
+  older:'⚠ Copia anterior: si la importas, perderás los cambios posteriores que se hayan realizado en este dispositivo.',
+  divergent:'⚠ Cambios divergentes: ambos dispositivos tienen modificaciones distintas desde un antepasado común. Importar sustituirá la versión local; no se fusionarán las notas.',
+  different:'⚠ Cuaderno diferente: el archivo pertenece a otro cuaderno. Importarlo sustituirá todos los datos locales.',
+  unknown:'⚠ Historial desconocido: no es posible comprobar con seguridad la relación entre esta copia y la versión local. La importación podría sustituir datos más recientes.'
 };
 function decideImport(info,conflict,hasLocal){
   return new Promise(resolve=>{
     if(dialog.open){resolve('cancel');return;}
     const courses=info.courses.map(c=>`<li>${esc(c.subject)} · ${esc(c.name)} (${esc(c.course)})</li>`).join('');
-    const conflictClass=['older','divergent','different','unknown'].includes(conflict)?'import-warning':'section-note';
-    dialog.innerHTML=`<div class="modal-inner portable-dialog"><h2 id="modal-heading">Abrir cuaderno · comprobar antes de importar</h2><p>Archivo descifrado y autenticado correctamente. <strong>Aún no se ha modificado ningún dato local.</strong></p><div class="portable-facts"><div>Creado: <strong>${esc(new Date(info.createdAt).toLocaleString('es-ES'))}</strong></div><div>Exportado: <strong>${info.exportedAt?esc(new Date(info.exportedAt).toLocaleString('es-ES')):'No consta (copia histórica)'}</strong></div><div>Esquema de datos: <strong>v${esc(info.modelVersion)}</strong></div><div>Cursos/grupos: <strong>${info.courses.length}</strong> · Alumnos: <strong>${info.students}</strong> · Notas: <strong>${info.grades}</strong> · Rúbricas: <strong>${info.rubrics}</strong></div></div><details><summary>Mostrar los cursos incluidos</summary><ul>${courses}</ul></details><p class="${conflictClass}" role="status">${conflictMessage[conflict]}</p><p class="hint">${hasLocal?'Al importar se conservará previamente una copia cifrada del estado local en IndexedDB. Solo hay un punto de recuperación: otra importación lo sustituye.':'Se creará una copia local cifrada de este archivo.'} No se combinarán notas.</p><div class="modal-actions portable-choices"><button class="btn" id="import-keep">Conservar datos actuales</button><button class="btn" id="import-cancel">Cancelar</button><button class="btn warn" id="import-confirm">Importar copia</button></div></div>`;
+    const riskLevel=importRiskLevel(conflict,hasLocal);
+    const conflictClass=riskLevel>0?'import-warning':'section-note';
+    const riskPrompt=riskLevel===1?
+      `<label class="import-risk-check"><input type="checkbox" id="import-risk-accept"/> <span>Entiendo que voy a sustituir la versión local y que podría perder cambios posteriores</span></label>`:
+      riskLevel===2?
+      `<label class="import-risk-phrase" for="import-risk-phrase">Para sustituir un cuaderno distinto o de historial desconocido, escribe exactamente <strong>${IMPORT_CONFIRMATION_TEXT}</strong>.<input class="text-field" id="import-risk-phrase" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="${IMPORT_CONFIRMATION_TEXT}" aria-label="Confirmación de sustitución de cuaderno"/></label>`:'';
+    const identical=conflict==='same';
+    dialog.innerHTML=`<div class="modal-inner portable-dialog"><h2 id="modal-heading">Abrir cuaderno · comprobar antes de importar</h2><p>Archivo descifrado, autenticado y validado. <strong>Aún no se ha modificado ningún dato local.</strong></p><div class="portable-facts"><div>Creado: <strong>${esc(new Date(info.createdAt).toLocaleString('es-ES'))}</strong></div><div>Exportado: <strong>${info.exportedAt?esc(new Date(info.exportedAt).toLocaleString('es-ES')):'No consta (copia histórica)'}</strong></div><div>Esquema de datos: <strong>v${esc(info.modelVersion)}</strong></div><div>Cursos/grupos: <strong>${info.courses.length}</strong> · Alumnos: <strong>${info.students}</strong> · Notas: <strong>${info.grades}</strong> · Rúbricas: <strong>${info.rubrics}</strong></div></div><details><summary>Mostrar los cursos incluidos</summary><ul>${courses}</ul></details><p class="${conflictClass}" role="status">${conflictMessage[conflict]||conflictMessage.unknown}</p><p class="hint">${identical?'Se conservará el cuaderno local; no se creará un rescate innecesario.':hasLocal?'Antes de sustituir se conservará un rescate cifrado de la versión local en IndexedDB. Solo existe un punto de rescate: otra importación lo sustituye.':'Se creará una copia local cifrada de este archivo.'} No se combinarán notas.</p>${riskPrompt}<div class="modal-actions portable-choices"><button class="btn ${identical?'primary':''}" id="import-keep">${identical?'Conservar cuaderno (ya actualizado)':'Conservar datos actuales'}</button><button class="btn" id="import-cancel">Cancelar</button>${identical?'':`<button class="btn ${riskLevel?'warn':'primary'}" id="import-confirm" ${riskLevel?'disabled':''}>Importar copia</button>`}</div></div>`;
     let chosen=false;
     const settle=choice=>{if(chosen)return;chosen=true;dialog.removeEventListener('close',onClose);dialog.close();resolve(choice);};
     const onClose=()=>{if(dialog.open||chosen)return;chosen=true;dialog.removeEventListener('close',onClose);resolve('cancel');};
     dialog.addEventListener('close',onClose);
     $('#import-keep',dialog).onclick=()=>settle('keep');
     $('#import-cancel',dialog).onclick=()=>settle('cancel');
-    $('#import-confirm',dialog).onclick=()=>settle('import');
+    const importButton=$('#import-confirm',dialog);
+    if(importButton){
+      const approval=()=>({accepted:$('#import-risk-accept',dialog)?.checked===true,phrase:$('#import-risk-phrase',dialog)?.value||''});
+      const refresh=()=>{importButton.disabled=!canConfirmImport(conflict,hasLocal,approval());};
+      $('#import-risk-accept',dialog)?.addEventListener('change',refresh);
+      $('#import-risk-phrase',dialog)?.addEventListener('input',refresh);
+      importButton.onclick=()=>{
+        const currentApproval=approval();
+        // El atributo disabled es solo presentación; la autorización se vuelve
+        // a comprobar en el manejador y justo antes de la transacción IndexedDB.
+        if(!canConfirmImport(conflict,hasLocal,currentApproval))return;
+        settle(currentApproval);
+      };
+      refresh();
+    }
     dialog.showModal();
   });
 }
@@ -542,20 +562,30 @@ async function restoreBackup(file){
   const info=backupSummary(opened.doc,opened.exportedAt);
   const existing=await readEnvelope(STATE.db);
   if(!sameEnvelope(existing,STATE.envelope))throw new Error('Otra pestaña ha cambiado las notas. Importación cancelada sin cambios.');
-  const conflict=STATE.doc?compareBookVersions(STATE.doc,opened.doc):existing?'unknown':'empty';
+  const originalLocalDoc=STATE.doc;
+  const conflict=await compareBackupAgainstLocal(originalLocalDoc,existing,opened.doc,password);
   const choice=await decideImport(info,conflict,!!existing);
-  if(choice!=='import'){toast(choice==='keep'?'Se ha conservado el cuaderno local sin cambios.':'Importación cancelada: ningún dato ha cambiado.');return;}
+  if(!choice||typeof choice!=='object'){
+    toast(choice==='keep'?'Se ha conservado el cuaderno local sin cambios.':'Importación cancelada: ningún dato ha cambiado.');
+    return;
+  }
+  if(!canConfirmImport(conflict,!!existing,choice))throw new Error('No se ha autorizado la sustitución del cuaderno.');
   return enqueueMutation(async()=>{
     await STATE.saveQueue;
     if(STATE.saveError||STATE.failedEnvelope)throw new Error('Hay datos sin guardar. No se ha importado nada.');
+    if(STATE.doc!==originalLocalDoc||!sameEnvelope(STATE.envelope,existing))
+      throw new Error('El cuaderno cambió durante la confirmación. Importación cancelada sin sustituir datos.');
+    // Última comprobación independiente del estado visual del botón.
+    if(!canConfirmImport(conflict,!!existing,choice))
+      throw new Error('La confirmación ya no es válida. No se ha importado nada.');
     const doc=structuredClone(opened.doc);
     ensureBookMetadata(doc);
     assertModel(doc);
     const replacement=await seal(doc,opened.key,opened.salt);
-    // La transacción compara el sobre previo y conserva una copia cifrada de rescate.
+    // La transacción CAS conserva el rescate y sustituye el principal atómicamente.
     const recovery=await replaceEnvelopeWithRecovery(STATE.db,replacement,existing);
     adoptRestoredNotebook(replacement,recovery,{key:opened.key,salt:opened.salt},doc);
-    toast(recovery?'Copia abierta. Estado anterior conservado como rescate cifrado.':'Copia abierta y validada.');
+    toast(recovery?'Importación completada. Versión local anterior conservada como rescate cifrado.':'Importación completada. Copia íntegra y validada.');
   });
 }
 function adoptRestoredNotebook(envelope,recovery,opened,doc){
@@ -1826,7 +1856,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v132-dev');
+      const cache=await caches.open('cuaderno-docente-static-v133-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
