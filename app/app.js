@@ -1875,6 +1875,90 @@ function openAssessmentTools(id){
   };
   dialog.showModal();
 }
+/** Las condiciones de actitud se aplican por grupo y evaluación, nunca a la media. */
+function openItacaAttitudeCondition(){
+ const groupId=STATE.groupId,periodId=STATE.periodId,doc=STATE.doc;
+ const eligible=effectiveCategories(doc,groupId,periodId).filter(c=>
+  c.name.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').trim().toLowerCase().startsWith('actitud'));
+ if(!eligible.length){
+  toast('Primero debes disponer de una categoría Actitud para este grupo.');return;
+ }
+ const candidateIds=new Set(eligible.map(c=>c.id));
+ const activities=doc.assessments.filter(a=>a.groupId===groupId&&a.periodId===periodId&&
+  candidateIds.has(a.categoryId)&&a.rubricId&&doc.rubrics.some(r=>r.id===a.rubricId));
+ const current=itacaAttitudeCondition(doc,groupId,periodId);
+ dialog.innerHTML=`<form class="modal-inner itaca-attitude-dialog" id="itaca-attitude-form">
+ <h2 id="modal-heading">Condición de actitud · Nota Ítaca</h2>
+ <p class="subtitle">${esc(currentPeriod().name)} · ${esc(currentGroup().name)}. Si no se cumple el requisito, Ítaca mostrará la media íntegra con dos decimales, sin subir ni bajar al entero. Las notas originales no cambian.</p>
+ <div class="modal-fields">
+ <label>Aplicar redondeo solo cuando<select name="guardMode">
+ <option value="none"${!current?' selected':''}>Sin condición (comportamiento anterior)</option>
+ <option value="category"${current?.mode==='category'?' selected':''}>La nota de Actitud esté aprobada (5/10)</option>
+ <option value="criterion"${current?.mode==='criterion'?' selected':''}${activities.length?'':' disabled'}>Un criterio de la rúbrica alcance el mínimo</option>
+ </select></label>
+ <div class="itaca-guard-details" id="itaca-guard-details"></div>
+ <p class="hint">La condición se evalúa para cada alumno. Si falta la nota necesaria o está marcada como AJ, no se aplica el redondeo hasta completarla. Las excepciones individuales siguen disponibles, pero no eluden esta condición.</p>
+ </div>
+ <div class="modal-error" role="alert"></div>
+ <div class="modal-actions"><button type="button" class="btn" id="itaca-guard-cancel">Cancelar</button><button type="submit" class="btn primary">Guardar condición</button></div>
+ </form>`;
+ const form=$('#itaca-attitude-form',dialog),details=$('#itaca-guard-details',form);
+ const categoryOptions=selected=>eligible.map(c=>opt(c.id,c.name,selected)).join('');
+ const rubricOf=activity=>doc.rubrics.find(r=>r.id===activity.rubricId);
+ const renderCriteria=(activityId,wantedCriterion=null,wantedMin=null)=>{
+  const activity=activities.find(a=>a.id===activityId)||activities[0];
+  const criteria=activity?rubricOf(activity).criteria:[];
+  const criterion=criteria.find(c=>c.id===wantedCriterion)||criteria[0];
+  const score=wantedMin!==null&&wantedMin!==undefined&&
+   Number.isFinite(Number(wantedMin))&&Number(wantedMin)<=criterion.maxScore
+    ?wantedMin:criterion.maxScore/2;
+  $('#itaca-guard-criterion-fields',form).innerHTML=
+   `<label>Criterio de la rúbrica<select name="guardCriterion">${criteria.map(c=>opt(c.id,c.name,criterion.id)).join('')}</select></label>
+   <label>Puntuación mínima (sobre ${esc(criterion.maxScore)})<input name="guardMin" type="number" inputmode="decimal" min="0" max="${esc(criterion.maxScore)}" step="0.01" value="${esc(score)}" required></label>`;
+  form.elements.guardCriterion.onchange=()=>{
+   const next=criteria.find(c=>c.id===form.elements.guardCriterion.value);
+   if(next)renderCriteria(activity.id,next.id,next.maxScore/2);
+  };
+ };
+ const renderMode=()=>{
+  const mode=form.elements.guardMode.value;
+  if(mode==='none'){details.innerHTML='';return;}
+  if(mode==='category'){
+   details.innerHTML=`<label>Categoría de actitud<select name="guardCategory">${categoryOptions(current?.categoryId||eligible[0].id)}</select></label>`;
+   return;
+  }
+  const selected=activities.find(a=>a.id===current?.assessmentId)||activities[0];
+  details.innerHTML=`<label>Actividad con rúbrica de Actitud<select name="guardAssessment">
+   ${activities.map(a=>opt(a.id,a.name,selected.id)).join('')}</select></label>
+   <div id="itaca-guard-criterion-fields"></div>`;
+  renderCriteria(selected.id,current?.criterionId,current?.minScore);
+  form.elements.guardAssessment.onchange=()=>renderCriteria(form.elements.guardAssessment.value);
+ };
+ form.elements.guardMode.onchange=renderMode;
+ renderMode();
+ $('#itaca-guard-cancel',form).onclick=()=>dialog.close();
+ form.onsubmit=async event=>{
+  event.preventDefault();
+  const mode=form.elements.guardMode.value;
+  let condition=null;
+  try{
+   if(mode==='category'){
+    condition={mode,categoryId:form.elements.guardCategory.value,minScore:5};
+   }else if(mode==='criterion'){
+    const assessment=activities.find(a=>a.id===form.elements.guardAssessment.value);
+    const rubric=rubricOf(assessment);
+    const criterion=rubric?.criteria.find(c=>c.id===form.elements.guardCriterion.value);
+    const minScore=parseScore(form.elements.guardMin.value);
+    if(!criterion||minScore>criterion.maxScore)throw new Error('La nota mínima supera el máximo del criterio.');
+    condition={mode,categoryId:assessment.categoryId,assessmentId:assessment.id,
+     criterionId:criterion.id,minScore};
+   }
+   await commit(d=>setItacaAttitudeCondition(d,groupId,periodId,condition),'Condición de actitud en Nota Ítaca');
+   if(dialog.open)dialog.close();
+  }catch(error){fail(error);}
+ };
+ dialog.showModal();
+}
 function openItacaStudentRule(studentId){
   const student=STATE.doc.students.find(s=>s.id===studentId&&s.groupId===STATE.groupId);
   if(!student)return;
