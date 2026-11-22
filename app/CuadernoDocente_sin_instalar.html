@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#11243f">
 <meta name="description" content="CuadernoDocente v1.19 autónomo de pruebas. Solo para pruebas con datos ficticios.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rMfkFFWoB2W1/Zx+4bgHim0WC7vKRVrq6FTeZclH1Z4=' 'sha256-ps+FKjtoDXVfgQoWKOUueYvf50q+1KlbYegFHTpuHn8='; style-src 'sha256-lQ2PJS7O2Z76XiHNmzIAovAb1si2blgfwgSrKxaihSE='; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rMfkFFWoB2W1/Zx+4bgHim0WC7vKRVrq6FTeZclH1Z4=' 'sha256-uAOYpRYrE8rOAW6V7FRPvzIRq7YFfpyf5vP1KdrLdrM='; style-src 'sha256-lQ2PJS7O2Z76XiHNmzIAovAb1si2blgfwgSrKxaihSE='; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20128%20128%22%20role%3D%22img%22%20aria-label%3D%22CuadernoDocente%20%C2%B7%20columna%20cl%C3%A1sica%22%3E%0A%20%20%3Crect%20width%3D%22128%22%20height%3D%22128%22%20rx%3D%2227%22%20fill%3D%22%23263246%22%2F%3E%0A%20%20%3Crect%20x%3D%225%22%20y%3D%225%22%20width%3D%22118%22%20height%3D%22118%22%20rx%3D%2223%22%20fill%3D%22none%22%20stroke%3D%22%23a88b60%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M27%2037h74m-68%207h62M40%2050v45m24-45v45m24-45v45M27%20100h74m-68-5h62%22%20stroke%3D%22%23f4e4c8%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M30%2035c5-14%2017-19%2034-19s29%205%2034%2019M47%2036h34%22%20fill%3D%22none%22%20stroke%3D%22%23cbaa79%22%20stroke-width%3D%225%22%20stroke-linecap%3D%22round%22%2F%3E%0A%3C%2Fsvg%3E%0A">
 <title>CuadernoDocente · v1.19 · sin instalar</title>
 <style>:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#1a2d46;background:#f3f6fb;font-synthesis:none;--navy:#142845;--line:#e1e7f0;--ink:#152a47;--muted:#697b93;--blue:#326ed6;--surface:#fff;--green:#0f866a;--danger:#c53548}
@@ -7837,7 +7837,9 @@ function setGrade(doc, studentId, assessmentId, score) {
         const val = parseScore(score);
         if (!Number.isFinite(val) || val < 0 || val > assessment.maxScore)
             throw new Error(`Introduce una nota entre 0 y ${assessment.maxScore}.`);
-        if (at >= 0 && !doc.grades[at].notSubmitted && doc.grades[at].score === val)
+        // Una nota idéntica a la conservada bajo AJ NO es un no-op: reintroducirla
+        // debe reactivar la evidencia y retirarla del estado pendiente.
+        if (at >= 0 && !doc.grades[at].notSubmitted && !doc.grades[at].pendingJustified && doc.grades[at].score === val)
             return doc;
         if (at >= 0)
             doc.grades[at] = numericGrade(doc.grades[at], { score: val });
@@ -7870,7 +7872,9 @@ function setOrthographyGrade(doc, studentId, assessmentId, { score, faults = 0, 
         if (typeof delivered !== 'boolean' || delivered && (!count || !assessment.orthography.refundable))
             throw new Error('La entrega no puede marcarse en este examen.');
         const previous = at >= 0 ? doc.grades[at] : { id: uid(), studentId, assessmentId, createdAt: now() };
-        if (at >= 0 && !previous.notSubmitted && previous.score === base && (previous.orthographyFaults ?? 0) === count && !!previous.orthographyDelivered === delivered)
+        // AJ conserva puntuación y faltas; volver a confirmarlas debe reactivar
+        // el cálculo incluso aunque los números no hayan cambiado.
+        if (at >= 0 && !previous.notSubmitted && !previous.pendingJustified && previous.score === base && (previous.orthographyFaults ?? 0) === count && !!previous.orthographyDelivered === delivered)
             return doc;
         const grade = numericGrade(previous, { score: base, orthographyFaults: count, orthographyDelivered: delivered });
         if (at >= 0)
@@ -7984,7 +7988,9 @@ function setRubricGrade(doc, studentId, assessmentId, ratings) {
     if (entries.some((x, i) => !Number.isFinite(x.score) || x.score < 0 || x.score > rubric.criteria[i].maxScore || (rubric.criteria[i].levels && !rubric.criteria[i].levels.some(l => l.score === x.score))))
         throw new Error('Puntuación de rúbrica fuera de escala.');
     const score = rubricGradeFromRatings(rubric, entries);
-    if (idx >= 0 && Math.abs(doc.grades[idx].score - score) < 1e-12 &&
+    // Una rúbrica con AJ conserva sus valoraciones, pero reintroducirlas
+    // debe quitar AJ para volver a contar la nota aunque sean idénticas.
+    if (idx >= 0 && !doc.grades[idx].pendingJustified && Math.abs(doc.grades[idx].score - score) < 1e-12 &&
         Array.isArray(doc.grades[idx].rubricRatings) && doc.grades[idx].rubricRatings.length === entries.length &&
         entries.every(entry => doc.grades[idx].rubricRatings.some(r => r.criterionId === entry.criterionId && r.score === entry.score)))
         return score;
