@@ -14,8 +14,8 @@ function from021(){
  doc.settings.subjectAccents={...legacyColors};return doc;
 }
 
-test('paleta predeterminada: Latín amarillo/ámbar/naranja y Griego azules',()=>{
- assert.equal(SUBJECT_COLORS['4eso:Latín 4.º'],'#EAB308');
+test('paleta predeterminada: Latín 4.º granate, Latín I ámbar y Griego azules',()=>{
+ assert.equal(SUBJECT_COLORS['4eso:Latín 4.º'],'#B43F60');
  assert.equal(SUBJECT_COLORS['1bach:Latín I'],'#F59E0B');
  assert.equal(SUBJECT_COLORS['2bach:Latín II'],'#EA580C');
  assert.equal(SUBJECT_COLORS['1bach:Griego I'],'#0284C7');

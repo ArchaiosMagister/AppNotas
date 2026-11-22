@@ -2989,3 +2989,7 @@ html[data-theme="oled"] .patio-preview-table thead{background:#000}
 }
 html[data-theme="oled"] .planner-weekly-counter,
 html[data-theme="oled"] .planner-patio-month{background:#000}
+
+/* Botón opcional: la barra de ordenación se comparte con el modo alumno. */
+.origin-manage-tools{display:flex;justify-content:flex-end;gap:8px;padding:4px 15px 9px;border-bottom:1px solid var(--line);background:var(--surface)}
+html[data-theme="oled"] .origin-manage-tools{background:#000}
