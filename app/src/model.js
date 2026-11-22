@@ -1,5 +1,5 @@
 import {ATTITUDE_2BACH_CRITERIA} from './attitude-template.js';
-import {createPlanner,assertPlanner} from './planner.js';
+import {createPlanner,assertPlanner,weeklySlotCount} from './planner.js';
 export const SCHEMA_VERSION = 8;
 export const INDIVIDUAL_RULES = Object.freeze(['np_mean','mean','last']);
 /** Nota Ítaca: aplica únicamente a la salida trimestral, no modifica las medias. */
@@ -106,7 +106,7 @@ export const COURSE_SUBJECTS = Object.freeze({
 });
 // Estos valores solo se aplican por defecto. El usuario puede elegir otros colores.
 export const SUBJECT_COLORS = Object.freeze({
-  '4eso:Latín 4.º':'#EAB308', // amarillo
+  '4eso:Latín 4.º':'#B43F60', // granate frambuesa, distinto del ámbar de Latín I
   '1bach:Latín I':'#F59E0B', // ámbar
   '1bach:Griego I':'#0284C7', // azul celeste
   '2bach:Latín II':'#EA580C', // naranja
@@ -233,6 +233,7 @@ export function assertModel(doc) {
   if(!Array.isArray(doc.gradingProfiles))throw new Error('Faltan perfiles de evaluación.');
   assertPlanner(doc);
   if(!doc.groups.every(g=>(g.itacaRounding===undefined||ITACA_ROUNDING.includes(g.itacaRounding))))throw new Error('Regla general de Nota Ítaca inválida.');
+  if(!doc.groups.every(g=>g.weeklyHours===undefined||(Number.isInteger(g.weeklyHours)&&g.weeklyHours>=1&&g.weeklyHours<=30)))throw new Error('Horas semanales del grupo inválidas.');
   if(!doc.groups.every(g=>g.orthographyRefundable===undefined||typeof g.orthographyRefundable==='boolean'))throw new Error('Regla de devolución por faltas del grupo inválida.');
   if(!doc.students.every(s=>s.itacaRoundingOverrides===undefined||(
     s.itacaRoundingOverrides&&typeof s.itacaRoundingOverrides==='object'&&!Array.isArray(s.itacaRoundingOverrides)&&
@@ -419,7 +420,19 @@ export function recordedScore(doc,assessment,grade){
 
 const validBestCount=n=>Number.isInteger(n)&&n>=1&&n<=100;
 export function migrateNotebook(input){
-  if(input?.schemaVersion===SCHEMA_VERSION){if(!input.planner){const doc=structuredClone(input);doc.planner=createPlanner(doc.groups?.[0]?.course);assertModel(doc);return {doc,migrated:true};}assertModel(input);return {doc:input,migrated:false};}
+  if(input?.schemaVersion===SCHEMA_VERSION){
+    // Solo cambia el antiguo color PREDETERMINADO de Latín 4.º.
+    // Los colores distintos, elegidos por el docente, permanecen intactos.
+    const previous=input.settings?.subjectAccents?.['4eso:Latín 4.º'];
+    const updateDefault=typeof previous==='string'&&previous.toUpperCase()==='#EAB308';
+    if(!input.planner||updateDefault){
+      const doc=structuredClone(input);
+      if(!doc.planner)doc.planner=createPlanner(doc.groups?.[0]?.course);
+      if(updateDefault)doc.settings.subjectAccents['4eso:Latín 4.º']=SUBJECT_COLORS['4eso:Latín 4.º'];
+      assertModel(doc);return {doc,migrated:true};
+    }
+    assertModel(input);return {doc:input,migrated:false};
+  }
   if([5,6,7].includes(input?.schemaVersion)){
     const doc=structuredClone(input);
     if(input.schemaVersion===5)doc.settings.orthographyDefaults={...ORTHOGRAPHY_DEFAULTS};
@@ -521,10 +534,13 @@ export function copyPeriodCategories(doc,groupId,sourcePeriodId,targetPeriodId){
     throw new Error('Grupo o periodo de origen o destino inexistente.');
   for(const c of effectiveCategories(doc,groupId,sourcePeriodId))setPeriodCategory(doc,groupId,targetPeriodId,c.id,{weight:c.weight,rule:c.rule,bestCount:c.bestCount??2});
 }
-export function addGroup(doc,name,subject='Latín I',course='2026-2027',level=levelForSubject(subject)){
+export function addGroup(doc,name,subject='Latín I',course='2026-2027',level=levelForSubject(subject),weeklyHours=null){
   const n=name.trim();
   if(!n||!validSubject(level,subject,doc)||!course?.trim())throw new Error('Introduce grupo, curso y una asignatura compatible.');
-  doc.groups.push(mark({id:uid(),name:n,subject,level,course:course.trim(),createdAt:now()}));doc.updatedAt=now();
+  const weekly=weeklyHours===null||weeklyHours===''?null:Number(weeklyHours);
+  if(weekly!==null&&(!Number.isInteger(weekly)||weekly<1||weekly>30))
+    throw new Error('Las horas semanales deben estar entre 1 y 30.');
+  doc.groups.push(mark({id:uid(),name:n,subject,level,course:course.trim(),...(weekly!==null?{weeklyHours:weekly}:{}),createdAt:now()}));doc.updatedAt=now();
   const group=doc.groups.at(-1);
   if(level==='2bach'&&['Latín II','Griego II'].includes(subject))configureSecondBachGroup(doc,group);
   return group;
@@ -1018,6 +1034,42 @@ export function removeStudent(doc,studentId){
   doc.students=doc.students.filter(s=>s.id!==studentId);
   doc.students.filter(s=>s.groupId===groupId).sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id)).forEach((s,i)=>{if(s.order!==i){s.order=i;s.updatedAt=now();}});
   doc.updatedAt=now();
+}
+/** Límite por grupo optativo, separado entre horario ordinario y verano.
+ * Rechazar reducciones que dejarían el horario existente inconsistente. */
+export function setGroupWeeklyHours(doc,groupId,value){
+ const group=doc.groups.find(g=>g.id===groupId);
+ if(!group)throw new Error('Grupo inexistente.');
+ const hours=value===null||value===undefined||value===''?null:Number(value);
+ if(hours!==null&&(!Number.isInteger(hours)||hours<1||hours>30))
+  throw new Error('Indica entre 1 y 30 horas semanales o deja el campo vacío.');
+ if(hours!==null&&doc.planner?.years.some(y=>['regular','summer'].some(mode=>
+   weeklySlotCount(y,groupId,mode)>hours)))
+  throw new Error('El horario ya tiene más sesiones que el nuevo límite. Revisa antes las clases asignadas.');
+ if(hours===null)delete group.weeklyHours;else group.weeklyHours=hours;
+ group.updatedAt=doc.updatedAt=now();return group;
+}
+/** Asignar la tutoría de procedencia a varios alumnos sin moverlos ni tocar notas. */
+export function setStudentOriginGroups(doc,groupId,assignments){
+ if(!doc.groups.some(g=>g.id===groupId)||!Array.isArray(assignments)||assignments.length>2000)
+  throw new Error('Grupo o listado de procedencias inválidos.');
+ const ids=new Set();
+ const entries=assignments.map(a=>{
+  const student=doc.students.find(s=>s.id===a?.studentId&&s.groupId===groupId);
+  if(!student||ids.has(student.id)||typeof a.originGroup!=='string')
+    throw new Error('Alumno o grupo de procedencia inválido.');
+  const origin=a.originGroup.trim();
+  if(origin.length>60||/[<>\x00-\x1f]/.test(origin))
+    throw new Error('Nombre del subgrupo inválido (máximo 60 caracteres).');
+  ids.add(student.id);return {student,origin};
+ });
+ const time=now();let changed=false;
+ for(const {student,origin} of entries){
+  if((student.originGroup||'')===origin)continue;
+  student.originGroup=origin;student.updatedAt=time;changed=true;
+ }
+ if(changed)doc.updatedAt=time;
+ return doc;
 }
 export function updateGroupInfo(doc,groupId,name,course){
   const group=doc.groups.find(g=>g.id===groupId);
