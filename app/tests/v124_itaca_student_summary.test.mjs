@@ -30,7 +30,7 @@ test('la nota Ítaca se obtiene del cálculo central y respeta umbrales, excepci
   setItacaStudentRule(doc,student.id,period.id,'general');
   assert.equal(itacaGrade(doc,student.id,group.id,period.id),6);
   setItacaGroupRule(doc,group.id,'none');
-  assert.equal(itacaGrade(doc,student.id,group.id,period.id),6.65);
+  assert.equal(itacaGrade(doc,student.id,group.id,period.id),6);
   assertModel(doc);
 });
 

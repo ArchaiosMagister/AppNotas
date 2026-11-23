@@ -875,6 +875,9 @@ dialog:has(.portable-dialog){max-width:min(94vw,600px);max-height:90dvh;overflow
 
 /* v1.19 · Nota Ítaca y columnas de categoría; nunca alterar el color de la nota. */
 .grade-table th.itaca-col,.grade-table td.itaca-col{min-width:108px;text-align:center;border-left:2px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface));}
+.itaca-column-config{font:inherit;font-weight:750;color:inherit;background:transparent;border:1px solid transparent;border-radius:7px;padding:4px 6px;cursor:pointer;touch-action:manipulation;min-height:32px;}
+.itaca-column-config:hover,.itaca-column-config:focus-visible{border-color:var(--accent);outline:2px solid var(--accent);outline-offset:2px;}
+.grade-table th.itaca-col small{display:block;font-size:10px;font-weight:500;color:var(--muted);white-space:normal;}
 .itaca-global{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12px;font-weight:700}
 .itaca-global select{min-height:35px;font-size:12px;max-width:220px}
 .itaca-global small{font-size:11px;font-weight:400;color:var(--muted)}

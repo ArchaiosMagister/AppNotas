@@ -28,7 +28,7 @@ test('Ítaca 0,7 y sin redondear; umbral decimal exacto y ausencia de notas',()=
     assert.equal(itacaGrade(d,student.id,group.id,period.id),expected);
   }
   setItacaGroupRule(d,group.id,'none');allTheSame(d,student,group,period,6.73);
-  assert.equal(itacaGrade(d,student.id,group.id,period.id),overallGrade(d,student.id,group.id,period.id));
+  assert.equal(itacaGrade(d,student.id,group.id,period.id),6);
   assert.equal(itacaGrade(d,student.id,group.id,d.periods[2].id),null);
 });
 test('excepción individual de un periodo no afecta a otras evaluaciones o alumnos ni al grupo',()=>{
@@ -91,11 +91,33 @@ test('interfaz: cabecera Ítaca, selector general, opción por alumno, colores y
  assert(css.includes('html[data-theme="oled"] .grade-table th.category-tinted'));
  assert(css.includes('border-left:3px solid var(--category-color)'));
 });
-test('la columna presenta enteros o media con decimales independientemente de la precisión visual general',async()=>{
+test('la columna Ítaca siempre muestra enteros y permite configurar actitud pulsando el título',async()=>{
  const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
- assert(app.includes('rule===\'none\'?score.toLocaleString'));
- assert(app.includes("minimumFractionDigits:2,maximumFractionDigits:2"));
- assert(app.includes("return `<span class=\"grade-chip\""));
+ assert(app.includes('<th class="itaca-col"><button type="button" id="configure-itaca-attitude"'));
+ assert(app.includes('${esc(String(score))}'));
+ assert(!app.includes('rule===\'none\'?score.toLocaleString'));
+ assert(app.includes('data-itaca-student'));
+});
+
+test('Ítaca muestra 5 para 5,9 cuando Actitud impide la subida y 6 cuando se permite',()=>{
+ const {d,group,period,student,category,rubric,activity}=attitudeFixture();
+ const id=student.id,gid=group.id,pid=period.id;
+ for(const a of d.assessments.filter(a=>a.groupId===gid&&a.periodId===pid&&!a.rubricId))setGrade(d,id,a.id,5.9);
+ const original=overallGrade(d,id,gid,pid),grades=structuredClone(d.grades);
+ assert(Math.abs(original-5.9)<1e-9);
+ assert.equal(itacaGrade(d,id,gid,pid),6);
+ setItacaGroupRule(d,gid,'none');
+ assert.equal(itacaGrade(d,id,gid,pid),5);
+ setItacaGroupRule(d,gid,'half');
+ setItacaAttitudeCondition(d,gid,pid,{mode:'criterion',categoryId:category.id,assessmentId:activity.id,criterionId:rubric.criteria[0].id,minScore:1});
+ assert.equal(itacaGrade(d,id,gid,pid),5,'Sin evidencia de rúbrica no se permite subir');
+ assert.equal(overallGrade(d,id,gid,pid),original);
+ assert.deepEqual(d.grades,grades);
+ setRubricGrade(d,id,activity.id,{[rubric.criteria[0].id]:1,[rubric.criteria[1].id]:1});
+ assert.equal(itacaAttitudeBlock(d,id,gid,pid),null,'Al cumplir Actitud puede subir');
+ assert.equal(itacaGrade(d,id,gid,pid),6);
+ setItacaAttitudeCondition(d,gid,pid,null);
+ assert.equal(itacaGrade(d,id,gid,pid),6);
 });
 
 function attitudeFixture(){
@@ -119,7 +141,7 @@ test('Ítaca: umbral de un criterio de Actitud bloquea solo el redondeo, no el c
  assert.equal(itacaGrade(d,id,gid,pid),7);
  setItacaAttitudeCondition(d,gid,pid,{mode:'criterion',categoryId:category.id,
   assessmentId:activity.id,criterionId:criteria[0].id,minScore:1});
- assert.equal(itacaGrade(d,id,gid,pid),base);
+ assert.equal(itacaGrade(d,id,gid,pid),Math.floor(base));
  assert.match(itacaAttitudeBlock(d,id,gid,pid),/Participación/);
  assert.deepEqual(d.grades,snapshot);
  assertModel(d);
@@ -135,7 +157,7 @@ test('Ítaca: falta de rúbrica o AJ bloquea por precaución; periodo siguiente 
  setItacaAttitudeCondition(d,group.id,period.id,{mode:'criterion',categoryId:category.id,
   assessmentId:activity.id,criterionId:first.id,minScore:1});
  const average=overallGrade(d,student.id,group.id,period.id);
- assert.equal(itacaGrade(d,student.id,group.id,period.id),average);
+ assert.equal(itacaGrade(d,student.id,group.id,period.id),Math.floor(average));
  assert.match(itacaAttitudeBlock(d,student.id,group.id,period.id),/Falta/);
  assert.equal(itacaAttitudeCondition(d,group.id,d.periods[1].id),null);
  assertModel(d);
@@ -150,7 +172,7 @@ test('Ítaca: aprobado de la categoría Actitud y excepciones personales no elud
  assert(base>6.5&&base<7);
  setItacaStudentRule(d,student.id,period.id,'half');
  setItacaAttitudeCondition(d,group.id,period.id,{mode:'category',categoryId:category.id,minScore:5});
- assert.equal(itacaGrade(d,student.id,group.id,period.id),base);
+ assert.equal(itacaGrade(d,student.id,group.id,period.id),Math.floor(base));
  assert.match(itacaAttitudeBlock(d,student.id,group.id,period.id),/5\/10/);
  setRubricGrade(d,student.id,activity.id,{[first.id]:2,[second.id]:2});
  assert.equal(itacaAttitudeBlock(d,student.id,group.id,period.id),null);
