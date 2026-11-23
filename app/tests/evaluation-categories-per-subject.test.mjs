@@ -188,3 +188,11 @@ test('UI: creación, activación, eliminación y selector de actividades usan ca
   assert(app.includes('effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).map(c=>opt(c.id,c.name))'));
   assert(css.includes('.period-category-picker{'));
 });
+
+test('al cambiar de evaluación desde Cálculos permanece en la configuración y marca el período activo',async()=>{
+  const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
+  const head=app.slice(app.indexOf('function renderPeriodButtons(){'),app.indexOf('\nfunction render(){',app.indexOf('function renderPeriodButtons(){')));
+  assert(head.includes("['cuaderno','calculos','competencias'].includes(STATE.tab)&&STATE.periodId===p.id"));
+  assert.equal(head.split("['cuaderno','calculos','competencias'].includes(STATE.tab)&&STATE.periodId===p.id").length-1,3);
+  assert(app.includes("if(!['calculos','competencias'].includes(STATE.tab))STATE.tab='cuaderno';render();"));
+});
