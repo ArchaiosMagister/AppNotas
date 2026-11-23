@@ -1872,8 +1872,9 @@ function openOrthographyGrade(studentId,assessmentId){
   if(!student||!assessment?.orthography?.enabled)return toast('La penalización no está disponible en esta actividad.');
   const current=STATE.doc.grades.find(g=>g.studentId===studentId&&g.assessmentId===assessmentId);
   const config=assessment.orthography;
-  dialog.innerHTML=`<form class="modal-inner orthography-dialog" id="orthography-form"><h2 id="modal-heading">${esc(assessment.name)}</h2><p class="subtitle">${esc(student.name)}${current?.notSubmitted?' · No presentado':''} · La nota sin faltas se conserva por separado.</p><div class="modal-fields"><label>Nota original sin faltas (sobre ${esc(rawFmt(assessment.maxScore))})<input class="text-field" id="orth-base" type="text" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="8,50" value="${current&&!current.notSubmitted?esc(rawFmt(current.score)):''}"/></label><label>Número de faltas<input class="text-field" id="orth-count" type="number" min="0" max="1000" step="1" value="${current?.orthographyFaults??0}"/></label><div class="orthography-preview" role="status" aria-live="polite"><div class="cardline"><span>Penalización</span><strong id="orth-discount">—</strong></div><div class="cardline"><strong>Nota que computa /10</strong><span id="orth-effective" class="grade-chip">—</span></div></div><label class="orthography-delivered"><input id="orth-delivered" type="checkbox" ${current?.orthographyDelivered?'checked':''}/> <strong>Entregadas</strong> — faltas copiadas ${esc(config.repetitions)} veces cada una</label><p class="hint">${config.refundable?'Al marcar «Entregadas», se restaura automáticamente la nota sin penalización.':'En este examen, la devolución de la nota está desactivada.'} Se descuentan ${esc(rawFmt(config.penaltyPerFault))} puntos por falta sobre diez (mínimo 0).</p></div><div class="modal-error" role="alert"></div><div class="modal-actions"><button class="btn" type="button" id="cancel-orthography">Cancelar</button><button class="btn primary" type="submit">Guardar nota</button></div></form>`;
+  dialog.innerHTML=`<form class="modal-inner orthography-dialog" id="orthography-form"><h2 id="modal-heading">${esc(assessment.name)}</h2><p class="subtitle">${esc(student.name)}${current?.notSubmitted?' · No presentado':''} · La nota sin faltas se conserva por separado.</p><div class="modal-fields"><label>Nota original sin faltas (sobre ${esc(rawFmt(assessment.maxScore))})<input class="text-field" id="orth-base" type="text" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="8,50" value="${current&&!current.notSubmitted?esc(rawFmt(current.score)):''}"/></label><label>Número de faltas<input class="text-field" id="orth-count" type="number" min="0" max="1000" step="1" value="${current?.orthographyFaults??0}"/></label>${assessment.greekEtymologyBonusEnabled?`<label>Etimología griega · extra asignado de 0 a 1 punto<input class="text-field" id="orth-greek-bonus" type="text" inputmode="decimal" maxlength="4" value="${esc(rawFmt(current?.greekEtymologyBonus??0))}" placeholder="0,00"/></label>`:''}<div class="orthography-preview" role="status" aria-live="polite"><div class="cardline"><span>Penalización</span><strong id="orth-discount">—</strong></div>${assessment.greekEtymologyBonusEnabled?'<div class="cardline"><span>Etimología aplicada</span><strong id="orth-greek-applied">—</strong></div>':''}<div class="cardline"><strong>Nota que computa /10</strong><span id="orth-effective" class="grade-chip">—</span></div></div><label class="orthography-delivered"><input id="orth-delivered" type="checkbox" ${current?.orthographyDelivered?'checked':''}/> <strong>Entregadas</strong> — faltas copiadas ${esc(config.repetitions)} veces cada una</label><p class="hint">${config.refundable?'Al marcar «Entregadas», se restaura automáticamente la nota sin penalización.':'En este examen, la devolución de la nota está desactivada.'} Se descuentan ${esc(rawFmt(config.penaltyPerFault))} puntos por falta sobre diez (mínimo 0).</p></div><div class="modal-error" role="alert"></div><div class="modal-actions"><button class="btn" type="button" id="cancel-orthography">Cancelar</button><button class="btn primary" type="submit">Guardar nota</button></div></form>`;
   const form=$('#orthography-form',dialog),base=$('#orth-base',form),count=$('#orth-count',form),delivered=$('#orth-delivered',form),discount=$('#orth-discount',form),effective=$('#orth-effective',form);
+  const greekInput=$('#orth-greek-bonus',form),greekApplied=$('#orth-greek-applied',form);
   const refresh=()=>{
     const faults=Number(count.value);
     const validFaults=/^\d{1,4}$/.test(count.value)&&faults<=1000;
@@ -1881,19 +1882,31 @@ function openOrthographyGrade(studentId,assessmentId){
     if(delivered.disabled)delivered.checked=false;
     let val;
     try{val=base.value.trim()===''?null:parseScore(base.value);if(val!==null&&(val<0||val>assessment.maxScore))throw new Error('Nota fuera de escala.');}catch{val=null;}
-    if(val===null||!validFaults){effective.textContent='—';discount.textContent='—';effective.removeAttribute('data-grade-value');effective.style.removeProperty('--grade-bg');effective.style.removeProperty('--grade-fg');return;}
-    const candidate={score:val,orthographyFaults:faults,orthographyDelivered:delivered.checked};
+    let bonus=0;
+    try{
+      if(greekInput){bonus=greekInput.value.trim()===''?0:parseScore(greekInput.value);if(bonus<0||bonus>1)throw new Error('Bonificación fuera de escala.');}
+    }catch{bonus=null;}
+    if(val===null||!validFaults||bonus===null){
+      effective.textContent='—';discount.textContent='—';if(greekApplied)greekApplied.textContent='—';
+      effective.removeAttribute('data-grade-value');effective.style.removeProperty('--grade-bg');effective.style.removeProperty('--grade-fg');return;
+    }
+    const candidate={score:val,orthographyFaults:faults,orthographyDelivered:delivered.checked,greekEtymologyBonus:bonus};
     const result=effectiveAssessmentScore(STATE.doc,assessment,candidate),deduct=orthographyPenalty(assessment,candidate);
     discount.textContent=deduct?`−${penaltyFmt(deduct)}`:'0,00';
+    if(greekApplied){
+      const applied=greekEtymologyBonusApplied(STATE.doc,assessment,candidate);
+      greekApplied.textContent=`+${gradeFmt(applied)}${bonus>0&&!applied?' (no computa)':''}`;
+    }
     effective.textContent=gradeFmt(result);effective.dataset.gradeValue=String(result);paintGrades(form);
   };
   base.addEventListener('input',refresh);
   count.addEventListener('input',()=>{delivered.checked=false;refresh();});
   delivered.addEventListener('change',refresh);
+  greekInput?.addEventListener('input',refresh);
   $('#cancel-orthography',form).onclick=()=>dialog.close();
   form.onsubmit=async e=>{
     e.preventDefault();const submit=$('[type=submit]',form);submit.disabled=true;
-    try{await commit(d=>setOrthographyGrade(d,studentId,assessmentId,{score:base.value.trim(),faults:count.value,delivered:delivered.checked}),'Calificar examen con faltas');dialog.close();}
+    try{await commit(d=>setOrthographyGrade(d,studentId,assessmentId,{score:base.value.trim(),faults:count.value,delivered:delivered.checked,...(greekInput?{greekEtymologyBonus:greekInput.value.trim()||'0'}:{})}),'Calificar examen con faltas');dialog.close();}
     catch(err){$('.modal-error',form).textContent=err.message;submit.disabled=false;}
   };
   refresh();dialog.showModal();base.focus();
