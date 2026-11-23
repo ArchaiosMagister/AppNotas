@@ -1921,7 +1921,8 @@ function openAssessmentTools(id){
       {id:'orthEnabled',label:'Penalización por faltas',type:'select',value:String(a.orthography?.enabled??false),options:[{value:'false',label:'Desactivada'},{value:'true',label:'Activada'}]},
       {id:'orthRate',label:'Puntos por falta (sobre 10)',type:'number',value:a.orthography?.penaltyPerFault??STATE.doc.settings.orthographyDefaults?.penaltyPerFault??0.1,min:0,max:10,step:'0.01'},
       {id:'orthCopies',label:'Copias exigidas por falta',type:'number',value:a.orthography?.repetitions??STATE.doc.settings.orthographyDefaults?.repetitions??30,min:1,max:1000,step:'1'},
-      {id:'orthRecoverable',label:'Recuperar nota al entregar',type:'select',value:String(a.orthography?.refundable??true),options:[{value:'true',label:'Sí'},{value:'false',label:'No'}]}],async v=>{
+      {id:'orthRecoverable',label:'Recuperar nota al entregar',type:'select',value:String(a.orthography?.refundable??true),options:[{value:'true',label:'Sí'},{value:'false',label:'No'}]},
+      ...(STATE.doc.groups.find(g=>g.id===a.groupId)?.level==='4eso'&&STATE.doc.groups.find(g=>g.id===a.groupId)?.subject==='Latín 4.º'?[{id:'greekEtymologyBonusEnabled',label:'Etimología griega (+0 a +1; solo Exámenes con faltas)',type:'select',value:String(!!a.greekEtymologyBonusEnabled),options:[{value:'false',label:'Desactivada'},{value:'true',label:'Activada'}]}]:[])],async v=>{
       const newMax=v.rubricId?10:Number(v.maxScore),newConvert=v.rubricId?true:v.convertToTen==='true';
       if(grades&&(newMax!==a.maxScore||newConvert!==a.convertToTen)&&!window.confirm(`Esta columna tiene ${grades} notas. Cambiar la escala o conversión modificará las medias calculadas, aunque se conserven las puntuaciones originales. ¿Continuar?`))return;
       const orthography={enabled:v.orthEnabled==='true',penaltyPerFault:parseScore(v.orthRate),repetitions:Number(v.orthCopies),refundable:v.orthRecoverable==='true'};
@@ -1933,7 +1934,7 @@ function openAssessmentTools(id){
       // preferencia del examen. Revisarlas es una decisión individual del docente.
       if(!orthography.refundable&&STATE.doc.grades.some(g=>g.assessmentId===a.id&&g.orthographyDelivered))
         throw new Error('Hay faltas marcadas como entregadas. Desmárcalas individualmente, si procede, antes de desactivar la devolución. No se ha modificado ninguna entrega ni nota.');
-      await commit(d=>updateAssessment(d,a.id,{name:v.name,categoryId:v.categoryId,maxScore:newMax,weight:Number(v.weight),convertToTen:newConvert,rubricId:v.rubricId||null,orthography}));
+      await commit(d=>updateAssessment(d,a.id,{name:v.name,categoryId:v.categoryId,maxScore:newMax,weight:Number(v.weight),convertToTen:newConvert,rubricId:v.rubricId||null,orthography,greekEtymologyBonusEnabled:v.greekEtymologyBonusEnabled===undefined?!!a.greekEtymologyBonusEnabled:v.greekEtymologyBonusEnabled==='true'}));
     });
   };
   $('#move-left',dialog).onclick=async()=>{dialog.close();try{await commit(d=>moveAssessment(d,id,-1));}catch(err){fail(err);}};
