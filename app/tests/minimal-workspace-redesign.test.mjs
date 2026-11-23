@@ -20,7 +20,9 @@ test('navegación: solo Cuaderno, Agenda y Evaluaciones son primarias',()=>{
  const nav=api.renderNavigation(),quick=api.renderAcademicQuickNav();
  const main=nav.slice(nav.indexOf('class="nav-primary"'),nav.indexOf('class="nav-secondary"'));
  assert.deepEqual([...main.matchAll(/data-tab="([^"]+)"/g)].map(m=>m[1]),['cuaderno','planificador','evaluaciones']);
- for(const label of ['Notas','Cálculos','Competencias','Evaluación final','Vista alumno'])assert(quick.includes(label));
+ for(const label of ['Notas','Cálculos','Competencias','Vista alumno'])assert(quick.includes(label));
+ assert(!quick.includes('Evaluación final'));
+ assert(js.includes('class="term-button term-final'),'La evaluación final debe estar junto a los períodos');
  for(const name of ['curriculo','rubricas','ajustes'])assert(nav.includes('data-tab="'+name+'"'));
  assert(!nav.includes('data-tab="final"'));
  assert(!nav.includes('data-tab="alumno"'));

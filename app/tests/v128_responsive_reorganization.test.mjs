@@ -34,8 +34,9 @@ test('tres accesos principales, tres herramientas y cinco vistas de cuaderno sep
   assert(html.includes('aria-label="Recursos académicos y ajustes"'));
   assert(html.includes('Recursos'));
   const secondary=await navigationFor('final');
-  for(const key of ['cuaderno','calculos','competencias','final','alumno'])
+  for(const key of ['cuaderno','calculos','competencias','alumno'])
     assert(secondary.quick.includes('data-academic-quick="'+key+'"'));
+  assert(!secondary.quick.includes('data-academic-quick="final"'),'Final se ubica en la barra de períodos');
   assert(html.includes('Ajustes y copias'));
   assert(html.includes('aria-current="page"'));
 });
@@ -61,7 +62,7 @@ test('el destino activo se marca y Recursos abre automáticamente el panel secun
   const sessions=await navigationFor('evaluaciones');
   assert(sessions.html.includes('data-tab="evaluaciones" class="tab active" aria-current="page"'));
   const final=await navigationFor('final');
-  assert(final.quick.includes('data-academic-quick="final" aria-pressed="true"'));
+  assert(!final.quick.includes('data-academic-quick="final"'),'Final debe seleccionarse junto al último período');
   assert(final.html.includes('data-tab="cuaderno" class="tab active" aria-current="page"'));
   assert(!final.html.includes('data-tab="final"'));
 });

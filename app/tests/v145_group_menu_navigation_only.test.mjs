@@ -38,8 +38,10 @@ test('las acciones principales del cuaderno son dos, con resto de opciones acces
 test('las cinco vistas del cuaderno tienen acceso directo y pueden volver a Notas',()=>{
  const app=read('app.js');
  const nav=app.slice(app.indexOf('const NOTEBOOK_WORKSPACE_TABS='),app.indexOf('function renderPeriodButtons(){'));
- for(const path of ['cuaderno','calculos','competencias','final','alumno'])
+ for(const path of ['cuaderno','calculos','competencias','alumno'])
   assert(nav.includes("['"+path+"'"),path);
+ assert(!nav.includes("['final'"),'La evaluación final se mueve a los períodos');
+ assert(app.includes('data-academic-quick="final"'),'Se conserva acceso directo a la evaluación final');
  assert(nav.includes('data-academic-quick="${key}"'));
  assert(nav.includes('aria-current="page"'));
  assert(app.includes("hasGroup&&['cuaderno','calculos','competencias','final','alumno'].includes(STATE.tab)?renderAcademicQuickNav():''"));

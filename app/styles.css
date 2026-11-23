@@ -4009,3 +4009,52 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   .notebook-zoom-tools .btn{min-height:44px;min-width:44px}
 }
 @media print{.notebook-zoom-tools{display:none!important}}
+
+/* La evaluación final se sitúa inmediatamente después del último período.
+ * La pareja permanece junta incluso en el diseño móvil de dos columnas. */
+.term-buttons>.term-last-and-final{
+  display:inline-flex;
+  align-items:stretch;
+  gap:7px;
+  flex:0 0 auto;
+  min-width:0;
+}
+.term-bar .term-last-and-final .term-final{
+  position:static;
+  right:auto;
+  margin:0;
+  max-width:none;
+  min-height:44px;
+  flex:0 0 auto;
+  box-shadow:none;
+}
+.term-bar .term-last-and-final .term-final.active{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:var(--accent-ink);
+}
+@media(max-width:650px){
+  .term-bar .term-buttons>.term-last-and-final{
+    display:grid;
+    grid-column:1/-1;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+  }
+  .term-bar .term-last-and-final>.term-item{
+    min-width:0;
+    width:100%;
+  }
+  .term-bar .term-last-and-final>.term-final{
+    grid-column:auto;
+    width:100%;
+    min-width:0;
+    max-width:none;
+    white-space:normal;
+    font-size:11px;
+    line-height:1.3;
+  }
+  .term-bar .term-buttons>.term-add{
+    grid-column:1/-1;
+    width:100%;
+  }
+}
