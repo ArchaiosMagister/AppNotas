@@ -168,7 +168,7 @@ test('el aviso se precarga para funcionamiento offline y no altera el documento'
  const sw=readFileSync(new URL('../sw.js',import.meta.url),'utf8');
  const css=readFileSync(new URL('../styles.css',import.meta.url),'utf8');
  assert(sw.includes("'./src/notebook-evaluation-notice.js'"));
- assert(sw.includes('cuaderno-docente-static-v168-dev'));
+ assert(sw.includes('cuaderno-docente-static-v169-dev'));
  assert(css.includes('.notebook-eval-notice'));
  assert(css.includes('.notebook-eval-open:focus-visible'));
  assert(css.includes('html[data-theme="oled"] .notebook-eval-open'));
