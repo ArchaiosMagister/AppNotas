@@ -282,7 +282,8 @@ export function assertModel(doc) {
   if(!doc.groups.every(g=>g.itacaAttitudeConditions===undefined||(
     g.itacaAttitudeConditions&&typeof g.itacaAttitudeConditions==='object'&&!Array.isArray(g.itacaAttitudeConditions)&&
     Object.entries(g.itacaAttitudeConditions).every(([periodId,condition])=>
-      doc.periods.some(p=>p.id===periodId)&&validItacaAttitudeShape(condition))
+      doc.periods.some(p=>p.id===periodId)&&validItacaAttitudeShape(condition)&&
+      categoryAvailableForGroup(doc,g.id,condition.categoryId,periodId))
   )))throw new Error('Condición de actitud de Ítaca inválida.');
   if(!doc.groups.every(g=>g.orthographyRefundable===undefined||typeof g.orthographyRefundable==='boolean'))throw new Error('Regla de devolución por faltas del grupo inválida.');
   if(!doc.students.every(s=>s.itacaRoundingOverrides===undefined||(
@@ -770,11 +771,19 @@ function configureSecondBachGroup(doc,group){
 export function addPeriod(doc,name){
   if(!name.trim())throw new Error('Introduce un nombre de periodo.');
   const predecessor=[...doc.periods].sort((a,b)=>a.order-b.order).at(-1);
-  const selections=predecessor?doc.groups.map(g=>[g.id,availableCategories(doc,g.id,predecessor.id).map(c=>c.id)]):[];
+  const selections=predecessor?doc.groups.map(g=>({
+    groupId:g.id,
+    categoryIds:availableCategories(doc,g.id,predecessor.id).map(c=>c.id),
+    overrides:effectiveCategories(doc,g.id,predecessor.id).map(c=>({
+      categoryId:c.id,weight:c.weight,rule:c.rule,bestCount:c.bestCount??2
+    }))
+  })):[];
   doc.periods.push(mark({id:uid(),name:name.trim(),order:doc.periods.length,createdAt:now()})); doc.updatedAt=now();
   const period=doc.periods.at(-1);
-  for(const [groupId,categoryIds] of selections){
-    ensurePeriodProfile(doc,groupId,period.id).categoryIds=categoryIds;
+  for(const {groupId,categoryIds,overrides} of selections){
+    const profile=ensurePeriodProfile(doc,groupId,period.id);
+    profile.categoryIds=categoryIds;
+    profile.overrides=overrides;
   }
   return period;
 }
