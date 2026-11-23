@@ -299,6 +299,23 @@ async function audit(engine,name){
     assert(await page.locator('.final-table').isVisible());
     await page.locator('[data-academic-quick="cuaderno"]').click();
    }
+   // Regresión visual: en tablet/escritorio el menú flotante debe captar el toque,
+   // incluso cuando coincide en pantalla con cabeceras sticky de actividades.
+   if(size.width>=834){
+    const tableMenu=page.locator('.notebook-more-actions');
+    await tableMenu.locator('summary').click();
+    const recovery=tableMenu.locator('#new-recovery');
+    await recovery.scrollIntoViewIfNeeded();
+    const hit=await recovery.evaluate(button=>{
+     const rect=button.getBoundingClientRect();
+     const x=(rect.left+rect.right)/2,y=(rect.top+rect.bottom)/2;
+     const front=document.elementFromPoint(x,y);
+     return {uncovered:button===front||button.contains(front),front:front?.tagName,
+      x:Math.round(x),y:Math.round(y)};
+    });
+    assert(hit.uncovered,name+' Acciones de la tabla ocultas por cabecera sticky: '+JSON.stringify(hit));
+    await tableMenu.locator('summary').click();
+   }
    // Probar reglas reales sobre una fila de estilos temporal y ficticia:
    // el cálculo de notas y el documento cifrado no se modifican.
    const gradeSizing=await page.evaluate(()=>{
