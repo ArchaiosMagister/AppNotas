@@ -24,6 +24,14 @@ export function setItacaGroupRule(doc,groupId,rule){
 /** Condición de actitud por grupo y evaluación. Ausencia = redondeo sin restricción. */
 export const itacaAttitudeCondition=(doc,groupId,periodId)=>
   doc.groups.find(g=>g.id===groupId)?.itacaAttitudeConditions?.[periodId]??null;
+/** Referencias docentes: impedir que una edición o baja deje condiciones
+ * válidas en forma, pero apuntando a actividades o criterios desaparecidos. */
+const itacaUsesCategory=(doc,categoryId,groupId=null)=>doc.groups.some(group=>
+  (groupId===null||group.id===groupId)&&
+  Object.values(group.itacaAttitudeConditions||{}).some(condition=>condition.categoryId===categoryId));
+const itacaUsesAssessment=(doc,assessmentId)=>doc.groups.some(group=>
+  Object.values(group.itacaAttitudeConditions||{}).some(condition=>
+    condition.mode==='criterion'&&condition.assessmentId===assessmentId));
 const isAttitudeCategory=(doc,id)=>(
   doc.categories.find(c=>c.id===id)?.name||''
 ).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().startsWith('actitud');
@@ -748,6 +756,7 @@ export function removeCategory(doc,categoryId){
   const cat=doc.categories.find(c=>c.id===categoryId);
   if(!cat)throw new Error('Categoría inexistente.');
   if(doc.assessments.some(a=>a.categoryId===categoryId))throw new Error('Esta categoría contiene actividades. Muévelas o elimínalas antes de borrar la categoría.');
+  if(itacaUsesCategory(doc,categoryId))throw new Error('Esta categoría está vinculada a una condición de Ítaca. Desactívala en la cabecera de Nota Ítaca antes de eliminarla.');
   if(doc.individualCategoryRules.some(r=>r.categoryId===categoryId))throw new Error('Hay excepciones individuales de esta categoría. Restablécelas antes de eliminarla.');
   // Nunca romper silenciosamente las ponderaciones competenciales.
   if(doc.competencies.some(c=>c.links.some(l=>l.categoryId===categoryId)))
@@ -763,6 +772,7 @@ export function removeCategoryFromGroup(doc,groupId,categoryId){
   const group=doc.groups.find(g=>g.id===groupId);
   if(!group||!categoryAvailableForGroup(doc,groupId,categoryId))throw new Error('Categoría o grupo inválidos.');
   if(doc.assessments.some(a=>a.groupId===groupId&&a.categoryId===categoryId))throw new Error('Esta categoría tiene actividades en alguna evaluación de este grupo. Muévelas o elimínalas antes.');
+  if(itacaUsesCategory(doc,categoryId,groupId))throw new Error('Esta categoría sigue vinculada a una condición de Ítaca de este grupo. Desactívala antes de retirarla.');
   if(doc.individualCategoryRules.some(r=>r.categoryId===categoryId&&doc.students.some(s=>s.id===r.studentId&&s.groupId===groupId)))throw new Error('Hay excepciones individuales: restablécelas antes de retirar la categoría.');
   // Los enlaces de este grupo son configuración docente, aunque todavía
   // no existan notas. Se deben desvincular expresamente antes de retirar.
@@ -836,6 +846,7 @@ export function updateAssessment(doc,id,patch){
   if(typeof updated.convertToTen!=='boolean'||(updated.rubricId!==null&&(!doc.rubrics.some(r=>r.id===updated.rubricId)||updated.maxScore!==10||!updated.convertToTen)))throw new Error('Escala o rúbrica inválida.');
   if(updated.orthography!==undefined&&updated.orthography!==null&&(!validOrthographyConfig(updated.orthography)||updated.orthography.enabled&&(updated.rubricId||!updated.convertToTen)))throw new Error('Penalización ortográfica no compatible con esta actividad.');
   if(a.rubricId!==updated.rubricId&&doc.grades.some(g=>g.assessmentId===id))throw new Error('No cambies el tipo de actividad con notas registradas.');
+  if(itacaUsesAssessment(doc,id)&&(a.rubricId!==updated.rubricId||a.categoryId!==updated.categoryId))throw new Error('Esta actividad es requisito de la Nota Ítaca. Desactiva primero la condición de Actitud antes de cambiar su rúbrica o categoría.');
   // Una devolución ya concedida no puede desaparecer por desactivar la
   // recuperación de faltas; impedir el cambio antes de tocar actividad o agenda.
   if(doc.grades.some(g=>g.assessmentId===id&&g.orthographyDelivered)&&!updated.orthography?.refundable)
@@ -858,6 +869,7 @@ export function moveAssessment(doc,id,direction){
   ids.forEach((x,i)=>{x.order=i;x.updatedAt=now();});doc.updatedAt=now();
 }
 export function removeAssessment(doc,id){
+  if(itacaUsesAssessment(doc,id))throw new Error('La actividad es requisito de una condición de Ítaca. Desactiva primero la condición en la cabecera de Nota Ítaca.');
   if(doc.assessments.some(x=>x.recoveryOf===id))throw new Error('Elimina primero la recuperación vinculada.');
   if(!doc.assessments.some(x=>x.id===id))throw new Error('Actividad inexistente.');
   doc.assessments=doc.assessments.filter(x=>x.id!==id);
@@ -998,6 +1010,8 @@ export function setCategory(doc,id,patch){
   if(!patch||typeof patch!=='object'||Array.isArray(patch)||Object.keys(patch).some(k=>!['name','weight','rule','bestCount'].includes(k)))
     throw new Error('Campo de categoría no permitido.');
   if('name' in patch&&(typeof patch.name!=='string'||!patch.name.trim()||patch.name.length>150))throw new Error('Nombre de categoría inválido.');
+  if('name' in patch&&itacaUsesCategory(doc,id)&&!patch.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().startsWith('actitud'))
+    throw new Error('Esta categoría es requisito de Ítaca. Desactiva la condición antes de cambiar su nombre fuera de Actitud.');
   if('weight' in patch && (!Number.isFinite(patch.weight)||patch.weight<0||patch.weight>100))throw new Error('Porcentaje fuera de 0–100.');
   if('rule' in patch && !CATEGORY_RULES.includes(patch.rule))throw new Error('Regla desconocida.');
   if('bestCount' in patch && !validBestCount(patch.bestCount))throw new Error('Número de mejores notas inválido.');
@@ -1036,6 +1050,7 @@ export function updateRubric(doc,id,name,criteria){
   const old=doc.rubrics.find(r=>r.id===id);
   if(!old)throw new Error('Rúbrica inexistente.');
   if(doc.assessments.some(a=>a.rubricId===id&&doc.grades.some(g=>g.assessmentId===a.id)))throw new Error('Esta rúbrica tiene calificaciones. Crea una copia antes de modificarla.');
+  if(doc.assessments.some(a=>a.rubricId===id&&itacaUsesAssessment(doc,a.id)))throw new Error('Esta rúbrica tiene criterios vinculados a Ítaca. Desactiva la condición antes de editarla.');
   const n=String(name??'').trim();if(!n||n.length>150)throw new Error('Nombre inválido.');
   const normalized=criteria.map(c=>({id:uid(),name:String(c.name??'').trim(),maxScore:Number(c.maxScore),weight:Number(c.weight??1),...(c.levels?{levels:c.levels.map(l=>({score:Number(l.score),label:String(l.label),description:String(l.description??'')}))}:{})}));validateCriteria(normalized);validateRubricInputPrecision(normalized);
   Object.assign(old,{name:n,criteria:normalized,updatedAt:now()});doc.updatedAt=now();return old;
