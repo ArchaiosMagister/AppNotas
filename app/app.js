@@ -204,17 +204,14 @@ function competencyScaleLegend(){
     <p class="hint">Cada nivel se obtiene de la media original, sin redondeos previos. Sin evidencias se muestra «—». La media 0–10 sigue intacta para los cálculos.</p>
   </div>`;
 }
-/** Ítaca usa enteros para umbrales y media con dos decimales en modo «sin redondear»,
- * incluso cuando el usuario configura otra precisión visual en el cuaderno. */
+/** Ítaca muestra siempre una nota entera; la media original conserva sus decimales. */
 function itacaChip(doc,studentId,groupId,periodId){
   const score=itacaGrade(doc,studentId,groupId,periodId);
   if(score===null)return '<span class="grade-empty">—</span>';
   const specific=itacaStudentRule(doc,studentId,periodId);
   const rule=specific==='general'?itacaGroupRule(doc,groupId):specific;
-  const normal=rule==='none'?score.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}):String(score);
-  const blocked=itacaAttitudeBlock(doc,studentId,groupId,periodId);
-  const shown=blocked?score.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}):normal;
-  return `<span class="grade-chip"${gradeStyle(score)}${blocked?' title="'+esc('Sin redondeo: '+blocked)+'"':''}>${esc(shown)}</span>${blocked?'<span class="itaca-guard-indicator" title="'+esc(blocked)+'" aria-label="Redondeo de Ítaca anulado por actitud">!</span>':''}`;
+  const blocked=rule==='none'?null:itacaAttitudeBlock(doc,studentId,groupId,periodId);
+  return `<span class="grade-chip"${gradeStyle(score)}${blocked?' title="'+esc('Subida bloqueada: '+blocked)+'"':''}>${esc(String(score))}</span>${blocked?'<span class="itaca-guard-indicator" title="'+esc(blocked)+'" aria-label="Redondeo ascendente de Ítaca bloqueado por actitud">!</span>':''}`;
 }
 
 // Indicadores visibles únicamente en las vistas docentes, nunca en el modo alumno.
@@ -1093,9 +1090,9 @@ function renderNotebook(){
         <button type="button" class="btn" id="schedule-exam">Programar examen</button>
       </div>
     </div>
-  </details></div></div><div class="student-order-bar">${studentSortControls()}</div><details class="notebook-grade-options"><summary>Ítaca y procedencias <span aria-hidden="true">⌄</span></summary><div class="notebook-grade-options-body"><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small><button type="button" class="btn small" id="configure-itaca-attitude">Condición de actitud: ${itacaAttitudeCondition(STATE.doc,STATE.groupId,STATE.periodId)?'Activada':'Desactivada'}</button><small>Configurable para ${esc(currentPeriod().name)}; anula el redondeo, no modifica las notas.</small></div></div></details><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col">Nota Ítaca <small>/10 · clic para excepción</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><details class="legend notebook-legend"><summary>ⓘ Significado de las notas y colores</summary><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></details>`;
+  </details></div></div><div class="student-order-bar">${studentSortControls()}</div><details class="notebook-grade-options"><summary>Ítaca y procedencias <span aria-hidden="true">⌄</span></summary><div class="notebook-grade-options-body"><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div></div></details><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col"><button type="button" id="configure-itaca-attitude" class="itaca-column-config" title="Configurar el requisito de Actitud para subir la Nota Ítaca" aria-label="Configurar condición de Actitud para subir la Nota Ítaca">Nota Ítaca <span aria-hidden="true">⚙</span></button><small>/10 · ${itacaAttitudeCondition(STATE.doc,STATE.groupId,STATE.periodId)?'Condición activa':'Configurar actitud'}</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><details class="legend notebook-legend"><summary>ⓘ Significado de las notas y colores</summary><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></details>`;
 }
-const ITACA_OPTIONS=[['half','Redondear desde ,5'],['seven','Redondear desde ,7'],['none','No redondear']];
+const ITACA_OPTIONS=[['half','Redondear desde ,5'],['seven','Redondear desde ,7'],['none','Conservar parte entera (sin subir)']];
 const RULE_LABELS={mean:'Media aritmética',weighted_mean:'Media ponderada por actividad',highest:'Mejor nota',best_n:'Media de las N mejores',last:'Última evaluada',latest_if_highest:'Última si iguala o supera la mejor; si no, media'};
 function renderRules(){
   const categories=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId);
@@ -1928,7 +1925,7 @@ function openItacaAttitudeCondition(){
  const current=itacaAttitudeCondition(doc,groupId,periodId);
  dialog.innerHTML=`<form class="modal-inner itaca-attitude-dialog" id="itaca-attitude-form">
  <h2 id="modal-heading">Condición de actitud · Nota Ítaca</h2>
- <p class="subtitle">${esc(currentPeriod().name)} · ${esc(currentGroup().name)}. Si no se cumple el requisito, Ítaca mostrará la media íntegra con dos decimales, sin subir ni bajar al entero. Las notas originales no cambian.</p>
+ <p class="subtitle">${esc(currentPeriod().name)} · ${esc(currentGroup().name)}. Si la nota de Actitud no cumple el requisito, Ítaca conserva la parte entera (por ejemplo, 5,9 → 5), sin subir. Si lo cumple, se aplica el umbral de redondeo elegido. Ítaca siempre muestra enteros y las medias originales no cambian.</p>
  <div class="modal-fields">
  <label>Aplicar redondeo solo cuando<select name="guardMode">
  <option value="none"${!current?' selected':''}>Sin condición (comportamiento anterior)</option>
@@ -1936,7 +1933,7 @@ function openItacaAttitudeCondition(){
  <option value="criterion"${current?.mode==='criterion'?' selected':''}${activities.length?'':' disabled'}>Un criterio de la rúbrica alcance el mínimo</option>
  </select></label>
  <div class="itaca-guard-details" id="itaca-guard-details"></div>
- <p class="hint">La condición se evalúa para cada alumno. Si falta la nota necesaria o está marcada como AJ, no se aplica el redondeo hasta completarla. Las excepciones individuales siguen disponibles, pero no eluden esta condición.</p>
+ <p class="hint">La condición se evalúa para cada alumno. Si falta la nota necesaria o está marcada como AJ, no se permite subir al entero siguiente hasta completarla. Las excepciones individuales siguen disponibles, pero no eluden esta condición.</p>
  </div>
  <div class="modal-error" role="alert"></div>
  <div class="modal-actions"><button type="button" class="btn" id="itaca-guard-cancel">Cancelar</button><button type="submit" class="btn primary">Guardar condición</button></div>
