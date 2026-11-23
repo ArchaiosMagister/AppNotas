@@ -116,7 +116,7 @@ test('el HTML escapa nombres de grupos y presenta tarjetas dentro de secciones a
 test('cache PWA renovada y módulo agrupador incluido para modo offline',()=>{
  const app=readFileSync(path.join(base,'app.js'),'utf8');
  const sw=readFileSync(path.join(base,'sw.js'),'utf8');
- assert(app.includes('cuaderno-docente-static-v171-dev'));
- assert(sw.includes('cuaderno-docente-static-v171-dev'));
+ const cacheId=sw.match(/const CACHE='(cuaderno-docente-static-v\d+-dev)'/)?.[1];
+ assert(cacheId&&app.includes(cacheId),'App y service worker deben utilizar la misma caché');
  assert(sw.includes("'./src/evaluation-session-presentation.js'"));
 });
