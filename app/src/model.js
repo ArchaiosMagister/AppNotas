@@ -1230,3 +1230,46 @@ export function movePeriod(doc,periodId,direction){
   [list[index],list[index+direction]]=[list[index+direction],list[index]];
   list.forEach((x,i)=>{x.order=i;x.updatedAt=now();});doc.updatedAt=now();
 }
+
+export function removePeriod(doc,periodId){
+  if(!doc.periods.some(p=>p.id===periodId))throw new Error('Periodo inexistente.');
+  if(doc.periods.length===1)throw new Error('El cuaderno debe conservar al menos un periodo.');
+
+  const assessmentIds=new Set(doc.assessments.filter(a=>a.periodId===periodId).map(a=>a.id));
+  doc.assessments=doc.assessments.filter(a=>!assessmentIds.has(a.id));
+  doc.grades=doc.grades.filter(g=>!assessmentIds.has(g.assessmentId));
+  if(doc.gradeObservations)doc.gradeObservations=doc.gradeObservations.filter(n=>!assessmentIds.has(n.assessmentId));
+  doc.gradingProfiles=doc.gradingProfiles.filter(p=>p.periodId!==periodId);
+  doc.individualCategoryRules=doc.individualCategoryRules.filter(r=>r.periodId!==periodId);
+  doc.finalOverrides=doc.finalOverrides.filter(o=>o.periodId!==periodId);
+
+  const stamp=now();
+  for(const config of doc.finalConfigs){
+    if(!Object.hasOwn(config.weights,periodId)&&!config.excludedPeriodIds.includes(periodId))continue;
+    delete config.weights[periodId];
+    config.excludedPeriodIds=config.excludedPeriodIds.filter(id=>id!==periodId);
+    config.updatedAt=stamp;
+  }
+  for(const student of doc.students){
+    if(!Object.hasOwn(student.itacaRoundingOverrides??{},periodId))continue;
+    delete student.itacaRoundingOverrides[periodId];
+    if(!Object.keys(student.itacaRoundingOverrides).length)delete student.itacaRoundingOverrides;
+    student.updatedAt=stamp;
+  }
+  for(const group of doc.groups){
+    if(!Object.hasOwn(group.itacaAttitudeConditions??{},periodId))continue;
+    delete group.itacaAttitudeConditions[periodId];
+    if(!Object.keys(group.itacaAttitudeConditions).length)delete group.itacaAttitudeConditions;
+    group.updatedAt=stamp;
+  }
+  for(const year of doc.planner?.years??[]){
+    year.events=year.events.filter(e=>e.periodId!==periodId);
+    // Igual que al eliminar una actividad: conservar el examen en la agenda.
+    for(const event of year.events)if(assessmentIds.has(event.assessmentId))event.assessmentId=null;
+  }
+  doc.periods=doc.periods.filter(p=>p.id!==periodId).sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id));
+  doc.periods.forEach((p,order)=>{
+    if(p.order!==order)Object.assign(p,{order,updatedAt:stamp});
+  });
+  doc.updatedAt=stamp;
+}

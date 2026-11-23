@@ -1,4 +1,4 @@
-import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,catalogForNotebook,addNotebookSubject,removeNotebookSubject,defaultSubjectAccent,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,setGroupWeeklyHours,setStudentOriginGroups,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setItacaAttitudeCondition,itacaAttitudeCondition,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
+import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,catalogForNotebook,addNotebookSubject,removeNotebookSubject,defaultSubjectAccent,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,setGroupWeeklyHours,setStudentOriginGroups,renamePeriod,movePeriod,removePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setItacaAttitudeCondition,itacaAttitudeCondition,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
 import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,competencyArithmeticMean,gradeToFour,competencyAcquisitionLevel,competencyAcquisitionLabel,COMPETENCY_ACQUISITION_LABELS,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,greekEtymologyBonusApplied,itacaGrade,itacaAttitudeBlock} from './src/calculations.js';
 import {studentsFromCsv} from './src/csv.js';
 import {parseRubricText} from './src/rubric-import.js';
@@ -148,7 +148,7 @@ const savedStudentActivityOrders=()=>{try{
 }catch{return {};}};
 const STUDENT_ACTIVITY_SORT_OPTIONS=[['category','Por categoría'],['column','Orden del cuaderno'],['alphabetical','Nombre de actividad (A–Z)'],['reverse','Últimas actividades primero']];
 
-const STATE={evaluationWorkspaceTab:'sesiones',plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),studentPlainSort:savedStudentPlainSort(),studentActivityOrders:savedStudentActivityOrders(),studentPeriodOpen:{},db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
+const STATE={evaluationWorkspaceTab:'sesiones',plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),studentPlainSort:savedStudentPlainSort(),studentActivityOrders:savedStudentActivityOrders(),studentPeriodId:null,studentFull:false,studentPresentation:false,db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const $=(sel,context=document)=>context.querySelector(sel);
 const opt=(id,label,chosen)=>`<option value="${esc(id)}" ${chosen===id?'selected':''}>${esc(label)}</option>`;
@@ -324,7 +324,7 @@ function originDirectoryHeader(students,index){
 }
 
 let toastTimeout;
-function toast(message){let el=$('#toast');if(!el){el=document.createElement('div');el.id='toast';el.className='status-message';document.body.appendChild(el);}el.textContent=message;el.classList.remove('hidden');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.add('hidden'),4300);}
+function toast(message){if(STATE.studentPresentation)return;let el=$('#toast');if(!el){el=document.createElement('div');el.id='toast';el.className='status-message';document.body.appendChild(el);}el.textContent=message;el.classList.remove('hidden');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.add('hidden'),4300);}
 function fail(error){console.error(error);toast(error?.message||'Ha ocurrido un error.');}
 function fieldsModal(title,fields,onSubmit,caption=''){
   dialog.innerHTML=`<form method="dialog" class="modal-inner" id="modal-form"><h2 id="modal-heading">${esc(title)}</h2>${caption?`<p class="subtitle">${esc(caption)}</p>`:''}<div class="modal-fields">${fields.map(f=>`<label>${esc(f.label)}${f.type==='textarea'?`<textarea class="text-field rubric-textarea" name="${esc(f.id)}" rows="7" required>${esc(f.value??'')}</textarea>`:f.type==='select'?`<select name="${esc(f.id)}" ${f.required===false?'':'required'}>${f.options.map(o=>opt(o.value,o.label,f.value)).join('')}</select>`:`<input class="text-field" name="${esc(f.id)}" type="${esc(f.type||'text')}" value="${esc(f.value??'')}" ${f.required===false?'':'required'} ${f.min!==undefined?`min="${f.min}"`:''} ${f.max!==undefined?`max="${f.max}"`:''} ${f.step?`step="${f.step}"`:''} maxlength="${f.maxlength||150}" autocomplete="off"/>`}</label>`).join('')}</div><div class="modal-error" role="alert"></div><div class="modal-actions"><button type="button" class="btn" id="close-dialog">Cancelar</button><button class="btn primary" type="submit">Guardar</button></div></form>`;
@@ -482,7 +482,7 @@ async function init(){
   }catch(e){root.innerHTML=`<div class="unlock-screen"><div class="unlock-box"><h1>Error de almacenamiento</h1><p>${esc(e.message)}</p><p>No introduzcas datos hasta solucionar el problema. Usa HTTPS o localhost y permite almacenamiento local.</p></div></div>`;}
 }
 function showUnlock(isNew){
-  STATE.doc=null;STATE.key=null;STATE.salt=null;STATE.history=emptyHistory();
+  STATE.doc=null;STATE.key=null;STATE.salt=null;STATE.history=emptyHistory();STATE.studentPresentation=false;
   root.innerHTML=`<main class="unlock-screen"><div class="unlock-box"><div class="brand-mini">▦</div><div class="eyebrow">AppNotas · versión 1.0</div><h1>CuadernoDocente</h1><p>${isNew?'Elige un cuaderno vacío o uno de demostración con ocho alumnos ficticios. Ambos se guardan cifrados en este dispositivo.':'Desbloquea tu cuaderno local cifrado para continuar.'}</p>${STATE.reloadProbe?`<p class="${STATE.reloadProbe.ok?'section-note':'unlock-error'}" role="status">${STATE.reloadProbe.ok?'Recarga verificada: la misma copia cifrada continúa en IndexedDB. Desbloquéala para validar las notas.':'No se ha podido verificar el guardado tras recargar. Revisa el almacenamiento y no introduzcas más datos hasta comprobar la copia.'}</p>`:''}${pwaButtons()}<button type="button" class="btn unlock-help-primary" id="how-it-works" aria-label="Cómo funciona AppNotas y cómo guardar copias de seguridad">¿Cómo funciona? <span aria-hidden="true">ⓘ</span></button><form id="unlock-form"><label for="password">${isNew?'Crea una contraseña de 12 caracteres como mínimo':'Contraseña del cuaderno'}</label><input id="password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>${isNew?'<label for="confirm-password">Repite la contraseña</label><input id="confirm-password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>':''}<div id="unlock-error" class="unlock-error" role="alert"></div>${isNew?'<div class="modal-actions"><button class="btn primary" type="submit" data-create-mode="empty">Crear cuaderno vacío</button><button class="btn" type="submit" data-create-mode="demo">Crear cuaderno de demostración</button></div>':'<button class="btn primary" type="submit">Desbloquear</button>'}</form><p class="hint">La contraseña no se envía ni se almacena. Si la pierdes, no podrás recuperar los datos cifrados.</p><p class="hint">Almacena los cuadernos cifrados únicamente en dispositivos autorizados. Guarda y verifica copias en ubicaciones locales no sincronizadas; nunca en servicios en la nube.</p><button class="btn" id="restore-locked">Restaurar una copia cifrada</button><input class="hidden" type="file" id="restore-locked-file" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/>${STATE.recovery?'<div class="recovery-choice"><p class="hint">Hay una copia cifrada de rescate anterior a la última restauración.</p><button class="btn" id="recover-locked">Recuperar versión anterior</button><button class="btn" id="download-recovery-locked">Descargar copia de rescate</button></div>':''}</div></main>`;
   $('#unlock-form').addEventListener('submit',e=>{
     e.preventDefault();
@@ -886,7 +886,7 @@ function renderAcademicQuickNav(){
 }
 function renderPeriodButtons(){
   const periods=[...STATE.doc.periods].sort((a,b)=>a.order-b.order);
-  return `<nav class="term-bar" aria-label="Períodos de calificación"><div class="term-buttons" role="group" aria-label="Períodos">${periods.map(p=>`<span class="term-item ${STATE.tab==='cuaderno'&&STATE.periodId===p.id?'active':''}"><button type="button" class="term-button ${STATE.tab==='cuaderno'&&STATE.periodId===p.id?'active':''}" data-period-choice="${esc(p.id)}" aria-pressed="${STATE.tab==='cuaderno'&&STATE.periodId===p.id}" title="Seleccionar ${esc(p.name)} (doble clic para renombrar)">${esc(p.name)}</button><button type="button" class="term-edit" data-rename-period="${esc(p.id)}" aria-label="Renombrar ${esc(p.name)}" title="Renombrar ${esc(p.name)}">✎</button></span>`).join('')}<button type="button" class="term-add" id="new-period" aria-label="Añadir período" title="Crear período">+ <span>Período</span></button></div></nav>${STATE.tab==='cuaderno'?renderNotebookEvaluationNotice(STATE.doc,STATE.groupId,STATE.periodId):''}`;
+  return `<nav class="term-bar" aria-label="Períodos de calificación"><div class="term-buttons" role="group" aria-label="Períodos">${periods.map(p=>`<span class="term-item ${STATE.tab==='cuaderno'&&STATE.periodId===p.id?'active':''}"><button type="button" class="term-button ${STATE.tab==='cuaderno'&&STATE.periodId===p.id?'active':''}" data-period-choice="${esc(p.id)}" aria-pressed="${STATE.tab==='cuaderno'&&STATE.periodId===p.id}" title="Seleccionar ${esc(p.name)} (doble clic para gestionar)">${esc(p.name)}</button><button type="button" class="term-edit" data-rename-period="${esc(p.id)}" aria-label="Gestionar ${esc(p.name)}" title="Renombrar, reordenar o eliminar ${esc(p.name)}">✎</button></span>`).join('')}<button type="button" class="term-add" id="new-period" aria-label="Añadir período" title="Crear período">+ <span>Período</span></button></div></nav>${STATE.tab==='cuaderno'?renderNotebookEvaluationNotice(STATE.doc,STATE.groupId,STATE.periodId):''}`;
 }
 function render(){
   if(!STATE.doc)return;
@@ -898,6 +898,14 @@ function render(){
   if(!matching.some(g=>g.id===STATE.groupId))STATE.groupId=matching[0]?.id||null;
   const group=currentGroup();
   applyTheme();
+  unbindClassStats();
+  if(STATE.studentPresentation){
+    root.innerHTML=`<main class="student-presentation">${renderStudentView()}</main>`;
+    bindStudentView();
+    paintGrades(root);
+    paintStudentCategoryCards(root);
+    return;
+  }
   // Cada boton corresponde a una materia concreta, no solo a una etapa:
   // elegir entre Latin y Griego nunca depende de un segundo desplegable.
   const courseChoices=[...catalogForNotebook(STATE.doc).flatMap(({level,label,subjects})=>subjects.map(subject=>({
@@ -911,7 +919,6 @@ function render(){
   const levelLabel=COURSE_SUBJECTS[STATE.level]?.label||'Sin clasificar';
   const hasGroup=!!STATE.groupId;
   const color=STATE.level==='legacy'?'#F59E0B':colorFor(STATE.level,STATE.subject);
-  unbindClassStats();
   root.innerHTML=`<div class="shell ${STATE.tab==='alumno'&&STATE.studentId?'student-focus':''} ${STATE.navCollapsed?'nav-collapsed':''}"><header class="topbar"><div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h30M12 16h24M15 19v17m9-17v17m9-17v17M9 39h30M12 36h24M12 12c1-5 6-8 12-8s11 3 12 8"/><path d="M19 12h10"/></svg></div><div class="brand-copy"><strong>AppNotas</strong><small>CuadernoDocente · Agenda y evaluación</small></div></div><div class="topmeta"><span class="pill security-pill" title="Cuaderno guardado cifrado en el dispositivo">🔒 Cifrado local</span><span id="save-status" role="status" class="pill status ok">Guardado cifrado</span>
   <button type="button" class="btn topbar-close-btn" id="close-notebook" title="Guardar una copia cifrada y cerrar el cuaderno">Cerrar cuaderno</button><details class="header-tools" data-shell-disclosure="tools" ${workspaceDisclosures.tools?'open':''}><summary aria-label="Aplicación">Aplicación <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
     <div class="header-tools-panel">
@@ -1386,9 +1393,130 @@ function openRubricGrade(studentId,assessmentId){
   refresh();dialog.showModal();form.querySelector('[data-rating-id]')?.focus();
 }
 
+function studentGradeButton(key,label,score){
+  return `<button type="button" class="student-grade-button" data-student-explanation="${esc(key)}" aria-description="Abre el desglose del cálculo" title="Ver cálculo"><span>${esc(label)}</span><strong class="student-score">${score}</strong><span aria-hidden="true">ⓘ</span></button>`;
+}
+
+function studentCompetencies(){
+  const {doc,groupId,competencyVersion}=STATE;
+  const catalog=officialCompetenciesForGroup(currentGroup(),competencyVersion);
+  const official=(catalog?.competencias??[]).map(ce=>({
+    id:linkedOfficialCompetency(doc,groupId,ce.key)?.id,
+    title:ce.code+' · '+ce.enunciado
+  }));
+  const custom=groupCompetencies(doc,groupId).filter(c=>!c.curriculumKey).map(c=>({id:c.id,title:c.name}));
+  const all=[...official,...custom];
+  const officialMean=official.some(c=>c.id);
+  const forMean=officialMean?official:custom;
+  return {all,forMean,officialMean};
+}
+
+function studentRoundingNote(){
+  const {settings}=STATE.doc;
+  const decimals=Math.min(2,Math.max(0,settings.decimals));
+  const shown=decimals===0?'sin decimales':decimals===1?'con 1 decimal':'con 2 decimales';
+  const method={floor:'hacia abajo',ceil:'hacia arriba','half-up':'al valor más cercano, con los empates hacia arriba'}[settings.rounding];
+  return `<p>La nota académica se muestra ${shown}. El redondeo visual se aplica ${method}. Los cálculos conservan toda la precisión.</p>`;
+}
+
+const studentEvidenceNumber=value=>String(value).replace('.',',');
+
+function studentCategoryEvidence(entry,{useLabel=''}={},periodId=STATE.studentPeriodId){
+  const category=effectiveCategories(STATE.doc,STATE.groupId,periodId).find(c=>c.id===entry.categoryId);
+  const rule=entry.rule==='best_n'?`Media de las ${category?.bestCount??2} mejores notas`:RULE_LABELS[entry.rule];
+  const fallback=entry.used.length>1&&(entry.rule==='latest_if_highest'||entry.rule==='last');
+  const individual=entry.individualRule==='mean'||entry.individualRule==='last'||entry.npTriggered;
+  return `<section class="student-evidence">
+    <div class="cardline"><strong>${esc(entry.category)} ${useLabel?'<small>'+esc(useLabel)+'</small>':''}</strong>${gradeChip(entry.grade)}</div>
+    <p>${esc(rule)}${individual?' · Excepción individual':''}.</p>
+    ${fallback?'<p>En esta evaluación se aplica la media de las actividades evaluadas.</p>':''}
+    ${entry.issue?'<p class="warning-calculation">Hay una nota sin conversión que supera 10/10.</p>':''}
+    ${entry.evidence.length?`<ul class="student-evidence-list">${entry.evidence.map(e=>{
+      const used=entry.used.includes(e);
+      const weighting=entry.rule==='weighted_mean'?` · Peso relativo ${studentEvidenceNumber(e.weight)}`:' · Mismo peso que las demás actividades incluidas';
+      const original=e.originalNotSubmitted?'NP':gradeFmt(e.original);
+      const recovery=e.recoveryNotSubmitted?'NP':gradeFmt(e.recovery);
+      return `<li><span><strong>${esc(e.name)}</strong>${e.recovery!==null?`<small>Original ${esc(original)} · ${esc(e.recoveryName)} ${esc(recovery)}</small>`:e.originalNotSubmitted?'<small>NP · No presentado</small>':''}
+        <small>${used?'Incluida'+esc(weighting):'Fuera de esta media'}</small></span>${gradeChip(e.value)}</li>`;
+    }).join('')}</ul>`:'<p class="hint">Sin actividades evaluadas para este cálculo.</p>'}
+  </section>`;
+}
+
+function studentAcademicEvidence(studentId,periodId){
+  const {doc,groupId}=STATE;
+  const note=overallGrade(doc,studentId,groupId,periodId);
+  return `<p>Media ponderada de las categorías con nota y porcentaje positivo. Se divide la suma de las notas de categoría multiplicadas por su porcentaje entre la suma de los porcentajes que intervienen.</p>
+    ${note===null?'<p>La media académica está sin calificar.</p>':`<p>Media académica antes del redondeo visual: <strong>${esc(competencySourceGrade(note))} / 10</strong>.</p>`}
+    ${calculationBreakdown(doc,studentId,groupId,periodId).map(entry=>studentCategoryEvidence(entry,{
+      useLabel:`${studentEvidenceNumber(entry.weight)} % configurado · ${entry.weight>0&&entry.grade!==null?'con nota y peso':'fuera de la media'}`
+    },periodId)).join('')}
+    <p class="hint">Las actividades sin nota y las ausencias justificadas pendientes quedan fuera. Un NP computa como cero cuando se usa como evidencia.</p>`;
+}
+
+function explainStudentGrade(student,key){
+  const {doc,groupId,studentPeriodId:periodId}=STATE;
+  const displayRule=()=>{
+    const specific=itacaStudentRule(doc,student.id,periodId);
+    const rule=specific==='general'?itacaGroupRule(doc,groupId):specific;
+    const block=rule==='none'?null:itacaAttitudeBlock(doc,student.id,groupId,periodId);
+    const threshold=rule==='seven'?'0,70':'0,50';
+    const text=rule==='none'?'Ítaca toma la parte entera de la media académica.':
+      block?`${block} Ítaca toma la parte entera de la media académica.`:
+        `Ítaca aplica el umbral de ${threshold} a la parte decimal de la media académica íntegra. Si alcanza el umbral, se sube al entero siguiente. En caso contrario, se toma el entero inferior.`;
+    return `<p>Ítaca parte de la media académica de esta evaluación. ${esc(text)} ${specific==='general'?'Se aplica la regla general del grupo.':'Se aplica una regla individual.'}</p>`;
+  };
+  if(key==='academic'||key==='itaca'){
+    const itaca=key==='itaca';
+    showInfo(itaca?'Cómo se calcula la nota Ítaca':'Cómo se calcula la media académica',
+      `${itaca?displayRule():studentRoundingNote()}${studentAcademicEvidence(student.id,periodId)}`);
+    return;
+  }
+  if(key==='final'){
+    const annual=finalEvidence(doc,student.id,groupId);
+    showInfo('Cómo se calcula la evaluación final',`<p>${esc(FINAL_RULE_LABELS[annual.rule])}.</p>
+      ${annual.issue?'<p class="warning-calculation">Revisa las notas de los periodos que intervienen en la final.</p>':''}
+      ${annual.evidence.map(e=>{
+        const used=annual.used.includes(e)&&(annual.rule!=='weighted_mean'||e.weight>0);
+        const weight=annual.rule==='weighted_mean'?` · Peso relativo ${studentEvidenceNumber(e.weight)}`:'';
+        const source=e.manual!==null?'Nota manual':e.automatic===null?'Sin calificar':'Media académica';
+        return `<div class="student-evidence"><div class="cardline"><strong>${esc(e.name)}</strong>${gradeChip(e.value)}</div>
+          <p>${esc(source+weight+(used?' · Incluida':' · Fuera de la media'))}</p>
+          ${used&&e.manual===null?`<details><summary>Actividades de ${esc(e.name)}</summary>${studentAcademicEvidence(student.id,e.periodId)}</details>`:''}</div>`;
+      }).join('')}${studentRoundingNote()}`);
+    return;
+  }
+  const entries=calculationBreakdown(doc,student.id,groupId,periodId);
+  if(key.startsWith('category:')){
+    const entry=entries.find(e=>e.categoryId===key.slice('category:'.length));
+    if(entry)showInfo('Cómo se calcula '+entry.category,studentCategoryEvidence(entry)+studentRoundingNote());
+    return;
+  }
+  const {all,forMean,officialMean}=studentCompetencies();
+  const competencyDetail=comp=>{
+    const stored=doc.competencies.find(c=>c.id===comp.id);
+    return `<p>Media ponderada de las categorías vinculadas que tienen nota. Cada vínculo aporta su peso relativo.</p>
+      ${(stored?.links??[]).map(link=>{
+        const entry=entries.find(e=>e.categoryId===link.categoryId);
+        return entry?studentCategoryEvidence(entry,{useLabel:`Peso relativo ${studentEvidenceNumber(link.weight)}`}):'';
+      }).join('')||'<p class="hint">Esta competencia no tiene categorías vinculadas en esta evaluación.</p>'}`;
+  };
+  if(key==='competency-mean'){
+    const evaluated=forMean.filter(c=>c.id&&competencyGrade(doc,student.id,c.id,groupId,periodId)!==null);
+    showInfo('Cómo se calcula la media de competencias',
+      `<p>Se suman las notas íntegras de las competencias ${officialMean?'oficiales ':''}evaluadas y se divide entre su número. Todas cuentan por igual.</p>
+      ${evaluated.map(c=>`<details class="student-evidence"><summary>${esc(c.title)} · ${esc(competencySourceGrade(competencyGrade(doc,student.id,c.id,groupId,periodId)))} / 10</summary>${competencyDetail(c)}</details>`).join('')||'<p class="hint">Sin competencias evaluadas.</p>'}`);
+  }else{
+    const comp=all.find(c=>c.id&&c.id===key.slice('competency:'.length));
+    if(comp)showInfo('Cómo se calcula '+comp.title,competencyDetail(comp));
+  }
+}
+
 function renderStudentView(){
   const student=STATE.doc.students.find(s=>s.id===STATE.studentId&&s.groupId===STATE.groupId);
-  const students=allStudents();
+  const presenting=STATE.studentPresentation;
+  const exitButton='<button class="btn" type="button" id="exit-student-presentation">Volver a la vista del profesor</button>';
+  if(presenting&&!student)return `<section class="panel panel-pad student-privacy"><p>La ficha ya no está disponible.</p>${exitButton}</section>`;
+  const students=presenting?[]:allStudents();
   if(!student)return `<section class="panel panel-pad student-directory"><div class="section-title-row"><div><span class="eyebrow">CONSULTA INDIVIDUAL</span><h2 id="student-list-heading" tabindex="-1">Modo sesión de evaluación · ${esc(currentGroup()?.name||'Grupo')}</h2><p class="subtitle">Selecciona un alumno para consultar sus calificaciones y medias.</p></div><span class="student-count">${students.length} ${students.length===1?'alumno':'alumnos'}</span></div><div class="student-order-bar">${studentSortControls()}</div><div class="student-directory-grid">${students.map((s,i)=>`${originDirectoryHeader(students,i)}<button type="button" class="student-directory-choice" data-open-student="${esc(s.id)}"><span class="student-directory-avatar" aria-hidden="true">◉</span><span>${esc(s.name)}</span>${studentOriginBadge(s)}<span class="student-directory-arrow" aria-hidden="true">›</span></button>`).join('')||'<p class="hint">Todavía no hay alumnos en este grupo.</p>'}</div><p class="section-note">La lista contiene nombres del grupo. Antes de compartir la pantalla, selecciona el alumno correspondiente: la consulta individual oculta los demás nombres.</p><button class="btn" id="return-notebook">Volver al cuaderno</button></section>`;
   const position=students.findIndex(s=>s.id===student.id);
   const previous=students[position-1],next=students[position+1];
@@ -1416,20 +1544,99 @@ function renderStudentView(){
       :a.maxScore===10?gradeChip(grade.score):`<span class="student-raw">${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))}</span>`;
     return `<div class="student-assessment-block student-category-tinted" data-column-category="${esc(a.categoryId)}"><div class="student-assessment"><span>${esc(a.name)}${categoryName?`<small class="student-activity-category">${esc(categoryName)}</small>`:''}</span><strong>${shown}</strong></div>${renderRubricBreakdown(a,grade)}${visibleObservation}</div>`;
   };
-  return `<section class="panel panel-pad student-privacy"><div class="student-detail-head"><div><span class="eyebrow">VISOR INDIVIDUAL</span><h2 id="student-view-title" tabindex="-1">${esc(student.name)}</h2><p class="subtitle">${esc(currentGroup().name)}${student.originGroup?' · Grupo de procedencia: '+esc(student.originGroup):''} · Solo aparecen las calificaciones de este alumno.</p></div><div class="student-navigation" role="group" aria-label="Cambiar de alumno"><button class="btn" type="button" id="previous-student" ${previous?'':'disabled'} aria-label="Alumno anterior">← Anterior</button><span class="student-position" aria-label="Alumno ${position+1} de ${students.length}">${position+1} de ${students.length}</span><button class="btn" type="button" id="next-student" ${next?'':'disabled'} aria-label="Alumno siguiente">Siguiente →</button></div><button class="btn primary" id="hide-student">Volver al listado</button></div></section>${periods.map((p,index)=>{
-    const cats=effectiveCategories(STATE.doc,STATE.groupId,p.id);
-    const mode=STATE.studentActivityOrders[p.id]||'category';
-    const ordered=sortStudentPeriodActivities(STATE.doc,STATE.groupId,p.id,mode);
-    const content=mode==='category'?cats.map(c=>`<div class="student-category student-category-tinted" data-column-category="${esc(c.id)}"><div class="cardline"><strong>${esc(c.name)}</strong><span class="value">${gradeChip(categoryGrade(STATE.doc,student.id,c.id,STATE.groupId,p.id))} / 10</span></div>${ordered.filter(a=>a.categoryId===c.id).map(a=>renderActivity(a)).join('')||'<p class="hint">Sin actividades en esta categoría.</p>'}</div>`).join('')
-      :`<div class="student-activity-list">${ordered.map(a=>renderActivity(a,cats.find(c=>c.id===a.categoryId)?.name||'')).join('')||'<p class="hint">Sin actividades en esta evaluación.</p>'}</div>`;
-    const opened=STATE.studentPeriodOpen[p.id]??index===0;
-    return `<details class="panel panel-pad student-period" data-student-period="${esc(p.id)}" ${opened?'open':''}><summary class="student-period-summary"><span class="student-period-name">${esc(p.name)}</span><div class="student-period-grades"><span class="student-period-grade"><span class="student-period-grade-label">Media</span><strong class="student-score">${gradeChip(overallGrade(STATE.doc,student.id,STATE.groupId,p.id))} / 10</strong></span><span class="student-period-grade student-period-itaca"><span class="student-period-grade-label">Ítaca</span><strong class="student-score">${itacaChip(STATE.doc,student.id,STATE.groupId,p.id)}</strong></span></div></summary><div class="student-period-body"><label class="student-period-order-label">Orden de las actividades<select data-student-period-order="${esc(p.id)}" aria-label="Orden de actividades de ${esc(p.name)}">${STUDENT_ACTIVITY_SORT_OPTIONS.map(([key,label])=>opt(key,label,mode)).join('')}</select></label>${content}</div></details>`;
-  }).join('')}<section class="panel panel-pad student-final-summary"><div class="section-title-row"><strong>Evaluación final del curso</strong><strong class="student-score">${gradeChip(finalGrade(STATE.doc,student.id,STATE.groupId))} / 10</strong></div></section>`;
+  const doc=STATE.doc,groupId=STATE.groupId;
+  const p=doc.periods.find(period=>period.id===STATE.studentPeriodId)??currentPeriod();
+  STATE.studentPeriodId=p.id;
+  const categories=effectiveCategories(doc,groupId,p.id);
+  const activities=doc.assessments.filter(a=>a.groupId===groupId&&a.periodId===p.id);
+  const activityIds=new Set(activities.map(a=>a.id));
+  const grades=doc.grades.filter(g=>g.studentId===student.id&&activityIds.has(g.assessmentId));
+  const pending=grades.filter(g=>g.pendingJustified).length;
+  const notSubmitted=grades.filter(g=>g.notSubmitted).length;
+  const warnings=periodCalculationWarnings(doc,student.id,groupId,p.id)
+    .map(warning=>warning.replace(' Activa la conversión de esa actividad.',''));
+  if(pending)warnings.push(pending===1?'Hay 1 ausencia justificada pendiente.':`Hay ${pending} ausencias justificadas pendientes.`);
+  if(notSubmitted)warnings.push(notSubmitted===1?'Hay 1 actividad marcada como «No presentado».':`Hay ${notSubmitted} actividades marcadas como «No presentado».`);
+  const itacaRule=itacaStudentRule(doc,student.id,p.id);
+  const itacaBlock=(itacaRule==='general'?itacaGroupRule(doc,groupId):itacaRule)==='none'
+    ?null:itacaAttitudeBlock(doc,student.id,groupId,p.id);
+  if(itacaBlock&&overallGrade(doc,student.id,groupId,p.id)!==null)warnings.push('Ítaca toma la parte entera de la media académica. '+itacaBlock);
+  const mode=STATE.studentActivityOrders[p.id]||'category';
+  const renderActivities=()=>{
+    const ordered=sortStudentPeriodActivities(doc,groupId,p.id,mode);
+    const content=mode==='category'?categories.map(c=>`<div class="student-category student-category-tinted" data-column-category="${esc(c.id)}"><div class="cardline">${studentGradeButton('category:'+c.id,c.name,gradeChip(categoryGrade(doc,student.id,c.id,groupId,p.id)))}</div>${ordered.filter(a=>a.categoryId===c.id).map(a=>renderActivity(a)).join('')||'<p class="hint">Sin actividades en esta categoría.</p>'}</div>`).join('')
+      :`<div class="student-activity-list">${ordered.map(a=>renderActivity(a,categories.find(c=>c.id===a.categoryId)?.name||'')).join('')||'<p class="hint">Sin actividades en esta evaluación.</p>'}</div>`;
+    return `<div class="student-period-body">${presenting?'':`<label class="student-period-order-label">Orden de las actividades<select data-student-period-order="${esc(p.id)}" aria-label="Orden de actividades de ${esc(p.name)}">${STUDENT_ACTIVITY_SORT_OPTIONS.map(([key,label])=>opt(key,label,mode)).join('')}</select></label>`}${content}</div>`;
+  };
+  const {all,forMean,officialMean}=studentCompetencies();
+  const average=competencyArithmeticMean(doc,student.id,forMean.map(c=>c.id).filter(Boolean),groupId,p.id);
+  const competencies=`<details class="panel panel-pad student-competencies"><summary>Competencias</summary>
+    ${all.length?`<ul class="student-competency-list">${all.map(c=>{
+      const score=c.id?competencyGrade(doc,student.id,c.id,groupId,p.id):null;
+      return `<li>${c.id?studentGradeButton('competency:'+c.id,c.title,competencyLevelChip(score)):
+        `<span>${esc(c.title)}</span> ${competencyLevelChip(null)}`}</li>`;
+    }).join('')}</ul><div>${studentGradeButton('competency-mean','Media aritmética de competencias',competencyLevelChip(average))}</div>
+    <p class="hint">Cada competencia ${officialMean?'oficial ':''}evaluada cuenta por igual en la media. El nivel 1 indica la mayor adquisición.</p>`:'<p class="hint">Este grupo todavía no tiene competencias.</p>'}
+  </details>`;
+  const teachingControls=`<div class="student-navigation" role="group" aria-label="Cambiar de alumno"><button class="btn" type="button" id="previous-student" ${previous?'':'disabled'} aria-label="Alumno anterior">← Anterior</button><span class="student-position">${position+1} de ${students.length}</span><button class="btn" type="button" id="next-student" ${next?'':'disabled'} aria-label="Alumno siguiente">Siguiente →</button></div><div class="student-view-actions"><button class="btn" type="button" id="hide-student">Volver al listado</button><button class="btn primary" type="button" id="present-student">Mostrar al alumno</button></div>`;
+  return `<section class="panel panel-pad student-privacy">
+    <div class="student-detail-head">
+      <div><h2 id="student-view-title" tabindex="-1">${esc(student.name)}</h2><p class="subtitle">${esc(currentGroup().name)}${!presenting&&student.originGroup?' · Grupo de procedencia: '+esc(student.originGroup):''}</p></div>
+      ${presenting?exitButton:teachingControls}
+    </div>
+    <div class="student-view-options">
+      <label>Evaluación <select id="student-period-select">${periods.map(period=>opt(period.id,period.name,p.id)).join('')}</select></label>
+      <div class="student-view-actions" role="group" aria-label="Detalle de las calificaciones">
+        <button class="btn" type="button" data-student-detail="simple" aria-pressed="${!STATE.studentFull}">Vista simplificada</button>
+        <button class="btn" type="button" data-student-detail="full" aria-pressed="${STATE.studentFull}">Vista completa</button>
+      </div>
+    </div>
+  </section>
+  <section class="panel panel-pad student-period" data-student-period="${esc(p.id)}">
+    <div class="student-period-grades">
+      ${studentGradeButton('academic','Media académica',gradeChip(overallGrade(STATE.doc,student.id,STATE.groupId,p.id))+' / 10')}
+      ${studentGradeButton('itaca','Nota Ítaca',itacaChip(STATE.doc,student.id,STATE.groupId,p.id))}
+    </div>
+    ${warnings.length?`<ul class="student-period-warnings">${warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
+    ${STATE.studentFull?renderActivities():''}
+  </section>
+  ${competencies}
+  <section class="panel panel-pad student-final-summary">
+    ${studentGradeButton('final','Evaluación final del curso',gradeChip(finalGrade(doc,student.id,groupId))+' / 10')}
+  </section>`;
 }
 function bindStudentView(){
-  document.querySelectorAll('[data-student-period]').forEach(details=>details.addEventListener('toggle',()=>{
-    STATE.studentPeriodOpen[details.dataset.studentPeriod]=details.open;
+  $('#student-period-select')?.addEventListener('change',event=>{
+    STATE.studentPeriodId=event.target.value;
+    render();
+    $('#student-period-select')?.focus({preventScroll:true});
+  });
+  root.querySelectorAll('[data-student-detail]').forEach(button=>button.addEventListener('click',()=>{
+    STATE.studentFull=button.dataset.studentDetail==='full';
+    render();
+    $(`[data-student-detail="${button.dataset.studentDetail}"]`)?.focus({preventScroll:true});
   }));
+  root.querySelectorAll('[data-student-explanation]').forEach(button=>button.addEventListener('click',()=>{
+    const student=STATE.doc.students.find(s=>s.id===STATE.studentId&&s.groupId===STATE.groupId);
+    if(student)explainStudentGrade(student,button.dataset.studentExplanation);
+  }));
+  $('#present-student')?.addEventListener('click',()=>{
+    if(dialog.open)dialog.close();
+    dialog.replaceChildren();
+    $('#toast')?.classList.add('hidden');
+    STATE.studentPresentation=true;
+    render();
+    window.scrollTo(0,0);
+    $('#student-view-title')?.focus({preventScroll:true});
+  });
+  $('#exit-student-presentation')?.addEventListener('click',()=>{
+    dialog.replaceChildren();
+    STATE.studentPresentation=false;
+    STATE.tab='alumno';
+    render();
+    ($('#present-student')??$('#student-list-heading'))?.focus({preventScroll:true});
+  });
+  if(STATE.studentPresentation)return;
   document.querySelectorAll('[data-student-period-order]').forEach(select=>select.addEventListener('change',()=>{
     if(!STUDENT_ACTIVITY_SORT_MODES.includes(select.value))return;
     STATE.studentActivityOrders[select.dataset.studentPeriodOrder]=select.value;
@@ -1440,6 +1647,7 @@ function bindStudentView(){
   }));
   const selectStudent=id=>{
     if(!allStudents().some(student=>student.id===id))return;
+    if(!STATE.studentId){STATE.studentPeriodId=STATE.periodId;STATE.studentFull=false;}
     STATE.studentId=id;render();
     $('#student-view-title')?.focus({preventScroll:true});
   };
@@ -1644,7 +1852,7 @@ function bindCommon(){
   });
   document.querySelectorAll('[data-period-choice]').forEach(b=>{
     b.onclick=()=>{STATE.periodId=b.dataset.periodChoice;STATE.tab='cuaderno';render();};
-    b.ondblclick=event=>{event.preventDefault();renamePeriodFromTab(b.dataset.periodChoice);};
+    b.ondblclick=event=>{event.preventDefault();managePeriodFromTab(b.dataset.periodChoice);};
   });
   document.querySelectorAll('[data-notebook-evaluation-open]').forEach(button=>button.onclick=async()=>{
     const yearId=button.dataset.notebookEvaluationYear;
@@ -1671,7 +1879,7 @@ function bindCommon(){
       }
     }catch(error){fail(error);if(button.isConnected)button.disabled=false;}
   });
-  document.querySelectorAll('[data-rename-period]').forEach(b=>b.onclick=()=>renamePeriodFromTab(b.dataset.renamePeriod));
+  document.querySelectorAll('[data-rename-period]').forEach(b=>b.onclick=()=>managePeriodFromTab(b.dataset.renamePeriod));
   $('#accent-select')?.addEventListener('change',e=>commit(d=>setSubjectAccent(d,STATE.level,STATE.subject,e.target.value)).catch(fail));
   document.querySelectorAll('[data-academic-quick]').forEach(button=>button.addEventListener('click',()=>{
     const destination=button.dataset.academicQuick;
@@ -1786,12 +1994,11 @@ function openGroupTools(){
   };
   dialog.showModal();
 }
-function renamePeriodFromTab(id){
+function managePeriodFromTab(id){
   const p=STATE.doc.periods.find(p=>p.id===id);if(!p)return;
-  fieldsModal(`Renombrar ${p.name}`,[{id:'name',label:'Nombre del período',value:p.name}],async v=>{
+  fieldsModal(`Gestionar ${p.name}`,[{id:'name',label:'Nombre del período',value:p.name}],async v=>{
     await commit(d=>renamePeriod(d,id,v.name));
-  },'Las actividades, calificaciones y ponderaciones conservarán sus identificadores.');
-  // La organización anterior se mantiene sin un botón adicional fuera de la barra.
+  },'Los periodos son comunes a todos los grupos del cuaderno.');
   const actions=$('.modal-actions',dialog),periods=[...STATE.doc.periods].sort((a,b)=>a.order-b.order),i=periods.findIndex(x=>x.id===id);
   for(const [step,label] of [[-1,'↑ Anterior'],[1,'↓ Siguiente']]){
     const b=document.createElement('button');b.type='button';b.className='btn small';b.textContent=label;b.disabled=i+step<0||i+step>=periods.length;
@@ -1800,15 +2007,26 @@ function renamePeriodFromTab(id){
       dialog.close();try{await commit(d=>movePeriod(d,id,step),'Reordenar períodos');}catch(err){fail(err);}
     };actions.prepend(b);
   }
+  const remove=document.createElement('button');
+  remove.type='button';remove.className='btn small warn';remove.textContent='Eliminar período';
+  remove.disabled=periods.length===1;
+  if(remove.disabled)remove.title='El cuaderno debe conservar al menos un periodo';
+  remove.onclick=async()=>{
+    const assessments=STATE.doc.assessments.filter(a=>a.periodId===id).length;
+    const sessions=(STATE.doc.planner?.years??[]).flatMap(y=>y.events).filter(e=>e.periodId===id).length;
+    const summary=`¿Eliminar «${p.name}» de todos los grupos? Se quitarán sus ajustes de cálculo, ${assessments} actividades con sus notas y observaciones, y ${sessions} sesiones de evaluación de la agenda. Puedes deshacerlo durante esta sesión.`;
+    if(!window.confirm(summary))return;
+    remove.disabled=true;
+    try{
+      await commit(d=>removePeriod(d,id),'Eliminar período');
+      dialog.close();
+      $('.term-button.active')?.focus();
+      toast('Período eliminado. Usa Deshacer para recuperarlo.');
+    }catch(err){$('.modal-error',dialog).textContent=err.message;remove.disabled=false;}
+  };
+  actions.prepend(remove);
 }
-function openPeriodTools(){
-  const p=currentPeriod();if(!p)return;
-  dialog.innerHTML=`<div class="modal-inner"><h2>Gestión de periodos</h2><p class="subtitle">${esc(p.name)}. Cambiar el orden también puede afectar a la regla «última evaluación» de la nota anual.</p><div class="tool-actions"><button type="button" class="btn primary" id="rename-period-btn">Renombrar periodo</button><button type="button" class="btn" data-move-period="-1">↑ Anterior</button><button type="button" class="btn" data-move-period="1">↓ Siguiente</button></div><div class="modal-actions"><button type="button" class="btn" id="close-period-tools">Cerrar</button></div></div>`;
-  $('#close-period-tools',dialog).onclick=()=>dialog.close();
-  $('#rename-period-btn',dialog).onclick=()=>{dialog.close();fieldsModal('Renombrar periodo',[{id:'name',label:'Nombre del periodo',value:p.name}],async v=>commit(d=>renamePeriod(d,p.id,v.name)));};
-  dialog.querySelectorAll('[data-move-period]').forEach(b=>b.onclick=async()=>{if(!window.confirm('El orden de los periodos interviene en las reglas de última evaluación. ¿Continuar?'))return;dialog.close();try{await commit(d=>movePeriod(d,p.id,Number(b.dataset.movePeriod)),'Reordenar periodos');}catch(err){fail(err);}});
-  dialog.showModal();
-}
+
 /** Editar las tutorías de procedencia conjuntamente, conservando grupos,
  * notas, observaciones y pertenencia a la materia optativa. */
 function openOriginGroupsManager(){
@@ -2100,7 +2318,7 @@ function bindNotebook(){
   document.querySelectorAll('[data-itaca-student]').forEach(button=>button.onclick=()=>openItacaStudentRule(button.dataset.itacaStudent));
   $('#copy-structure')?.addEventListener('click',openCopyActivities);
   $('#schedule-exam')?.addEventListener('click',()=>openPlannerExam());
-  document.querySelectorAll('[data-view-student]').forEach(b=>b.onclick=()=>{STATE.studentId=b.dataset.viewStudent;STATE.tab='alumno';render();});
+  document.querySelectorAll('[data-view-student]').forEach(b=>b.onclick=()=>{STATE.studentId=b.dataset.viewStudent;STATE.studentPeriodId=STATE.periodId;STATE.studentFull=false;STATE.tab='alumno';render();});
   document.querySelectorAll('[data-edit-student]').forEach(b=>b.onclick=()=>openStudentTools(b.dataset.editStudent));
   document.querySelectorAll('[data-observation-student]').forEach(b=>b.onclick=()=>openGradeObservation(b.dataset.observationStudent,b.dataset.observationAssessment));
   document.querySelectorAll('[data-grade-cell-actions-student]').forEach(b=>b.onclick=()=>openGradeCellActions(b.dataset.gradeCellActionsStudent,b.dataset.gradeCellActionsAssessment));
@@ -2342,7 +2560,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v170-dev');
+      const cache=await caches.open('cuaderno-docente-static-v171-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
@@ -2367,7 +2585,7 @@ function bindSettings(){
   $('#backup-file').onchange=async e=>{try{const f=e.target.files[0];e.target.value='';if(f)await restoreBackup(f);}catch(err){fail(err);}};
 }
 window.addEventListener('keydown',event=>{
-  if(!STATE.doc||dialog.open||STATE.tab==='alumno'&&STATE.studentId||!(event.ctrlKey||event.metaKey)||event.altKey)return;
+  if(!STATE.doc||STATE.studentPresentation||dialog.open||STATE.tab==='alumno'&&STATE.studentId||!(event.ctrlKey||event.metaKey)||event.altKey)return;
   if(event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
   const key=event.key.toLowerCase();
   if(key==='z'||key==='y'){

@@ -145,7 +145,8 @@ test('interfaz: desplegables de período, rúbrica y criterio + Enter sin salto'
   assert(view.includes('criterion.levels?.find'));
   assert(view.includes('level.description'));
   assert(view.includes('grade.notSubmitted?'));
-  assert(view.includes('studentPeriodOpen'));
+  assert(view.includes('id="student-period-select"'));
+  assert(view.includes('STATE.studentFull?renderActivities()'));
   assert(app.includes("localStorage.setItem('cuaderno-docente-student-activity-orders'"));
   assert(app.includes('setGroupOrthographyRefundable(d,g.id'));
   assert(app.includes('groupOrthographyRefundable(STATE.doc,STATE.groupId)'));

@@ -3806,3 +3806,99 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   .notebook-more-panel{width:100%}
   .academic-quick-nav .btn{flex-basis:auto}
 }
+
+/* Consulta individual y presentación supervisada. */
+.student-presentation{
+  max-width:920px;
+  margin-inline:auto;
+  padding:clamp(12px,3vw,28px);
+}
+.student-period,.student-competencies{
+  width:100%;
+  max-width:880px;
+  margin:0 auto 12px;
+}
+.student-privacy,.student-final-summary{margin-bottom:12px}
+.student-view-options,.student-view-actions{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.student-view-options{
+  justify-content:space-between;
+  border-top:1px solid var(--line);
+  margin-top:12px;
+  padding-top:12px;
+}
+.student-view-options label{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  max-width:100%;
+  font-weight:700;
+}
+.student-view-options select{max-width:100%}
+.student-view-options .btn,.student-view-options select,
+.student-detail-head #present-student,.student-detail-head #exit-student-presentation{min-height:44px}
+.student-view-actions [aria-pressed="true"]{
+  border-color:var(--ink);
+  box-shadow:inset 0 -2px currentColor;
+}
+.student-period-grades{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,235px),1fr));
+  gap:8px;
+}
+.student-grade-button{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:6px 10px;
+  width:100%;
+  min-height:44px;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:transparent;
+  color:var(--ink);
+  text-align:left;
+  font:inherit;
+  font-weight:750;
+  overflow-wrap:anywhere;
+}
+.student-grade-button:hover{border-color:currentColor}
+.student-grade-button .student-score{margin-inline-start:auto;max-width:100%}
+.student-grade-button>span:last-child{color:var(--muted)}
+.student-competencies>summary{cursor:pointer;font-weight:750;line-height:1.5}
+.student-competency-list,.student-evidence-list{
+  list-style:none;
+  margin:8px 0;
+  padding:0;
+}
+.student-competency-list li+li,.student-evidence-list li+li{margin-top:6px}
+.student-competency-list .student-score{flex-shrink:0}
+.student-competency-list li:has(>span){
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  padding:8px 10px;
+}
+.student-evidence{
+  border-top:1px solid var(--line);
+  padding:10px 0;
+}
+.student-evidence-list li{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  overflow-wrap:anywhere;
+}
+.student-evidence-list small{display:block;color:var(--muted)}
+.student-period-warnings{
+  margin:12px 0 0;
+  padding-inline-start:22px;
+  color:var(--ink);
+}

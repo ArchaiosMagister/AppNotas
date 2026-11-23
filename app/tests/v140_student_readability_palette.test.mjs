@@ -95,10 +95,10 @@ test('los controles y datos del modo alumno siguen presentes, sin exponer a otro
   for(const marker of [
     'student-privacy','student-category','student-assessment-block',
     'student-rubric-breakdown','student-assessment-observation',
-    'student-period-summary','student-final-summary','previous-student',
+    'student-period-grades','student-final-summary','previous-student',
     'next-student','hide-student','categoryGrade(','overallGrade(','finalGrade('
   ])assert(view.includes(marker),'Falta funcionalidad original: '+marker);
-  assert(view.includes('Solo aparecen las calificaciones de este alumno.'));
+  assert(view.includes('presenting?exitButton:teachingControls'));
   assert(!view.includes('group.students.map('));
   const doc=initialNotebook(),before=structuredClone(doc),student=doc.students[0];
   const group=doc.groups[0],period=doc.periods[0];

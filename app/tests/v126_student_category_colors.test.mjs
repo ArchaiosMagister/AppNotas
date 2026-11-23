@@ -15,8 +15,8 @@ test('modo alumno comparte el color de cada categoría en vista agrupada y lista
   const view=js.slice(start,end);
   assert(view.includes('<div class="student-category student-category-tinted" data-column-category="${esc(c.id)}">'));
   assert(view.includes('<div class="student-assessment-block student-category-tinted" data-column-category="${esc(a.categoryId)}">'));
-  assert(view.includes("mode==='category'?cats.map("));
-  assert(view.includes("ordered.map(a=>renderActivity(a,cats.find("));
+  assert(view.includes("mode==='category'?categories.map("));
+  assert(view.includes("ordered.map(a=>renderActivity(a,categories.find("));
   assert(view.includes('ordered.filter(a=>a.categoryId===c.id).map(a=>renderActivity(a))'));
   assert(!view.includes('style="--category-color:'));
   assert(!view.includes('setCategoryColumnColor('),'El visor no modifica los colores del modelo');

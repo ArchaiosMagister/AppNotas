@@ -26,6 +26,78 @@ await new Promise(ok=>server.listen(0,'127.0.0.1',ok));
 const url='http://127.0.0.1:'+server.address().port+'/';
 await mkdir(images,{recursive:true});
 
+async function auditStudentPresentation(page,name){
+ const periods=page.locator('[data-period-choice]');
+ const initialCount=await periods.count();
+ await page.locator('#new-period').click();
+ await page.locator('#modal-form input[name="name"]').fill('Cuarta de prueba');
+ await page.locator('#modal-form button[type="submit"]').click();
+ await page.getByRole('button',{name:'Cuarta de prueba',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Gestionar Cuarta de prueba',exact:true}).click();
+ let confirmationMessage;
+ page.once('dialog',async confirmation=>{
+  confirmationMessage=confirmation.message();
+  await confirmation.accept();
+ });
+ await page.getByRole('button',{name:'Eliminar período',exact:true}).click();
+ assert.match(confirmationMessage,/Cuarta de prueba.*todos los grupos/);
+ await page.getByRole('button',{name:'Cuarta de prueba',exact:true}).waitFor({state:'detached'});
+ await page.locator('#modal').waitFor({state:'hidden'});
+ assert.equal(await periods.count(),initialCount,name+' no se ha eliminado la cuarta evaluación');
+ await page.locator('.header-tools>summary').click();
+ await page.locator('#undo-change').click();
+ await page.getByRole('button',{name:'Cuarta de prueba',exact:true}).waitFor();
+ await page.locator('#redo-change').click();
+ await page.getByRole('button',{name:'Cuarta de prueba',exact:true}).waitFor({state:'detached'});
+ if(await page.locator('.header-tools').getAttribute('open')!==null)await page.locator('.header-tools>summary').click();
+
+ const activeId=await periods.nth(1).getAttribute('data-period-choice');
+ const firstId=await periods.first().getAttribute('data-period-choice');
+ await periods.nth(1).click();
+ await page.locator('[data-academic-quick="alumno"]').click();
+ const directory=page.locator('[data-open-student]');
+ const otherName=(await directory.nth(1).locator('span').nth(1).textContent()).trim();
+ await directory.first().click();
+ const evaluation=page.locator('#student-period-select');
+ assert.equal(await evaluation.inputValue(),activeId,name+' el visor ignora la evaluación activa');
+ assert.equal(await page.locator('.student-assessment-block').count(),0);
+ await page.locator('#present-student').click();
+
+ const privateView=page.locator('.student-presentation');
+ assert(await privateView.isVisible());
+ assert.equal(await page.locator('.shell,.tabs,.class-toolbar,#previous-student,#next-student,#hide-student,[data-open-student],[data-class-stat]').count(),0);
+ assert(!(await page.locator('#app').textContent()).includes(otherName),name+' hay otro alumno en el DOM');
+ await evaluation.selectOption(firstId);
+ await privateView.locator('[data-student-explanation="academic"]').click();
+ const modal=page.locator('#modal');
+ assert.match(await modal.innerText(),/Media ponderada.*categorías/);
+ assert.match(await modal.innerText(),/Examen UD2/);
+ assert.match(await modal.innerText(),/60 % configurado/);
+ await modal.locator('#close-info').click();
+ await privateView.locator('[data-student-explanation="itaca"]').click();
+ assert.match(await modal.innerText(),/umbral de 0,50/);
+ await modal.locator('#close-info').click();
+
+ const competencies=privateView.locator('.student-competencies');
+ assert.equal(await competencies.getAttribute('open'),null);
+ await competencies.locator('summary').click();
+ assert.match(await competencies.innerText(),/Media aritmética de competencias/);
+ assert.match(await competencies.locator('[data-student-explanation="competency-mean"]').innerText(),/7,85\s*\/\s*10/);
+ await privateView.getByRole('button',{name:'Vista completa'}).click();
+ assert(await privateView.locator('.student-assessment-block').count()>0);
+ assert.equal(await privateView.locator('[data-student-period-order]').count(),0);
+ await privateView.getByRole('button',{name:'Vista simplificada'}).click();
+ assert.equal(await privateView.locator('.student-assessment-block').count(),0);
+ const contentFits=await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+2);
+ assert(contentFits,name+' la presentación desborda la pantalla');
+ await privateView.locator('#exit-student-presentation').click();
+ assert(await page.locator('#next-student').isVisible());
+ assert.equal(await evaluation.inputValue(),firstId);
+ await page.locator('#hide-student').click();
+ await page.locator('[data-academic-quick="cuaderno"]').click();
+ await periods.first().click();
+}
+
 async function audit(engine,name){
  const browser=await engine.launch({headless:true,args:name==='chromium'?['--no-sandbox']:[]});
  try{
@@ -44,6 +116,8 @@ async function audit(engine,name){
   const defaultCourse=await page.locator('.course-choice[aria-pressed="true"]').evaluate(node=>({
    level:node.dataset.courseLevel,subject:node.dataset.courseSubject
   }));
+
+  await auditStudentPresentation(page,name);
 
   for(const size of [
     {width:320,height:700},{width:375,height:812},{width:390,height:844},

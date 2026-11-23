@@ -42,7 +42,7 @@ test('Safari móvil conserva ancho adaptable, sin recortar notas ni ocultar cont
   assert(!patch.includes('display:none'));
   const app=await read('app.js');
   const view=app.slice(app.indexOf('function renderStudentView(){'),app.indexOf('function bindStudentView(){'));
-  for(const marker of ['student-directory-choice','student-category-tinted','student-period-summary',
+  for(const marker of ['student-directory-choice','student-category-tinted','student-period-grades',
     'student-final-summary','student-rubric-breakdown','student-assessment-observation',
     'id="previous-student"','id="next-student"','id="hide-student"'])
     assert(view.includes(marker),marker);

@@ -41,13 +41,13 @@ test('visor muestra la media original primero y a su derecha Ítaca mediante el 
   const end=js.indexOf('function bindStudentView(){',start);
   assert(start>=0&&end>start);
   const view=js.slice(start,end);
-  const header=view.slice(view.indexOf('<summary class="student-period-summary">'),view.indexOf('</summary>',view.indexOf('<summary class="student-period-summary">')));
-  assert(header.includes('<span class="student-period-name">\${esc(p.name)}</span>'.replace('\\','')));
-  assert(header.includes('Media'));
-  assert(header.includes('Ítaca'));
-  assert(header.indexOf('gradeChip(overallGrade(STATE.doc,student.id,STATE.groupId,p.id))')<
-    header.indexOf('itacaChip(STATE.doc,student.id,STATE.groupId,p.id)'));
-  assert(header.includes('student-period-grades'));
+  const header=view.slice(view.indexOf('<div class="student-period-grades">'),view.indexOf('${warnings.length?'));
+  assert(view.includes('id="student-period-select"'));
+  assert(header.includes("'academic','Media académica'"));
+  assert(header.includes("'itaca','Nota Ítaca'"));
+  assert(header.includes('gradeChip(overallGrade(STATE.doc,student.id,STATE.groupId,p.id))'));
+  assert(header.includes('itacaChip(STATE.doc,student.id,STATE.groupId,p.id)'));
+  assert(header.indexOf("'academic'")<header.indexOf("'itaca'"));
   assert(!view.includes('setItacaStudentRule('));
   assert(!view.includes('setItacaGroupRule('));
   assert(!view.includes('commit('));
