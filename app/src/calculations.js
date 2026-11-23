@@ -8,10 +8,21 @@ export function orthographyPenalty(assessment,grade){
   if(!grade||!assessment.orthography?.enabled||grade.orthographyDelivered)return 0;
   return (grade.orthographyFaults??0)*assessment.orthography.penaltyPerFault;
 }
+/** Punto extra solo con examen aprobado ANTES del bonus, sin faltas pendientes
+ * (o con todas ellas entregadas), y únicamente cuando la opción está habilitada. */
+export function greekEtymologyBonusApplied(doc,assessment,grade){
+  if(!assessment.greekEtymologyBonusEnabled||!grade||grade.pendingJustified||grade.notSubmitted)return 0;
+  if((grade.orthographyFaults??0)>0&&!grade.orthographyDelivered)return 0;
+  const original=normalizedScore(recordedScore(doc,assessment,grade),assessment.maxScore,assessment.convertToTen);
+  const afterSpelling=Math.max(0,original-orthographyPenalty(assessment,grade));
+  if(afterSpelling<5)return 0;
+  return grade.greekEtymologyBonus??0;
+}
 export function effectiveAssessmentScore(doc,assessment,grade){
   if(!grade||grade.pendingJustified)return null;
   const base=normalizedScore(recordedScore(doc,assessment,grade),assessment.maxScore,assessment.convertToTen);
-  return Math.max(0,base-orthographyPenalty(assessment,grade));
+  const afterSpelling=Math.max(0,base-orthographyPenalty(assessment,grade));
+  return Math.min(10,afterSpelling+greekEtymologyBonusApplied(doc,assessment,grade));
 }
 
 function weightedGrade(entries, valueOf, weightOf){
