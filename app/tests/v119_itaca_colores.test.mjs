@@ -113,6 +113,9 @@ test('Ítaca muestra 5 para 5,9 cuando Actitud impide la subida y 6 cuando se pe
  assert.equal(itacaGrade(d,id,gid,pid),5,'Sin evidencia de rúbrica no se permite subir');
  assert.equal(overallGrade(d,id,gid,pid),original);
  assert.deepEqual(d.grades,grades);
+ setRubricGrade(d,id,activity.id,{[rubric.criteria[0].id]:1,[rubric.criteria[1].id]:1});
+ assert.equal(itacaAttitudeBlock(d,id,gid,pid),null,'Al cumplir Actitud puede subir');
+ assert.equal(itacaGrade(d,id,gid,pid),6);
  setItacaAttitudeCondition(d,gid,pid,null);
  assert.equal(itacaGrade(d,id,gid,pid),6);
 });
