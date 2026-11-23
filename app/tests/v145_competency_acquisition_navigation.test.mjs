@@ -68,8 +68,9 @@ test('Cálculos y Competencias se encuentran juntos en la navegación secundaria
  assert(tools.includes("['curriculo'"));
  assert(tools.includes("['rubricas'"));
  const secondary=app.slice(end,app.indexOf('function renderPeriodButtons(){',end));
- for(const key of ['cuaderno','calculos','competencias','final','alumno'])
+ for(const key of ['cuaderno','calculos','competencias','alumno'])
   assert(secondary.includes("['"+key+"'"),key);
+ assert(!secondary.includes("['final'"),'Final se sitúa junto a los períodos');
  const notebook=app.slice(app.indexOf('function renderNotebook(){'),app.indexOf('const ITACA_OPTIONS='));
  assert(notebook.includes('id="new-student"')&&notebook.includes('id="new-assessment"'));
  assert(!notebook.includes('id="notebook-calculations"'));
@@ -80,8 +81,10 @@ test('navegación directa entre las cinco vistas del cuaderno sin volver a la po
  const start=app.indexOf('const NOTEBOOK_WORKSPACE_TABS='),end=app.indexOf('function renderPeriodButtons(){',start);
  assert(start>0&&end>start);
  const quick=app.slice(start,end);
- for(const value of ['cuaderno','calculos','competencias','final','alumno'])
+ for(const value of ['cuaderno','calculos','competencias','alumno'])
   assert(quick.includes("['"+value+"'"),value);
+ assert(!quick.includes("['final'"),'La vista final se abre desde la barra de períodos');
+ assert(app.includes('data-academic-quick="final"'),'El acceso a la evaluación final sigue disponible');
  assert(quick.includes('data-academic-quick="${key}"'));
  assert(quick.includes('aria-current="page"'));
  assert(app.includes("hasGroup&&['cuaderno','calculos','competencias','final','alumno'].includes(STATE.tab)?renderAcademicQuickNav():''"));
