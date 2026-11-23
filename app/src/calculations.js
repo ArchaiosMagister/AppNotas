@@ -22,7 +22,10 @@ export function effectiveAssessmentScore(doc,assessment,grade){
   if(!grade||grade.pendingJustified)return null;
   const base=normalizedScore(recordedScore(doc,assessment,grade),assessment.maxScore,assessment.convertToTen);
   const afterSpelling=Math.max(0,base-orthographyPenalty(assessment,grade));
-  return Math.min(10,afterSpelling+greekEtymologyBonusApplied(doc,assessment,grade));
+  const bonus=greekEtymologyBonusApplied(doc,assessment,grade);
+  // Sin bonificación conservar también los valores brutos >10: la auditoría
+  // de escalas debe detectarlos, nunca truncarlos silenciosamente.
+  return bonus>0?Math.min(10,afterSpelling+bonus):afterSpelling;
 }
 
 function weightedGrade(entries, valueOf, weightOf){
