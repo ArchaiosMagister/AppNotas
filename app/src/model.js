@@ -371,6 +371,10 @@ export function assertModel(doc) {
   }))throw new Error('Identidad o grupo de procedencia de alumno inválidos.');
   if(doc.assessments.some(x=>!gs.has(x.groupId)||!ps.has(x.periodId)||!cs.has(x.categoryId)||!Number.isFinite(x.maxScore)||!(x.maxScore>0)||!Number.isFinite(x.weight)||!(x.weight>0)||x.weight>1000||x.maxScore>1000||!Number.isInteger(x.order)||x.order<0||typeof x.convertToTen!=='boolean'||(x.rubricId!==null&&x.rubricId!==undefined&&(!rs.has(x.rubricId)||x.maxScore!==10||!x.convertToTen)))) throw new Error('Actividad con referencia, escala o ponderación inválida.');
   for(const a of doc.assessments){
+    if(a.greekEtymologyBonusEnabled!==undefined&&typeof a.greekEtymologyBonusEnabled!=='boolean')
+      throw new Error('Opción de etimología griega inválida.');
+    if(a.greekEtymologyBonusEnabled&&!supportsGreekEtymologyBonus(doc,a))
+      throw new Error('La bonificación griega solo corresponde a exámenes de Latín 4.º con ortografía.');
     if(a.orthography!==undefined&&a.orthography!==null){
       if(!validOrthographyConfig(a.orthography)||a.orthography.enabled&&(a.rubricId||!a.convertToTen))throw new Error('Configuración de faltas incompatible con la actividad.');
     }
@@ -408,9 +412,16 @@ export function assertModel(doc) {
     const assessment=doc.assessments.find(a=>a.id===x.assessmentId);
     const student=doc.students.find(s=>s.id===x.studentId);
     if(!ss.has(x.studentId)||!as.has(x.assessmentId)||!assessment||!student||student.groupId!==assessment.groupId||!Number.isFinite(x.score)||x.score<0||x.score>assessment.maxScore) throw new Error('Calificación inválida o fuera de escala.');
-    if(x.notSubmitted!==undefined&&(x.notSubmitted!==true||x.score!==0||x.pendingJustified||x.rubricRatings!==undefined||x.orthographyFaults!==undefined||x.orthographyDelivered!==undefined))throw new Error('Calificación «No presentado» inconsistente.');
+    if(x.greekEtymologyBonus!==undefined&&(
+      !Number.isFinite(x.greekEtymologyBonus)||
+      x.greekEtymologyBonus<0||x.greekEtymologyBonus>1||
+      !assessment.greekEtymologyBonusEnabled&&x.greekEtymologyBonus!==0||
+      Math.abs(x.greekEtymologyBonus*100-Math.round(x.greekEtymologyBonus*100))>1e-8||
+      x.notSubmitted||x.pendingPlaceholder))
+      throw new Error('Bonificación de etimología griega inválida.');
+    if(x.notSubmitted!==undefined&&(x.notSubmitted!==true||x.score!==0||x.pendingJustified||x.rubricRatings!==undefined||x.orthographyFaults!==undefined||x.orthographyDelivered!==undefined||x.greekEtymologyBonus!==undefined))throw new Error('Calificación «No presentado» inconsistente.');
     if(x.pendingJustified!==undefined&&x.pendingJustified!==true)throw new Error('Estado de ausencia justificada inválido.');
-    if(x.pendingPlaceholder!==undefined&&(!x.pendingJustified||x.pendingPlaceholder!==true||x.score!==0||x.rubricRatings!==undefined||x.orthographyFaults!==undefined||x.orthographyDelivered!==undefined))throw new Error('Ausencia justificada sin nota inconsistente.');
+    if(x.pendingPlaceholder!==undefined&&(!x.pendingJustified||x.pendingPlaceholder!==true||x.score!==0||x.rubricRatings!==undefined||x.orthographyFaults!==undefined||x.orthographyDelivered!==undefined||x.greekEtymologyBonus!==undefined))throw new Error('Ausencia justificada sin nota inconsistente.');
     if(x.pendingWasNotSubmitted!==undefined&&(x.pendingWasNotSubmitted!==true||!x.pendingJustified||!x.pendingPlaceholder||x.notSubmitted||x.score!==0))
       throw new Error('Ausencia justificada con NP anterior inconsistente.');
     if(!x.notSubmitted&&!x.pendingPlaceholder&&assessment.rubricId){const rubric=doc.rubrics.find(r=>r.id===assessment.rubricId);if(!Array.isArray(x.rubricRatings)||x.rubricRatings.length!==rubric.criteria.length||new Set(x.rubricRatings.map(r=>r.criterionId)).size!==rubric.criteria.length||rubric.criteria.some(c=>!x.rubricRatings.some(r=>r.criterionId===c.id&&Number.isFinite(r.score)&&r.score>=0&&r.score<=c.maxScore&&(!c.levels||c.levels.some(l=>l.score===r.score))))||!consistentRubricScore(rubric,x))throw new Error('Calificación de rúbrica inconsistente.');}
@@ -508,6 +519,15 @@ function consistentRubricScore(rubric,grade){
   return Math.abs(grade.score-(10*sum)/weight)<=1e-7;
 }
 
+/** Solo los exámenes numéricos de Latín de 4.º con faltas configuradas
+ * pueden activar la bonificación de etimología griega (0 a 1 punto). */
+export function supportsGreekEtymologyBonus(doc,assessment){
+  const group=doc.groups.find(g=>g.id===assessment?.groupId);
+  const category=doc.categories.find(c=>c.id===assessment?.categoryId);
+  const normalized=category?.name?.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  return group?.level==='4eso'&&group.subject==='Latín 4.º'&&normalized==='examenes'&&
+    !assessment.rubricId&&assessment.convertToTen===true&&assessment.orthography?.enabled===true;
+}
 export function recordedScore(doc,assessment,grade){
   if(grade.pendingJustified)return null;
   if(grade.notSubmitted)return 0;
@@ -800,13 +820,13 @@ export function copyPeriodAssessments(doc,groupId,sourcePeriodId,targetPeriodIds
   for(const targetId of targetPeriodIds){
     const translated=new Map();
     for(const a of source.filter(a=>!a.recoveryOf)){
-      const copy=addAssessment(doc,{name:a.name,groupId,periodId:targetId,categoryId:a.categoryId,maxScore:a.maxScore,weight:a.weight,convertToTen:a.convertToTen,rubricId:a.rubricId,orthography:a.orthography??null});
+      const copy=addAssessment(doc,{name:a.name,groupId,periodId:targetId,categoryId:a.categoryId,maxScore:a.maxScore,weight:a.weight,convertToTen:a.convertToTen,rubricId:a.rubricId,orthography:a.orthography??null,greekEtymologyBonusEnabled:a.greekEtymologyBonusEnabled??false});
       translated.set(a.id,copy.id);
     }
     for(const a of source.filter(a=>a.recoveryOf)){
       const originalId=translated.get(a.recoveryOf);
       if(!originalId)throw new Error('La recuperación carece de actividad original.');
-      const copy=addAssessment(doc,{name:a.name,groupId,periodId:targetId,categoryId:a.categoryId,maxScore:a.maxScore,weight:a.weight,convertToTen:a.convertToTen,rubricId:a.rubricId,recoveryOf:originalId,recoveryMode:a.recoveryMode,orthography:a.orthography??null});
+      const copy=addAssessment(doc,{name:a.name,groupId,periodId:targetId,categoryId:a.categoryId,maxScore:a.maxScore,weight:a.weight,convertToTen:a.convertToTen,rubricId:a.rubricId,recoveryOf:originalId,recoveryMode:a.recoveryMode,orthography:a.orthography??null,greekEtymologyBonusEnabled:a.greekEtymologyBonusEnabled??false});
       translated.set(a.id,copy.id);
     }
     // Conservar el orden original aunque las recuperaciones se creen al final.
@@ -816,7 +836,7 @@ export function copyPeriodAssessments(doc,groupId,sourcePeriodId,targetPeriodIds
     copyPeriodCategories(doc,groupId,sourcePeriodId,targetId);
   }
 }
-export function addAssessment(doc,{name,groupId,periodId,categoryId,maxScore=10,weight=1,recoveryOf=null,recoveryMode='higher',convertToTen=true,rubricId=null,orthography=undefined}){
+export function addAssessment(doc,{name,groupId,periodId,categoryId,maxScore=10,weight=1,recoveryOf=null,recoveryMode='higher',convertToTen=true,rubricId=null,orthography=undefined,greekEtymologyBonusEnabled=false}){
   if(!name?.trim()||!doc.groups.some(g=>g.id===groupId)||!doc.periods.some(p=>p.id===periodId)||!categoryAvailableForGroup(doc,groupId,categoryId)||!Number.isFinite(maxScore)||maxScore<=0||maxScore>1000||!Number.isFinite(weight)||weight<=0||weight>1000)throw new Error('Datos de actividad inválidos.');
   if(typeof convertToTen!=='boolean'||(rubricId!==null&&(!doc.rubrics.some(r=>r.id===rubricId)||maxScore!==10||!convertToTen)))throw new Error('Escala o rúbrica inválida.');
   if(recoveryOf){
@@ -830,21 +850,30 @@ export function addAssessment(doc,{name,groupId,periodId,categoryId,maxScore=10,
       ?{enabled:true,penaltyPerFault:defaults.penaltyPerFault,repetitions:defaults.repetitions,refundable:doc.groups.find(g=>g.id===groupId)?.orthographyRefundable??defaults.refundable}:null;
   }
   if(orthography!==null&&(!validOrthographyConfig(orthography)||orthography.enabled&&(rubricId||!convertToTen)))throw new Error('Penalización ortográfica no compatible con esta actividad.');
+  if(typeof greekEtymologyBonusEnabled!=='boolean'||greekEtymologyBonusEnabled&&
+     !supportsGreekEtymologyBonus(doc,{groupId,categoryId,rubricId,convertToTen,orthography}))
+    throw new Error('La bonificación griega solo puede activarse en exámenes de Latín 4.º con ortografía.');
   const order=Math.max(-1,...doc.assessments.filter(x=>x.groupId===groupId&&x.periodId===periodId).map(x=>x.order))+1;
   // La configuración anidada no debe compartir referencia con el llamador ni
   // con una actividad de otro período que haya copiado su estructura.
   const ownOrthography=orthography===null?null:structuredClone(orthography);
-  const assessment=mark({id:uid(),name:name.trim(),groupId,periodId,categoryId,maxScore,weight,convertToTen,rubricId,orthography:ownOrthography,order,...(recoveryOf?{recoveryOf,recoveryMode}:{}),createdAt:now()});doc.assessments.push(assessment);doc.updatedAt=now();return assessment;
+  const assessment=mark({id:uid(),name:name.trim(),groupId,periodId,categoryId,maxScore,weight,convertToTen,rubricId,orthography:ownOrthography,...(greekEtymologyBonusEnabled?{greekEtymologyBonusEnabled:true}:{}),order,...(recoveryOf?{recoveryOf,recoveryMode}:{}),createdAt:now()});doc.assessments.push(assessment);doc.updatedAt=now();return assessment;
 }
 export function updateAssessment(doc,id,patch){
   const a=doc.assessments.find(x=>x.id===id);
   if(!a)throw new Error('Actividad inexistente.');
   if(!patch||typeof patch!=='object'||Array.isArray(patch)||
-    Object.keys(patch).some(k=>!['name','maxScore','weight','categoryId','convertToTen','rubricId','orthography'].includes(k)))
+    Object.keys(patch).some(k=>!['name','maxScore','weight','categoryId','convertToTen','rubricId','orthography','greekEtymologyBonusEnabled'].includes(k)))
     throw new Error('Campo de actividad no permitido.');
   const updated={...a,...patch};
   if(typeof updated.convertToTen!=='boolean'||(updated.rubricId!==null&&(!doc.rubrics.some(r=>r.id===updated.rubricId)||updated.maxScore!==10||!updated.convertToTen)))throw new Error('Escala o rúbrica inválida.');
   if(updated.orthography!==undefined&&updated.orthography!==null&&(!validOrthographyConfig(updated.orthography)||updated.orthography.enabled&&(updated.rubricId||!updated.convertToTen)))throw new Error('Penalización ortográfica no compatible con esta actividad.');
+  if(updated.greekEtymologyBonusEnabled!==undefined&&typeof updated.greekEtymologyBonusEnabled!=='boolean'||
+     updated.greekEtymologyBonusEnabled&&!supportsGreekEtymologyBonus(doc,updated))
+    throw new Error('La bonificación griega solo puede usarse en exámenes de Latín 4.º con ortografía.');
+  if(a.greekEtymologyBonusEnabled&&!updated.greekEtymologyBonusEnabled&&
+     doc.grades.some(g=>g.assessmentId===id&&(g.greekEtymologyBonus??0)>0))
+    throw new Error('Antes de desactivar etimología griega, elimina las bonificaciones asignadas a los alumnos.');
   if(a.rubricId!==updated.rubricId&&doc.grades.some(g=>g.assessmentId===id))throw new Error('No cambies el tipo de actividad con notas registradas.');
   if(itacaUsesAssessment(doc,id)&&(a.rubricId!==updated.rubricId||a.categoryId!==updated.categoryId))throw new Error('Esta actividad es requisito de la Nota Ítaca. Desactiva primero la condición de Actitud antes de cambiar su rúbrica o categoría.');
   // Una devolución ya concedida no puede desaparecer por desactivar la
@@ -856,7 +885,7 @@ export function updateAssessment(doc,id,patch){
   if(updated.categoryId!==a.categoryId&&(a.recoveryOf||doc.assessments.some(x=>x.recoveryOf===a.id)))throw new Error('No puedes cambiar la categoría mientras haya una recuperación vinculada.');
   // Si el evento seguía el título de la columna, acompañar el renombrado sin sobrescribir títulos editados a mano.
   doc.planner?.years?.forEach(y=>y.events.filter(e=>e.assessmentId===id&&e.title===a.name).forEach(e=>{e.title=updated.name.trim();}));
-  Object.assign(a,{name:updated.name.trim(),maxScore:updated.maxScore,weight:updated.weight,categoryId:updated.categoryId,convertToTen:updated.convertToTen,rubricId:updated.rubricId,orthography:updated.orthography===undefined||updated.orthography===null?null:structuredClone(updated.orthography),updatedAt:now()});doc.updatedAt=now();return a;
+  Object.assign(a,{name:updated.name.trim(),maxScore:updated.maxScore,weight:updated.weight,categoryId:updated.categoryId,convertToTen:updated.convertToTen,rubricId:updated.rubricId,orthography:updated.orthography===undefined||updated.orthography===null?null:structuredClone(updated.orthography),greekEtymologyBonusEnabled:updated.greekEtymologyBonusEnabled??false,updatedAt:now()});doc.updatedAt=now();return a;
 }
 export function moveAssessment(doc,id,direction){
   if(![-1,1].includes(direction))throw new Error('Dirección inválida.');
@@ -981,12 +1010,12 @@ export function setGrade(doc,studentId,assessmentId,score){
   doc.updatedAt=now();return doc;
 }
 /** Cambia de forma atómica la nota original y los metadatos de faltas. */
-export function setOrthographyGrade(doc,studentId,assessmentId,{score,faults=0,delivered=false}){
+export function setOrthographyGrade(doc,studentId,assessmentId,{score,faults=0,delivered=false,greekEtymologyBonus=undefined}){
   const student=doc.students.find(s=>s.id===studentId),assessment=doc.assessments.find(a=>a.id===assessmentId);
   if(!student||!assessment||student.groupId!==assessment.groupId||!assessment.orthography?.enabled||assessment.rubricId||!assessment.convertToTen)throw new Error('Este examen no admite penalización ortográfica.');
   const at=doc.grades.findIndex(g=>g.studentId===studentId&&g.assessmentId===assessmentId);
   if(score===null||score===''){
-    if(faults!==0&&faults!=='0'||delivered)throw new Error('No se pueden registrar faltas sin nota original.');
+    if(faults!==0&&faults!=='0'||delivered||greekEtymologyBonus!==undefined&&greekEtymologyBonus!==0&&greekEtymologyBonus!=='0'&&greekEtymologyBonus!=='')throw new Error('No se pueden registrar faltas o bonificaciones sin nota original.');
     if(at<0)return doc;
     doc.grades.splice(at,1);
   }else{
@@ -996,10 +1025,14 @@ export function setOrthographyGrade(doc,studentId,assessmentId,{score,faults=0,d
     if(!Number.isInteger(count)||count<0||count>1000)throw new Error('Introduce entre 0 y 1000 faltas, sin decimales.');
     if(typeof delivered!=='boolean'||delivered&&(!count||!assessment.orthography.refundable))throw new Error('La entrega no puede marcarse en este examen.');
     const previous=at>=0?doc.grades[at]:{id:uid(),studentId,assessmentId,createdAt:now()};
+    const bonus=greekEtymologyBonus===undefined?previous.greekEtymologyBonus??0:
+      greekEtymologyBonus===''?0:parseScore(greekEtymologyBonus);
+    if(bonus<0||bonus>1||!Number.isFinite(bonus)||bonus>0&&!assessment.greekEtymologyBonusEnabled)
+      throw new Error('La bonificación de etimología griega debe estar activada y estar entre 0 y 1.');
     // AJ conserva puntuación y faltas; volver a confirmarlas debe reactivar
     // el cálculo incluso aunque los números no hayan cambiado.
-    if(at>=0&&!previous.notSubmitted&&!previous.pendingJustified&&previous.score===base&&(previous.orthographyFaults??0)===count&&!!previous.orthographyDelivered===delivered)return doc;
-    const grade=numericGrade(previous,{score:base,orthographyFaults:count,orthographyDelivered:delivered});
+    if(at>=0&&!previous.notSubmitted&&!previous.pendingJustified&&previous.score===base&&(previous.orthographyFaults??0)===count&&!!previous.orthographyDelivered===delivered&&(previous.greekEtymologyBonus??0)===bonus)return doc;
+    const grade=numericGrade(previous,{score:base,orthographyFaults:count,orthographyDelivered:delivered,...(assessment.greekEtymologyBonusEnabled?{greekEtymologyBonus:bonus}:{})});
     if(at>=0)doc.grades[at]=grade;else doc.grades.push(grade);
   }
   doc.updatedAt=now();return doc;

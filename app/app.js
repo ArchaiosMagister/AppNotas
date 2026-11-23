@@ -1,5 +1,5 @@
 import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,catalogForNotebook,addNotebookSubject,removeNotebookSubject,defaultSubjectAccent,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,setGroupWeeklyHours,setStudentOriginGroups,renamePeriod,movePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setItacaAttitudeCondition,itacaAttitudeCondition,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
-import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,competencyArithmeticMean,gradeToFour,competencyAcquisitionLevel,competencyAcquisitionLabel,COMPETENCY_ACQUISITION_LABELS,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,itacaGrade,itacaAttitudeBlock} from './src/calculations.js';
+import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,competencyArithmeticMean,gradeToFour,competencyAcquisitionLevel,competencyAcquisitionLabel,COMPETENCY_ACQUISITION_LABELS,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,greekEtymologyBonusApplied,itacaGrade,itacaAttitudeBlock} from './src/calculations.js';
 import {studentsFromCsv} from './src/csv.js';
 import {parseRubricText} from './src/rubric-import.js';
 import {parseRubricFile} from './src/rubric-xlsx.js';
@@ -1038,7 +1038,7 @@ function renderNotebook(){
   }
   const headers=assessments.map(a=>{
     const c=STATE.doc.categories.find(c=>c.id===a.categoryId);
-    return `<th class="category-tinted" data-column-category="${esc(a.categoryId)}"><span class="column-heading">${esc(a.name)}${classStatButton('assessment',a.id,a.name)}<button type="button" class="assessment-menu" data-edit="${esc(a.id)}" aria-label="Configurar ${esc(a.name)}" title="Editar, ordenar o eliminar actividad">⋯</button></span><small>${a.recoveryOf?'Recuperación · ':''}${esc(c?.name||'')} · ${a.rubricId?'Rúbrica /10':'/'+esc(a.maxScore)+(a.convertToTen?' → /10':' · sin conversión')}${a.weight!==1?' · ×'+esc(a.weight):''}${a.orthography?.enabled?' · faltas recuperables':''}</small></th>`;
+    return `<th class="category-tinted" data-column-category="${esc(a.categoryId)}"><span class="column-heading">${esc(a.name)}${classStatButton('assessment',a.id,a.name)}<button type="button" class="assessment-menu" data-edit="${esc(a.id)}" aria-label="Configurar ${esc(a.name)}" title="Editar, ordenar o eliminar actividad">⋯</button></span><small>${a.recoveryOf?'Recuperación · ':''}${esc(c?.name||'')} · ${a.rubricId?'Rúbrica /10':'/'+esc(a.maxScore)+(a.convertToTen?' → /10':' · sin conversión')}${a.weight!==1?' · ×'+esc(a.weight):''}${a.orthography?.enabled?' · faltas recuperables':''}${a.greekEtymologyBonusEnabled?' · +1 etimología griega':''}</small></th>`;
   }).join('');
   const categoryCell=a=>` class="category-tinted" data-column-category="${esc(a.categoryId)}"`;
   const rows=students.map((s,i)=>`${originGroupHeader(students,i,assessments.length+3)}<tr><td class="name-col"><div class="student-name-cell"><span class="student-name-label">${esc(s.name)}</span>${studentOriginBadge(s)}<button class="view-student" type="button" title="Mostrar solo las notas de este alumno" data-view-student="${esc(s.id)}">Ver</button><button class="view-student" type="button" title="Editar, ordenar o quitar alumno" data-edit-student="${esc(s.id)}">⋯</button></div></td>${assessments.map(a=>{
@@ -1060,7 +1060,11 @@ function renderNotebook(){
       const value=g?effectiveAssessmentScore(STATE.doc,a,g):null;
       const faults=g?.orthographyFaults??0;
       const amount=g?orthographyPenalty(a,g):0;
-      const note=g?`<small class="orthography-meta">Original: ${esc(rawFmt(g.score))}/${esc(rawFmt(a.maxScore))}${faults?` · ${g.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(amount))} (${faults} faltas)`}`:''}</small>`:'<small class="orthography-meta">Nota, faltas y entrega</small>';
+      const assigned=g?.greekEtymologyBonus??0;
+      const applied=g?greekEtymologyBonusApplied(STATE.doc,a,g):0;
+      const greekNote=a.greekEtymologyBonusEnabled&&assigned>0?
+        ` · Etimología +${esc(rawFmt(assigned))}${applied===0?' (no computa)':''}`:'';
+      const note=g?`<small class="orthography-meta">Original: ${esc(rawFmt(g.score))}/${esc(rawFmt(a.maxScore))}${faults?` · ${g.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(amount))} (${faults} faltas)`}`:''}${greekNote}</small>`:'<small class="orthography-meta">Nota, faltas y entrega</small>';
       const main=`<button class="orthography-grade-button" type="button" data-orthography-grade="${esc(a.id)}" data-orthography-student="${esc(s.id)}"
         aria-label="Corregir ${esc(s.name)} en ${esc(a.name)}: nota, faltas y entrega">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?npGradeMarker:g?gradeChip(value):'<strong>+ Nota</strong>'}</button>`;
       const secondary=g?.notSubmitted?'<small class="np-edit-hint">Pulsar para editar</small>':g?.pendingJustified?'':note;
@@ -1406,7 +1410,7 @@ function renderStudentView(){
     const effective=grade?effectiveAssessmentScore(STATE.doc,a,grade):null;
     const orthography=a.orthography?.enabled&&grade;
     const shown=!grade?'Sin calificar':grade.pendingJustified?'<span class="aj-badge">AJ · Ausencia justificada pendiente</span>':grade.notSubmitted?'<span class="np-badge">NP · No presentado</span>':orthography
-      ?`${gradeChip(effective)}<small class="student-original">(${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))})${grade.orthographyFaults?` · ${grade.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(orthographyPenalty(a,grade)))} por ${grade.orthographyFaults} faltas`}`:''}</small>`
+      ?`${gradeChip(effective)}<small class="student-original">(${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))})${grade.orthographyFaults?` · ${grade.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(orthographyPenalty(a,grade)))} por ${grade.orthographyFaults} faltas`}`:''}${a.greekEtymologyBonusEnabled&&grade.greekEtymologyBonus?` · etimología +${esc(rawFmt(grade.greekEtymologyBonus))}${greekEtymologyBonusApplied(STATE.doc,a,grade)===0?' (no computa)':''}`:''}</small>`
       :a.rubricId?`${gradeChip(recordedScore(STATE.doc,a,grade))} /10 (rúbrica)`
       :a.convertToTen&&a.maxScore!==10?`${gradeChip(normalizedScore(grade.score,a.maxScore,true))}<small class="student-original">(${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))})</small>`
       :a.maxScore===10?gradeChip(grade.score):`<span class="student-raw">${esc(rawFmt(grade.score))} /${esc(rawFmt(a.maxScore))}</span>`;
@@ -1507,24 +1511,38 @@ function openAssessmentCreator(){
   const kinds=[{id:'',name:'Nota numérica'},...STATE.doc.rubrics.map(r=>({id:r.id,name:'Rúbrica existente: '+r.name})),{id:'__new',name:'Crear rúbrica aquí'}, {id:'__import',name:'Importar rúbrica Excel, CSV o JSON'}];
   dialog.classList.add('activity-modal');dialog.addEventListener('close',()=>dialog.classList.remove('activity-modal'),{once:true});
   dialog.innerHTML=`<form class="modal-inner" id="activity-form"><h2 id="modal-heading">Nueva actividad</h2><p class="subtitle">La nota siempre se normaliza a /10 si lo eliges; una rúbrica se transforma a /10 automáticamente.</p><div class="modal-fields"><label>Nombre de la actividad<input name="name" class="text-field" maxlength="150" required value="Examen"/></label><label>Categoría<select name="categoryId">${visibleCategories().map(c=>opt(c.id,c.name)).join('')}</select></label><details class="activity-disclosure" open><summary><span class="disclosure-symbol" aria-hidden="true">Ⅰ</span> Escala y forma de calificación <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="activity-disclosure-body"><label>Forma de evaluar<select name="kind" id="activity-kind">${kinds.map(x=>opt(x.id,x.name)).join('')}</select></label><div id="activity-new-rubric" class="activity-rubric-box hidden"><label>Nombre de la nueva rúbrica<input name="rubricName" class="text-field" value="Actitud" maxlength="150"/></label><label>Criterios, uno por línea (criterio; máximo; peso)<textarea name="rubricRows" class="text-field" rows="5" placeholder="Asistencia;2;20
-Participación;2;20"></textarea></label></div><div id="activity-import-rubric" class="activity-rubric-box hidden"><label>Archivo de rúbrica (.xlsx, .csv o .json)<input type="file" name="rubricFile" id="activity-rubric-file" accept=".xlsx,.csv,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/></label><p class="hint" id="activity-rubric-preview">Las rúbricas Excel con descriptores Bien/Regular/Mal se pueden importar directamente.</p></div><div id="activity-numeric-options" class="activity-numeric-options"><label>Nota máxima<input name="maxScore" class="text-field" type="number" min="0.01" max="1000" step="any" value="10"/></label><label>Conversión para cálculos<select name="convertToTen"><option value="true">Convertir a 0–10</option><option value="false">Usar la nota bruta</option></select></label></div></div></details><details class="activity-disclosure"><summary><span class="disclosure-symbol" aria-hidden="true">Ⅱ</span> Penalización ortográfica <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="activity-disclosure-body"><div class="orthography-activity-options" id="activity-orthography"><h3>Faltas de ortografía (opcional)</h3><label>Penalización recuperable<select name="orthEnabled" id="activity-orth-enabled"><option value="false">Desactivada</option><option value="true">Activada</option></select></label><div class="orthography-config-fields"><label>Descuento por falta (sobre 10)<input class="text-field" name="orthRate" type="number" step="0.01" min="0" max="10" value="${esc(STATE.doc.settings.orthographyDefaults?.penaltyPerFault??0.10)}"/></label><label>Copias exigidas por falta<input class="text-field" name="orthCopies" type="number" step="1" min="1" max="1000" value="${esc(STATE.doc.settings.orthographyDefaults?.repetitions??30)}"/></label><label>Devolución al entregar<select name="orthRecoverable"><option value="true">Sí</option><option value="false">No</option></select></label></div><p class="hint">La nota original no se pierde. La penalización se aplica después de convertir a /10; al marcar Entregadas se restaura la nota íntegra.</p></div></div></details><label class="activity-weight">Peso relativo de la actividad<input name="weight" class="text-field" type="number" min="0.01" max="1000" step="any" value="1"/></label></div><p class="modal-error" role="alert"></p><div class="modal-actions"><button type="button" class="btn" id="cancel-activity">Cancelar</button><button type="submit" class="btn primary">Crear actividad</button></div></form>`;
+Participación;2;20"></textarea></label></div><div id="activity-import-rubric" class="activity-rubric-box hidden"><label>Archivo de rúbrica (.xlsx, .csv o .json)<input type="file" name="rubricFile" id="activity-rubric-file" accept=".xlsx,.csv,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/></label><p class="hint" id="activity-rubric-preview">Las rúbricas Excel con descriptores Bien/Regular/Mal se pueden importar directamente.</p></div><div id="activity-numeric-options" class="activity-numeric-options"><label>Nota máxima<input name="maxScore" class="text-field" type="number" min="0.01" max="1000" step="any" value="10"/></label><label>Conversión para cálculos<select name="convertToTen"><option value="true">Convertir a 0–10</option><option value="false">Usar la nota bruta</option></select></label></div></div></details><details class="activity-disclosure"><summary><span class="disclosure-symbol" aria-hidden="true">Ⅱ</span> Penalización ortográfica <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="activity-disclosure-body"><div class="orthography-activity-options" id="activity-orthography"><h3>Faltas de ortografía (opcional)</h3><label>Penalización recuperable<select name="orthEnabled" id="activity-orth-enabled"><option value="false">Desactivada</option><option value="true">Activada</option></select></label><div class="orthography-config-fields"><label>Descuento por falta (sobre 10)<input class="text-field" name="orthRate" type="number" step="0.01" min="0" max="10" value="${esc(STATE.doc.settings.orthographyDefaults?.penaltyPerFault??0.10)}"/></label><label>Copias exigidas por falta<input class="text-field" name="orthCopies" type="number" step="1" min="1" max="1000" value="${esc(STATE.doc.settings.orthographyDefaults?.repetitions??30)}"/></label><label>Devolución al entregar<select name="orthRecoverable"><option value="true">Sí</option><option value="false">No</option></select></label></div><p class="hint">La nota original no se pierde. La penalización se aplica después de convertir a /10; al marcar Entregadas se restaura la nota íntegra.</p></div></div></details><details id="activity-greek-etymology" class="activity-disclosure hidden"><summary><span class="disclosure-symbol" aria-hidden="true">Ⅲ</span> Etimología griega (Latín 4.º) <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="activity-disclosure-body"><label>Permitir hasta 1 punto adicional en este examen<select name="greekEtymologyBonusEnabled"><option value="false">No</option><option value="true">Sí, bonificación individual 0–1</option></select></label><p class="hint">Solo cuenta con una nota de examen de al menos 5 antes del extra y sin faltas pendientes (o después de entregarlas). Máximo 10 puntos. Se conserva siempre la nota original.</p></div></details><label class="activity-weight">Peso relativo de la actividad<input name="weight" class="text-field" type="number" min="0.01" max="1000" step="any" value="1"/></label></div><p class="modal-error" role="alert"></p><div class="modal-actions"><button type="button" class="btn" id="cancel-activity">Cancelar</button><button type="submit" class="btn primary">Crear actividad</button></div></form>`;
   const form=$('#activity-form',dialog),selector=$('#activity-kind',form);
+  const categoryInput=form.elements.categoryId,orthSelector=form.elements.orthEnabled;
+  const isLatin4Exam=()=>{
+    const g=STATE.doc.groups.find(g=>g.id===STATE.groupId);
+    const category=STATE.doc.categories.find(c=>c.id===categoryInput.value);
+    return g?.level==='4eso'&&g.subject==='Latín 4.º'&&category?.name?.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase()==='examenes';
+  };
   const toggle=()=>{
     const k=selector.value;
     $('#activity-new-rubric',form).classList.toggle('hidden',k!=='__new');
     $('#activity-import-rubric',form).classList.toggle('hidden',k!=='__import');
     $('#activity-numeric-options',form).classList.toggle('hidden',!!k);
     $('#activity-orthography',form).classList.toggle('hidden',!!k);
+    const available=!k&&isLatin4Exam();
+    $('#activity-greek-etymology',form).classList.toggle('hidden',!available);
+    if(!available)form.elements.greekEtymologyBonusEnabled.value='false';
   };
   selector.addEventListener('change',toggle);toggle();
-  const categoryInput=form.elements.categoryId,orthSelector=form.elements.orthEnabled;
   const syncCategory=()=>{
     const category=STATE.doc.categories.find(c=>c.id===categoryInput.value);
     const isExam=category?.name?.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()==='examenes';
     orthSelector.value=isExam&&STATE.doc.settings.orthographyDefaults?.enabledForExams?'true':'false';
     form.elements.orthRecoverable.value=String(groupOrthographyRefundable(STATE.doc,STATE.groupId));
   };
-  categoryInput.addEventListener('change',syncCategory);syncCategory();
+  categoryInput.addEventListener('change',()=>{syncCategory();toggle();});syncCategory();toggle();
+  form.elements.greekEtymologyBonusEnabled.addEventListener('change',()=>{
+    if(form.elements.greekEtymologyBonusEnabled.value==='true')orthSelector.value='true';
+  });
+  orthSelector.addEventListener('change',()=>{
+    if(orthSelector.value!=='true')form.elements.greekEtymologyBonusEnabled.value='false';
+  });
   let preview=null,previewFile=null;
   $('#activity-rubric-file',form).onchange=async e=>{
     preview=null;previewFile=e.target.files[0];
@@ -1551,7 +1569,7 @@ Participación;2;20"></textarea></label></div><div id="activity-import-rubric" c
           let rubricId=!kind||kind==='__new'||kind==='__import'?null:kind;
           if(draft)rubricId=createRubric(d,draft.name,draft.criteria).id;
           const orthography=rubricId?null:{enabled:v.orthEnabled==='true',penaltyPerFault:parseScore(v.orthRate),repetitions:Number(v.orthCopies),refundable:v.orthRecoverable==='true'};
-          addAssessment(d,{name:actionName,groupId:STATE.groupId,periodId:STATE.periodId,categoryId:v.categoryId,maxScore:rubricId?10:Number(v.maxScore),weight:Number(v.weight),convertToTen:rubricId?true:v.convertToTen==='true',rubricId,orthography});
+          addAssessment(d,{name:actionName,groupId:STATE.groupId,periodId:STATE.periodId,categoryId:v.categoryId,maxScore:rubricId?10:Number(v.maxScore),weight:Number(v.weight),convertToTen:rubricId?true:v.convertToTen==='true',rubricId,orthography,greekEtymologyBonusEnabled:v.greekEtymologyBonusEnabled==='true'});
         },'Crear actividad');
         dialog.close();toast('Actividad añadida al cuaderno.');
       }finally{btn.disabled=false;}
@@ -1854,8 +1872,9 @@ function openOrthographyGrade(studentId,assessmentId){
   if(!student||!assessment?.orthography?.enabled)return toast('La penalización no está disponible en esta actividad.');
   const current=STATE.doc.grades.find(g=>g.studentId===studentId&&g.assessmentId===assessmentId);
   const config=assessment.orthography;
-  dialog.innerHTML=`<form class="modal-inner orthography-dialog" id="orthography-form"><h2 id="modal-heading">${esc(assessment.name)}</h2><p class="subtitle">${esc(student.name)}${current?.notSubmitted?' · No presentado':''} · La nota sin faltas se conserva por separado.</p><div class="modal-fields"><label>Nota original sin faltas (sobre ${esc(rawFmt(assessment.maxScore))})<input class="text-field" id="orth-base" type="text" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="8,50" value="${current&&!current.notSubmitted?esc(rawFmt(current.score)):''}"/></label><label>Número de faltas<input class="text-field" id="orth-count" type="number" min="0" max="1000" step="1" value="${current?.orthographyFaults??0}"/></label><div class="orthography-preview" role="status" aria-live="polite"><div class="cardline"><span>Penalización</span><strong id="orth-discount">—</strong></div><div class="cardline"><strong>Nota que computa /10</strong><span id="orth-effective" class="grade-chip">—</span></div></div><label class="orthography-delivered"><input id="orth-delivered" type="checkbox" ${current?.orthographyDelivered?'checked':''}/> <strong>Entregadas</strong> — faltas copiadas ${esc(config.repetitions)} veces cada una</label><p class="hint">${config.refundable?'Al marcar «Entregadas», se restaura automáticamente la nota sin penalización.':'En este examen, la devolución de la nota está desactivada.'} Se descuentan ${esc(rawFmt(config.penaltyPerFault))} puntos por falta sobre diez (mínimo 0).</p></div><div class="modal-error" role="alert"></div><div class="modal-actions"><button class="btn" type="button" id="cancel-orthography">Cancelar</button><button class="btn primary" type="submit">Guardar nota</button></div></form>`;
+  dialog.innerHTML=`<form class="modal-inner orthography-dialog" id="orthography-form"><h2 id="modal-heading">${esc(assessment.name)}</h2><p class="subtitle">${esc(student.name)}${current?.notSubmitted?' · No presentado':''} · La nota sin faltas se conserva por separado.</p><div class="modal-fields"><label>Nota original sin faltas (sobre ${esc(rawFmt(assessment.maxScore))})<input class="text-field" id="orth-base" type="text" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="8,50" value="${current&&!current.notSubmitted?esc(rawFmt(current.score)):''}"/></label><label>Número de faltas<input class="text-field" id="orth-count" type="number" min="0" max="1000" step="1" value="${current?.orthographyFaults??0}"/></label>${assessment.greekEtymologyBonusEnabled?`<label>Etimología griega · extra asignado de 0 a 1 punto<input class="text-field" id="orth-greek-bonus" type="text" inputmode="decimal" maxlength="4" value="${esc(rawFmt(current?.greekEtymologyBonus??0))}" placeholder="0,00"/></label>`:''}<div class="orthography-preview" role="status" aria-live="polite"><div class="cardline"><span>Penalización</span><strong id="orth-discount">—</strong></div>${assessment.greekEtymologyBonusEnabled?'<div class="cardline"><span>Etimología aplicada</span><strong id="orth-greek-applied">—</strong></div>':''}<div class="cardline"><strong>Nota que computa /10</strong><span id="orth-effective" class="grade-chip">—</span></div></div><label class="orthography-delivered"><input id="orth-delivered" type="checkbox" ${current?.orthographyDelivered?'checked':''}/> <strong>Entregadas</strong> — faltas copiadas ${esc(config.repetitions)} veces cada una</label><p class="hint">${config.refundable?'Al marcar «Entregadas», se restaura automáticamente la nota sin penalización.':'En este examen, la devolución de la nota está desactivada.'} Se descuentan ${esc(rawFmt(config.penaltyPerFault))} puntos por falta sobre diez (mínimo 0).</p></div><div class="modal-error" role="alert"></div><div class="modal-actions"><button class="btn" type="button" id="cancel-orthography">Cancelar</button><button class="btn primary" type="submit">Guardar nota</button></div></form>`;
   const form=$('#orthography-form',dialog),base=$('#orth-base',form),count=$('#orth-count',form),delivered=$('#orth-delivered',form),discount=$('#orth-discount',form),effective=$('#orth-effective',form);
+  const greekInput=$('#orth-greek-bonus',form),greekApplied=$('#orth-greek-applied',form);
   const refresh=()=>{
     const faults=Number(count.value);
     const validFaults=/^\d{1,4}$/.test(count.value)&&faults<=1000;
@@ -1863,19 +1882,31 @@ function openOrthographyGrade(studentId,assessmentId){
     if(delivered.disabled)delivered.checked=false;
     let val;
     try{val=base.value.trim()===''?null:parseScore(base.value);if(val!==null&&(val<0||val>assessment.maxScore))throw new Error('Nota fuera de escala.');}catch{val=null;}
-    if(val===null||!validFaults){effective.textContent='—';discount.textContent='—';effective.removeAttribute('data-grade-value');effective.style.removeProperty('--grade-bg');effective.style.removeProperty('--grade-fg');return;}
-    const candidate={score:val,orthographyFaults:faults,orthographyDelivered:delivered.checked};
+    let bonus=0;
+    try{
+      if(greekInput){bonus=greekInput.value.trim()===''?0:parseScore(greekInput.value);if(bonus<0||bonus>1)throw new Error('Bonificación fuera de escala.');}
+    }catch{bonus=null;}
+    if(val===null||!validFaults||bonus===null){
+      effective.textContent='—';discount.textContent='—';if(greekApplied)greekApplied.textContent='—';
+      effective.removeAttribute('data-grade-value');effective.style.removeProperty('--grade-bg');effective.style.removeProperty('--grade-fg');return;
+    }
+    const candidate={score:val,orthographyFaults:faults,orthographyDelivered:delivered.checked,greekEtymologyBonus:bonus};
     const result=effectiveAssessmentScore(STATE.doc,assessment,candidate),deduct=orthographyPenalty(assessment,candidate);
     discount.textContent=deduct?`−${penaltyFmt(deduct)}`:'0,00';
+    if(greekApplied){
+      const applied=greekEtymologyBonusApplied(STATE.doc,assessment,candidate);
+      greekApplied.textContent=`+${gradeFmt(applied)}${bonus>0&&!applied?' (no computa)':''}`;
+    }
     effective.textContent=gradeFmt(result);effective.dataset.gradeValue=String(result);paintGrades(form);
   };
   base.addEventListener('input',refresh);
   count.addEventListener('input',()=>{delivered.checked=false;refresh();});
   delivered.addEventListener('change',refresh);
+  greekInput?.addEventListener('input',refresh);
   $('#cancel-orthography',form).onclick=()=>dialog.close();
   form.onsubmit=async e=>{
     e.preventDefault();const submit=$('[type=submit]',form);submit.disabled=true;
-    try{await commit(d=>setOrthographyGrade(d,studentId,assessmentId,{score:base.value.trim(),faults:count.value,delivered:delivered.checked}),'Calificar examen con faltas');dialog.close();}
+    try{await commit(d=>setOrthographyGrade(d,studentId,assessmentId,{score:base.value.trim(),faults:count.value,delivered:delivered.checked,...(greekInput?{greekEtymologyBonus:greekInput.value.trim()||'0'}:{})}),'Calificar examen con faltas');dialog.close();}
     catch(err){$('.modal-error',form).textContent=err.message;submit.disabled=false;}
   };
   refresh();dialog.showModal();base.focus();
@@ -1890,7 +1921,8 @@ function openAssessmentTools(id){
       {id:'orthEnabled',label:'Penalización por faltas',type:'select',value:String(a.orthography?.enabled??false),options:[{value:'false',label:'Desactivada'},{value:'true',label:'Activada'}]},
       {id:'orthRate',label:'Puntos por falta (sobre 10)',type:'number',value:a.orthography?.penaltyPerFault??STATE.doc.settings.orthographyDefaults?.penaltyPerFault??0.1,min:0,max:10,step:'0.01'},
       {id:'orthCopies',label:'Copias exigidas por falta',type:'number',value:a.orthography?.repetitions??STATE.doc.settings.orthographyDefaults?.repetitions??30,min:1,max:1000,step:'1'},
-      {id:'orthRecoverable',label:'Recuperar nota al entregar',type:'select',value:String(a.orthography?.refundable??true),options:[{value:'true',label:'Sí'},{value:'false',label:'No'}]}],async v=>{
+      {id:'orthRecoverable',label:'Recuperar nota al entregar',type:'select',value:String(a.orthography?.refundable??true),options:[{value:'true',label:'Sí'},{value:'false',label:'No'}]},
+      ...(STATE.doc.groups.find(g=>g.id===a.groupId)?.level==='4eso'&&STATE.doc.groups.find(g=>g.id===a.groupId)?.subject==='Latín 4.º'?[{id:'greekEtymologyBonusEnabled',label:'Etimología griega (+0 a +1; solo Exámenes con faltas)',type:'select',value:String(!!a.greekEtymologyBonusEnabled),options:[{value:'false',label:'Desactivada'},{value:'true',label:'Activada'}]}]:[])],async v=>{
       const newMax=v.rubricId?10:Number(v.maxScore),newConvert=v.rubricId?true:v.convertToTen==='true';
       if(grades&&(newMax!==a.maxScore||newConvert!==a.convertToTen)&&!window.confirm(`Esta columna tiene ${grades} notas. Cambiar la escala o conversión modificará las medias calculadas, aunque se conserven las puntuaciones originales. ¿Continuar?`))return;
       const orthography={enabled:v.orthEnabled==='true',penaltyPerFault:parseScore(v.orthRate),repetitions:Number(v.orthCopies),refundable:v.orthRecoverable==='true'};
@@ -1902,7 +1934,7 @@ function openAssessmentTools(id){
       // preferencia del examen. Revisarlas es una decisión individual del docente.
       if(!orthography.refundable&&STATE.doc.grades.some(g=>g.assessmentId===a.id&&g.orthographyDelivered))
         throw new Error('Hay faltas marcadas como entregadas. Desmárcalas individualmente, si procede, antes de desactivar la devolución. No se ha modificado ninguna entrega ni nota.');
-      await commit(d=>updateAssessment(d,a.id,{name:v.name,categoryId:v.categoryId,maxScore:newMax,weight:Number(v.weight),convertToTen:newConvert,rubricId:v.rubricId||null,orthography}));
+      await commit(d=>updateAssessment(d,a.id,{name:v.name,categoryId:v.categoryId,maxScore:newMax,weight:Number(v.weight),convertToTen:newConvert,rubricId:v.rubricId||null,orthography,greekEtymologyBonusEnabled:v.greekEtymologyBonusEnabled===undefined?!!a.greekEtymologyBonusEnabled:v.greekEtymologyBonusEnabled==='true'}));
     });
   };
   $('#move-left',dialog).onclick=async()=>{dialog.close();try{await commit(d=>moveAssessment(d,id,-1));}catch(err){fail(err);}};
@@ -2310,7 +2342,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v169-dev');
+      const cache=await caches.open('cuaderno-docente-static-v170-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
