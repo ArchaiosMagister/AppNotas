@@ -906,6 +906,14 @@ export function removeCategoryFromGroup(doc,groupId,categoryId){
   // incluso cuando solo tienen ajustes de peso y todavía ninguna actividad.
   if(category.ownerGroupId===groupId){removeCategory(doc,categoryId);return 'deleted';}
   group.hiddenCategoryIds=[...(group.hiddenCategoryIds||[]),categoryId];
+  // La ocultación global ya exigía que no hubiera actividades, reglas
+  // individuales, competencias ni condiciones de Ítaca. Limpiar también los
+  // perfiles de sus períodos para mantener válida la configuración histórica.
+  for(const profile of doc.gradingProfiles.filter(p=>p.groupId===groupId)){
+    profile.overrides=profile.overrides.filter(o=>o.categoryId!==categoryId);
+    if(profile.categoryIds!==undefined)profile.categoryIds=profile.categoryIds.filter(id=>id!==categoryId);
+    profile.updatedAt=now();
+  }
   group.updatedAt=doc.updatedAt=now();
   return 'hidden';
 }
