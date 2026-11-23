@@ -21,8 +21,8 @@ test('al introducir una nota se conserva scroll vertical y horizontal aunque se 
   const commit=fragment(js,'function commit(action,','function navigateHistory');
   const notebook=fragment(js,'function bindNotebook(){','function openGradeCellActions(');
   assert(commit.includes("label==='Editar nota'&&STATE.tab==='cuaderno'"));
-  assert(commit.includes("scrollLeft:$('.table-scroller')?.scrollLeft"));
-  assert(commit.includes("scrollTop:$('.table-scroller')?.scrollTop"));
+  assert(commit.includes("left:$('.table-scroller')?.scrollLeft"));
+  assert(commit.includes("top:$('.table-scroller')?.scrollTop"));
   assert(commit.includes("window.scrollTo(notebookScroll.x,notebookScroll.y)"));
   assert(commit.includes('requestAnimationFrame(restore)'));
   assert(notebook.includes("field.addEventListener('input',()=>{lastInputScroll=snapshotGradeScroll();})"));
