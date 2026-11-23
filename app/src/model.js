@@ -401,7 +401,10 @@ export function assertModel(doc) {
     profileKeys.add(key);
     const categoriesSeen=new Set();
     for(const o of profile.overrides){
-      if(!cs.has(o.categoryId)||!categoryAvailableForGroup(doc,profile.groupId,o.categoryId)||
+      // Los cuadernos anteriores podían conservar reglas de categorías
+      // ocultadas para un grupo. Son ajustes inactivos, no datos corruptos:
+      // exigir disponibilidad aquí bloquearía el descifrado de esos cuadernos.
+      if(!cs.has(o.categoryId)||
         categoriesSeen.has(o.categoryId)||!Number.isFinite(o.weight)||o.weight<0||o.weight>100||
         !CATEGORY_RULES.includes(o.rule)||!validBestCount(o.bestCount))throw new Error('Regla de periodo inválida.');
       categoriesSeen.add(o.categoryId);
