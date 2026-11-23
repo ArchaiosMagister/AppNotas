@@ -413,8 +413,9 @@ export function assertModel(doc) {
     const student=doc.students.find(s=>s.id===x.studentId);
     if(!ss.has(x.studentId)||!as.has(x.assessmentId)||!assessment||!student||student.groupId!==assessment.groupId||!Number.isFinite(x.score)||x.score<0||x.score>assessment.maxScore) throw new Error('Calificación inválida o fuera de escala.');
     if(x.greekEtymologyBonus!==undefined&&(
-      !assessment.greekEtymologyBonusEnabled||!Number.isFinite(x.greekEtymologyBonus)||
+      !Number.isFinite(x.greekEtymologyBonus)||
       x.greekEtymologyBonus<0||x.greekEtymologyBonus>1||
+      !assessment.greekEtymologyBonusEnabled&&x.greekEtymologyBonus!==0||
       Math.abs(x.greekEtymologyBonus*100-Math.round(x.greekEtymologyBonus*100))>1e-8||
       x.notSubmitted||x.pendingPlaceholder))
       throw new Error('Bonificación de etimología griega inválida.');
