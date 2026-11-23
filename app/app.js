@@ -1928,7 +1928,7 @@ function openItacaAttitudeCondition(){
  <p class="subtitle">${esc(currentPeriod().name)} · ${esc(currentGroup().name)}. Si la nota de Actitud no cumple el requisito, Ítaca conserva la parte entera (por ejemplo, 5,9 → 5), sin subir. Si lo cumple, se aplica el umbral de redondeo elegido. Ítaca siempre muestra enteros y las medias originales no cambian.</p>
  <div class="modal-fields">
  <label>Aplicar redondeo solo cuando<select name="guardMode">
- <option value="none"${!current?' selected':''}>Sin condición (comportamiento anterior)</option>
+ <option value="none"${!current?' selected':''}>Sin condición de Actitud</option>
  <option value="category"${current?.mode==='category'?' selected':''}>La nota de Actitud esté aprobada (5/10)</option>
  <option value="criterion"${current?.mode==='criterion'?' selected':''}${activities.length?'':' disabled'}>Un criterio de la rúbrica alcance el mínimo</option>
  </select></label>
