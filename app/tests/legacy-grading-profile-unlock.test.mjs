@@ -51,6 +51,6 @@ test('categorías inexistentes siguen siendo rechazadas; solo se aceptan referen
 
 test('una selección explícita errónea de categorías continúa bloqueada',()=>{
   const {doc,profile}=legacyNotebookWithHiddenCategoryRule();
-  profile.categoryIds=['inexistente'];
+  profile.categoryIds=[...availableCategories(doc,profile.groupId).map(c=>c.id),'inexistente'];
   assert.throws(()=>assertModel(doc),/Selección de categorías de evaluación inválida/);
 });
