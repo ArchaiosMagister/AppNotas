@@ -4058,3 +4058,44 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
     width:100%;
   }
 }
+
+/* Categorías activas por materia y evaluación: selector compacto de categorías
+ * disponibles sin tocar las actividades ni los datos de otros períodos. */
+.period-category-picker{
+  display:flex;
+  align-items:end;
+  flex-wrap:wrap;
+  gap:9px;
+  padding:11px 12px;
+  margin:12px 0;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--raised);
+}
+.period-category-picker label{
+  display:grid;
+  gap:5px;
+  flex:1 1 200px;
+  min-width:0;
+  font-size:12px;
+  font-weight:700;
+  color:var(--ink);
+}
+.period-category-picker select{
+  width:100%;
+  min-width:0;
+}
+.period-category-picker .btn{
+  min-height:42px;
+  white-space:normal;
+}
+.period-category-picker :disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+@media(max-width:600px){
+  .period-category-picker{align-items:stretch}
+  .period-category-picker label,.period-category-picker .btn{flex:1 1 100%}
+  .period-category-picker .btn{min-height:44px}
+}
+@media print{.period-category-picker{display:none!important}}

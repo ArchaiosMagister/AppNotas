@@ -47,7 +47,7 @@ export function setItacaAttitudeCondition(doc,groupId,periodId,condition){
   const group=doc.groups.find(g=>g.id===groupId);
   if(!group||!doc.periods.some(p=>p.id===periodId))throw new Error('Grupo o evaluación de Ítaca inválidos.');
   if(condition!==null){
-    if(!validItacaAttitudeShape(condition)||!categoryAvailableForGroup(doc,groupId,condition.categoryId)||
+    if(!validItacaAttitudeShape(condition)||!categoryAvailableForGroup(doc,groupId,condition.categoryId,periodId)||
       !isAttitudeCategory(doc,condition.categoryId))throw new Error('La condición debe usar una categoría Actitud válida.');
     if(condition.mode==='criterion'){
       const activity=doc.assessments.find(a=>a.id===condition.assessmentId&&
@@ -282,7 +282,8 @@ export function assertModel(doc) {
   if(!doc.groups.every(g=>g.itacaAttitudeConditions===undefined||(
     g.itacaAttitudeConditions&&typeof g.itacaAttitudeConditions==='object'&&!Array.isArray(g.itacaAttitudeConditions)&&
     Object.entries(g.itacaAttitudeConditions).every(([periodId,condition])=>
-      doc.periods.some(p=>p.id===periodId)&&validItacaAttitudeShape(condition))
+      doc.periods.some(p=>p.id===periodId)&&validItacaAttitudeShape(condition)&&
+      categoryAvailableForGroup(doc,g.id,condition.categoryId,periodId))
   )))throw new Error('Condición de actitud de Ítaca inválida.');
   if(!doc.groups.every(g=>g.orthographyRefundable===undefined||typeof g.orthographyRefundable==='boolean'))throw new Error('Regla de devolución por faltas del grupo inválida.');
   if(!doc.students.every(s=>s.itacaRoundingOverrides===undefined||(
@@ -385,16 +386,24 @@ export function assertModel(doc) {
     if(doc.assessments.filter(x=>x.recoveryOf===a.recoveryOf).length>1)throw new Error('Solo se admite una recuperación por actividad.');
   }
   if(doc.categories.some(x=>(x.ownerGroupId!==undefined&&!gs.has(x.ownerGroupId))||!Number.isFinite(x.weight)||x.weight<0||x.weight>100||!CATEGORY_RULES.includes(x.rule) || !validBestCount(x.bestCount??2) || !validCategoryColumnColor(x.columnColor))) throw new Error('Categoría inválida.');
-  if(doc.assessments.some(a=>!categoryAvailableForGroup(doc,a.groupId,a.categoryId)))throw new Error('Actividad en categoría no disponible para su grupo.');
+  if(doc.assessments.some(a=>!categoryAvailableForGroup(doc,a.groupId,a.categoryId,a.periodId)))throw new Error('Actividad en categoría no disponible para su grupo y evaluación.');
   const profileKeys = new Set();
   for(const profile of doc.gradingProfiles){
     if(!profile || typeof profile.id!=='string' || !gs.has(profile.groupId) || !ps.has(profile.periodId) || !Array.isArray(profile.overrides)) throw new Error('Perfil de evaluación inválido.');
+    if(profile.categoryIds!==undefined){
+      const allowed=new Set(availableCategories(doc,profile.groupId).map(c=>c.id));
+      if(!Array.isArray(profile.categoryIds)||new Set(profile.categoryIds).size!==profile.categoryIds.length||
+        profile.categoryIds.some(id=>typeof id!=='string'||!allowed.has(id)))
+        throw new Error('Selección de categorías de evaluación inválida.');
+    }
     const key=profile.groupId+'|'+profile.periodId;
     if(profileKeys.has(key)) throw new Error('Perfil de evaluación duplicado.');
     profileKeys.add(key);
     const categoriesSeen=new Set();
     for(const o of profile.overrides){
-      if(!cs.has(o.categoryId)||categoriesSeen.has(o.categoryId)||!Number.isFinite(o.weight)||o.weight<0||o.weight>100||!CATEGORY_RULES.includes(o.rule)||!validBestCount(o.bestCount))throw new Error('Regla de periodo inválida.');
+      if(!cs.has(o.categoryId)||!categoryAvailableForGroup(doc,profile.groupId,o.categoryId)||
+        categoriesSeen.has(o.categoryId)||!Number.isFinite(o.weight)||o.weight<0||o.weight>100||
+        !CATEGORY_RULES.includes(o.rule)||!validBestCount(o.bestCount))throw new Error('Regla de periodo inválida.');
       categoriesSeen.add(o.categoryId);
     }
   }
@@ -402,7 +411,7 @@ export function assertModel(doc) {
   for(const rule of doc.individualCategoryRules){
     const student=doc.students.find(s=>s.id===rule.studentId);
     const key=rule.studentId+'|'+rule.categoryId+'|'+rule.periodId;
-    if(!student||!ps.has(rule.periodId)||!categoryAvailableForGroup(doc,student.groupId,rule.categoryId)||
+    if(!student||!ps.has(rule.periodId)||!categoryAvailableForGroup(doc,student.groupId,rule.categoryId,rule.periodId)||
        !INDIVIDUAL_RULES.includes(rule.rule)||individualKeys.has(key))
       throw new Error('Excepción de cálculo individual inválida.');
     individualKeys.add(key);
@@ -596,14 +605,72 @@ export function migrateNotebook(input){
 }
 /** Las categorías antiguas son compartidas. Las nuevas pueden pertenecer a un grupo,
  * y cada grupo puede ocultar una categoría compartida sin modificar otros grupos. */
-export function availableCategories(doc,groupId){
+/** Catálogo compartido del grupo y selección específica de la evaluación.
+ * Sin categoryIds, los cuadernos antiguos conservan sus categorías originales.
+ * La selección explícita nunca altera ni elimina calificaciones almacenadas. */
+export function availableCategories(doc,groupId,periodId=null){
   const hidden=doc.groups.find(g=>g.id===groupId)?.hiddenCategoryIds||[];
-  return doc.categories.filter(c=>(!c.ownerGroupId||c.ownerGroupId===groupId)&&!hidden.includes(c.id));
+  const all=doc.categories.filter(c=>(!c.ownerGroupId||c.ownerGroupId===groupId)&&!hidden.includes(c.id));
+  if(periodId===null)return all;
+  const enabled=doc.gradingProfiles.find(p=>p.groupId===groupId&&p.periodId===periodId)?.categoryIds;
+  return enabled===undefined?all:all.filter(c=>enabled.includes(c.id));
 }
-export const categoryAvailableForGroup=(doc,groupId,categoryId)=>availableCategories(doc,groupId).some(c=>c.id===categoryId);
+export const categoryAvailableForGroup=(doc,groupId,categoryId,periodId=null)=>
+  availableCategories(doc,groupId,periodId).some(c=>c.id===categoryId);
 export function effectiveCategories(doc,groupId,periodId){
   const profile=doc.gradingProfiles.find(p=>p.groupId===groupId&&p.periodId===periodId);
-  return availableCategories(doc,groupId).map(c=>({...c,...profile?.overrides.find(o=>o.categoryId===c.id)}));
+  return availableCategories(doc,groupId,periodId).map(c=>({...c,...profile?.overrides.find(o=>o.categoryId===c.id)}));
+}
+/** Un solo perfil por grupo/evaluación, también para la selección de categorías. */
+function ensurePeriodProfile(doc,groupId,periodId){
+  let profile=doc.gradingProfiles.find(p=>p.groupId===groupId&&p.periodId===periodId);
+  if(!profile){profile=mark({id:uid(),groupId,periodId,overrides:[],createdAt:now()});doc.gradingProfiles.push(profile);}
+  return profile;
+}
+/** Ocultar categorías nunca destruye actividades, notas ni referencias docentes. */
+export function setPeriodCategoryEnabled(doc,groupId,periodId,categoryId,enabled){
+  if(!doc.groups.some(g=>g.id===groupId)||!doc.periods.some(p=>p.id===periodId)||
+    !categoryAvailableForGroup(doc,groupId,categoryId)||typeof enabled!=='boolean')
+    throw new Error('Categoría, materia o evaluación inválida.');
+  const active=availableCategories(doc,groupId,periodId).map(c=>c.id);
+  if(active.includes(categoryId)===enabled)return doc;
+  if(!enabled){
+    if(doc.assessments.some(a=>a.groupId===groupId&&a.periodId===periodId&&a.categoryId===categoryId))
+      throw new Error('Esta categoría tiene actividades en esta evaluación. Muévelas o elimínalas antes de retirarla.');
+    if(itacaAttitudeCondition(doc,groupId,periodId)?.categoryId===categoryId)
+      throw new Error('Esta categoría es requisito de Ítaca en esta evaluación. Desactiva primero la condición.');
+    if(doc.individualCategoryRules.some(r=>r.categoryId===categoryId&&r.periodId===periodId&&
+      doc.students.some(st=>st.id===r.studentId&&st.groupId===groupId)))
+      throw new Error('Esta categoría tiene reglas individuales en la evaluación. Restablécelas antes de retirarla.');
+  }
+  const profile=ensurePeriodProfile(doc,groupId,periodId);
+  profile.categoryIds=enabled
+    ?availableCategories(doc,groupId).filter(c=>active.includes(c.id)||c.id===categoryId).map(c=>c.id)
+    :active.filter(id=>id!==categoryId);
+  // Mantener pesos y reglas de categorías temporalmente retiradas. No
+  // computan hasta reactivarse, pero tampoco se pierden sus preferencias.
+  profile.updatedAt=doc.updatedAt=now();
+  return doc;
+}
+/** Una nueva categoría se activa únicamente en esta materia y evaluación.
+ * Se inmoviliza la selección heredada de las demás evaluaciones del grupo
+ * antes de crearla, para que las nuevas categorías no aparezcan allí. */
+export function addPeriodCategory(doc,groupId,periodId,name,weight=0){
+  if(!doc.groups.some(g=>g.id===groupId)||!doc.periods.some(p=>p.id===periodId))
+    throw new Error('Materia o evaluación inexistente.');
+  const otherPeriods=doc.periods.filter(p=>p.id!==periodId);
+  const snapshots=otherPeriods.map(p=>[p.id,availableCategories(doc,groupId,p.id).map(c=>c.id)]);
+  const active=availableCategories(doc,groupId,periodId).map(c=>c.id);
+  const category=addCategory(doc,name,weight,'mean',groupId);
+  for(const [id,ids] of snapshots){
+    const profile=ensurePeriodProfile(doc,groupId,id);
+    profile.categoryIds=ids;
+    profile.updatedAt=now();
+  }
+  const profile=ensurePeriodProfile(doc,groupId,periodId);
+  profile.categoryIds=[...active,category.id];
+  profile.updatedAt=doc.updatedAt=now();
+  return category;
 }
 /** Reglas excepcionales; la ausencia de registro conserva la regla general. */
 export function individualCategoryRule(doc,studentId,categoryId,periodId){
@@ -611,7 +678,7 @@ export function individualCategoryRule(doc,studentId,categoryId,periodId){
 }
 export function setIndividualCategoryRule(doc,studentId,categoryId,periodId,rule){
   const student=doc.students.find(s=>s.id===studentId);
-  if(!student||!doc.periods.some(p=>p.id===periodId)||!categoryAvailableForGroup(doc,student.groupId,categoryId)||
+  if(!student||!doc.periods.some(p=>p.id===periodId)||!categoryAvailableForGroup(doc,student.groupId,categoryId,periodId)||
      !['general',...INDIVIDUAL_RULES].includes(rule))throw new Error('Regla individual, alumno, categoría o evaluación inválidos.');
   const index=doc.individualCategoryRules.findIndex(r=>r.studentId===studentId&&r.categoryId===categoryId&&r.periodId===periodId);
   if(rule==='general'){
@@ -627,7 +694,7 @@ export function setIndividualCategoryRule(doc,studentId,categoryId,periodId,rule
 export function setPeriodCategory(doc,groupId,periodId,categoryId,patch){
   if(!doc.groups.some(g=>g.id===groupId)||!doc.periods.some(p=>p.id===periodId))throw new Error('Grupo o periodo inexistente.');
   const base=doc.categories.find(c=>c.id===categoryId);
-  if(!base||!categoryAvailableForGroup(doc,groupId,categoryId))throw new Error('Categoría no disponible para este grupo.');
+  if(!base||!categoryAvailableForGroup(doc,groupId,categoryId,periodId))throw new Error('Categoría no disponible en esta evaluación.');
   // Los identificadores son inmutables. Un parche de interfaz no puede
   // convertir una regla de un periodo en una regla de otra categoría.
   if(!patch||typeof patch!=='object'||Array.isArray(patch)||Object.keys(patch).some(k=>!['weight','rule','bestCount'].includes(k)))
@@ -635,22 +702,41 @@ export function setPeriodCategory(doc,groupId,periodId,categoryId,patch){
   const next={categoryId,weight:base.weight,rule:base.rule,bestCount:base.bestCount??2,
     ...(doc.gradingProfiles.find(x=>x.groupId===groupId&&x.periodId===periodId)?.overrides.find(x=>x.categoryId===categoryId)||{}),...patch};
   if(!Number.isFinite(next.weight)||next.weight<0||next.weight>100||!CATEGORY_RULES.includes(next.rule)||!validBestCount(next.bestCount))throw new Error('Regla o porcentaje inválidos.');
-  let profile=doc.gradingProfiles.find(x=>x.groupId===groupId&&x.periodId===periodId);
-  if(!profile){profile=mark({id:uid(),groupId,periodId,overrides:[],createdAt:now()});doc.gradingProfiles.push(profile);}
+  const profile=ensurePeriodProfile(doc,groupId,periodId);
   profile.overrides=profile.overrides.filter(x=>x.categoryId!==categoryId);
   profile.overrides.push(next);
   profile.updatedAt=doc.updatedAt=now();
   return next;
 }
 export function resetPeriodCategories(doc,groupId,periodId){
-  doc.gradingProfiles=doc.gradingProfiles.filter(x=>x.groupId!==groupId||x.periodId!==periodId);
-  doc.updatedAt=now();
+  const profile=doc.gradingProfiles.find(x=>x.groupId===groupId&&x.periodId===periodId);
+  if(profile){
+    if(profile.categoryIds!==undefined){profile.overrides=[];profile.updatedAt=now();}
+    else doc.gradingProfiles=doc.gradingProfiles.filter(x=>x!==profile);
+    doc.updatedAt=now();
+  }
 }
+/** Copia tanto el conjunto de categorías evaluables como sus ponderaciones.
+ * Rechaza cualquier destino donde la copia ocultaría actividades o reglas. */
 export function copyPeriodCategories(doc,groupId,sourcePeriodId,targetPeriodId){
   if(sourcePeriodId===targetPeriodId)throw new Error('Selecciona otro periodo.');
   if(!doc.groups.some(g=>g.id===groupId)||!doc.periods.some(p=>p.id===sourcePeriodId)||!doc.periods.some(p=>p.id===targetPeriodId))
     throw new Error('Grupo o periodo de origen o destino inexistente.');
-  for(const c of effectiveCategories(doc,groupId,sourcePeriodId))setPeriodCategory(doc,groupId,targetPeriodId,c.id,{weight:c.weight,rule:c.rule,bestCount:c.bestCount??2});
+  const source=effectiveCategories(doc,groupId,sourcePeriodId);
+  const ids=new Set(source.map(c=>c.id));
+  if(doc.assessments.some(a=>a.groupId===groupId&&a.periodId===targetPeriodId&&!ids.has(a.categoryId)))
+    throw new Error('La evaluación de destino contiene actividades en categorías que la copia retiraría. Muévelas primero.');
+  if(doc.individualCategoryRules.some(r=>r.periodId===targetPeriodId&&!ids.has(r.categoryId)&&
+    doc.students.some(s=>s.id===r.studentId&&s.groupId===groupId)))
+    throw new Error('La evaluación de destino tiene excepciones individuales en categorías que la copia retiraría.');
+  if((itacaAttitudeCondition(doc,groupId,targetPeriodId))&&
+      !ids.has(itacaAttitudeCondition(doc,groupId,targetPeriodId).categoryId))
+    throw new Error('La evaluación de destino tiene una condición de Ítaca asociada a una categoría que la copia retiraría.');
+  const profile=ensurePeriodProfile(doc,groupId,targetPeriodId);
+  profile.categoryIds=source.map(c=>c.id);
+  profile.overrides=source.map(c=>({categoryId:c.id,weight:c.weight,rule:c.rule,bestCount:c.bestCount??2}));
+  profile.updatedAt=doc.updatedAt=now();
+  return profile;
 }
 export function addGroup(doc,name,subject='Latín I',course='2026-2027',level=levelForSubject(subject),weeklyHours=null){
   const n=name.trim();
@@ -685,8 +771,22 @@ function configureSecondBachGroup(doc,group){
 }
 export function addPeriod(doc,name){
   if(!name.trim())throw new Error('Introduce un nombre de periodo.');
+  const predecessor=[...doc.periods].sort((a,b)=>a.order-b.order).at(-1);
+  const selections=predecessor?doc.groups.map(g=>({
+    groupId:g.id,
+    categoryIds:availableCategories(doc,g.id,predecessor.id).map(c=>c.id),
+    overrides:effectiveCategories(doc,g.id,predecessor.id).map(c=>({
+      categoryId:c.id,weight:c.weight,rule:c.rule,bestCount:c.bestCount??2
+    }))
+  })):[];
   doc.periods.push(mark({id:uid(),name:name.trim(),order:doc.periods.length,createdAt:now()})); doc.updatedAt=now();
-  return doc.periods.at(-1);
+  const period=doc.periods.at(-1);
+  for(const {groupId,categoryIds,overrides} of selections){
+    const profile=ensurePeriodProfile(doc,groupId,period.id);
+    profile.categoryIds=categoryIds;
+    profile.overrides=overrides;
+  }
+  return period;
 }
 /** El grupo de procedencia identifica la tutoría/clase, NO el grupo de la asignatura.
  * Mantener name por compatibilidad con cálculos, importaciones y copias anteriores.
@@ -783,7 +883,10 @@ export function removeCategory(doc,categoryId){
     throw new Error('Esta categoría tiene vínculos con competencias. Desvincúlalas antes de eliminarla.');
   doc.categories=doc.categories.filter(c=>c.id!==categoryId);
   doc.groups.forEach(g=>{if(g.hiddenCategoryIds)g.hiddenCategoryIds=g.hiddenCategoryIds.filter(id=>id!==categoryId);});
-  doc.gradingProfiles.forEach(p=>p.overrides=p.overrides.filter(o=>o.categoryId!==categoryId));
+  doc.gradingProfiles.forEach(p=>{
+    p.overrides=p.overrides.filter(o=>o.categoryId!==categoryId);
+    if(p.categoryIds)p.categoryIds=p.categoryIds.filter(id=>id!==categoryId);
+  });
   doc.competencies.forEach(c=>c.links=c.links.filter(l=>l.categoryId!==categoryId));
   doc.updatedAt=now();
 }
@@ -804,6 +907,14 @@ export function removeCategoryFromGroup(doc,groupId,categoryId){
   // incluso cuando solo tienen ajustes de peso y todavía ninguna actividad.
   if(category.ownerGroupId===groupId){removeCategory(doc,categoryId);return 'deleted';}
   group.hiddenCategoryIds=[...(group.hiddenCategoryIds||[]),categoryId];
+  // La ocultación global ya exigía que no hubiera actividades, reglas
+  // individuales, competencias ni condiciones de Ítaca. Limpiar también los
+  // perfiles de sus períodos para mantener válida la configuración histórica.
+  for(const profile of doc.gradingProfiles.filter(p=>p.groupId===groupId)){
+    profile.overrides=profile.overrides.filter(o=>o.categoryId!==categoryId);
+    if(profile.categoryIds!==undefined)profile.categoryIds=profile.categoryIds.filter(id=>id!==categoryId);
+    profile.updatedAt=now();
+  }
   group.updatedAt=doc.updatedAt=now();
   return 'hidden';
 }
@@ -818,6 +929,9 @@ export function copyPeriodAssessments(doc,groupId,sourcePeriodId,targetPeriodIds
     if(doc.assessments.some(a=>a.groupId===groupId&&a.periodId===targetId))throw new Error('Una evaluación de destino ya contiene actividades. No se ha sobrescrito nada.');
   }
   for(const targetId of targetPeriodIds){
+    // Habilitar antes de crear actividades, cuyos IDs de categoría se verifican
+    // ahora dentro de la evaluación de destino.
+    copyPeriodCategories(doc,groupId,sourcePeriodId,targetId);
     const translated=new Map();
     for(const a of source.filter(a=>!a.recoveryOf)){
       const copy=addAssessment(doc,{name:a.name,groupId,periodId:targetId,categoryId:a.categoryId,maxScore:a.maxScore,weight:a.weight,convertToTen:a.convertToTen,rubricId:a.rubricId,orthography:a.orthography??null,greekEtymologyBonusEnabled:a.greekEtymologyBonusEnabled??false});
@@ -831,13 +945,10 @@ export function copyPeriodAssessments(doc,groupId,sourcePeriodId,targetPeriodIds
     }
     // Conservar el orden original aunque las recuperaciones se creen al final.
     for(const [order,a] of source.entries())doc.assessments.find(x=>x.id===translated.get(a.id)).order=order;
-    // También se copian reglas y porcentajes: sin ellos, una columna de Literatura
-    // podría tener peso cero aunque estuviera presente en la copia.
-    copyPeriodCategories(doc,groupId,sourcePeriodId,targetId);
   }
 }
 export function addAssessment(doc,{name,groupId,periodId,categoryId,maxScore=10,weight=1,recoveryOf=null,recoveryMode='higher',convertToTen=true,rubricId=null,orthography=undefined,greekEtymologyBonusEnabled=false}){
-  if(!name?.trim()||!doc.groups.some(g=>g.id===groupId)||!doc.periods.some(p=>p.id===periodId)||!categoryAvailableForGroup(doc,groupId,categoryId)||!Number.isFinite(maxScore)||maxScore<=0||maxScore>1000||!Number.isFinite(weight)||weight<=0||weight>1000)throw new Error('Datos de actividad inválidos.');
+  if(!name?.trim()||!doc.groups.some(g=>g.id===groupId)||!doc.periods.some(p=>p.id===periodId)||!categoryAvailableForGroup(doc,groupId,categoryId,periodId)||!Number.isFinite(maxScore)||maxScore<=0||maxScore>1000||!Number.isFinite(weight)||weight<=0||weight>1000)throw new Error('Datos de actividad inválidos.');
   if(typeof convertToTen!=='boolean'||(rubricId!==null&&(!doc.rubrics.some(r=>r.id===rubricId)||maxScore!==10||!convertToTen)))throw new Error('Escala o rúbrica inválida.');
   if(recoveryOf){
     const old=doc.assessments.find(x=>x.id===recoveryOf);
@@ -880,7 +991,7 @@ export function updateAssessment(doc,id,patch){
   // recuperación de faltas; impedir el cambio antes de tocar actividad o agenda.
   if(doc.grades.some(g=>g.assessmentId===id&&g.orthographyDelivered)&&!updated.orthography?.refundable)
     throw new Error('Este examen tiene faltas entregadas. No desactives la devolución ni elimines su configuración sin revisar antes esas calificaciones.');
-  if(!updated.name?.trim()||updated.name.length>150||!Number.isFinite(updated.maxScore)||updated.maxScore<=0||updated.maxScore>1000||!Number.isFinite(updated.weight)||updated.weight<=0||updated.weight>1000||!categoryAvailableForGroup(doc,a.groupId,updated.categoryId))throw new Error('Datos de actividad inválidos.');
+  if(!updated.name?.trim()||updated.name.length>150||!Number.isFinite(updated.maxScore)||updated.maxScore<=0||updated.maxScore>1000||!Number.isFinite(updated.weight)||updated.weight<=0||updated.weight>1000||!categoryAvailableForGroup(doc,a.groupId,updated.categoryId,a.periodId))throw new Error('Datos de actividad inválidos.');
   if(doc.grades.some(g=>g.assessmentId===id&&g.score>updated.maxScore))throw new Error('Hay calificaciones que superan la nueva nota máxima.');
   if(updated.categoryId!==a.categoryId&&(a.recoveryOf||doc.assessments.some(x=>x.recoveryOf===a.id)))throw new Error('No puedes cambiar la categoría mientras haya una recuperación vinculada.');
   // Si el evento seguía el título de la columna, acompañar el renombrado sin sobrescribir títulos editados a mano.
