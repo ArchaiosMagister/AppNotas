@@ -2313,9 +2313,10 @@ details.student-period,
   overflow:visible;
   z-index:85;
 }
+/* La cabecera debe superar también el z-index:8 de «Alumno» sticky. */
 .panel:has(> .panel-header .notebook-more-actions[open])>.panel-header{
   position:relative;
-  z-index:2;
+  z-index:20;
 }
 .notebook-more-actions[open]{z-index:60}
 /* La navegación de Gestión académica se expande EN la barra, sin popup.
