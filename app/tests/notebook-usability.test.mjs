@@ -60,3 +60,19 @@ test('zoom accesible 80–140 %, persistente y sin modificar datos',async()=>{
   assert.match(css,/@media print\{\.notebook-zoom-tools\{display:none!important\}\}/);
   assert(!js.includes('style="--notebook-zoom'),'Los estilos deben usar CSSOM por la CSP');
 });
+
+test('los títulos de las columnas envuelven palabras completas sin modificar su anchura',async()=>{
+  const [css,js]=await Promise.all([read('styles.css'),read('app.js')]);
+  const headings=js.slice(js.indexOf('const headers=assessments.map(a=>'),js.indexOf('const categoryCell=',js.indexOf('const headers=assessments.map(a=>')));
+  assert(headings.includes('<span class="assessment-column-title" title="${esc(a.name)}">${esc(a.name)}</span>'));
+  const column=css.match(/\.table-scroller>\.grade-table th\.category-tinted \.assessment-column-title\{([^}]+)\}/)?.[1]||'';
+  const layout=css.match(/\.table-scroller>\.grade-table th\.category-tinted \.column-heading\{([^}]+)\}/)?.[1]||'';
+  assert.match(column,/overflow-wrap:normal;/);
+  assert.match(column,/word-break:normal;/);
+  assert.match(column,/hyphens:none;/);
+  assert.match(column,/grid-column:1\/-1;/,'El título utiliza el ancho completo antes de los controles');
+  assert.match(layout,/display:grid;/);
+  assert.match(layout,/overflow-wrap:normal;/);
+  assert(css.includes('width:165px;'));
+  assert(css.includes('max-width:165px;'));
+});
