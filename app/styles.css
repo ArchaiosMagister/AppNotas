@@ -3903,3 +3903,76 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   padding-inline-start:22px;
   color:var(--ink);
 }
+
+/* Cuaderno: columnas estables aunque se active el extra de etimología griega.
+ * El resumen de ortografía y etimología se ajusta dentro de la columna,
+ * sin influir en el cálculo del ancho de la tabla. */
+.table-scroller>.grade-table{
+  table-layout:fixed;
+  width:100%;
+  min-width:max(730px,var(--notebook-table-min-width,730px));
+  zoom:var(--notebook-zoom,1);
+}
+.table-scroller>.grade-table th.category-tinted,
+.table-scroller>.grade-table td.category-tinted{
+  width:165px;
+  min-width:165px;
+  max-width:165px;
+  box-sizing:border-box;
+}
+.table-scroller>.grade-table th.category-tinted .column-heading,
+.table-scroller>.grade-table th.category-tinted small{
+  max-width:100%;
+  min-width:0;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+.table-scroller>.grade-table tbody td .grade-cell-stack{
+  max-width:100%;
+  min-width:0;
+}
+.table-scroller>.grade-table tbody td .grade-cell-support{
+  min-width:0;
+  max-width:100%;
+}
+.table-scroller>.grade-table tbody td .orthography-meta{
+  max-width:100%;
+  min-width:0;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+/* Zoom de la tabla: controles independientes, sin escalado de la barra ni
+ * de los editores. 80–140 % en saltos de 10 puntos. */
+.notebook-zoom-tools{
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:8px;
+  padding:6px 14px;
+  border-bottom:1px solid var(--line);
+  background:var(--surface);
+  color:var(--muted);
+  font-weight:700;
+  font-size:12px;
+}
+.notebook-zoom-tools .btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:42px;
+  min-width:42px;
+  min-height:40px;
+  font-size:20px;
+  padding:4px;
+}
+.notebook-zoom-tools output{
+  display:inline-block;
+  min-width:54px;
+  text-align:center;
+  color:var(--ink);
+  font-variant-numeric:tabular-nums;
+}
+@media(max-width:650px){
+  .notebook-zoom-tools .btn{min-height:44px;min-width:44px}
+}
+@media print{.notebook-zoom-tools{display:none!important}}
