@@ -188,7 +188,7 @@ function paintNotebookZoom(context=document){
   const table=context.querySelector('.table-scroller .grade-table');
   if(!table)return;
   table.style.setProperty('--notebook-zoom',String(STATE.notebookZoom/100));
-  table.style.setProperty('--notebook-assessment-count',String(allAssessments().length));
+  table.style.setProperty('--notebook-table-min-width',String(440+165*allAssessments().length)+'px');
 }
 function paintStudentCategoryCards(context=document){
   if(!STATE.doc)return;
