@@ -116,6 +116,19 @@ test('copiar configuración incluye selección y pesos, pero nunca oculta notas 
   assertModel(doc);
 });
 
+test('retirar y reactivar una categoría conserva sus pesos y reglas sin calcularla mientras esté oculta',()=>{
+  const {doc,group,periods}=setup();
+  const exam=doc.categories.find(c=>c.name==='Exámenes');
+  setPeriodCategory(doc,group.id,periods[1].id,exam.id,{weight:70,rule:'highest'});
+  setPeriodCategoryEnabled(doc,group.id,periods[1].id,exam.id,false);
+  assert(!ids(doc,group,periods[1]).includes(exam.id));
+  assertModel(doc);
+  setPeriodCategoryEnabled(doc,group.id,periods[1].id,exam.id,true);
+  assert.equal(byName(doc,group,periods[1],'Exámenes').weight,70);
+  assert.equal(byName(doc,group,periods[1],'Exámenes').rule,'highest');
+  assertModel(doc);
+});
+
 test('restablecer porcentajes conserva la selección específica de categorías',()=>{
   const {doc,group,periods}=setup();
   const work=doc.categories.find(c=>c.name==='Trabajos');
