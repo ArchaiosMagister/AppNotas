@@ -102,7 +102,7 @@ test('la columna Ítaca siempre muestra enteros y permite configurar actitud pul
 test('Ítaca muestra 5 para 5,9 cuando Actitud impide la subida y 6 cuando se permite',()=>{
  const {d,group,period,student,category,rubric,activity}=attitudeFixture();
  const id=student.id,gid=group.id,pid=period.id;
- allTheSame(d,student,group,period,5.9);
+ for(const a of d.assessments.filter(a=>a.groupId===gid&&a.periodId===pid&&!a.rubricId))setGrade(d,id,a.id,5.9);
  const original=overallGrade(d,id,gid,pid),grades=structuredClone(d.grades);
  assert(Math.abs(original-5.9)<1e-9);
  assert.equal(itacaGrade(d,id,gid,pid),6);
