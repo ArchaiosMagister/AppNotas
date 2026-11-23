@@ -911,7 +911,7 @@ function renderAcademicQuickNav(){
 }
 function renderPeriodButtons(){
   const periods=[...STATE.doc.periods].sort((a,b)=>a.order-b.order);
-  const periodButton=p=>`<span class="term-item ${STATE.tab==='cuaderno'&&STATE.periodId===p.id?'active':''}"><button type="button" class="term-button ${STATE.tab==='cuaderno'&&STATE.periodId===p.id?'active':''}" data-period-choice="${esc(p.id)}" aria-pressed="${STATE.tab==='cuaderno'&&STATE.periodId===p.id}" title="Seleccionar ${esc(p.name)} (doble clic para gestionar)">${esc(p.name)}</button><button type="button" class="term-edit" data-rename-period="${esc(p.id)}" aria-label="Gestionar ${esc(p.name)}" title="Renombrar, reordenar o eliminar ${esc(p.name)}">✎</button></span>`;
+  const periodButton=p=>`<span class="term-item ${['cuaderno','calculos','competencias'].includes(STATE.tab)&&STATE.periodId===p.id?'active':''}"><button type="button" class="term-button ${['cuaderno','calculos','competencias'].includes(STATE.tab)&&STATE.periodId===p.id?'active':''}" data-period-choice="${esc(p.id)}" aria-pressed="${['cuaderno','calculos','competencias'].includes(STATE.tab)&&STATE.periodId===p.id}" title="Seleccionar ${esc(p.name)} (doble clic para gestionar)">${esc(p.name)}</button><button type="button" class="term-edit" data-rename-period="${esc(p.id)}" aria-label="Gestionar ${esc(p.name)}" title="Renombrar, reordenar o eliminar ${esc(p.name)}">✎</button></span>`;
   const lastPeriod=periods.at(-1);
   // El último período y la evaluación final forman un mismo bloque visual,
   // también en el diseño móvil de dos columnas.
@@ -1884,7 +1884,7 @@ function bindCommon(){
     input?.focus();input?.select();
   });
   document.querySelectorAll('[data-period-choice]').forEach(b=>{
-    b.onclick=()=>{STATE.periodId=b.dataset.periodChoice;STATE.tab='cuaderno';render();};
+    b.onclick=()=>{STATE.periodId=b.dataset.periodChoice;if(!['calculos','competencias'].includes(STATE.tab))STATE.tab='cuaderno';render();};
     b.ondblclick=event=>{event.preventDefault();managePeriodFromTab(b.dataset.periodChoice);};
   });
   document.querySelectorAll('[data-notebook-evaluation-open]').forEach(button=>button.onclick=async()=>{
