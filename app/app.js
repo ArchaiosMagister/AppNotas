@@ -998,10 +998,13 @@ function renderNotebook(){
   const assessments=allAssessments(),students=allStudents();
   const visibleIds=new Set(assessments.map(a=>a.id));
   const gradeObservationsByPair=new Map((STATE.doc.gradeObservations??[]).map(note=>[note.studentId+'|'+note.assessmentId,note]));
+  // Índices locales al render: evitar búsquedas lineales por cada celda.
+  const studentsById=new Map(students.map(student=>[student.id,student]));
+  const assessmentsById=new Map(assessments.map(assessment=>[assessment.id,assessment]));
   const observationButton=(studentId,assessmentId)=>{
     const note=gradeObservationsByPair.get(studentId+'|'+assessmentId);
-    const student=STATE.doc.students.find(s=>s.id===studentId);
-    const activity=STATE.doc.assessments.find(a=>a.id===assessmentId);
+    const student=studentsById.get(studentId);
+    const activity=assessmentsById.get(assessmentId);
     const label=note?'Editar observación':'Añadir observación';
     return `<button type="button" class="grade-observation-button ${note?'has-observation':''}" data-observation-student="${esc(studentId)}" data-observation-assessment="${esc(assessmentId)}" aria-label="${label} de ${esc(student?.name||'alumno')} en ${esc(activity?.name||'actividad')}" title="${label}">${note?'● ':''}Obs.</button>`;
   };
@@ -1916,13 +1919,14 @@ function openItacaAttitudeCondition(){
  const groupId=STATE.groupId,periodId=STATE.periodId,doc=STATE.doc;
  const eligible=effectiveCategories(doc,groupId,periodId).filter(c=>
   c.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().startsWith('actitud'));
- if(!eligible.length){
+ const current=itacaAttitudeCondition(doc,groupId,periodId);
+ // Permitir limpiar condiciones históricas incluso si su categoría desapareció.
+ if(!eligible.length&&!current){
   toast('Primero debes disponer de una categoría Actitud para este grupo.');return;
  }
  const candidateIds=new Set(eligible.map(c=>c.id));
  const activities=doc.assessments.filter(a=>a.groupId===groupId&&a.periodId===periodId&&
   candidateIds.has(a.categoryId)&&a.rubricId&&doc.rubrics.some(r=>r.id===a.rubricId));
- const current=itacaAttitudeCondition(doc,groupId,periodId);
  dialog.innerHTML=`<form class="modal-inner itaca-attitude-dialog" id="itaca-attitude-form">
  <h2 id="modal-heading">Condición de actitud · Nota Ítaca</h2>
  <p class="subtitle">${esc(currentPeriod().name)} · ${esc(currentGroup().name)}. Si la nota de Actitud no cumple el requisito, Ítaca conserva la parte entera (por ejemplo, 5,9 → 5), sin subir. Si lo cumple, se aplica el umbral de redondeo elegido. Ítaca siempre muestra enteros y las medias originales no cambian.</p>
@@ -1960,9 +1964,11 @@ function openItacaAttitudeCondition(){
   const mode=form.elements.guardMode.value;
   if(mode==='none'){details.innerHTML='';return;}
   if(mode==='category'){
+   if(!eligible.length){details.innerHTML='<p class="hint">La categoría de Actitud ya no existe. Selecciona «Sin condición de Actitud» para limpiar la configuración anterior.</p>';return;}
    details.innerHTML=`<label>Categoría de actitud<select name="guardCategory">${categoryOptions(current?.categoryId||eligible[0].id)}</select></label>`;
    return;
   }
+  if(!activities.length){details.innerHTML='<p class="hint">La actividad de rúbrica ya no existe. Selecciona «Sin condición de Actitud» para limpiar la configuración anterior.</p>';return;}
   const selected=activities.find(a=>a.id===current?.assessmentId)||activities[0];
   details.innerHTML=`<label>Actividad con rúbrica de Actitud<select name="guardAssessment">
    ${activities.map(a=>opt(a.id,a.name,selected.id)).join('')}</select></label>
@@ -2304,7 +2310,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v168-dev');
+      const cache=await caches.open('cuaderno-docente-static-v169-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
