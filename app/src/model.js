@@ -401,7 +401,7 @@ export function assertModel(doc) {
     profileKeys.add(key);
     const categoriesSeen=new Set();
     for(const o of profile.overrides){
-      if(!cs.has(o.categoryId)||!categoryAvailableForGroup(doc,profile.groupId,o.categoryId,profile.periodId)||
+      if(!cs.has(o.categoryId)||!categoryAvailableForGroup(doc,profile.groupId,o.categoryId)||
         categoriesSeen.has(o.categoryId)||!Number.isFinite(o.weight)||o.weight<0||o.weight>100||
         !CATEGORY_RULES.includes(o.rule)||!validBestCount(o.bestCount))throw new Error('Regla de periodo inválida.');
       categoriesSeen.add(o.categoryId);
@@ -647,7 +647,8 @@ export function setPeriodCategoryEnabled(doc,groupId,periodId,categoryId,enabled
   profile.categoryIds=enabled
     ?availableCategories(doc,groupId).filter(c=>active.includes(c.id)||c.id===categoryId).map(c=>c.id)
     :active.filter(id=>id!==categoryId);
-  profile.overrides=profile.overrides.filter(o=>profile.categoryIds.includes(o.categoryId));
+  // Mantener pesos y reglas de categorías temporalmente retiradas. No
+  // computan hasta reactivarse, pero tampoco se pierden sus preferencias.
   profile.updatedAt=doc.updatedAt=now();
   return doc;
 }
