@@ -3920,7 +3920,40 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   max-width:165px;
   box-sizing:border-box;
 }
-.table-scroller>.grade-table th.category-tinted .column-heading,
+/* El título dispone de una línea completa: los botones se sitúan debajo.
+ * No partir una palabra por la mitad ni ensanchar la columna de 165 px. */
+.table-scroller>.grade-table th.category-tinted .column-heading{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  align-items:center;
+  justify-items:center;
+  gap:3px 5px;
+  max-width:100%;
+  min-width:0;
+  overflow-wrap:normal;
+  word-break:normal;
+}
+.table-scroller>.grade-table th.category-tinted .assessment-column-title{
+  grid-column:1/-1;
+  display:block;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  white-space:normal;
+  overflow-wrap:normal;
+  word-break:normal;
+  hyphens:none;
+  overflow:hidden;
+  text-align:center;
+}
+.table-scroller>.grade-table th.category-tinted .class-stat-trigger{
+  grid-column:2;
+  justify-self:end;
+}
+.table-scroller>.grade-table th.category-tinted .assessment-menu{
+  grid-column:3;
+  justify-self:end;
+}
 .table-scroller>.grade-table th.category-tinted small{
   max-width:100%;
   min-width:0;
