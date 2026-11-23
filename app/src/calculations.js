@@ -114,17 +114,18 @@ export function itacaAttitudeBlock(doc,studentId,groupId,periodId){
   return score+1e-9<config.minScore?
     'El criterio '+criterion.name+' no alcanza '+config.minScore+'/'+criterion.maxScore+'.':null;
 }
-/** Nota Ítaca: solo aplica el redondeo a la media trimestral ya calculada.
- * «none» devuelve la media íntegra sin redondeo; la interfaz puede limitar decimales visuales.
- * Los valores nulos siguen sin calificarse (no se convierten en cero).
+/** Nota Ítaca: siempre un entero de 0 a 10. La media trimestral original
+ * no se modifica. «none» o un veto de Actitud conservan la parte entera;
+ * «half» y «seven» solo permiten subir si se alcanza el umbral.
+ * Las calificaciones ausentes siguen siendo nulas, nunca cero.
  */
 export function itacaGrade(doc,studentId,groupId,periodId){
   const average=overallGrade(doc,studentId,groupId,periodId);
   if(average===null)return null;
   const chosen=itacaStudentRule(doc,studentId,periodId);
   const rule=chosen==='general'?itacaGroupRule(doc,groupId):chosen;
-  if(rule==='none'||itacaAttitudeBlock(doc,studentId,groupId,periodId))return average;
-  const base=Math.floor(average);
+  if(rule==='none'||itacaAttitudeBlock(doc,studentId,groupId,periodId))return Math.min(10,Math.floor(average+1e-10));
+  const base=Math.floor(average+1e-10);
   const fraction=average-base;
   return Math.min(10,base+(fraction+1e-10>=(rule==='seven'?0.7:0.5)?1:0));
 }
