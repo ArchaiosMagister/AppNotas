@@ -138,6 +138,11 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();pen
 window.addEventListener('appinstalled',()=>{pendingInstallPrompt=null;paintPwaButtons();toast('El navegador ha confirmado la instalación de CuadernoDocente.');});
 
 const savedTheme=()=>{try{const value=localStorage.getItem('cuaderno-docente-theme');return ['light','dark','oled'].includes(value)?value:'light';}catch{return 'light';}};
+const savedNotebookZoom=()=>{try{
+  const value=Number(localStorage.getItem('appnotas-notebook-zoom'));
+  return value>=80&&value<=140&&value%10===0?value:100;
+}catch{return 100;}};
+const NOTEBOOK_ZOOM_MIN=80,NOTEBOOK_ZOOM_MAX=140;
 const savedNavigation=()=>{try{return localStorage.getItem('cuaderno-docente-nav-collapsed')==='yes';}catch{return false;}};
 const savedStudentSort=()=>{try{const mode=localStorage.getItem('cuaderno-docente-student-sort');return STUDENT_SORT_MODES.includes(mode)?mode:'surname';}catch{return 'surname';}};
 const savedStudentPlainSort=()=>{try{const mode=localStorage.getItem('cuaderno-docente-student-sort-before-group');return STUDENT_SORT_MODES.includes(mode)&&mode!=='originGroup'?mode:'surname';}catch{return 'surname';}};
@@ -148,7 +153,7 @@ const savedStudentActivityOrders=()=>{try{
 }catch{return {};}};
 const STUDENT_ACTIVITY_SORT_OPTIONS=[['category','Por categoría'],['column','Orden del cuaderno'],['alphabetical','Nombre de actividad (A–Z)'],['reverse','Últimas actividades primero']];
 
-const STATE={evaluationWorkspaceTab:'sesiones',plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),studentPlainSort:savedStudentPlainSort(),studentActivityOrders:savedStudentActivityOrders(),studentPeriodId:null,studentFull:false,studentPresentation:false,db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
+const STATE={evaluationWorkspaceTab:'sesiones',plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),notebookZoom:savedNotebookZoom(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),studentPlainSort:savedStudentPlainSort(),studentActivityOrders:savedStudentActivityOrders(),studentPeriodId:null,studentFull:false,studentPresentation:false,db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const $=(sel,context=document)=>context.querySelector(sel);
 const opt=(id,label,chosen)=>`<option value="${esc(id)}" ${chosen===id?'selected':''}>${esc(label)}</option>`;
@@ -177,6 +182,14 @@ function paintCategoryColumns(context=document){
 }
 /** En el visor individual se respeta el mismo color de categoría.
  * Aplicarlo después del render con CSSOM evita estilos inline bloqueados por CSP. */
+/** El zoom solo afecta a la tabla, nunca a menús, diálogos ni al cálculo. */
+function paintNotebookZoom(context=document){
+  if(STATE.tab!=='cuaderno')return;
+  const table=context.querySelector('.table-scroller .grade-table');
+  if(!table)return;
+  table.style.setProperty('--notebook-zoom',String(STATE.notebookZoom/100));
+  table.style.setProperty('--notebook-assessment-count',String(allAssessments().length));
+}
 function paintStudentCategoryCards(context=document){
   if(!STATE.doc)return;
   context.querySelectorAll('.student-period .student-category-tinted[data-column-category]').forEach(card=>{
@@ -398,10 +411,23 @@ function commit(action,label='Modificar cuaderno'){
     const before=STATE.doc,next=structuredClone(before);
     action(next);assertModel(next);
     if(JSON.stringify(before)===JSON.stringify(next))return;
+    // Guardar también el scroll al comenzar la escritura para que la reconstrucción
+    // completa del DOM tras persistir no vuelva al principio de la página/tabla.
+    const notebookScroll=label==='Editar nota'&&STATE.tab==='cuaderno'?
+      {x:window.scrollX,y:window.scrollY,left:$('.table-scroller')?.scrollLeft??0,top:$('.table-scroller')?.scrollTop??0}:null;
     markBookChange(next,before);
     await persist(next);
     STATE.history=recordChange(STATE.history,before,next,label);
     STATE.doc=next;render();
+    if(notebookScroll){
+      const restore=()=>{
+        const table=$('.table-scroller');
+        if(table){table.scrollLeft=notebookScroll.left;table.scrollTop=notebookScroll.top;}
+        window.scrollTo(notebookScroll.x,notebookScroll.y);
+      };
+      restore();
+      requestAnimationFrame(restore);
+    }
   });
 }
 function navigateHistory(direction){
@@ -996,6 +1022,7 @@ function render(){
   else if(STATE.tab==='ajustes')bindSettings();
   paintGrades(root);
   paintCategoryColumns(root);
+  paintNotebookZoom(root);
   paintStudentCategoryCards(root);
   bindClassStatistics();
   setStatus();
@@ -1104,7 +1131,7 @@ function renderNotebook(){
         <button type="button" class="btn" id="schedule-exam">Programar examen</button>
       </div>
     </div>
-  </details></div></div><div class="student-order-bar">${studentSortControls()}</div><details class="notebook-grade-options"><summary>Ítaca y procedencias <span aria-hidden="true">⌄</span></summary><div class="notebook-grade-options-body"><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div></div></details><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col"><button type="button" id="configure-itaca-attitude" class="itaca-column-config" title="Configurar el requisito de Actitud para subir la Nota Ítaca" aria-label="Configurar condición de Actitud para subir la Nota Ítaca">Nota Ítaca <span aria-hidden="true">⚙</span></button><small>/10 · ${itacaAttitudeCondition(STATE.doc,STATE.groupId,STATE.periodId)?'Condición activa':'Configurar actitud'}</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><details class="legend notebook-legend"><summary>ⓘ Significado de las notas y colores</summary><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></details>`;
+  </details></div></div><div class="student-order-bar">${studentSortControls()}</div><details class="notebook-grade-options"><summary>Ítaca y procedencias <span aria-hidden="true">⌄</span></summary><div class="notebook-grade-options-body"><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div></div></details><div class="notebook-zoom-tools" role="group" aria-label="Zoom del cuaderno"><span>Zoom</span><button class="btn small" type="button" id="notebook-zoom-out" aria-label="Reducir zoom de la tabla" ${STATE.notebookZoom<=NOTEBOOK_ZOOM_MIN?'disabled':''}>−</button><output id="notebook-zoom-value" aria-live="polite">${STATE.notebookZoom} %</output><button class="btn small" type="button" id="notebook-zoom-in" aria-label="Aumentar zoom de la tabla" ${STATE.notebookZoom>=NOTEBOOK_ZOOM_MAX?'disabled':''}>+</button></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col"><button type="button" id="configure-itaca-attitude" class="itaca-column-config" title="Configurar el requisito de Actitud para subir la Nota Ítaca" aria-label="Configurar condición de Actitud para subir la Nota Ítaca">Nota Ítaca <span aria-hidden="true">⚙</span></button><small>/10 · ${itacaAttitudeCondition(STATE.doc,STATE.groupId,STATE.periodId)?'Condición activa':'Configurar actitud'}</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><details class="legend notebook-legend"><summary>ⓘ Significado de las notas y colores</summary><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></details>`;
 }
 const ITACA_OPTIONS=[['half','Redondear desde ,5'],['seven','Redondear desde ,7'],['none','Conservar parte entera (sin subir)']];
 const RULE_LABELS={mean:'Media aritmética',weighted_mean:'Media ponderada por actividad',highest:'Mejor nota',best_n:'Media de las N mejores',last:'Última evaluada',latest_if_highest:'Última si iguala o supera la mejor; si no, media'};
@@ -2090,12 +2117,12 @@ function openOrthographyGrade(studentId,assessmentId){
   if(!student||!assessment?.orthography?.enabled)return toast('La penalización no está disponible en esta actividad.');
   const current=STATE.doc.grades.find(g=>g.studentId===studentId&&g.assessmentId===assessmentId);
   const config=assessment.orthography;
-  dialog.innerHTML=`<form class="modal-inner orthography-dialog" id="orthography-form"><h2 id="modal-heading">${esc(assessment.name)}</h2><p class="subtitle">${esc(student.name)}${current?.notSubmitted?' · No presentado':''} · La nota sin faltas se conserva por separado.</p><div class="modal-fields"><label>Nota original sin faltas (sobre ${esc(rawFmt(assessment.maxScore))})<input class="text-field" id="orth-base" type="text" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="8,50" value="${current&&!current.notSubmitted?esc(rawFmt(current.score)):''}"/></label><label>Número de faltas<input class="text-field" id="orth-count" type="number" min="0" max="1000" step="1" value="${current?.orthographyFaults??0}"/></label>${assessment.greekEtymologyBonusEnabled?`<label>Etimología griega · extra asignado de 0 a 1 punto<input class="text-field" id="orth-greek-bonus" type="text" inputmode="decimal" maxlength="4" value="${esc(rawFmt(current?.greekEtymologyBonus??0))}" placeholder="0,00"/></label>`:''}<div class="orthography-preview" role="status" aria-live="polite"><div class="cardline"><span>Penalización</span><strong id="orth-discount">—</strong></div>${assessment.greekEtymologyBonusEnabled?'<div class="cardline"><span>Etimología aplicada</span><strong id="orth-greek-applied">—</strong></div>':''}<div class="cardline"><strong>Nota que computa /10</strong><span id="orth-effective" class="grade-chip">—</span></div></div><label class="orthography-delivered"><input id="orth-delivered" type="checkbox" ${current?.orthographyDelivered?'checked':''}/> <strong>Entregadas</strong> — faltas copiadas ${esc(config.repetitions)} veces cada una</label><p class="hint">${config.refundable?'Al marcar «Entregadas», se restaura automáticamente la nota sin penalización.':'En este examen, la devolución de la nota está desactivada.'} Se descuentan ${esc(rawFmt(config.penaltyPerFault))} puntos por falta sobre diez (mínimo 0).</p></div><div class="modal-error" role="alert"></div><div class="modal-actions"><button class="btn" type="button" id="cancel-orthography">Cancelar</button><button class="btn primary" type="submit">Guardar nota</button></div></form>`;
+  dialog.innerHTML=`<form class="modal-inner orthography-dialog" id="orthography-form"><h2 id="modal-heading">${esc(assessment.name)}</h2><p class="subtitle">${esc(student.name)}${current?.notSubmitted?' · No presentado':''} · La nota sin faltas se conserva por separado.</p><div class="modal-fields"><label>Nota original sin faltas (sobre ${esc(rawFmt(assessment.maxScore))})<input class="text-field" id="orth-base" type="text" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="8,50" value="${current&&!current.notSubmitted?esc(rawFmt(current.score)):''}"/></label><label>Número de faltas<input class="text-field" id="orth-count" type="number" min="0" max="1000" step="1" value="${current?.orthographyFaults?esc(current.orthographyFaults):''}" placeholder="Sin faltas"/></label>${assessment.greekEtymologyBonusEnabled?`<label>Etimología griega · extra asignado de 0 a 1 punto<input class="text-field" id="orth-greek-bonus" type="text" inputmode="decimal" maxlength="4" value="${esc(rawFmt(current?.greekEtymologyBonus??0))}" placeholder="0,00"/></label>`:''}<div class="orthography-preview" role="status" aria-live="polite"><div class="cardline"><span>Penalización</span><strong id="orth-discount">—</strong></div>${assessment.greekEtymologyBonusEnabled?'<div class="cardline"><span>Etimología aplicada</span><strong id="orth-greek-applied">—</strong></div>':''}<div class="cardline"><strong>Nota que computa /10</strong><span id="orth-effective" class="grade-chip">—</span></div></div><label class="orthography-delivered"><input id="orth-delivered" type="checkbox" ${current?.orthographyDelivered?'checked':''}/> <strong>Entregadas</strong> — faltas copiadas ${esc(config.repetitions)} veces cada una</label><p class="hint">${config.refundable?'Al marcar «Entregadas», se restaura automáticamente la nota sin penalización.':'En este examen, la devolución de la nota está desactivada.'} Se descuentan ${esc(rawFmt(config.penaltyPerFault))} puntos por falta sobre diez (mínimo 0).</p></div><div class="modal-error" role="alert"></div><div class="modal-actions"><button class="btn" type="button" id="cancel-orthography">Cancelar</button><button class="btn primary" type="submit">Guardar nota</button></div></form>`;
   const form=$('#orthography-form',dialog),base=$('#orth-base',form),count=$('#orth-count',form),delivered=$('#orth-delivered',form),discount=$('#orth-discount',form),effective=$('#orth-effective',form);
   const greekInput=$('#orth-greek-bonus',form),greekApplied=$('#orth-greek-applied',form);
   const refresh=()=>{
     const faults=Number(count.value);
-    const validFaults=/^\d{1,4}$/.test(count.value)&&faults<=1000;
+    const validFaults=(count.value.trim()===''||/^\d{1,4}$/.test(count.value))&&faults<=1000;
     delivered.disabled=!config.refundable||!validFaults||faults===0||!base.value.trim();
     if(delivered.disabled)delivered.checked=false;
     let val;
@@ -2124,7 +2151,7 @@ function openOrthographyGrade(studentId,assessmentId){
   $('#cancel-orthography',form).onclick=()=>dialog.close();
   form.onsubmit=async e=>{
     e.preventDefault();const submit=$('[type=submit]',form);submit.disabled=true;
-    try{await commit(d=>setOrthographyGrade(d,studentId,assessmentId,{score:base.value.trim(),faults:count.value,delivered:delivered.checked,...(greekInput?{greekEtymologyBonus:greekInput.value.trim()||'0'}:{})}),'Calificar examen con faltas');dialog.close();}
+    try{await commit(d=>setOrthographyGrade(d,studentId,assessmentId,{score:base.value.trim(),faults:count.value.trim()===''?'0':count.value,delivered:delivered.checked,...(greekInput?{greekEtymologyBonus:greekInput.value.trim()||'0'}:{})}),'Calificar examen con faltas');dialog.close();}
     catch(err){$('.modal-error',form).textContent=err.message;submit.disabled=false;}
   };
   refresh();dialog.showModal();base.focus();
@@ -2309,6 +2336,18 @@ function openGradeCellActions(studentId,assessmentId){
   dialog.showModal();
 }
 function bindNotebook(){
+  const adjustNotebookZoom=delta=>{
+    const next=Math.min(NOTEBOOK_ZOOM_MAX,Math.max(NOTEBOOK_ZOOM_MIN,STATE.notebookZoom+delta));
+    if(next===STATE.notebookZoom)return;
+    STATE.notebookZoom=next;
+    try{localStorage.setItem('appnotas-notebook-zoom',String(next));}catch{}
+    paintNotebookZoom(root);
+    $('#notebook-zoom-value').textContent=next+' %';
+    $('#notebook-zoom-out').disabled=next<=NOTEBOOK_ZOOM_MIN;
+    $('#notebook-zoom-in').disabled=next>=NOTEBOOK_ZOOM_MAX;
+  };
+  $('#notebook-zoom-out')?.addEventListener('click',()=>adjustNotebookZoom(-10));
+  $('#notebook-zoom-in')?.addEventListener('click',()=>adjustNotebookZoom(10));
   $('#manage-origin-groups')?.addEventListener('click',openOriginGroupsManager);
   $('#configure-itaca-attitude')?.addEventListener('click',openItacaAttitudeCondition);
   $('#itaca-general-rule')?.addEventListener('change',e=>{
@@ -2382,7 +2421,9 @@ function bindNotebook(){
     requestAnimationFrame(()=>{restoreGradeScroll(position);requestAnimationFrame(()=>restoreGradeScroll(position));});
   };
   document.querySelectorAll('[data-student][data-assessment]').forEach(field=>{
-    let move=0,positionAtEnter=null;
+    let move=0,positionAtEnter=null,lastInputScroll=null;
+    // Registrar el desplazamiento ANTES de que el blur/teclado iPadOS lo altere.
+    field.addEventListener('input',()=>{lastInputScroll=snapshotGradeScroll();});
     field.addEventListener('keydown',e=>{
       if(e.key==='Enter'){
         e.preventDefault();move=e.shiftKey?-1:1;
@@ -2394,8 +2435,8 @@ function bindNotebook(){
       }
     });
     field.addEventListener('change',async()=>{
-      const position=positionAtEnter||snapshotGradeScroll();
-      positionAtEnter=null;
+      const position=positionAtEnter||lastInputScroll||snapshotGradeScroll();
+      positionAtEnter=null;lastInputScroll=null;
       try{
         await commit(d=>setGrade(d,field.dataset.student,field.dataset.assessment,field.value.trim()===''?null:field.value.trim().replace(',','.')),'Editar nota');
         restoreFocus(field.dataset.student,field.dataset.assessment,move,position);
