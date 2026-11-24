@@ -144,8 +144,8 @@ test('la interfaz agrupa solo para ver y muestra las mismas fichas y notas',asyn
  assert(app.includes("studentSort:savedStudentSort(),studentPlainSort:savedStudentPlainSort()"));
  assert(app.includes("sortStudents(STATE.doc.students.filter(x=>x.groupId===STATE.groupId),STATE.studentSort)"));
  assert(app.includes("const studentSortControls=()=>"));
- assert(app.includes("originGroupHeader(students,i,assessments.length+3)"));
- assert(app.includes("originGroupHeader(students,i,periods.length+2)"));
+ assert(app.includes("renderGradeTableBodies(students,s=>"));
+ assert(app.includes("renderGradeTableBodies(students,student=>"));
  assert(app.includes('originDirectoryHeader(students,i)'));
  assert(app.includes('studentOriginBadge(s)'));
  assert(app.includes('id="student-sort-mode"'));

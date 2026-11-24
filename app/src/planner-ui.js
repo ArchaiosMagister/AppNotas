@@ -1,4 +1,4 @@
-import {SLOT_TYPES,EVENT_TYPES,EXCEPTION_TYPES,activeYear,localToday,weekday,addDays,daySlots,daySessions,isHoliday,findExamSlots,saveSlot,removeSlot,saveEvent,saveLesson,carryLesson,saveHoliday,saveTask,saveException,deletePlannerItem,setActiveYear,addAcademicYear,updateAcademicYear,scheduleBands,saveTimetableBand,removeTimetableBand,setSummerSchedule,activeScheduleMode,slotsForMode,weeklySlotCount,plannerSlotColor,saveEvaluationSession,calendarEventIcs} from './planner.js';
+import {SLOT_TYPES,EVENT_TYPES,EXCEPTION_TYPES,activeYear,localToday,weekday,addDays,daySlots,daySessions,isHoliday,findExamSlots,saveSlot,removeSlot,saveEvent,saveLesson,carryLesson,saveHoliday,saveTask,saveException,deletePlannerItem,setActiveYear,addAcademicYear,updateAcademicYear,scheduleBands,saveTimetableBand,removeTimetableBand,setSummerSchedule,activeScheduleMode,slotsForMode,weeklySlotCount,plannerSlotColor,saveEvaluationSession,calendarEventIcs,upcomingExams} from './planner.js';
 import {timetableRows,timetableFileBase,timetableWordBlob,timetablePdfBytes} from './timetable-export.js';
 import {parsePatioXlsx,previewPatioRotation,addPatioRotationEvents} from './patio-rotation.js';
 import {renderSharedEvaluation,bindSharedEvaluation,openTutorshipSessionModal} from './evaluation-ui.js';
@@ -113,6 +113,18 @@ function renderPatioPanel(y){
   '</div>';
 }
 
+function renderUpcomingExams(doc){
+ const exams=upcomingExams(doc);
+ if(!exams.length)return '<p>No hay exámenes próximos programados.</p>';
+ return `<ul class="planner-event-list upcoming-exams">${exams.map(e=>{
+  const group=eventGroup(doc,e);
+  const hours=e.time?e.time+(e.endTime?'–'+e.endTime:''):'Sin hora';
+  return `<li class="planner-event planner-event-exam"><div><strong>${esc(e.title)}</strong>
+   <small><time datetime="${esc(e.date)}">${esc(longDate(e.date))}</time> · ${esc(hours)}</small>
+   ${group?`<small>${esc([group.subject,group.name].filter(Boolean).join(' · '))}</small>`:''}</div></li>`;
+ }).join('')}</ul>`;
+}
+
 export function renderPlanner(doc,ui){
  const y=activeYear(doc),mode=ui.plannerMode||'week',focus=ui.plannerDate||localToday();
  const start=addDays(focus,-weekday(focus));const monthStart=focus.slice(0,7)+'-01';const gridStart=addDays(monthStart,-weekday(monthStart));
@@ -129,6 +141,7 @@ export function renderPlanner(doc,ui){
  ${action('+ Cambio excepcional','id="plan-add-exception"')}
  ${action('Importar guardias de patio (.xlsx)','id="plan-import-patio"')}
  </div></details>
+ ${action('Exámenes','id="plan-show-exams" aria-haspopup="dialog"')}
  ${action('Sesiones de evaluación','id="plan-show-evaluations"','btn small planner-sessions-shortcut')}
  </div>`;
  let body='';
@@ -207,6 +220,7 @@ export function bindPlanner(doc,ui,ctx){
   }catch(error){ctx.fail(error);}
  });
  $('#plan-add-event').onclick=()=>eventModal({date:dateNow()});
+ $('#plan-show-exams').onclick=()=>ctx.showInfo('Próximos exámenes',renderUpcomingExams(ctx.getDoc()));
  const openEvaluationWorkspace=()=>{
   if(ctx.openEvaluations)ctx.openEvaluations();
   else ctx.toast('Abre «Sesiones de evaluación» en el menú principal.');
