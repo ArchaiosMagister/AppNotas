@@ -914,17 +914,32 @@ html[data-theme="oled"] .grade-table th.itaca-col,html[data-theme="oled"] .grade
 .student-name-cell .student-name-label{min-width:0;flex:1 1 100%;white-space:normal;overflow-wrap:anywhere;font-weight:700}
 .student-name-cell .student-origin-badge{flex:0 1 auto;max-width:100%;white-space:normal;overflow:visible}
 .student-origin-badge{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;padding:2px 7px;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));background:color-mix(in srgb,var(--accent) 9%,var(--raised));color:var(--ink);border-radius:7px;font-size:10px;font-weight:800;line-height:1.4;white-space:nowrap}
-.student-origin-divider th,.grade-table .student-origin-divider th{position:static!important;top:auto!important;z-index:auto!important;background:color-mix(in srgb,var(--accent) 14%,var(--surface))!important;color:var(--ink)!important;font-size:12px;text-align:left!important;height:auto;padding:11px 15px;border-top:2px solid var(--accent);box-shadow:none!important}
-.student-origin-divider th>span:first-child{font-weight:850;letter-spacing:.01em}
-.student-origin-divider th>span+span{float:right;font-size:11px;color:var(--muted);font-weight:650}
+/* La cabecera de cada procedencia se fija debajo de las columnas y
+   se desplaza al entrar el siguiente tbody. El rótulo sigue a Alumno. */
+.table-scroller{isolation:isolate}
+.grade-table .student-origin-divider{
+  position:sticky;z-index:3;
+  --origin-divider-bg:color-mix(in srgb,var(--accent) 14%,var(--surface));
+}
+html[data-theme] .grade-table .student-origin-group .student-origin-divider>*{
+  background:var(--origin-divider-bg)!important;
+  border-top:2px solid var(--accent);height:auto;padding:6px 8px;
+}
+.grade-table .student-origin-divider>th.name-col{
+  top:auto;z-index:1;color:var(--ink);font-size:12px;line-height:1.25;
+  white-space:normal;overflow-wrap:anywhere;
+}
+.grade-table .student-origin-divider th>span{font-weight:850}
+.grade-table .student-origin-divider th>small{color:var(--muted)}
+.grade-table thead th{z-index:4}
 .student-directory-divider{grid-column:1/-1;font-size:12px;font-weight:800;background:color-mix(in srgb,var(--accent) 10%,var(--surface));color:var(--ink);border-left:3px solid var(--accent);padding:10px 13px;border-radius:6px}
 .student-directory-choice .student-origin-badge{margin-left:auto;flex-shrink:0}
 .student-directory-choice .student-directory-arrow{margin-left:4px}
 .final-table td.name-col .student-origin-badge{margin-left:8px}
-html[data-theme="oled"] .student-origin-divider th{background:#000!important;border-top:2px solid var(--accent)!important}
+html[data-theme="oled"] .student-origin-divider{--origin-divider-bg:#000}
 html[data-theme="oled"] .student-order-bar,html[data-theme="oled"] .student-directory-divider{background:#000!important}
 html[data-theme="oled"] .student-origin-badge{background:#090909;border-color:var(--accent)}
-@media(max-width:650px){.student-order-bar{padding:10px}.student-sort-control{width:100%}.student-sort-control select{max-width:none;flex:1;min-width:0}.student-name-cell{gap:4px}.student-origin-divider th>span+span{float:none;margin-left:12px}}
+@media(max-width:650px){.student-order-bar{padding:10px}.student-sort-control{width:100%}.student-sort-control select{max-width:none;flex:1;min-width:0}.student-name-cell{gap:4px}}
 
 
 /* Modo alumno v1.25: acordeones de evaluaciones y desglose de criterios,
@@ -3369,7 +3384,9 @@ html[data-theme="oled"] .notebook-eval-open{background:#000}
 .planner-create-options>.btn{display:flex;width:100%;min-height:42px;white-space:normal;
  justify-content:flex-start;text-align:left;border:0;background:transparent;color:var(--ink)}
 .planner-create-options>.btn:hover,.planner-create-options>.btn:focus-visible{background:var(--raised)}
-.planner-tools-minimal .planner-sessions-shortcut{min-height:39px;font-size:12px}
+.planner-tools-minimal>.btn{min-height:39px;font-size:12px}
+.upcoming-exams{list-style:none;padding:0}
+.upcoming-exams .planner-event{overflow-wrap:anywhere}
 html[data-theme="oled"] .planner-create-options,
 html[data-theme="oled"] .planner-create-menu>summary,
 html[data-theme="oled"] .notebook-grade-options,
@@ -3548,7 +3565,7 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   .class-toolbar .course-switch .course-buttons{width:100%}
   .class-toolbar .course-switch .course-choice{min-height:44px}
   .planner-tools-minimal .planner-create-menu>summary,
-  .planner-tools-minimal .planner-sessions-shortcut{min-height:44px}
+  .planner-tools-minimal>.btn{min-height:44px}
 }
 @media(max-width:650px){
   .tabs .academic-disclosure>summary{min-height:52px;padding:6px 2px}
@@ -3618,7 +3635,7 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   }
   .planner-date-controls>input{font-size:16px}
   .planner-tools-minimal{
-    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
     gap:7px;align-items:stretch;width:100%;
   }
   .planner-tools-minimal .planner-create-menu{
@@ -3627,7 +3644,7 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   .planner-tools-minimal .planner-create-menu>summary{
     width:100%;min-height:44px;justify-content:center;
   }
-  .planner-tools-minimal .planner-sessions-shortcut{
+  .planner-tools-minimal>.btn{
     min-width:0;width:100%;min-height:44px;white-space:normal;
   }
   .eval-period-actions>.btn.primary{min-width:0}

@@ -190,6 +190,34 @@ function paintNotebookZoom(context=document){
   table.style.setProperty('--notebook-zoom',String(STATE.notebookZoom/100));
   table.style.setProperty('--notebook-table-min-width',String(440+165*allAssessments().length)+'px');
 }
+let unbindGradeTableHeaders=()=>{};
+function bindGradeTableHeaders(){
+  const table=$('.table-scroller > .grade-table');
+  if(!table)return;
+  const scroller=table.parentElement;
+  const groups=[...table.querySelectorAll('.student-origin-group')];
+  if(!groups.length)return;
+  const update=()=>{
+    const zoom=Number(getComputedStyle(table).zoom)||1;
+    const top=scroller.getBoundingClientRect().top;
+    const headerHeight=table.tHead.getBoundingClientRect().height;
+    // Los navegadores limitan sticky a la tabla completa. Acotar cada fila a su tbody.
+    const offsets=groups.map(group=>{
+      const remaining=group.getBoundingClientRect().bottom-top;
+      return Math.min(headerHeight,remaining-group.rows[0].getBoundingClientRect().height)/zoom;
+    });
+    groups.forEach((group,index)=>group.rows[0].style.top=offsets[index]+'px');
+  };
+  update();
+  const observer=new ResizeObserver(update);
+  observer.observe(table);
+  scroller.addEventListener('scroll',update,{passive:true});
+  unbindGradeTableHeaders=()=>{
+    observer.disconnect();
+    scroller.removeEventListener('scroll',update);
+    unbindGradeTableHeaders=()=>{};
+  };
+}
 function paintStudentCategoryCards(context=document){
   if(!STATE.doc)return;
   context.querySelectorAll('.student-period .student-category-tinted[data-column-category]').forEach(card=>{
@@ -321,13 +349,21 @@ function setStudentSort(mode){
 }
 const studentOriginBadge=student=>student.originGroup?`<span class="student-origin-badge" title="Grupo de procedencia">${esc(student.originGroup)}</span>`:'';
 const originEqual=(a,b)=>String(a||'').localeCompare(String(b||''),'es',{sensitivity:'base',numeric:true})===0;
-/** Cabeceras de grupo solo en el modo específico: las filas no modifican las notas. */
-function originGroupHeader(students,index,colspan){
-  if(STATE.studentSort!=='originGroup')return '';
-  const group=students[index].originGroup||'';
-  if(index>0&&originEqual(group,students[index-1].originGroup||''))return '';
-  const number=students.filter(s=>originEqual(group,s.originGroup||'')).length;
-  return `<tr class="student-origin-divider"><th colspan="${colspan}" scope="rowgroup"><span>Grupo de procedencia: ${esc(group||'Sin etiqueta')}</span><span>${number} ${number===1?'alumno':'alumnos'}</span></th></tr>`;
+function renderGradeTableBodies(students,renderRow,columnCount,emptyMessage){
+  if(!students.length)return `<tbody><tr><td class="empty-table-message" colspan="${columnCount}">${emptyMessage}</td></tr></tbody>`;
+  if(STATE.studentSort!=='originGroup')return `<tbody>${students.map(renderRow).join('')}</tbody>`;
+  const groups=[];
+  for(const student of students){
+    const group=groups.at(-1);
+    if(group&&originEqual(group.name,student.originGroup))group.students.push(student);
+    else groups.push({name:student.originGroup||'',students:[student]});
+  }
+  return groups.map(({name,students:members})=>`<tbody class="student-origin-group">
+    <tr class="student-origin-divider"><th class="name-col" scope="rowgroup">
+      <span>Grupo de procedencia: ${esc(name||'Sin etiqueta')}</span>
+      <small>${members.length} ${members.length===1?'alumno':'alumnos'}</small>
+    </th><td colspan="${columnCount-1}" aria-hidden="true"></td></tr>
+    ${members.map(renderRow).join('')}</tbody>`).join('');
 }
 function originDirectoryHeader(students,index){
   if(STATE.studentSort!=='originGroup')return '';
@@ -508,6 +544,7 @@ async function init(){
   }catch(e){root.innerHTML=`<div class="unlock-screen"><div class="unlock-box"><h1>Error de almacenamiento</h1><p>${esc(e.message)}</p><p>No introduzcas datos hasta solucionar el problema. Usa HTTPS o localhost y permite almacenamiento local.</p></div></div>`;}
 }
 function showUnlock(isNew){
+  unbindGradeTableHeaders();
   STATE.doc=null;STATE.key=null;STATE.salt=null;STATE.history=emptyHistory();STATE.studentPresentation=false;
   root.innerHTML=`<main class="unlock-screen"><div class="unlock-box"><div class="brand-mini">▦</div><div class="eyebrow">AppNotas · versión 1.0</div><h1>CuadernoDocente</h1><p>${isNew?'Elige un cuaderno vacío o uno de demostración con ocho alumnos ficticios. Ambos se guardan cifrados en este dispositivo.':'Desbloquea tu cuaderno local cifrado para continuar.'}</p>${STATE.reloadProbe?`<p class="${STATE.reloadProbe.ok?'section-note':'unlock-error'}" role="status">${STATE.reloadProbe.ok?'Recarga verificada: la misma copia cifrada continúa en IndexedDB. Desbloquéala para validar las notas.':'No se ha podido verificar el guardado tras recargar. Revisa el almacenamiento y no introduzcas más datos hasta comprobar la copia.'}</p>`:''}${pwaButtons()}<button type="button" class="btn unlock-help-primary" id="how-it-works" aria-label="Cómo funciona AppNotas y cómo guardar copias de seguridad">¿Cómo funciona? <span aria-hidden="true">ⓘ</span></button><form id="unlock-form"><label for="password">${isNew?'Crea una contraseña de 12 caracteres como mínimo':'Contraseña del cuaderno'}</label><input id="password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>${isNew?'<label for="confirm-password">Repite la contraseña</label><input id="confirm-password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>':''}<div id="unlock-error" class="unlock-error" role="alert"></div>${isNew?'<div class="modal-actions"><button class="btn primary" type="submit" data-create-mode="empty">Crear cuaderno vacío</button><button class="btn" type="submit" data-create-mode="demo">Crear cuaderno de demostración</button></div>':'<button class="btn primary" type="submit">Desbloquear</button>'}</form><p class="hint">La contraseña no se envía ni se almacena. Si la pierdes, no podrás recuperar los datos cifrados.</p><p class="hint">Almacena los cuadernos cifrados únicamente en dispositivos autorizados. Guarda y verifica copias en ubicaciones locales no sincronizadas; nunca en servicios en la nube.</p><button class="btn" id="restore-locked">Restaurar una copia cifrada</button><input class="hidden" type="file" id="restore-locked-file" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/>${STATE.recovery?'<div class="recovery-choice"><p class="hint">Hay una copia cifrada de rescate anterior a la última restauración.</p><button class="btn" id="recover-locked">Recuperar versión anterior</button><button class="btn" id="download-recovery-locked">Descargar copia de rescate</button></div>':''}</div></main>`;
   $('#unlock-form').addEventListener('submit',e=>{
@@ -929,6 +966,7 @@ function render(){
   const group=currentGroup();
   applyTheme();
   unbindClassStats();
+  unbindGradeTableHeaders();
   if(STATE.studentPresentation){
     root.innerHTML=`<main class="student-presentation">${renderStudentView()}</main>`;
     bindStudentView();
@@ -1007,7 +1045,7 @@ function render(){
   if(!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'&&STATE.tab!=='evaluaciones'){$('#new-group-empty')?.addEventListener('click',()=>$('#new-group').click());}
   else if(STATE.tab==='cuaderno')bindNotebook();
   else if(STATE.tab==='planificador'){const api=bindPlanner(STATE.doc,STATE,{
-    render,commit,fieldsModal,dialog,toast,fail,getDoc:()=>STATE.doc,
+    render,commit,fieldsModal,dialog,toast,fail,showInfo,getDoc:()=>STATE.doc,
     openEvaluations:()=>{STATE.evaluationWorkspaceTab='sesiones';STATE.tab='evaluaciones';render();}
    });if(STATE.plannerEventRequest){const request=STATE.plannerEventRequest;STATE.plannerEventRequest=null;api.eventModal(request);}}
   else if(STATE.tab==='evaluaciones')bindEvaluationWorkspace(STATE.doc,STATE,{
@@ -1027,6 +1065,7 @@ function render(){
   paintGrades(root);
   paintCategoryColumns(root);
   paintNotebookZoom(root);
+  bindGradeTableHeaders();
   paintStudentCategoryCards(root);
   bindClassStatistics();
   setStatus();
@@ -1079,7 +1118,7 @@ function renderNotebook(){
     return `<th class="category-tinted" data-column-category="${esc(a.categoryId)}"><span class="column-heading"><span class="assessment-column-title" title="${esc(a.name)}">${esc(a.name)}</span>${classStatButton('assessment',a.id,a.name)}<button type="button" class="assessment-menu" data-edit="${esc(a.id)}" aria-label="Configurar ${esc(a.name)}" title="Editar, ordenar o eliminar actividad">⋯</button></span><small>${a.recoveryOf?'Recuperación · ':''}${esc(c?.name||'')} · ${a.rubricId?'Rúbrica /10':'/'+esc(a.maxScore)+(a.convertToTen?' → /10':' · sin conversión')}${a.weight!==1?' · ×'+esc(a.weight):''}${a.orthography?.enabled?' · faltas recuperables':''}${a.greekEtymologyBonusEnabled?' · +1 etimología griega':''}</small></th>`;
   }).join('');
   const categoryCell=a=>` class="category-tinted" data-column-category="${esc(a.categoryId)}"`;
-  const rows=students.map((s,i)=>`${originGroupHeader(students,i,assessments.length+3)}<tr><td class="name-col"><div class="student-name-cell"><span class="student-name-label">${esc(s.name)}</span>${studentOriginBadge(s)}<button class="view-student" type="button" title="Mostrar solo las notas de este alumno" data-view-student="${esc(s.id)}">Ver</button><button class="view-student" type="button" title="Editar, ordenar o quitar alumno" data-edit-student="${esc(s.id)}">⋯</button></div></td>${assessments.map(a=>{
+  const bodies=renderGradeTableBodies(students,s=>`<tr><td class="name-col"><div class="student-name-cell"><span class="student-name-label">${esc(s.name)}</span>${studentOriginBadge(s)}<button class="view-student" type="button" title="Mostrar solo las notas de este alumno" data-view-student="${esc(s.id)}">Ver</button><button class="view-student" type="button" title="Editar, ordenar o quitar alumno" data-edit-student="${esc(s.id)}">⋯</button></div></td>${assessments.map(a=>{
     const g=gradesByStudent.get(s.id)?.get(a.id);
     const npLabel=g?.notSubmitted?'Quitar «No presentado»':'Marcar «No presentado»';
     const ajButton=`<button type="button" class="aj-button ${g?.pendingJustified?'active':''}" data-aj-student="${esc(s.id)}" data-aj-assessment="${esc(a.id)}" aria-pressed="${!!g?.pendingJustified}" aria-label="${g?.pendingJustified?'Quitar':'Marcar'} ausencia justificada pendiente: ${esc(s.name)} · ${esc(a.name)}" title="${g?.pendingJustified?'Reactivar calificación anterior':'Pendiente por ausencia justificada (no computa)'}">AJ</button>`;
@@ -1118,7 +1157,7 @@ function renderNotebook(){
       ?`<small class="original-score">(<input class="note-input original-note-input" type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota original de ${esc(s.name)} en ${esc(a.name)}, sobre ${esc(rawFmt(a.maxScore))}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${esc(rawFmt(g.score))}"/> /${esc(rawFmt(a.maxScore))})</small>`
       :'';
     return `<td${categoryCell(a)}>${gradeCellStack(main,gradeCellActions(s,a,g,npButton,ajButton),secondary)}</td>`;
-  }).join('')}<td class="final-col"><button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip(overallGrade(STATE.doc,s.id,STATE.groupId,STATE.periodId))}</button></td><td class="itaca-col"><button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc,s.id,STATE.groupId,STATE.periodId)}${itacaStudentRule(STATE.doc,s.id,STATE.periodId)!=='general'?'<span class="itaca-exception" title="Excepción individual">*</span>':''}</button></td></tr>`).join('');
+  }).join('')}<td class="final-col"><button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip(overallGrade(STATE.doc,s.id,STATE.groupId,STATE.periodId))}</button></td><td class="itaca-col"><button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc,s.id,STATE.groupId,STATE.periodId)}${itacaStudentRule(STATE.doc,s.id,STATE.periodId)!=='general'?'<span class="itaca-exception" title="Excepción individual">*</span>':''}</button></td></tr>`,assessments.length+3,'Aún no hay alumnos en este grupo.');
   const sum=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).reduce((s,c)=>s+c.weight,0);
   const problems=students.flatMap(st=>periodCalculationWarnings(STATE.doc,st.id,STATE.groupId,STATE.periodId)).filter(v=>v.includes('sin conversión'));
   return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><strong>Calificaciones</strong><p>Introduce notas directamente. Pulsa «⋯» en una celda para NP, AJ y observaciones; «⋯» en una columna para configurarla.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><details class="notebook-more-actions">
@@ -1135,7 +1174,7 @@ function renderNotebook(){
         <button type="button" class="btn" id="schedule-exam">Programar examen</button>
       </div>
     </div>
-  </details></div></div><div class="student-order-bar">${studentSortControls()}</div><details class="notebook-grade-options"><summary>Ítaca y procedencias <span aria-hidden="true">⌄</span></summary><div class="notebook-grade-options-body"><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div></div></details><div class="notebook-zoom-tools" role="group" aria-label="Zoom del cuaderno"><span>Zoom</span><button class="btn small" type="button" id="notebook-zoom-out" aria-label="Reducir zoom de la tabla" ${STATE.notebookZoom<=NOTEBOOK_ZOOM_MIN?'disabled':''}>−</button><output id="notebook-zoom-value" aria-live="polite">${STATE.notebookZoom} %</output><button class="btn small" type="button" id="notebook-zoom-in" aria-label="Aumentar zoom de la tabla" ${STATE.notebookZoom>=NOTEBOOK_ZOOM_MAX?'disabled':''}>+</button></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col"><button type="button" id="configure-itaca-attitude" class="itaca-column-config" title="Configurar el requisito de Actitud para subir la Nota Ítaca" aria-label="Configurar condición de Actitud para subir la Nota Ítaca">Nota Ítaca <span aria-hidden="true">⚙</span></button><small>/10 · ${itacaAttitudeCondition(STATE.doc,STATE.groupId,STATE.periodId)?'Condición activa':'Configurar actitud'}</small></th></tr></thead><tbody>${rows||`<tr><td colspan="${assessments.length+3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><details class="legend notebook-legend"><summary>ⓘ Significado de las notas y colores</summary><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></details>`;
+  </details></div></div><div class="student-order-bar">${studentSortControls()}</div><details class="notebook-grade-options"><summary>Ítaca y procedencias <span aria-hidden="true">⌄</span></summary><div class="notebook-grade-options-body"><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div></div></details><div class="notebook-zoom-tools" role="group" aria-label="Zoom del cuaderno"><span>Zoom</span><button class="btn small" type="button" id="notebook-zoom-out" aria-label="Reducir zoom de la tabla" ${STATE.notebookZoom<=NOTEBOOK_ZOOM_MIN?'disabled':''}>−</button><output id="notebook-zoom-value" aria-live="polite">${STATE.notebookZoom} %</output><button class="btn small" type="button" id="notebook-zoom-in" aria-label="Aumentar zoom de la tabla" ${STATE.notebookZoom>=NOTEBOOK_ZOOM_MAX?'disabled':''}>+</button></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col"><button type="button" id="configure-itaca-attitude" class="itaca-column-config" title="Configurar el requisito de Actitud para subir la Nota Ítaca" aria-label="Configurar condición de Actitud para subir la Nota Ítaca">Nota Ítaca <span aria-hidden="true">⚙</span></button><small>/10 · ${itacaAttitudeCondition(STATE.doc,STATE.groupId,STATE.periodId)?'Condición activa':'Configurar actitud'}</small></th></tr></thead>${bodies}</table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><details class="legend notebook-legend"><summary>ⓘ Significado de las notas y colores</summary><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></details>`;
 }
 const ITACA_OPTIONS=[['half','Redondear desde ,5'],['seven','Redondear desde ,7'],['none','Conservar parte entera (sin subir)']];
 const RULE_LABELS={mean:'Media aritmética',weighted_mean:'Media ponderada por actividad',highest:'Mejor nota',best_n:'Media de las N mejores',last:'Última evaluada',latest_if_highest:'Última si iguala o supera la mejor; si no, media'};
@@ -1701,11 +1740,11 @@ function renderFinalEvaluation(){
   const periods=[...STATE.doc.periods].sort((a,b)=>a.order-b.order);
   const rule=cfg?.rule||'mean';
   const students=allStudents();
-  const rows=students.map((student,i)=>{
+  const bodies=renderGradeTableBodies(students,student=>{
     const evidence=finalEvidence(STATE.doc,student.id,STATE.groupId);
-    return `${originGroupHeader(students,i,periods.length+2)}<tr><td class="name-col"><span>${esc(student.name)}</span>${studentOriginBadge(student)}</td>${evidence.evidence.map(e=>`<td><div class="final-period-cell"><span class="hint">Auto: ${gradeChip(e.automatic)}</span><input class="note-input ${e.manual!==null?'grade-colored':''}" ${e.manual!==null?gradeStyle(e.manual):''} inputmode="decimal" type="text" maxlength="10" data-finalstudent="${esc(student.id)}" data-finalperiod="${esc(e.periodId)}" aria-label="Nota manual de ${esc(student.name)} en ${esc(e.name)}" placeholder="Automática" value="${e.manual===null?'':esc(String(e.manual).replace('.',','))}"/><span class="hint">${e.manual===null?'Usando automática':'Usando manual'}</span></div></td>`).join('')}<td class="final-col"><strong>${gradeChip(evidence.grade)}</strong>${evidence.issue?`<small class="warning-calculation">⚠ Revisa las notas de los periodos.</small>`:''}</td></tr>`;
-  }).join('');
-  return `<section class="panel panel-pad"><h2>Evaluación final del curso</h2><p class="subtitle">Pestaña independiente de los periodos. Recupera automáticamente la nota final de cada evaluación. Para sustituirla, escribe una nota manual de 0 a 10; deja la casilla vacía para volver a la automática.</p><div class="final-config"><label>Regla final<select id="final-rule">${Object.entries(FINAL_RULE_LABELS).map(([k,v])=>opt(k,v,rule)).join('')}</select></label><div class="final-weights">${periods.map(p=>`<label class="final-weight-block"><span>${esc(p.name)}</span><span class="final-include"><input type="checkbox" data-finalinclude="${esc(p.id)}" ${(cfg?.excludedPeriodIds||[]).includes(p.id)?'':'checked'}/>Incluir en final</span><span class="hint">Peso relativo</span><input type="number" min="0" max="1000" step="any" value="${esc(cfg?.weights?.[p.id]??1)}" data-finalweight="${esc(p.id)}" ${rule==='weighted_mean'?'':'disabled'} /></label>`).join('')}</div></div><p class="hint">Los pesos son relativos, no necesitan sumar 100. Los periodos sin nota o desmarcados se excluyen del cálculo; los pesos solo se usan con media ponderada. Se conserva la precisión completa hasta mostrar el resultado.</p></section><section class="panel"><div class="panel-header"><strong>Resumen anual</strong><span class="hint">${esc(currentGroup().name)}</span></div><div class="student-order-bar">${studentSortControls()}</div><div class="table-scroller"><table class="grade-table final-table"><thead><tr><th class="name-col">Alumno</th>${periods.map(p=>`<th><span class="class-stat-heading">${esc(p.name)} ${classStatButton('annual-period',p.id,p.name)}</span><small>Media final /10</small></th>`).join('')}<th class="final-col"><span class="class-stat-heading">Nota final curso ${classStatButton('course',STATE.groupId,'nota final del curso')}</span></th></tr></thead><tbody>${rows||`<tr><td class="empty-table-message" colspan="${periods.length+2}">No hay alumnos.</td></tr>`}</tbody></table></div></section>`;
+    return `<tr><td class="name-col"><span>${esc(student.name)}</span>${studentOriginBadge(student)}</td>${evidence.evidence.map(e=>`<td><div class="final-period-cell"><span class="hint">Auto: ${gradeChip(e.automatic)}</span><input class="note-input ${e.manual!==null?'grade-colored':''}" ${e.manual!==null?gradeStyle(e.manual):''} inputmode="decimal" type="text" maxlength="10" data-finalstudent="${esc(student.id)}" data-finalperiod="${esc(e.periodId)}" aria-label="Nota manual de ${esc(student.name)} en ${esc(e.name)}" placeholder="Automática" value="${e.manual===null?'':esc(String(e.manual).replace('.',','))}"/><span class="hint">${e.manual===null?'Usando automática':'Usando manual'}</span></div></td>`).join('')}<td class="final-col"><strong>${gradeChip(evidence.grade)}</strong>${evidence.issue?`<small class="warning-calculation">⚠ Revisa las notas de los periodos.</small>`:''}</td></tr>`;
+  },periods.length+2,'No hay alumnos.');
+  return `<section class="panel panel-pad"><h2>Evaluación final del curso</h2><p class="subtitle">Pestaña independiente de los periodos. Recupera automáticamente la nota final de cada evaluación. Para sustituirla, escribe una nota manual de 0 a 10; deja la casilla vacía para volver a la automática.</p><div class="final-config"><label>Regla final<select id="final-rule">${Object.entries(FINAL_RULE_LABELS).map(([k,v])=>opt(k,v,rule)).join('')}</select></label><div class="final-weights">${periods.map(p=>`<label class="final-weight-block"><span>${esc(p.name)}</span><span class="final-include"><input type="checkbox" data-finalinclude="${esc(p.id)}" ${(cfg?.excludedPeriodIds||[]).includes(p.id)?'':'checked'}/>Incluir en final</span><span class="hint">Peso relativo</span><input type="number" min="0" max="1000" step="any" value="${esc(cfg?.weights?.[p.id]??1)}" data-finalweight="${esc(p.id)}" ${rule==='weighted_mean'?'':'disabled'} /></label>`).join('')}</div></div><p class="hint">Los pesos son relativos, no necesitan sumar 100. Los periodos sin nota o desmarcados se excluyen del cálculo; los pesos solo se usan con media ponderada. Se conserva la precisión completa hasta mostrar el resultado.</p></section><section class="panel"><div class="panel-header"><strong>Resumen anual</strong><span class="hint">${esc(currentGroup().name)}</span></div><div class="student-order-bar">${studentSortControls()}</div><div class="table-scroller"><table class="grade-table final-table"><thead><tr><th class="name-col">Alumno</th>${periods.map(p=>`<th><span class="class-stat-heading">${esc(p.name)} ${classStatButton('annual-period',p.id,p.name)}</span><small>Media final /10</small></th>`).join('')}<th class="final-col"><span class="class-stat-heading">Nota final curso ${classStatButton('course',STATE.groupId,'nota final del curso')}</span></th></tr></thead>${bodies}</table></div></section>`;
 }
 function bindFinalEvaluation(){
   const groupId=STATE.groupId;
@@ -2612,7 +2651,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v177-dev');
+      const cache=await caches.open('cuaderno-docente-static-v178-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

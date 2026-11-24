@@ -26,6 +26,95 @@ await new Promise(ok=>server.listen(0,'127.0.0.1',ok));
 const url='http://127.0.0.1:'+server.address().port+'/';
 await mkdir(images,{recursive:true});
 
+async function auditExamsAndGroupedScroll(browser,name){
+ const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+ try{
+  const page=await context.newPage();
+  await page.clock.setFixedTime(new Date(2026,10,24,11,30));
+  await page.goto(url);
+  await page.evaluate(async()=>{
+   const {initialNotebook,addStudent,updateStudentIdentity}=await import('./src/model.js');
+   const {saveEvent,addAcademicYear,setActiveYear,activeYear}=await import('./src/planner.js');
+   const {createVault}=await import('./src/vault.js');
+   const {openDb,writeEnvelope}=await import('./src/storage.js');
+   const doc=initialNotebook(),group=doc.groups[0],year=activeYear(doc);
+   for(const student of doc.students)updateStudentIdentity(doc,student.id,{name:student.name,originGroup:'1.º A'});
+   for(let i=0;i<8;i++)addStudent(doc,group.id,{name:'Alumno B '+i,originGroup:'1.º B'});
+   saveEvent(doc,{type:'exam',title:'Examen pasado',date:'2026-11-24',time:'09:00'});
+   saveEvent(doc,{type:'exam',title:'Examen de hoy',date:'2026-11-24',time:'12:00',groupId:group.id});
+   saveEvent(doc,{type:'meeting',title:'Reunión futura',date:'2026-11-25',time:'09:00'});
+   const next=addAcademicYear(doc,{name:'2027-2028',start:'2027-09-01',end:'2028-06-30'});
+   setActiveYear(doc,next.id);
+   saveEvent(doc,{type:'exam',title:'Examen del curso siguiente',date:'2027-10-01'});
+   setActiveYear(doc,year.id);
+   const {envelope}=await createVault('Cuaderno ficticio 2026 para pruebas',doc);
+   const db=await openDb();
+   await writeEnvelope(db,envelope,null);
+   db.close();
+  });
+  await page.reload();
+  await page.locator('#password').fill('Cuaderno ficticio 2026 para pruebas');
+  await page.getByRole('button',{name:'Desbloquear'}).click();
+  await page.locator('[data-tab="planificador"]').click();
+  await page.locator('#plan-show-exams').click();
+  const modal=page.getByRole('dialog',{name:'Próximos exámenes'});
+  const examTitles=modal.locator('li strong');
+  assert.deepEqual(await examTitles.allTextContents(),['Examen de hoy','Examen del curso siguiente']);
+  assert.match(await modal.locator('li').first().innerText(),/12:00.*Latín I/s);
+  await modal.getByRole('button',{name:'Cerrar'}).click();
+  await page.clock.setFixedTime(new Date(2028,0,1));
+  await page.locator('#plan-show-exams').click();
+  assert.match(await modal.innerText(),/No hay exámenes próximos programados/);
+  await modal.getByRole('button',{name:'Cerrar'}).click();
+  await page.locator('[data-tab="cuaderno"]').click();
+  await page.locator('label[for="student-group-mode"]').click();
+
+  const scroller=page.locator('.table-scroller');
+  for(const view of ['cuaderno','final']){
+   if(view==='final')await page.locator('[data-academic-quick="final"]').click();
+   for(const zoom of (view==='final'?[100]:[100,110])){
+    if(zoom===110)await page.locator('#notebook-zoom-in').click();
+    const geometry=await scroller.evaluate(async el=>{
+     const box=node=>node.getBoundingClientRect();
+     const scrollTo=(left,top)=>new Promise(resolve=>{
+      const previousLeft=el.scrollLeft,previousTop=el.scrollTop;
+      el.addEventListener('scroll',resolve,{once:true});
+      el.scrollTo(left,top);
+      if(el.scrollLeft===previousLeft&&el.scrollTop===previousTop){
+       el.removeEventListener('scroll',resolve);
+       resolve();
+      }
+     });
+     const table=el.querySelector('table');
+     const [first,second]=table.tBodies;
+     const firstTitle=first.rows[0].cells[0],secondTitle=second.rows[0].cells[0];
+     const student=first.rows[1].cells[0];
+     const corner=table.tHead.rows[0].cells[0];
+     window.scrollBy(0,box(el).top-120);
+     await scrollTo(el.scrollWidth,0);
+     const firstStudentGap=box(student).top-box(firstTitle).bottom;
+     const nextGroupTop=box(second).top-box(el).top;
+     await scrollTo(el.scrollLeft,35);
+     const rect=box(firstTitle);
+     const fixedLeft=rect.left-box(corner).left;
+     const headerGap=rect.top-box(corner).bottom;
+     const hit=document.elementFromPoint(rect.left+13,rect.top+rect.height/2);
+     await scrollTo(el.scrollLeft,nextGroupTop-box(corner).height+15);
+     return {horizontal:el.scrollLeft,firstStudentGap,fixedLeft,headerGap,
+      labelOnTop:hit?.closest('th')===firstTitle,
+      nextHeaderGap:box(secondTitle).top-box(corner).bottom,
+      transitionGap:box(secondTitle).top-box(firstTitle).bottom};
+    });
+    const detail=name+' '+view+' '+zoom+'% '+JSON.stringify(geometry);
+    assert(geometry.horizontal>0,detail);
+    assert(Math.abs(geometry.firstStudentGap)<2 && Math.abs(geometry.fixedLeft)<2,detail);
+    assert(Math.abs(geometry.headerGap)<2 && geometry.labelOnTop,detail);
+    assert(Math.abs(geometry.nextHeaderGap)<2 && geometry.transitionGap>=-1,detail);
+   }
+  }
+ }finally{await context.close();}
+}
+
 async function auditStudentPresentation(page,name){
  const periods=page.locator('[data-period-choice]');
  const initialCount=await periods.count();
@@ -101,6 +190,7 @@ async function auditStudentPresentation(page,name){
 async function audit(engine,name){
  const browser=await engine.launch({headless:true,args:name==='chromium'?['--no-sandbox']:[]});
  try{
+  await auditExamsAndGroupedScroll(browser,name);
   const context=await browser.newContext({viewport:{width:390,height:844},
    deviceScaleFactor:2,isMobile:true,hasTouch:true,reducedMotion:'reduce'});
   const page=await context.newPage(),pageErrors=[];
@@ -233,22 +323,21 @@ async function audit(engine,name){
       return {left:r.left,right:r.right,width:r.width,height:r.height}});
      return {tabs:buttonBoxes('.planner-view-tabs .planner-view-btn'),
       tabContainer:box('.planner-view-tabs'),
-      tools:buttonBoxes('.planner-tools-minimal>.planner-create-menu, .planner-tools-minimal>.planner-sessions-shortcut'),
-      toolContainer:box('.planner-tools-minimal'),
+      tools:buttonBoxes('.planner-tools-minimal>.planner-create-menu, .planner-tools-minimal>.btn'),
       header:buttonBoxes('.planner-year-chooser>.btn'),
       dates:buttonBoxes('.planner-date-controls>.btn')};
     });
     assert.equal(agenda.tabs.length,5,'Agenda: cinco vistas');
     assert(agenda.tabs.every(x=>x.height>=43.5),name+' pestañas Agenda demasiado bajas');
-    assert.equal(agenda.tools.length,2,'Agenda: dos acciones principales');
+    assert.equal(agenda.tools.length,3,'Agenda: tres acciones principales');
     assert(agenda.tools.every(x=>x.width>0),'Agenda: botón principal oculto');
     if(size.width<=650){
      assert(Math.abs(agenda.tabs[0].width-agenda.tabs[1].width)<3,
       name+' pestañas Agenda mal distribuidas');
      assert(Math.abs(agenda.tabs[4].width-agenda.tabContainer.width)<=4,
       name+' quinta pestaña Agenda deja hueco en fila');
-     assert(Math.abs(agenda.tools[0].width-agenda.tools[1].width)<=3,
-      name+' botones Crear/Sesiones no rellenan sus dos columnas');
+     assert(Math.max(...agenda.tools.map(x=>x.width))-Math.min(...agenda.tools.map(x=>x.width))<=3,
+      name+' acciones de Agenda con anchura desigual');
      assert(agenda.header.length===2&&Math.abs(agenda.header[0].width-agenda.header[1].width)<3,
       name+' botones Curso de Agenda con anchura desigual');
      assert(agenda.dates.every(x=>x.height>=43.5),'Agenda: flechas de fecha demasiado pequeñas');

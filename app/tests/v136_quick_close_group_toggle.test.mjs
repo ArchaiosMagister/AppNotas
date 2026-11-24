@@ -109,8 +109,8 @@ test('el grupo se ordena primero por procedencia y después por apellido A-Z, si
 test('el modo grupo es compartido por cuaderno y directorio individual; no cambia estructura de notas',async()=>{
   const js=await read('app.js');
   assert.equal(js.split('<div class="student-order-bar">${studentSortControls()}</div>').length-1,3,'Cuaderno, directorio y evaluación final comparten el interruptor');
-  assert(js.includes('originGroupHeader(students,i,assessments.length+3)'));
-  assert(js.includes('originGroupHeader(students,i,periods.length+2)'));
+  assert(js.includes('renderGradeTableBodies(students,s=>'));
+  assert(js.includes('renderGradeTableBodies(students,student=>'));
   assert(js.includes('originDirectoryHeader(students,i)'));
   assert(js.includes("$('#student-group-mode')?.addEventListener('change',event=>{"));
   assert(js.includes("setStudentSort(event.target.checked?'originGroup':STATE.studentPlainSort)"));

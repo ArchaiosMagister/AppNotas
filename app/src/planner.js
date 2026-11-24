@@ -145,8 +145,20 @@ export function isoDate(v){
 }
 export const weekday=v=>{isoDate(v);return (new Date(`${v}T12:00:00Z`).getUTCDay()+6)%7;};
 export const addDays=(v,n)=>{isoDate(v);const d=new Date(`${v}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
-export const localToday=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+export const localToday=(d=new Date())=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 export const timeValid=v=>typeof v==='string'&&hm.test(v);
+
+export function upcomingExams(doc,now=new Date()){
+ const today=localToday(now);
+ const time=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+ return (doc.planner?.years??[]).flatMap(y=>y.events)
+  .filter(e=>{
+   if(e.type!=='exam'||e.date<today)return false;
+   if(e.date>today)return true;
+   return e.endTime?e.endTime>time:!e.time||e.time>=time;
+  })
+  .sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'24:00').localeCompare(b.time||'24:00'));
+}
 function yearRange(label){const match=/^(\d{4})-(\d{4})$/.exec(label||'');const y=match?Number(match[1]):new Date().getFullYear();return {start:`${y}-09-01`,end:`${y+1}-06-30`};}
 export function createPlanner(course='2026-2027'){
  const name=/^\d{4}-\d{4}$/.test(course)?course:'2026-2027';const year={id:uid(),name,...yearRange(name),bands:cloneBands(),summerBands:cloneSummerBands(),summerBandVersion:2,summerEnabled:false,summerInitialized:false,slots:[],events:[],lessons:[],holidays:[],exceptions:[],tasks:[]};

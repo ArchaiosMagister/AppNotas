@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {initialNotebook,migrateNotebook,assertModel,addGroup,addAssessment,removeAssessment} from '../src/model.js';
 import {overallGrade} from '../src/calculations.js';
-import {createPlanner,activeYear,isoDate,weekday,addDays,daySlots,daySessions,findExamSlots,saveSlot,removeSlot,saveEvent,saveHoliday,saveLesson,carryLesson,nextClassDate,saveTask,saveException,addAcademicYear,setActiveYear,updateAcademicYear,deletePlannerItem,assertPlanner} from '../src/planner.js';
+import {createPlanner,activeYear,isoDate,weekday,addDays,upcomingExams,daySlots,daySessions,findExamSlots,saveSlot,removeSlot,saveEvent,saveHoliday,saveLesson,carryLesson,nextClassDate,saveTask,saveException,addAcademicYear,setActiveYear,updateAcademicYear,deletePlannerItem,assertPlanner} from '../src/planner.js';
 
 const setup=()=>{const d=initialNotebook(),g=d.groups[0],p=d.periods[0],y=activeYear(d);return {d,g,p,y};};
 const slot=(d,g,day=0,start='08:00',end='08:55')=>saveSlot(d,{day,start,end,type:'class',groupId:g.id,label:''});
@@ -14,6 +14,27 @@ test('planificador se incluye en el cuaderno cifrado sin cambiar las notas exist
  saveSlot(d,{day:1,start:'09:00',end:'09:55',type:'guardia'});
  saveTask(d,{title:'Preparar examen',dueDate:'2026-11-23'});
  assertModel(d);assert.deepEqual(d.grades,original);assert.equal(overallGrade(d,d.students[0].id,g.id,p.id),n);
+});
+test('próximos exámenes de todos los cursos, desde la hora local y por fecha de inicio',()=>{
+ const {d,g,y}=setup(),date='2026-11-24',now=new Date(2026,10,24,11,30);
+ const exam=(title,date,time='',endTime='')=>saveEvent(d,{type:'exam',title,date,time,endTime});
+ const linked=saveEvent(d,{type:'exam',title:'Vinculado',date,time:'12:00',groupId:g.id,assessmentId:d.assessments[0].id});
+ const ongoing=exam('En curso',date,'11:00','12:00');
+ const untimed=exam('Sin hora',date);
+ exam('Terminado hoy',date,'10:00','11:00');
+ exam('Acaba a la hora de consulta',date,'10:00','11:30');
+ exam('Hora de inicio pasada',date,'10:30');
+ exam('Fecha pasada','2026-11-23','18:00');
+ saveEvent(d,{type:'meeting',title:'Reunión',date,time:'18:00'});
+ const nextYear=addAcademicYear(d,{name:'2027-2028',start:'2027-09-01',end:'2028-06-30'});
+ setActiveYear(d,nextYear.id);
+ const future=exam('Otro curso','2027-10-16','09:00');
+ setActiveYear(d,y.id);
+ const before=structuredClone(d);
+ assert.deepEqual(upcomingExams(d,now),[ongoing,linked,untimed,future]);
+ assert.deepEqual(d,before);
+ assert.deepEqual(upcomingExams(d,new Date(2028,0,1)),[]);
+ assert.deepEqual(upcomingExams({},now),[]);
 });
 test('migración de documento v1.3 sin planner conserva todas las calificaciones y grupos',()=>{
  const d=initialNotebook(),before=structuredClone(d.grades);delete d.planner;
