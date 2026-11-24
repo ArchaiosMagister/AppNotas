@@ -192,6 +192,7 @@ function paintNotebookZoom(context=document){
 }
 let unbindGradeTableHeaders=()=>{};
 function bindGradeTableHeaders(){
+  unbindGradeTableHeaders();
   const table=$('.table-scroller > .grade-table');
   if(!table)return;
   const scroller=table.parentElement;
@@ -199,13 +200,12 @@ function bindGradeTableHeaders(){
   if(!groups.length)return;
   const update=()=>{
     const zoom=Number(getComputedStyle(table).zoom)||1;
-    const top=scroller.getBoundingClientRect().top;
-    const headerHeight=table.tHead.getBoundingClientRect().height;
+    // Medir dentro de la tabla: WebKit y Chromium devuelven rectángulos distintos con zoom CSS.
+    const scrollTop=scroller.scrollTop/zoom;
+    const headerHeight=table.tHead.offsetHeight;
     // Los navegadores limitan sticky a la tabla completa. Acotar cada fila a su tbody.
-    const offsets=groups.map(group=>{
-      const remaining=group.getBoundingClientRect().bottom-top;
-      return Math.min(headerHeight,remaining-group.rows[0].getBoundingClientRect().height)/zoom;
-    });
+    const offsets=groups.map(group=>Math.min(headerHeight,
+      group.offsetTop+group.offsetHeight-scrollTop-group.rows[0].offsetHeight));
     groups.forEach((group,index)=>group.rows[0].style.setProperty('--origin-divider-top',offsets[index]+'px'));
   };
   update();
@@ -2387,6 +2387,7 @@ function bindNotebook(){
     STATE.notebookZoom=next;
     try{localStorage.setItem('appnotas-notebook-zoom',String(next));}catch{}
     paintNotebookZoom(root);
+    bindGradeTableHeaders();
     $('#notebook-zoom-value').textContent=next+' %';
     $('#notebook-zoom-out').disabled=next<=NOTEBOOK_ZOOM_MIN;
     $('#notebook-zoom-in').disabled=next>=NOTEBOOK_ZOOM_MAX;
@@ -2651,7 +2652,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v181-dev');
+      const cache=await caches.open('cuaderno-docente-static-v182-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

@@ -90,16 +90,21 @@ async function auditExamsAndGroupedScroll(browser,name){
      const firstTitle=first.rows[0].cells[0],secondTitle=second.rows[0].cells[0];
      const student=first.rows[1].cells[0];
      const corner=table.tHead.rows[0].cells[0];
+     const zoom=Number(getComputedStyle(table).zoom)||1;
      window.scrollBy(0,box(el).top-120);
      await scrollTo(el.scrollWidth,0);
      const firstStudentGap=box(student).top-box(firstTitle).bottom;
-     const nextGroupTop=box(second).top-box(el).top;
      await scrollTo(el.scrollLeft,35);
      const rect=box(firstTitle);
      const fixedLeft=rect.left-box(corner).left;
      const headerGap=rect.top-box(corner).bottom;
-     const hit=document.elementFromPoint(rect.left+13,rect.top+rect.height/2);
-     await scrollTo(el.scrollLeft,nextGroupTop-box(corner).height+15);
+     // Pasar de los rectángulos de la tabla al espacio del viewport para elementFromPoint.
+     const tableBox=box(table),scrollerBox=box(el);
+     const scale=table.offsetWidth*zoom/tableBox.width;
+     const hit=document.elementFromPoint(
+      scrollerBox.left-el.scrollLeft+(rect.left-tableBox.left)*scale+13,
+      scrollerBox.top-el.scrollTop+(rect.top+rect.height/2-tableBox.top)*scale);
+     await scrollTo(el.scrollLeft,(second.offsetTop-corner.offsetHeight)*zoom+15);
      return {horizontal:el.scrollLeft,firstStudentGap,fixedLeft,headerGap,
       labelOnTop:hit?.closest('th')===firstTitle,
       nextHeaderGap:box(secondTitle).top-box(corner).bottom,
