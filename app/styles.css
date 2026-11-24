@@ -4116,3 +4116,10 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   .period-category-picker .btn{min-height:44px}
 }
 @media print{.period-category-picker{display:none!important}}
+
+/* Los formularios con acciones adicionales no deben desbordar el diálogo. */
+#modal-form .modal-actions{flex-wrap:wrap;min-width:0}
+#modal-form .modal-actions>.btn{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:650px){
+  #modal-form .modal-actions>.btn{min-height:44px}
+}

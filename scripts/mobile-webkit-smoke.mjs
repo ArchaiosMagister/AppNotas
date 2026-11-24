@@ -123,6 +123,16 @@ async function auditStudentPresentation(page,name){
  await page.locator('#modal-form button[type="submit"]').click();
  await page.getByRole('button',{name:'Cuarta de prueba',exact:true}).waitFor();
  await page.getByRole('button',{name:'Gestionar Cuarta de prueba',exact:true}).click();
+ const actionLayout=await page.locator('#modal-form .modal-actions').evaluate(actions=>{
+  const dialog=actions.closest('dialog').getBoundingClientRect();
+  return [...actions.querySelectorAll('button')].map(button=>{
+   const r=button.getBoundingClientRect();
+   return {label:button.textContent,left:r.left,right:r.right,
+    fits:r.width>0&&r.left>=Math.max(0,dialog.left)-1&&r.right<=Math.min(innerWidth,dialog.right)+1};
+  });
+ });
+ assert.equal(actionLayout.length,5,name+' gestión de períodos: cinco acciones');
+ assert(actionLayout.every(button=>button.fits),name+' gestión de períodos: '+JSON.stringify(actionLayout));
  let confirmationMessage;
  page.once('dialog',async confirmation=>{
   confirmationMessage=confirmation.message();
