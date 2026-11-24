@@ -931,12 +931,14 @@ html[data-theme] .grade-table .student-origin-group .student-origin-divider>*{
   border-top:2px solid var(--accent);height:auto;padding:6px 8px;
 }
 .grade-table .student-origin-divider>th.name-col{
-  color:var(--ink);font-size:12px;line-height:1.25;
+  /* El rótulo fijo debe quedar encima del relleno que se desplaza. */
+  z-index:4;color:var(--ink);font-size:12px;line-height:1.25;
   white-space:normal;overflow-wrap:anywhere;
 }
 .grade-table .student-origin-divider th>span{font-weight:850}
 .grade-table .student-origin-divider th>small{color:var(--muted)}
-.grade-table thead th{z-index:4}
+.grade-table thead th{z-index:5}
+.grade-table thead th.name-col{z-index:6}
 .student-directory-divider{grid-column:1/-1;font-size:12px;font-weight:800;background:color-mix(in srgb,var(--accent) 10%,var(--surface));color:var(--ink);border-left:3px solid var(--accent);padding:10px 13px;border-radius:6px}
 .student-directory-choice .student-origin-badge{margin-left:auto;flex-shrink:0}
 .student-directory-choice .student-directory-arrow{margin-left:4px}
