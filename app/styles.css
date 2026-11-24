@@ -918,15 +918,20 @@ html[data-theme="oled"] .grade-table th.itaca-col,html[data-theme="oled"] .grade
    se desplaza al entrar el siguiente tbody. El rótulo sigue a Alumno. */
 .table-scroller{isolation:isolate}
 .grade-table .student-origin-divider{
-  position:sticky;z-index:3;
   --origin-divider-bg:color-mix(in srgb,var(--accent) 14%,var(--surface));
+}
+/* WebKit no fija las filas tr de forma interoperable. Fijar sus celdas,
+   que conservan el flujo de la tabla y el límite del grupo. */
+.grade-table .student-origin-divider>th.name-col,
+.grade-table .student-origin-divider>td{
+  position:sticky;top:var(--origin-divider-top,0px);z-index:3;
 }
 html[data-theme] .grade-table .student-origin-group .student-origin-divider>*{
   background:var(--origin-divider-bg)!important;
   border-top:2px solid var(--accent);height:auto;padding:6px 8px;
 }
 .grade-table .student-origin-divider>th.name-col{
-  top:auto;z-index:1;color:var(--ink);font-size:12px;line-height:1.25;
+  color:var(--ink);font-size:12px;line-height:1.25;
   white-space:normal;overflow-wrap:anywhere;
 }
 .grade-table .student-origin-divider th>span{font-weight:850}
