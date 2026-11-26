@@ -23,7 +23,9 @@ test('navegación: Cuaderno, Agenda, Evaluaciones y Extraescolares son primarias
  for(const label of ['Notas','Cálculos','Competencias','Vista alumno'])assert(quick.includes(label));
  assert(!quick.includes('Evaluación final'));
  assert(js.includes('class="term-button term-final'),'La evaluación final debe estar junto a los períodos');
- for(const name of ['curriculo','rubricas','ajustes'])assert(nav.includes('data-tab="'+name+'"'));
+ for(const name of ['curriculo','rubricas'])assert(nav.includes('data-tab="'+name+'"'));
+ assert(!nav.includes('data-tab="ajustes"'));
+ assert(js.includes('data-tab="ajustes"'));
  assert(!nav.includes('data-tab="final"'));
  assert(!nav.includes('data-tab="alumno"'));
 });
