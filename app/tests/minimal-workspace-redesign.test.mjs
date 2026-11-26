@@ -10,7 +10,7 @@ const read=name=>readFileSync(new URL('../'+name,import.meta.url),'utf8');
 const js=read('app.js');
 const css=read('styles.css');
 
-test('navegación: solo Cuaderno, Agenda y Evaluaciones son primarias',()=>{
+test('navegación: Cuaderno, Agenda, Evaluaciones y Extraescolares son primarias',()=>{
  const a=js.indexOf('/** Navegación minimalista:'),b=js.indexOf('function renderPeriodButtons(){',a);
  assert(a>=0&&b>a);
  const src=js.slice(a,b);
@@ -19,7 +19,7 @@ test('navegación: solo Cuaderno, Agenda y Evaluaciones son primarias',()=>{
  });
  const nav=api.renderNavigation(),quick=api.renderAcademicQuickNav();
  const main=nav.slice(nav.indexOf('class="nav-primary"'),nav.indexOf('class="nav-secondary"'));
- assert.deepEqual([...main.matchAll(/data-tab="([^"]+)"/g)].map(m=>m[1]),['cuaderno','planificador','evaluaciones']);
+ assert.deepEqual([...main.matchAll(/data-tab="([^"]+)"/g)].map(m=>m[1]),['cuaderno','planificador','evaluaciones','extraescolares']);
  for(const label of ['Notas','Cálculos','Competencias','Vista alumno'])assert(quick.includes(label));
  assert(!quick.includes('Evaluación final'));
  assert(js.includes('class="term-button term-final'),'La evaluación final debe estar junto a los períodos');

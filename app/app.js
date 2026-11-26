@@ -1,3 +1,4 @@
+import {renderExtracurricular,bindExtracurricular} from './src/extracurricular-ui.js';
 import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,setPeriodCategoryEnabled,addPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,catalogForNotebook,addNotebookSubject,removeNotebookSubject,defaultSubjectAccent,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,setGroupWeeklyHours,setStudentOriginGroups,renamePeriod,movePeriod,removePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setItacaAttitudeCondition,itacaAttitudeCondition,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
 import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,competencyArithmeticMean,gradeToFour,competencyAcquisitionLevel,competencyAcquisitionLabel,COMPETENCY_ACQUISITION_LABELS,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,greekEtymologyBonusApplied,itacaGrade,itacaAttitudeBlock} from './src/calculations.js';
 import {studentsFromCsv} from './src/csv.js';
@@ -899,13 +900,14 @@ async function savePreparedCopy(prepared,filename){
 }
 
 
-/** Navegación minimalista: tres destinos diarios y un menú de herramientas.
+/** Navegación minimalista: destinos diarios y un menú de herramientas.
  * Las cinco vistas del cuaderno siguen existiendo como navegación secundaria. */
 const workspaceDisclosures={tools:false,course:false,group:false,academic:false};
 const PRIMARY_WORKSPACE_TABS=[
   ['cuaderno','Cuaderno','▦'],
   ['planificador','Agenda','▣'],
-  ['evaluaciones','Evaluaciones','◷']
+  ['evaluaciones','Evaluaciones','◷'],
+  ['extraescolares','Extraescolares','▤']
 ];
 const ACADEMIC_WORKSPACE_TABS=[
   ['curriculo','Currículo','◇'],
@@ -997,7 +999,7 @@ function render(){
     </div>
   </details>
   <button class="lock-btn" id="lock">Bloquear</button>
-</div></header><main class="content"><div class="workspace">${renderNavigation()}<div class="work-area">${!['planificador','evaluaciones'].includes(STATE.tab)?`<div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level,STATE.subject)])} · CUADERNO ACADÉMICO · v1.0</div><h1>${STATE.tab==='evaluaciones'?'Sesiones de evaluación':esc(subjectLabel)+' <span class="muted-slash">/</span> '+esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${STATE.tab==='evaluaciones'?'Organización por tutorías y evaluaciones · Almacenamiento cifrado local':esc(levelLabel)+' · '+esc(group?.course||'Curso escolar por configurar')+' · '+esc(period?.name||'')+' · Almacenamiento cifrado local'}</p></div><span class="demo-tag">⚠ Copias solo en almacenamiento local</span></div>`:'' }<p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo" ${STATE.tab==='planificador'?'hidden':''}>
+</div></header><main class="content"><div class="workspace">${renderNavigation()}<div class="work-area">${!['planificador','evaluaciones','extraescolares'].includes(STATE.tab)?`<div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level,STATE.subject)])} · CUADERNO ACADÉMICO · v1.0</div><h1>${STATE.tab==='evaluaciones'?'Sesiones de evaluación':esc(subjectLabel)+' <span class="muted-slash">/</span> '+esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${STATE.tab==='evaluaciones'?'Organización por tutorías y evaluaciones · Almacenamiento cifrado local':esc(levelLabel)+' · '+esc(group?.course||'Curso escolar por configurar')+' · '+esc(period?.name||'')+' · Almacenamiento cifrado local'}</p></div><span class="demo-tag">⚠ Copias solo en almacenamiento local</span></div>`:'' }<p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo" ${['planificador','extraescolares'].includes(STATE.tab)?'hidden':''}>
   <div class="selectors">
     <div class="course-switch" role="group" aria-label="Seleccionar asignatura" title="Desliza horizontalmente para ver todas las materias en el móvil">
       <div class="course-buttons">${courseChoices.map(x=>`<button type="button" class="btn course-choice" data-course-level="${esc(x.level)}" data-course-subject="${esc(x.subject)}" aria-pressed="${STATE.level===x.level&&STATE.subject===x.subject}" title="${esc(x.subjectName+' · '+x.stage)}"><strong class="course-name">${esc(x.subjectName)}</strong><small class="course-group-caption" title="${esc(x.groupNames.join(' · ')||'Sin grupo creado')}">${esc(x.groupNames.length?x.groupNames.join(' · '):'Sin grupo · crear grupo')}</small></button>`).join('')}</div>
@@ -1027,7 +1029,7 @@ function render(){
     </details>
     <input type="file" id="csv-file" class="hidden" accept=".csv,text/csv"/>
   </div>
-</div>${hasGroup&&['cuaderno','calculos','competencias','final','alumno'].includes(STATE.tab)?renderAcademicQuickNav():''}${hasGroup&&['cuaderno','calculos','competencias','final','alumno'].includes(STATE.tab)?renderPeriodButtons():''}<div id="tab-content">${!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'&&STATE.tab!=='evaluaciones'?`<section class="panel panel-pad no-group-state"><h2>No hay grupos de ${esc(subjectLabel)}</h2><p>Selecciona otro grupo o crea uno nuevo para esta asignatura. No se mezclarán las calificaciones de materias distintas.</p>${STATE.level==='legacy'?'<p>Clasifica primero el grupo anterior para utilizarlo en uno de los cursos disponibles.</p>':'<button class="btn primary" id="new-group-empty">+ Crear primer grupo</button>'}</section>`:STATE.tab==='cuaderno'?renderNotebook():STATE.tab==='planificador'?renderPlanner(STATE.doc,STATE):STATE.tab==='evaluaciones'?renderEvaluationWorkspace(STATE.doc,STATE):STATE.tab==='alumno'?renderStudentView():STATE.tab==='final'?renderFinalEvaluation():STATE.tab==='calculos'?renderRules():STATE.tab==='rubricas'?renderRubrics():STATE.tab==='competencias'?renderCompetencies():STATE.tab==='curriculo'?renderCurriculum():renderSettings()}</div></div></div></main></div>`;
+</div>${hasGroup&&['cuaderno','calculos','competencias','final','alumno'].includes(STATE.tab)?renderAcademicQuickNav():''}${hasGroup&&['cuaderno','calculos','competencias','final','alumno'].includes(STATE.tab)?renderPeriodButtons():''}<div id="tab-content">${!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'&&STATE.tab!=='evaluaciones'&&STATE.tab!=='extraescolares'?`<section class="panel panel-pad no-group-state"><h2>No hay grupos de ${esc(subjectLabel)}</h2><p>Selecciona otro grupo o crea uno nuevo para esta asignatura. No se mezclarán las calificaciones de materias distintas.</p>${STATE.level==='legacy'?'<p>Clasifica primero el grupo anterior para utilizarlo en uno de los cursos disponibles.</p>':'<button class="btn primary" id="new-group-empty">+ Crear primer grupo</button>'}</section>`:STATE.tab==='cuaderno'?renderNotebook():STATE.tab==='planificador'?renderPlanner(STATE.doc,STATE):STATE.tab==='evaluaciones'?renderEvaluationWorkspace(STATE.doc,STATE):STATE.tab==='extraescolares'?renderExtracurricular(STATE.doc,esc):STATE.tab==='alumno'?renderStudentView():STATE.tab==='final'?renderFinalEvaluation():STATE.tab==='calculos'?renderRules():STATE.tab==='rubricas'?renderRubrics():STATE.tab==='competencias'?renderCompetencies():STATE.tab==='curriculo'?renderCurriculum():renderSettings()}</div></div></div></main></div>`;
   bindCommon();
   wirePwaButtons();
   updatePortableStatus();
@@ -1042,7 +1044,7 @@ function render(){
   revealSelectedButton($('.tabs'),$('.tabs .tab.active'));
   revealSelectedButton($('.course-buttons'),$('.course-buttons .course-choice[aria-pressed="true"]'));
   revealSelectedButton($('.academic-quick-nav'),$('.academic-quick-nav .academic-quick-active'));
-  if(!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'&&STATE.tab!=='evaluaciones'){$('#new-group-empty')?.addEventListener('click',()=>$('#new-group').click());}
+  if(!hasGroup&&STATE.tab!=='ajustes'&&STATE.tab!=='rubricas'&&STATE.tab!=='curriculo'&&STATE.tab!=='planificador'&&STATE.tab!=='evaluaciones'&&STATE.tab!=='extraescolares'){$('#new-group-empty')?.addEventListener('click',()=>$('#new-group').click());}
   else if(STATE.tab==='cuaderno')bindNotebook();
   else if(STATE.tab==='planificador'){const api=bindPlanner(STATE.doc,STATE,{
     render,commit,fieldsModal,dialog,toast,fail,showInfo,getDoc:()=>STATE.doc,
@@ -1055,6 +1057,7 @@ function render(){
       defaultYear:activeYear(STATE.doc).name
     })
   });
+  else if(STATE.tab==='extraescolares')bindExtracurricular({root,dialog,doc:STATE.doc,getDoc:()=>STATE.doc,commit,fail,esc,state:STATE});
   else if(STATE.tab==='alumno')bindStudentView();
   else if(STATE.tab==='final')bindFinalEvaluation();
   else if(STATE.tab==='rubricas')bindRubrics();
@@ -2651,8 +2654,8 @@ function bindSettings(){
       if(!('serviceWorker' in navigator)||!('caches' in window))throw new Error('Este navegador no dispone de las API necesarias.');
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
-      const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v182-dev');
+      const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
+      const cache=await caches.open('cuaderno-docente-static-v183-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

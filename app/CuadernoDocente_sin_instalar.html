@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#11243f">
 <meta name="description" content="CuadernoDocente v1.19 autónomo de pruebas. Solo para pruebas con datos ficticios.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rMfkFFWoB2W1/Zx+4bgHim0WC7vKRVrq6FTeZclH1Z4=' 'sha256-gDZBJYErpzgpsEUdweEkpBA9mA2we3Hq0lirexNnRc8='; style-src 'sha256-zj3gey6XPfppSCxjXOYCpol630wddubqueYMri7fbBM='; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rMfkFFWoB2W1/Zx+4bgHim0WC7vKRVrq6FTeZclH1Z4=' 'sha256-Tzwn6JXiG7LuRwSE9bZqh7Jf1cEfPS4+6pFv6Pl7uuU='; style-src 'sha256-xB0JTX/NL4DFWF9mhmqlE2kYYzGocbPbJdgulTBTXRk='; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20128%20128%22%20role%3D%22img%22%20aria-label%3D%22CuadernoDocente%20%C2%B7%20columna%20cl%C3%A1sica%22%3E%0A%20%20%3Crect%20width%3D%22128%22%20height%3D%22128%22%20rx%3D%2227%22%20fill%3D%22%23263246%22%2F%3E%0A%20%20%3Crect%20x%3D%225%22%20y%3D%225%22%20width%3D%22118%22%20height%3D%22118%22%20rx%3D%2223%22%20fill%3D%22none%22%20stroke%3D%22%23a88b60%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M27%2037h74m-68%207h62M40%2050v45m24-45v45m24-45v45M27%20100h74m-68-5h62%22%20stroke%3D%22%23f4e4c8%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M30%2035c5-14%2017-19%2034-19s29%205%2034%2019M47%2036h34%22%20fill%3D%22none%22%20stroke%3D%22%23cbaa79%22%20stroke-width%3D%225%22%20stroke-linecap%3D%22round%22%2F%3E%0A%3C%2Fsvg%3E%0A">
 <title>CuadernoDocente · v1.19 · sin instalar</title>
 <style>:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#1a2d46;background:#f3f6fb;font-synthesis:none;--navy:#142845;--line:#e1e7f0;--ink:#152a47;--muted:#697b93;--blue:#326ed6;--surface:#fff;--green:#0f866a;--danger:#c53548}
@@ -923,17 +923,39 @@ html[data-theme="oled"] .grade-table th.itaca-col,html[data-theme="oled"] .grade
 .student-name-cell .student-name-label{min-width:0;flex:1 1 100%;white-space:normal;overflow-wrap:anywhere;font-weight:700}
 .student-name-cell .student-origin-badge{flex:0 1 auto;max-width:100%;white-space:normal;overflow:visible}
 .student-origin-badge{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;padding:2px 7px;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));background:color-mix(in srgb,var(--accent) 9%,var(--raised));color:var(--ink);border-radius:7px;font-size:10px;font-weight:800;line-height:1.4;white-space:nowrap}
-.student-origin-divider th,.grade-table .student-origin-divider th{position:static!important;top:auto!important;z-index:auto!important;background:color-mix(in srgb,var(--accent) 14%,var(--surface))!important;color:var(--ink)!important;font-size:12px;text-align:left!important;height:auto;padding:11px 15px;border-top:2px solid var(--accent);box-shadow:none!important}
-.student-origin-divider th>span:first-child{font-weight:850;letter-spacing:.01em}
-.student-origin-divider th>span+span{float:right;font-size:11px;color:var(--muted);font-weight:650}
+/* La cabecera de cada procedencia se fija debajo de las columnas y
+   se desplaza al entrar el siguiente tbody. El rótulo sigue a Alumno. */
+.table-scroller{isolation:isolate}
+.grade-table .student-origin-divider{
+  --origin-divider-bg:color-mix(in srgb,var(--accent) 14%,var(--surface));
+}
+/* WebKit no fija las filas tr de forma interoperable. Fijar sus celdas,
+   que conservan el flujo de la tabla y el límite del grupo. */
+.grade-table .student-origin-divider>th.name-col,
+.grade-table .student-origin-divider>td{
+  position:sticky;top:var(--origin-divider-top,0px);z-index:3;
+}
+html[data-theme] .grade-table .student-origin-group .student-origin-divider>*{
+  background:var(--origin-divider-bg)!important;
+  border-top:2px solid var(--accent);height:auto;padding:6px 8px;
+}
+.grade-table .student-origin-divider>th.name-col{
+  /* El rótulo fijo debe quedar encima del relleno que se desplaza. */
+  z-index:4;color:var(--ink);font-size:12px;line-height:1.25;
+  white-space:normal;overflow-wrap:anywhere;
+}
+.grade-table .student-origin-divider th>span{font-weight:850}
+.grade-table .student-origin-divider th>small{color:var(--muted)}
+.grade-table thead th{z-index:5}
+.grade-table thead th.name-col{z-index:6}
 .student-directory-divider{grid-column:1/-1;font-size:12px;font-weight:800;background:color-mix(in srgb,var(--accent) 10%,var(--surface));color:var(--ink);border-left:3px solid var(--accent);padding:10px 13px;border-radius:6px}
 .student-directory-choice .student-origin-badge{margin-left:auto;flex-shrink:0}
 .student-directory-choice .student-directory-arrow{margin-left:4px}
 .final-table td.name-col .student-origin-badge{margin-left:8px}
-html[data-theme="oled"] .student-origin-divider th{background:#000!important;border-top:2px solid var(--accent)!important}
+html[data-theme="oled"] .student-origin-divider{--origin-divider-bg:#000}
 html[data-theme="oled"] .student-order-bar,html[data-theme="oled"] .student-directory-divider{background:#000!important}
 html[data-theme="oled"] .student-origin-badge{background:#090909;border-color:var(--accent)}
-@media(max-width:650px){.student-order-bar{padding:10px}.student-sort-control{width:100%}.student-sort-control select{max-width:none;flex:1;min-width:0}.student-name-cell{gap:4px}.student-origin-divider th>span+span{float:none;margin-left:12px}}
+@media(max-width:650px){.student-order-bar{padding:10px}.student-sort-control{width:100%}.student-sort-control select{max-width:none;flex:1;min-width:0}.student-name-cell{gap:4px}}
 
 
 /* Modo alumno v1.25: acordeones de evaluaciones y desglose de criterios,
@@ -1265,11 +1287,11 @@ html[data-theme="oled"] .notebook-more-actions>summary{background:#000!important
   .class-toolbar .course-disclosure{flex-basis:215px}
 }
 @media(max-width:900px){
-  /* Navegación móvil con cuatro destinos siempre visibles y gestión bajo menú. */
+  /* Navegación móvil con cinco destinos siempre visibles y gestión bajo menú. */
   .workspace,.shell.nav-collapsed .workspace{display:flex;flex-direction:column;gap:12px}
   .tabs,.shell.nav-collapsed .tabs{
     position:sticky;top:0;z-index:30;display:grid;
-    grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-template-columns:repeat(5,minmax(0,1fr));
     align-items:stretch;gap:5px;width:100%;max-height:none;
     padding:7px;border:1px solid var(--line);border-radius:12px;
     overflow:visible;box-shadow:0 4px 16px #0002
@@ -2322,9 +2344,10 @@ details.student-period,
   overflow:visible;
   z-index:85;
 }
+/* La cabecera debe superar también el z-index:8 de «Alumno» sticky. */
 .panel:has(> .panel-header .notebook-more-actions[open])>.panel-header{
   position:relative;
-  z-index:2;
+  z-index:20;
 }
 .notebook-more-actions[open]{z-index:60}
 /* La navegación de Gestión académica se expande EN la barra, sin popup.
@@ -3377,7 +3400,9 @@ html[data-theme="oled"] .notebook-eval-open{background:#000}
 .planner-create-options>.btn{display:flex;width:100%;min-height:42px;white-space:normal;
  justify-content:flex-start;text-align:left;border:0;background:transparent;color:var(--ink)}
 .planner-create-options>.btn:hover,.planner-create-options>.btn:focus-visible{background:var(--raised)}
-.planner-tools-minimal .planner-sessions-shortcut{min-height:39px;font-size:12px}
+.planner-tools-minimal>.btn{min-height:39px;font-size:12px}
+.upcoming-exams{list-style:none;padding:0}
+.upcoming-exams .planner-event{overflow-wrap:anywhere}
 html[data-theme="oled"] .planner-create-options,
 html[data-theme="oled"] .planner-create-menu>summary,
 html[data-theme="oled"] .notebook-grade-options,
@@ -3514,14 +3539,14 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
 }
 @media(max-width:900px){
   .tabs,.shell.nav-collapsed .tabs{
-    grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-template-columns:repeat(5,minmax(0,1fr));
     align-items:stretch;
   }
   .tabs .nav-secondary,.shell.nav-collapsed .tabs .nav-secondary{
     display:contents;
   }
   .tabs .academic-disclosure{
-    grid-column:4;grid-row:1;min-width:0;
+    grid-column:5;grid-row:1;min-width:0;
     position:relative;z-index:40;margin:0;padding:0;
   }
   .tabs .academic-disclosure>summary{
@@ -3556,7 +3581,7 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   .class-toolbar .course-switch .course-buttons{width:100%}
   .class-toolbar .course-switch .course-choice{min-height:44px}
   .planner-tools-minimal .planner-create-menu>summary,
-  .planner-tools-minimal .planner-sessions-shortcut{min-height:44px}
+  .planner-tools-minimal>.btn{min-height:44px}
 }
 @media(max-width:650px){
   .tabs .academic-disclosure>summary{min-height:52px;padding:6px 2px}
@@ -3626,7 +3651,7 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   }
   .planner-date-controls>input{font-size:16px}
   .planner-tools-minimal{
-    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
     gap:7px;align-items:stretch;width:100%;
   }
   .planner-tools-minimal .planner-create-menu{
@@ -3635,7 +3660,7 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   .planner-tools-minimal .planner-create-menu>summary{
     width:100%;min-height:44px;justify-content:center;
   }
-  .planner-tools-minimal .planner-sessions-shortcut{
+  .planner-tools-minimal>.btn{
     min-width:0;width:100%;min-height:44px;white-space:normal;
   }
   .eval-period-actions>.btn.primary{min-width:0}
@@ -3911,6 +3936,237 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   padding-inline-start:22px;
   color:var(--ink);
 }
+
+/* Cuaderno: columnas estables aunque se active el extra de etimología griega.
+ * El resumen de ortografía y etimología se ajusta dentro de la columna,
+ * sin influir en el cálculo del ancho de la tabla. */
+.table-scroller>.grade-table{
+  table-layout:fixed;
+  width:100%;
+  min-width:max(730px,var(--notebook-table-min-width,730px));
+  zoom:var(--notebook-zoom,1);
+}
+.table-scroller>.grade-table th.category-tinted,
+.table-scroller>.grade-table td.category-tinted{
+  width:165px;
+  min-width:165px;
+  max-width:165px;
+  box-sizing:border-box;
+}
+/* El título dispone de una línea completa: los botones se sitúan debajo.
+ * No partir una palabra por la mitad ni ensanchar la columna de 165 px. */
+.table-scroller>.grade-table th.category-tinted .column-heading{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  align-items:center;
+  justify-items:center;
+  gap:3px 5px;
+  max-width:100%;
+  min-width:0;
+  overflow-wrap:normal;
+  word-break:normal;
+}
+.table-scroller>.grade-table th.category-tinted .assessment-column-title{
+  grid-column:1/-1;
+  display:block;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  white-space:normal;
+  overflow-wrap:normal;
+  word-break:normal;
+  hyphens:none;
+  overflow:hidden;
+  text-align:center;
+}
+.table-scroller>.grade-table th.category-tinted .class-stat-trigger{
+  grid-column:2;
+  justify-self:end;
+}
+.table-scroller>.grade-table th.category-tinted .assessment-menu{
+  grid-column:3;
+  justify-self:end;
+}
+.table-scroller>.grade-table th.category-tinted small{
+  max-width:100%;
+  min-width:0;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+.table-scroller>.grade-table tbody td .grade-cell-stack{
+  max-width:100%;
+  min-width:0;
+}
+.table-scroller>.grade-table tbody td .grade-cell-support{
+  min-width:0;
+  max-width:100%;
+}
+.table-scroller>.grade-table tbody td .orthography-meta{
+  max-width:100%;
+  min-width:0;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+/* Zoom de la tabla: controles independientes, sin escalado de la barra ni
+ * de los editores. 80–140 % en saltos de 10 puntos. */
+.notebook-zoom-tools{
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:8px;
+  padding:6px 14px;
+  border-bottom:1px solid var(--line);
+  background:var(--surface);
+  color:var(--muted);
+  font-weight:700;
+  font-size:12px;
+}
+.notebook-zoom-tools .btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:42px;
+  min-width:42px;
+  min-height:40px;
+  font-size:20px;
+  padding:4px;
+}
+.notebook-zoom-tools output{
+  display:inline-block;
+  min-width:54px;
+  text-align:center;
+  color:var(--ink);
+  font-variant-numeric:tabular-nums;
+}
+@media(max-width:650px){
+  .notebook-zoom-tools .btn{min-height:44px;min-width:44px}
+}
+@media print{.notebook-zoom-tools{display:none!important}}
+
+/* La evaluación final se sitúa inmediatamente después del último período.
+ * La pareja permanece junta incluso en el diseño móvil de dos columnas. */
+.term-buttons>.term-last-and-final{
+  display:inline-flex;
+  align-items:stretch;
+  gap:7px;
+  flex:0 0 auto;
+  min-width:0;
+}
+.term-bar .term-last-and-final .term-final{
+  position:static;
+  right:auto;
+  margin:0;
+  max-width:none;
+  min-height:44px;
+  flex:0 0 auto;
+  box-shadow:none;
+}
+.term-bar .term-last-and-final .term-final.active{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:var(--accent-ink);
+}
+@media(max-width:650px){
+  .term-bar .term-buttons>.term-last-and-final{
+    display:grid;
+    grid-column:1/-1;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+  }
+  .term-bar .term-last-and-final>.term-item{
+    min-width:0;
+    width:100%;
+  }
+  .term-bar .term-last-and-final>.term-final{
+    grid-column:auto;
+    width:100%;
+    min-width:0;
+    max-width:none;
+    white-space:normal;
+    font-size:11px;
+    line-height:1.3;
+  }
+  .term-bar .term-buttons>.term-add{
+    grid-column:1/-1;
+    width:100%;
+  }
+}
+
+/* Categorías activas por materia y evaluación: selector compacto de categorías
+ * disponibles sin tocar las actividades ni los datos de otros períodos. */
+.period-category-picker{
+  display:flex;
+  align-items:end;
+  flex-wrap:wrap;
+  gap:9px;
+  padding:11px 12px;
+  margin:12px 0;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--raised);
+}
+.period-category-picker label{
+  display:grid;
+  gap:5px;
+  flex:1 1 200px;
+  min-width:0;
+  font-size:12px;
+  font-weight:700;
+  color:var(--ink);
+}
+.period-category-picker select{
+  width:100%;
+  min-width:0;
+}
+.period-category-picker .btn{
+  min-height:42px;
+  white-space:normal;
+}
+.period-category-picker :disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+@media(max-width:600px){
+  .period-category-picker{align-items:stretch}
+  .period-category-picker label,.period-category-picker .btn{flex:1 1 100%}
+  .period-category-picker .btn{min-height:44px}
+}
+@media print{.period-category-picker{display:none!important}}
+
+/* Los formularios con acciones adicionales no deben desbordar el diálogo. */
+#modal-form .modal-actions{flex-wrap:wrap;min-width:0}
+#modal-form .modal-actions>.btn{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:650px){
+  #modal-form .modal-actions>.btn{min-height:44px}
+}
+
+.extracurricular-tools,.extracurricular-actions{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.5rem;
+}
+.extracurricular-tools{
+  justify-content:space-between;
+  margin-bottom:1rem;
+}
+.extracurricular-tools h1{margin:0}
+.extracurricular-table-scroll{overflow:auto;max-height:68vh}
+.extracurricular-table{width:100%;border-collapse:separate;border-spacing:0}
+.extracurricular-table th,.extracurricular-table td{
+  min-width:10rem;
+  padding:.65rem;
+  text-align:left;
+  border-bottom:1px solid var(--line);
+}
+.extracurricular-table thead th,.extracurricular-table tbody th{background:var(--surface)}
+.extracurricular-table thead th{position:sticky;top:0;z-index:2}
+.extracurricular-table tr>:first-child{position:sticky;left:0;min-width:9rem;max-width:16rem;z-index:1}
+.extracurricular-table thead tr>:first-child{z-index:3}
+.extracurricular-table time,.extracurricular-table small{display:block;margin:.25rem 0;white-space:normal}
+.extracurricular-table th{overflow-wrap:anywhere}
+.extracurricular-courses{display:grid;gap:.5rem}
+.extracurricular-courses label{display:flex;align-items:center;gap:.5rem}
 </style>
 </head><body>
 <div id="app"><div class="loading-screen"><span class="spinner"></span><strong>CuadernoDocente</strong><p>Preparando el cuaderno local…</p></div></div>
@@ -3940,6 +4196,7 @@ globalThis.__cdPdfUrls=__cdPdfUrls;
 const __modules={"app.js":function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const extracurricular_ui_js_1 = require("./src/extracurricular-ui.js");
 const model_js_1 = require("./src/model.js");
 const calculations_js_1 = require("./src/calculations.js");
 const csv_js_1 = require("./src/csv.js");
@@ -4143,6 +4400,16 @@ const savedTheme = () => { try {
 catch {
     return 'light';
 } };
+const savedNotebookZoom = () => {
+    try {
+        const value = Number(localStorage.getItem('appnotas-notebook-zoom'));
+        return value >= 80 && value <= 140 && value % 10 === 0 ? value : 100;
+    }
+    catch {
+        return 100;
+    }
+};
+const NOTEBOOK_ZOOM_MIN = 80, NOTEBOOK_ZOOM_MAX = 140;
 const savedNavigation = () => { try {
     return localStorage.getItem('cuaderno-docente-nav-collapsed') === 'yes';
 }
@@ -4175,7 +4442,7 @@ const savedStudentActivityOrders = () => {
     }
 };
 const STUDENT_ACTIVITY_SORT_OPTIONS = [['category', 'Por categoría'], ['column', 'Orden del cuaderno'], ['alphabetical', 'Nombre de actividad (A–Z)'], ['reverse', 'Últimas actividades primero']];
-const STATE = { evaluationWorkspaceTab: 'sesiones', plannerMode: 'week', plannerDate: (0, planner_js_1.localToday)(), plannerEventRequest: null, theme: savedTheme(), navCollapsed: savedNavigation(), studentSort: savedStudentSort(), studentPlainSort: savedStudentPlainSort(), studentActivityOrders: savedStudentActivityOrders(), studentPeriodId: null, studentFull: false, studentPresentation: false, db: null, doc: null, key: null, salt: null, envelope: null, groupId: null, periodId: null, level: null, subject: null, tab: 'cuaderno', studentId: null, curriculumVersion: '2022', competencyVersion: 'auto', curriculumSection: 'competencias', curriculumCompetence: 'all', curriculumQuery: '', saveQueue: Promise.resolve(), mutationQueue: Promise.resolve(), pending: 0, failedEnvelope: null, history: (0, history_js_1.emptyHistory)(), saving: 0, saveError: null, reloadProbe: null, recovery: null, exportReceipt: null };
+const STATE = { evaluationWorkspaceTab: 'sesiones', plannerMode: 'week', plannerDate: (0, planner_js_1.localToday)(), plannerEventRequest: null, theme: savedTheme(), notebookZoom: savedNotebookZoom(), navCollapsed: savedNavigation(), studentSort: savedStudentSort(), studentPlainSort: savedStudentPlainSort(), studentActivityOrders: savedStudentActivityOrders(), studentPeriodId: null, studentFull: false, studentPresentation: false, db: null, doc: null, key: null, salt: null, envelope: null, groupId: null, periodId: null, level: null, subject: null, tab: 'cuaderno', studentId: null, curriculumVersion: '2022', competencyVersion: 'auto', curriculumSection: 'competencias', curriculumCompetence: 'all', curriculumQuery: '', saveQueue: Promise.resolve(), mutationQueue: Promise.resolve(), pending: 0, failedEnvelope: null, history: (0, history_js_1.emptyHistory)(), saving: 0, saveError: null, reloadProbe: null, recovery: null, exportReceipt: null };
 const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const $ = (sel, context = document) => context.querySelector(sel);
 const opt = (id, label, chosen) => `<option value="${esc(id)}" ${chosen === id ? 'selected' : ''}>${esc(label)}</option>`;
@@ -4207,6 +4474,45 @@ function paintCategoryColumns(context = document) {
 }
 /** En el visor individual se respeta el mismo color de categoría.
  * Aplicarlo después del render con CSSOM evita estilos inline bloqueados por CSP. */
+/** El zoom solo afecta a la tabla, nunca a menús, diálogos ni al cálculo. */
+function paintNotebookZoom(context = document) {
+    if (STATE.tab !== 'cuaderno')
+        return;
+    const table = context.querySelector('.table-scroller .grade-table');
+    if (!table)
+        return;
+    table.style.setProperty('--notebook-zoom', String(STATE.notebookZoom / 100));
+    table.style.setProperty('--notebook-table-min-width', String(440 + 165 * allAssessments().length) + 'px');
+}
+let unbindGradeTableHeaders = () => { };
+function bindGradeTableHeaders() {
+    unbindGradeTableHeaders();
+    const table = $('.table-scroller > .grade-table');
+    if (!table)
+        return;
+    const scroller = table.parentElement;
+    const groups = [...table.querySelectorAll('.student-origin-group')];
+    if (!groups.length)
+        return;
+    const update = () => {
+        const zoom = Number(getComputedStyle(table).zoom) || 1;
+        // Medir dentro de la tabla: WebKit y Chromium devuelven rectángulos distintos con zoom CSS.
+        const scrollTop = scroller.scrollTop / zoom;
+        const headerHeight = table.tHead.offsetHeight;
+        // Los navegadores limitan sticky a la tabla completa. Acotar cada fila a su tbody.
+        const offsets = groups.map(group => Math.min(headerHeight, group.offsetTop + group.offsetHeight - scrollTop - group.rows[0].offsetHeight));
+        groups.forEach((group, index) => group.rows[0].style.setProperty('--origin-divider-top', offsets[index] + 'px'));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(table);
+    scroller.addEventListener('scroll', update, { passive: true });
+    unbindGradeTableHeaders = () => {
+        observer.disconnect();
+        scroller.removeEventListener('scroll', update);
+        unbindGradeTableHeaders = () => { };
+    };
+}
 function paintStudentCategoryCards(context = document) {
     if (!STATE.doc)
         return;
@@ -4377,15 +4683,25 @@ function setStudentSort(mode) {
 }
 const studentOriginBadge = student => student.originGroup ? `<span class="student-origin-badge" title="Grupo de procedencia">${esc(student.originGroup)}</span>` : '';
 const originEqual = (a, b) => String(a || '').localeCompare(String(b || ''), 'es', { sensitivity: 'base', numeric: true }) === 0;
-/** Cabeceras de grupo solo en el modo específico: las filas no modifican las notas. */
-function originGroupHeader(students, index, colspan) {
+function renderGradeTableBodies(students, renderRow, columnCount, emptyMessage) {
+    if (!students.length)
+        return `<tbody><tr><td class="empty-table-message" colspan="${columnCount}">${emptyMessage}</td></tr></tbody>`;
     if (STATE.studentSort !== 'originGroup')
-        return '';
-    const group = students[index].originGroup || '';
-    if (index > 0 && originEqual(group, students[index - 1].originGroup || ''))
-        return '';
-    const number = students.filter(s => originEqual(group, s.originGroup || '')).length;
-    return `<tr class="student-origin-divider"><th colspan="${colspan}" scope="rowgroup"><span>Grupo de procedencia: ${esc(group || 'Sin etiqueta')}</span><span>${number} ${number === 1 ? 'alumno' : 'alumnos'}</span></th></tr>`;
+        return `<tbody>${students.map(renderRow).join('')}</tbody>`;
+    const groups = [];
+    for (const student of students) {
+        const group = groups.at(-1);
+        if (group && originEqual(group.name, student.originGroup))
+            group.students.push(student);
+        else
+            groups.push({ name: student.originGroup || '', students: [student] });
+    }
+    return groups.map(({ name, students: members }) => `<tbody class="student-origin-group">
+    <tr class="student-origin-divider"><th class="name-col" scope="rowgroup">
+      <span>Grupo de procedencia: ${esc(name || 'Sin etiqueta')}</span>
+      <small>${members.length} ${members.length === 1 ? 'alumno' : 'alumnos'}</small>
+    </th><td colspan="${columnCount - 1}" aria-hidden="true"></td></tr>
+    ${members.map(renderRow).join('')}</tbody>`).join('');
 }
 function originDirectoryHeader(students, index) {
     if (STATE.studentSort !== 'originGroup')
@@ -4509,11 +4825,27 @@ function commit(action, label = 'Modificar cuaderno') {
         (0, model_js_1.assertModel)(next);
         if (JSON.stringify(before) === JSON.stringify(next))
             return;
+        // Guardar también el scroll al comenzar la escritura para que la reconstrucción
+        // completa del DOM tras persistir no vuelva al principio de la página/tabla.
+        const notebookScroll = label === 'Editar nota' && STATE.tab === 'cuaderno' ?
+            { x: window.scrollX, y: window.scrollY, left: $('.table-scroller')?.scrollLeft ?? 0, top: $('.table-scroller')?.scrollTop ?? 0 } : null;
         (0, cuaderno_js_1.markBookChange)(next, before);
         await persist(next);
         STATE.history = (0, history_js_1.recordChange)(STATE.history, before, next, label);
         STATE.doc = next;
         render();
+        if (notebookScroll) {
+            const restore = () => {
+                const table = $('.table-scroller');
+                if (table) {
+                    table.scrollLeft = notebookScroll.left;
+                    table.scrollTop = notebookScroll.top;
+                }
+                window.scrollTo(notebookScroll.x, notebookScroll.y);
+            };
+            restore();
+            requestAnimationFrame(restore);
+        }
     });
 }
 function navigateHistory(direction) {
@@ -4618,6 +4950,7 @@ async function init() {
     }
 }
 function showUnlock(isNew) {
+    unbindGradeTableHeaders();
     STATE.doc = null;
     STATE.key = null;
     STATE.salt = null;
@@ -5102,13 +5435,14 @@ async function savePreparedCopy(prepared, filename) {
         button.disabled = false;
     }
 }
-/** Navegación minimalista: tres destinos diarios y un menú de herramientas.
+/** Navegación minimalista: destinos diarios y un menú de herramientas.
  * Las cinco vistas del cuaderno siguen existiendo como navegación secundaria. */
 const workspaceDisclosures = { tools: false, course: false, group: false, academic: false };
 const PRIMARY_WORKSPACE_TABS = [
     ['cuaderno', 'Cuaderno', '▦'],
     ['planificador', 'Agenda', '▣'],
-    ['evaluaciones', 'Evaluaciones', '◷']
+    ['evaluaciones', 'Evaluaciones', '◷'],
+    ['extraescolares', 'Extraescolares', '▤']
 ];
 const ACADEMIC_WORKSPACE_TABS = [
     ['curriculo', 'Currículo', '◇'],
@@ -5119,7 +5453,6 @@ const NOTEBOOK_WORKSPACE_TABS = [
     ['cuaderno', 'Notas'],
     ['calculos', 'Cálculos'],
     ['competencias', 'Competencias'],
-    ['final', 'Evaluación final'],
     ['alumno', 'Vista alumno']
 ];
 function workspaceTab([key, label, glyph]) {
@@ -5151,7 +5484,12 @@ function renderAcademicQuickNav() {
 }
 function renderPeriodButtons() {
     const periods = [...STATE.doc.periods].sort((a, b) => a.order - b.order);
-    return `<nav class="term-bar" aria-label="Períodos de calificación"><div class="term-buttons" role="group" aria-label="Períodos">${periods.map(p => `<span class="term-item ${STATE.tab === 'cuaderno' && STATE.periodId === p.id ? 'active' : ''}"><button type="button" class="term-button ${STATE.tab === 'cuaderno' && STATE.periodId === p.id ? 'active' : ''}" data-period-choice="${esc(p.id)}" aria-pressed="${STATE.tab === 'cuaderno' && STATE.periodId === p.id}" title="Seleccionar ${esc(p.name)} (doble clic para gestionar)">${esc(p.name)}</button><button type="button" class="term-edit" data-rename-period="${esc(p.id)}" aria-label="Gestionar ${esc(p.name)}" title="Renombrar, reordenar o eliminar ${esc(p.name)}">✎</button></span>`).join('')}<button type="button" class="term-add" id="new-period" aria-label="Añadir período" title="Crear período">+ <span>Período</span></button></div></nav>${STATE.tab === 'cuaderno' ? (0, notebook_evaluation_notice_js_1.renderNotebookEvaluationNotice)(STATE.doc, STATE.groupId, STATE.periodId) : ''}`;
+    const periodButton = p => `<span class="term-item ${['cuaderno', 'calculos', 'competencias'].includes(STATE.tab) && STATE.periodId === p.id ? 'active' : ''}"><button type="button" class="term-button ${['cuaderno', 'calculos', 'competencias'].includes(STATE.tab) && STATE.periodId === p.id ? 'active' : ''}" data-period-choice="${esc(p.id)}" aria-pressed="${['cuaderno', 'calculos', 'competencias'].includes(STATE.tab) && STATE.periodId === p.id}" title="Seleccionar ${esc(p.name)} (doble clic para gestionar)">${esc(p.name)}</button><button type="button" class="term-edit" data-rename-period="${esc(p.id)}" aria-label="Gestionar ${esc(p.name)}" title="Renombrar, reordenar o eliminar ${esc(p.name)}">✎</button></span>`;
+    const lastPeriod = periods.at(-1);
+    // El último período y la evaluación final forman un mismo bloque visual,
+    // también en el diseño móvil de dos columnas.
+    const finalButton = `<button type="button" class="term-button term-final ${STATE.tab === 'final' ? 'active' : ''}" data-academic-quick="final" aria-pressed="${STATE.tab === 'final'}" ${STATE.tab === 'final' ? 'aria-current="page"' : ''}>Evaluación final</button>`;
+    return `<nav class="term-bar" aria-label="Períodos de calificación"><div class="term-buttons" role="group" aria-label="Períodos">${periods.slice(0, -1).map(periodButton).join('')}<span class="term-last-and-final">${lastPeriod ? periodButton(lastPeriod) : ''}${finalButton}</span><button type="button" class="term-add" id="new-period" aria-label="Añadir período" title="Crear período">+ <span>Período</span></button></div></nav>${STATE.tab === 'cuaderno' ? (0, notebook_evaluation_notice_js_1.renderNotebookEvaluationNotice)(STATE.doc, STATE.groupId, STATE.periodId) : ''}`;
 }
 function render() {
     if (!STATE.doc)
@@ -5169,6 +5507,7 @@ function render() {
     const group = currentGroup();
     applyTheme();
     unbindClassStats();
+    unbindGradeTableHeaders();
     if (STATE.studentPresentation) {
         root.innerHTML = `<main class="student-presentation">${renderStudentView()}</main>`;
         bindStudentView();
@@ -5199,7 +5538,7 @@ function render() {
     </div>
   </details>
   <button class="lock-btn" id="lock">Bloquear</button>
-</div></header><main class="content"><div class="workspace">${renderNavigation()}<div class="work-area">${!['planificador', 'evaluaciones'].includes(STATE.tab) ? `<div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level, STATE.subject)])} · CUADERNO ACADÉMICO · v1.0</div><h1>${STATE.tab === 'evaluaciones' ? 'Sesiones de evaluación' : esc(subjectLabel) + ' <span class="muted-slash">/</span> ' + esc(group?.name || 'Sin grupo')}</h1><p class="subtitle">${STATE.tab === 'evaluaciones' ? 'Organización por tutorías y evaluaciones · Almacenamiento cifrado local' : esc(levelLabel) + ' · ' + esc(group?.course || 'Curso escolar por configurar') + ' · ' + esc(period?.name || '') + ' · Almacenamiento cifrado local'}</p></div><span class="demo-tag">⚠ Copias solo en almacenamiento local</span></div>` : ''}<p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo" ${STATE.tab === 'planificador' ? 'hidden' : ''}>
+</div></header><main class="content"><div class="workspace">${renderNavigation()}<div class="work-area">${!['planificador', 'evaluaciones', 'extraescolares'].includes(STATE.tab) ? `<div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level, STATE.subject)])} · CUADERNO ACADÉMICO · v1.0</div><h1>${STATE.tab === 'evaluaciones' ? 'Sesiones de evaluación' : esc(subjectLabel) + ' <span class="muted-slash">/</span> ' + esc(group?.name || 'Sin grupo')}</h1><p class="subtitle">${STATE.tab === 'evaluaciones' ? 'Organización por tutorías y evaluaciones · Almacenamiento cifrado local' : esc(levelLabel) + ' · ' + esc(group?.course || 'Curso escolar por configurar') + ' · ' + esc(period?.name || '') + ' · Almacenamiento cifrado local'}</p></div><span class="demo-tag">⚠ Copias solo en almacenamiento local</span></div>` : ''}<p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo" ${['planificador', 'extraescolares'].includes(STATE.tab) ? 'hidden' : ''}>
   <div class="selectors">
     <div class="course-switch" role="group" aria-label="Seleccionar asignatura" title="Desliza horizontalmente para ver todas las materias en el móvil">
       <div class="course-buttons">${courseChoices.map(x => `<button type="button" class="btn course-choice" data-course-level="${esc(x.level)}" data-course-subject="${esc(x.subject)}" aria-pressed="${STATE.level === x.level && STATE.subject === x.subject}" title="${esc(x.subjectName + ' · ' + x.stage)}"><strong class="course-name">${esc(x.subjectName)}</strong><small class="course-group-caption" title="${esc(x.groupNames.join(' · ') || 'Sin grupo creado')}">${esc(x.groupNames.length ? x.groupNames.join(' · ') : 'Sin grupo · crear grupo')}</small></button>`).join('')}</div>
@@ -5229,7 +5568,7 @@ function render() {
     </details>
     <input type="file" id="csv-file" class="hidden" accept=".csv,text/csv"/>
   </div>
-</div>${hasGroup && ['cuaderno', 'calculos', 'competencias', 'final', 'alumno'].includes(STATE.tab) ? renderAcademicQuickNav() : ''}${hasGroup && STATE.tab === 'cuaderno' ? renderPeriodButtons() : ''}<div id="tab-content">${!hasGroup && STATE.tab !== 'ajustes' && STATE.tab !== 'rubricas' && STATE.tab !== 'curriculo' && STATE.tab !== 'planificador' && STATE.tab !== 'evaluaciones' ? `<section class="panel panel-pad no-group-state"><h2>No hay grupos de ${esc(subjectLabel)}</h2><p>Selecciona otro grupo o crea uno nuevo para esta asignatura. No se mezclarán las calificaciones de materias distintas.</p>${STATE.level === 'legacy' ? '<p>Clasifica primero el grupo anterior para utilizarlo en uno de los cursos disponibles.</p>' : '<button class="btn primary" id="new-group-empty">+ Crear primer grupo</button>'}</section>` : STATE.tab === 'cuaderno' ? renderNotebook() : STATE.tab === 'planificador' ? (0, planner_ui_js_1.renderPlanner)(STATE.doc, STATE) : STATE.tab === 'evaluaciones' ? (0, evaluation_workspace_js_1.renderEvaluationWorkspace)(STATE.doc, STATE) : STATE.tab === 'alumno' ? renderStudentView() : STATE.tab === 'final' ? renderFinalEvaluation() : STATE.tab === 'calculos' ? renderRules() : STATE.tab === 'rubricas' ? renderRubrics() : STATE.tab === 'competencias' ? renderCompetencies() : STATE.tab === 'curriculo' ? renderCurriculum() : renderSettings()}</div></div></div></main></div>`;
+</div>${hasGroup && ['cuaderno', 'calculos', 'competencias', 'final', 'alumno'].includes(STATE.tab) ? renderAcademicQuickNav() : ''}${hasGroup && ['cuaderno', 'calculos', 'competencias', 'final', 'alumno'].includes(STATE.tab) ? renderPeriodButtons() : ''}<div id="tab-content">${!hasGroup && STATE.tab !== 'ajustes' && STATE.tab !== 'rubricas' && STATE.tab !== 'curriculo' && STATE.tab !== 'planificador' && STATE.tab !== 'evaluaciones' && STATE.tab !== 'extraescolares' ? `<section class="panel panel-pad no-group-state"><h2>No hay grupos de ${esc(subjectLabel)}</h2><p>Selecciona otro grupo o crea uno nuevo para esta asignatura. No se mezclarán las calificaciones de materias distintas.</p>${STATE.level === 'legacy' ? '<p>Clasifica primero el grupo anterior para utilizarlo en uno de los cursos disponibles.</p>' : '<button class="btn primary" id="new-group-empty">+ Crear primer grupo</button>'}</section>` : STATE.tab === 'cuaderno' ? renderNotebook() : STATE.tab === 'planificador' ? (0, planner_ui_js_1.renderPlanner)(STATE.doc, STATE) : STATE.tab === 'evaluaciones' ? (0, evaluation_workspace_js_1.renderEvaluationWorkspace)(STATE.doc, STATE) : STATE.tab === 'extraescolares' ? (0, extracurricular_ui_js_1.renderExtracurricular)(STATE.doc, esc) : STATE.tab === 'alumno' ? renderStudentView() : STATE.tab === 'final' ? renderFinalEvaluation() : STATE.tab === 'calculos' ? renderRules() : STATE.tab === 'rubricas' ? renderRubrics() : STATE.tab === 'competencias' ? renderCompetencies() : STATE.tab === 'curriculo' ? renderCurriculum() : renderSettings()}</div></div></div></main></div>`;
     bindCommon();
     wirePwaButtons();
     updatePortableStatus();
@@ -5247,14 +5586,14 @@ function render() {
     revealSelectedButton($('.tabs'), $('.tabs .tab.active'));
     revealSelectedButton($('.course-buttons'), $('.course-buttons .course-choice[aria-pressed="true"]'));
     revealSelectedButton($('.academic-quick-nav'), $('.academic-quick-nav .academic-quick-active'));
-    if (!hasGroup && STATE.tab !== 'ajustes' && STATE.tab !== 'rubricas' && STATE.tab !== 'curriculo' && STATE.tab !== 'planificador' && STATE.tab !== 'evaluaciones') {
+    if (!hasGroup && STATE.tab !== 'ajustes' && STATE.tab !== 'rubricas' && STATE.tab !== 'curriculo' && STATE.tab !== 'planificador' && STATE.tab !== 'evaluaciones' && STATE.tab !== 'extraescolares') {
         $('#new-group-empty')?.addEventListener('click', () => $('#new-group').click());
     }
     else if (STATE.tab === 'cuaderno')
         bindNotebook();
     else if (STATE.tab === 'planificador') {
         const api = (0, planner_ui_js_1.bindPlanner)(STATE.doc, STATE, {
-            render, commit, fieldsModal, dialog, toast, fail, getDoc: () => STATE.doc,
+            render, commit, fieldsModal, dialog, toast, fail, showInfo, getDoc: () => STATE.doc,
             openEvaluations: () => { STATE.evaluationWorkspaceTab = 'sesiones'; STATE.tab = 'evaluaciones'; render(); }
         });
         if (STATE.plannerEventRequest) {
@@ -5271,6 +5610,8 @@ function render() {
                 defaultYear: (0, planner_js_1.activeYear)(STATE.doc).name
             })
         });
+    else if (STATE.tab === 'extraescolares')
+        (0, extracurricular_ui_js_1.bindExtracurricular)({ root, dialog, doc: STATE.doc, getDoc: () => STATE.doc, commit, fail, esc, state: STATE });
     else if (STATE.tab === 'alumno')
         bindStudentView();
     else if (STATE.tab === 'final')
@@ -5287,6 +5628,8 @@ function render() {
         bindSettings();
     paintGrades(root);
     paintCategoryColumns(root);
+    paintNotebookZoom(root);
+    bindGradeTableHeaders();
     paintStudentCategoryCards(root);
     bindClassStatistics();
     setStatus();
@@ -5337,10 +5680,10 @@ function renderNotebook() {
     }
     const headers = assessments.map(a => {
         const c = STATE.doc.categories.find(c => c.id === a.categoryId);
-        return `<th class="category-tinted" data-column-category="${esc(a.categoryId)}"><span class="column-heading">${esc(a.name)}${classStatButton('assessment', a.id, a.name)}<button type="button" class="assessment-menu" data-edit="${esc(a.id)}" aria-label="Configurar ${esc(a.name)}" title="Editar, ordenar o eliminar actividad">⋯</button></span><small>${a.recoveryOf ? 'Recuperación · ' : ''}${esc(c?.name || '')} · ${a.rubricId ? 'Rúbrica /10' : '/' + esc(a.maxScore) + (a.convertToTen ? ' → /10' : ' · sin conversión')}${a.weight !== 1 ? ' · ×' + esc(a.weight) : ''}${a.orthography?.enabled ? ' · faltas recuperables' : ''}${a.greekEtymologyBonusEnabled ? ' · +1 etimología griega' : ''}</small></th>`;
+        return `<th class="category-tinted" data-column-category="${esc(a.categoryId)}"><span class="column-heading"><span class="assessment-column-title" title="${esc(a.name)}">${esc(a.name)}</span>${classStatButton('assessment', a.id, a.name)}<button type="button" class="assessment-menu" data-edit="${esc(a.id)}" aria-label="Configurar ${esc(a.name)}" title="Editar, ordenar o eliminar actividad">⋯</button></span><small>${a.recoveryOf ? 'Recuperación · ' : ''}${esc(c?.name || '')} · ${a.rubricId ? 'Rúbrica /10' : '/' + esc(a.maxScore) + (a.convertToTen ? ' → /10' : ' · sin conversión')}${a.weight !== 1 ? ' · ×' + esc(a.weight) : ''}${a.orthography?.enabled ? ' · faltas recuperables' : ''}${a.greekEtymologyBonusEnabled ? ' · +1 etimología griega' : ''}</small></th>`;
     }).join('');
     const categoryCell = a => ` class="category-tinted" data-column-category="${esc(a.categoryId)}"`;
-    const rows = students.map((s, i) => `${originGroupHeader(students, i, assessments.length + 3)}<tr><td class="name-col"><div class="student-name-cell"><span class="student-name-label">${esc(s.name)}</span>${studentOriginBadge(s)}<button class="view-student" type="button" title="Mostrar solo las notas de este alumno" data-view-student="${esc(s.id)}">Ver</button><button class="view-student" type="button" title="Editar, ordenar o quitar alumno" data-edit-student="${esc(s.id)}">⋯</button></div></td>${assessments.map(a => {
+    const bodies = renderGradeTableBodies(students, s => `<tr><td class="name-col"><div class="student-name-cell"><span class="student-name-label">${esc(s.name)}</span>${studentOriginBadge(s)}<button class="view-student" type="button" title="Mostrar solo las notas de este alumno" data-view-student="${esc(s.id)}">Ver</button><button class="view-student" type="button" title="Editar, ordenar o quitar alumno" data-edit-student="${esc(s.id)}">⋯</button></div></td>${assessments.map(a => {
         const g = gradesByStudent.get(s.id)?.get(a.id);
         const npLabel = g?.notSubmitted ? 'Quitar «No presentado»' : 'Marcar «No presentado»';
         const ajButton = `<button type="button" class="aj-button ${g?.pendingJustified ? 'active' : ''}" data-aj-student="${esc(s.id)}" data-aj-assessment="${esc(a.id)}" aria-pressed="${!!g?.pendingJustified}" aria-label="${g?.pendingJustified ? 'Quitar' : 'Marcar'} ausencia justificada pendiente: ${esc(s.name)} · ${esc(a.name)}" title="${g?.pendingJustified ? 'Reactivar calificación anterior' : 'Pendiente por ausencia justificada (no computa)'}">AJ</button>`;
@@ -5379,7 +5722,7 @@ function renderNotebook() {
             ? `<small class="original-score">(<input class="note-input original-note-input" type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota original de ${esc(s.name)} en ${esc(a.name)}, sobre ${esc(rawFmt(a.maxScore))}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${esc(rawFmt(g.score))}"/> /${esc(rawFmt(a.maxScore))})</small>`
             : '';
         return `<td${categoryCell(a)}>${gradeCellStack(main, gradeCellActions(s, a, g, npButton, ajButton), secondary)}</td>`;
-    }).join('')}<td class="final-col"><button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip((0, calculations_js_1.overallGrade)(STATE.doc, s.id, STATE.groupId, STATE.periodId))}</button></td><td class="itaca-col"><button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc, s.id, STATE.groupId, STATE.periodId)}${(0, model_js_1.itacaStudentRule)(STATE.doc, s.id, STATE.periodId) !== 'general' ? '<span class="itaca-exception" title="Excepción individual">*</span>' : ''}</button></td></tr>`).join('');
+    }).join('')}<td class="final-col"><button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip((0, calculations_js_1.overallGrade)(STATE.doc, s.id, STATE.groupId, STATE.periodId))}</button></td><td class="itaca-col"><button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc, s.id, STATE.groupId, STATE.periodId)}${(0, model_js_1.itacaStudentRule)(STATE.doc, s.id, STATE.periodId) !== 'general' ? '<span class="itaca-exception" title="Excepción individual">*</span>' : ''}</button></td></tr>`, assessments.length + 3, 'Aún no hay alumnos en este grupo.');
     const sum = (0, model_js_1.effectiveCategories)(STATE.doc, STATE.groupId, STATE.periodId).reduce((s, c) => s + c.weight, 0);
     const problems = students.flatMap(st => (0, calculations_js_1.periodCalculationWarnings)(STATE.doc, st.id, STATE.groupId, STATE.periodId)).filter(v => v.includes('sin conversión'));
     return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><strong>Calificaciones</strong><p>Introduce notas directamente. Pulsa «⋯» en una celda para NP, AJ y observaciones; «⋯» en una columna para configurarla.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><details class="notebook-more-actions">
@@ -5396,16 +5739,18 @@ function renderNotebook() {
         <button type="button" class="btn" id="schedule-exam">Programar examen</button>
       </div>
     </div>
-  </details></div></div><div class="student-order-bar">${studentSortControls()}</div><details class="notebook-grade-options"><summary>Ítaca y procedencias <span aria-hidden="true">⌄</span></summary><div class="notebook-grade-options-body"><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key, label]) => opt(key, label, (0, model_js_1.itacaGroupRule)(STATE.doc, STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div></div></details><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period', STATE.periodId, 'nota final de la evaluación')}</span></th><th class="itaca-col"><button type="button" id="configure-itaca-attitude" class="itaca-column-config" title="Configurar el requisito de Actitud para subir la Nota Ítaca" aria-label="Configurar condición de Actitud para subir la Nota Ítaca">Nota Ítaca <span aria-hidden="true">⚙</span></button><small>/10 · ${(0, model_js_1.itacaAttitudeCondition)(STATE.doc, STATE.groupId, STATE.periodId) ? 'Condición activa' : 'Configurar actitud'}</small></th></tr></thead><tbody>${rows || `<tr><td colspan="${assessments.length + 3}" class="empty-table-message">Aún no hay alumnos en este grupo.</td></tr>`}</tbody></table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum - 100) > 1e-8 ? '⚠ Porcentajes de este periodo: ' + sum + ' %. Corrige la suma para calcular la nota.' : 'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length ? `<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>` : ''}</span></div></section><details class="legend notebook-legend"><summary>ⓘ Significado de las notas y colores</summary><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></details>`;
+  </details></div></div><div class="student-order-bar">${studentSortControls()}</div><details class="notebook-grade-options"><summary>Ítaca y procedencias <span aria-hidden="true">⌄</span></summary><div class="notebook-grade-options-body"><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key, label]) => opt(key, label, (0, model_js_1.itacaGroupRule)(STATE.doc, STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div></div></details><div class="notebook-zoom-tools" role="group" aria-label="Zoom del cuaderno"><span>Zoom</span><button class="btn small" type="button" id="notebook-zoom-out" aria-label="Reducir zoom de la tabla" ${STATE.notebookZoom <= NOTEBOOK_ZOOM_MIN ? 'disabled' : ''}>−</button><output id="notebook-zoom-value" aria-live="polite">${STATE.notebookZoom} %</output><button class="btn small" type="button" id="notebook-zoom-in" aria-label="Aumentar zoom de la tabla" ${STATE.notebookZoom >= NOTEBOOK_ZOOM_MAX ? 'disabled' : ''}>+</button></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period', STATE.periodId, 'nota final de la evaluación')}</span></th><th class="itaca-col"><button type="button" id="configure-itaca-attitude" class="itaca-column-config" title="Configurar el requisito de Actitud para subir la Nota Ítaca" aria-label="Configurar condición de Actitud para subir la Nota Ítaca">Nota Ítaca <span aria-hidden="true">⚙</span></button><small>/10 · ${(0, model_js_1.itacaAttitudeCondition)(STATE.doc, STATE.groupId, STATE.periodId) ? 'Condición activa' : 'Configurar actitud'}</small></th></tr></thead>${bodies}</table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum - 100) > 1e-8 ? '⚠ Porcentajes de este periodo: ' + sum + ' %. Corrige la suma para calcular la nota.' : 'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length ? `<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>` : ''}</span></div></section><details class="legend notebook-legend"><summary>ⓘ Significado de las notas y colores</summary><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></details>`;
 }
 const ITACA_OPTIONS = [['half', 'Redondear desde ,5'], ['seven', 'Redondear desde ,7'], ['none', 'Conservar parte entera (sin subir)']];
 const RULE_LABELS = { mean: 'Media aritmética', weighted_mean: 'Media ponderada por actividad', highest: 'Mejor nota', best_n: 'Media de las N mejores', last: 'Última evaluada', latest_if_highest: 'Última si iguala o supera la mejor; si no, media' };
 function renderRules() {
     const categories = (0, model_js_1.effectiveCategories)(STATE.doc, STATE.groupId, STATE.periodId);
+    const activeIds = new Set(categories.map(c => c.id));
+    const unusedCategories = (0, model_js_1.availableCategories)(STATE.doc, STATE.groupId).filter(c => !activeIds.has(c.id));
     const sum = categories.reduce((s, x) => s + x.weight, 0);
     const profile = STATE.doc.gradingProfiles.find(x => x.groupId === STATE.groupId && x.periodId === STATE.periodId);
     const individualCount = STATE.doc.individualCategoryRules.filter(r => r.periodId === STATE.periodId && STATE.doc.students.some(s => s.id === r.studentId && s.groupId === STATE.groupId)).length;
-    return `<div class="grid-two"><section class="panel panel-pad"><div class="section-title-row"><h2>Porcentajes y reglas</h2><div class="tool-actions"><button class="btn small primary" id="individual-rules">Reglas por alumno${individualCount ? ` (${individualCount})` : ``}</button><button class="btn small" id="new-category">+ Categoría</button></div></div><p class="subtitle"><strong>${esc(currentGroup().name)} · ${esc(currentPeriod().name)}</strong>. Configura este periodo sin afectar a los demás. Puedes retirar categorías vacías de este grupo sin modificar los otros. ${profile ? 'Personalizado' : 'Se aplican valores predeterminados'}.</p><p class="hint">Cada categoría tiene un color distinto, aplicado a todas sus columnas en las evaluaciones. Puedes personalizarlo aquí y volver al color predeterminado.</p>${categories.map(c => `<div class="rule-row"><div><div class="category-header"><div class="rule-title class-stat-heading">${esc(c.name)} ${classStatButton('category', c.id, c.name)}</div><button class="btn small category-delete" type="button" data-delete-category="${esc(c.id)}" title="Quitar categoría del grupo si no tiene actividades en ninguna evaluación">Eliminar</button></div><div class="hint">${c.rule === 'weighted_mean' ? 'Usa pesos de actividades' : 'Porcentaje en esta evaluación'}</div><label class="category-color-control">Color de columnas <input type="color" data-category-color="${esc(c.id)}" value="${esc((0, model_js_1.categoryColumnColor)(STATE.doc, c.id))}" aria-label="Color de las actividades de ${esc(c.name)}" title="Aplicar color a las columnas de esta categoría"/></label><button type="button" class="category-color-reset" data-category-color-reset="${esc(c.id)}" ${c.columnColor ? '' : 'disabled'} >Color predeterminado</button></div><label><span class="visually-hidden">Porcentaje de ${esc(c.name)}</span><input class="number-field" type="number" data-periodweight="${esc(c.id)}" min="0" max="100" step="any" value="${esc(c.weight)}"/> %</label><label><span class="visually-hidden">Regla de ${esc(c.name)}</span><select data-periodrule="${esc(c.id)}">${Object.entries(RULE_LABELS).map(([key, label]) => opt(key, label, c.rule)).join('')}</select></label><label class="best-n-box ${c.rule === 'best_n' ? '' : 'hidden'}">Mejores <input type="number" class="number-field" data-bestcount="${esc(c.id)}" min="1" max="100" step="1" value="${esc(c.bestCount ?? 2)}"/></label></div>`).join('')}<div class="sum-line ${Math.abs(sum - 100) > 1e-8 ? 'bad' : ''}">Total del periodo: ${sum} % ${Math.abs(sum - 100) > 1e-8 ? '— ajusta hasta llegar al 100 %' : '✓'}</div><div class="settings-actions"><button class="btn small" id="reset-rules">Restablecer reglas de este periodo</button><label>Copiar de <select id="source-period"><option value="">Selecciona periodo</option>${[...STATE.doc.periods].sort((a, b) => a.order - b.order).filter(x => x.id !== STATE.periodId).map(x => opt(x.id, x.name, '')).join('')}</select></label><button class="btn small" id="copy-rules">Aplicar copia</button></div></section><section class="panel panel-pad"><h2>Cómo se calcula</h2><p>Cada actividad se convierte a 0–10 cuando está activada la conversión. Una nota bruta superior a 10 bloquea los cálculos dependientes hasta corregir la escala. Solo se utilizan las actividades evaluadas; una casilla vacía no es un cero.</p><p>Las excepciones individuales permiten usar siempre la media, obligarla cuando un NP computa como cero o sustituir por el último examen. AJ (ausencia justificada pendiente) queda fuera del cálculo; la nota previa se conserva al activar y desactivar AJ.</p><p>La media ponderada usa los pesos individuales de las actividades. La regla «N mejores» elige las N mayores notas normalizadas; si hay menos, utiliza las disponibles.</p><div class="section-note"><strong>Recuperaciones.</strong> Una recuperación enlazada sustituye la evidencia original si eliges «sustituir siempre», o cuenta solo si mejora su nota con «conservar la mayor». Nunca se suma como segundo examen. Una actividad posterior sin nota no puede considerarse la «última» para activar la regla condicional; en ese caso se usa la media de las evaluadas.</div><p class="note">Los porcentajes deben sumar 100. Una categoría sin evidencias se excluye y el peso de las evaluadas se redistribuye. Las competencias se calculan con sus propios vínculos.</p></section></div>`;
+    return `<div class="grid-two"><section class="panel panel-pad"><div class="section-title-row"><h2>Porcentajes y reglas</h2><div class="tool-actions"><button class="btn small primary" id="individual-rules">Reglas por alumno${individualCount ? ` (${individualCount})` : ``}</button><button class="btn small" id="new-category">+ Categoría</button></div></div><p class="subtitle"><strong>${esc(currentGroup().name)} · ${esc(currentPeriod().name)}</strong>. Elige aquí qué categorías evalúas en esta materia y evaluación. Cada período puede usar un conjunto distinto, con porcentajes y reglas propios. ${profile ? 'Configuración personalizada' : 'Se aplican las categorías predeterminadas'}.</p><p class="hint">Cada categoría conserva su color en todas las evaluaciones donde se utilice. Retirar una categoría solo la oculta en esta evaluación; no borra nada de otros períodos.</p><div class="period-category-picker" role="group" aria-label="Categorías disponibles para esta evaluación"><label>Añadir categoría existente <select id="category-to-enable" ${unusedCategories.length ? '' : 'disabled'}><option value="">Seleccionar categoría</option>${unusedCategories.map(c => opt(c.id, c.name, '')).join('')}</select></label><button type="button" class="btn small" id="enable-category" ${unusedCategories.length ? '' : 'disabled'}>Activar en esta evaluación</button></div>${categories.map(c => `<div class="rule-row"><div><div class="category-header"><div class="rule-title class-stat-heading">${esc(c.name)} ${classStatButton('category', c.id, c.name)}</div><button class="btn small category-delete" type="button" data-delete-category="${esc(c.id)}" title="Retirar solo de esta evaluación si no tiene actividades o reglas asociadas">Retirar</button></div><div class="hint">${c.rule === 'weighted_mean' ? 'Usa pesos de actividades' : 'Porcentaje en esta evaluación'}</div><label class="category-color-control">Color de columnas <input type="color" data-category-color="${esc(c.id)}" value="${esc((0, model_js_1.categoryColumnColor)(STATE.doc, c.id))}" aria-label="Color de las actividades de ${esc(c.name)}" title="Aplicar color a las columnas de esta categoría"/></label><button type="button" class="category-color-reset" data-category-color-reset="${esc(c.id)}" ${c.columnColor ? '' : 'disabled'} >Color predeterminado</button></div><label><span class="visually-hidden">Porcentaje de ${esc(c.name)}</span><input class="number-field" type="number" data-periodweight="${esc(c.id)}" min="0" max="100" step="any" value="${esc(c.weight)}"/> %</label><label><span class="visually-hidden">Regla de ${esc(c.name)}</span><select data-periodrule="${esc(c.id)}">${Object.entries(RULE_LABELS).map(([key, label]) => opt(key, label, c.rule)).join('')}</select></label><label class="best-n-box ${c.rule === 'best_n' ? '' : 'hidden'}">Mejores <input type="number" class="number-field" data-bestcount="${esc(c.id)}" min="1" max="100" step="1" value="${esc(c.bestCount ?? 2)}"/></label></div>`).join('')}<div class="sum-line ${Math.abs(sum - 100) > 1e-8 ? 'bad' : ''}">Total del periodo: ${sum} % ${Math.abs(sum - 100) > 1e-8 ? '— ajusta hasta llegar al 100 %' : '✓'}</div><div class="settings-actions"><button class="btn small" id="reset-rules">Restablecer porcentajes y reglas</button><label>Copiar de <select id="source-period"><option value="">Selecciona periodo</option>${[...STATE.doc.periods].sort((a, b) => a.order - b.order).filter(x => x.id !== STATE.periodId).map(x => opt(x.id, x.name, '')).join('')}</select></label><button class="btn small" id="copy-rules">Copiar categorías y reglas</button></div></section><section class="panel panel-pad"><h2>Cómo se calcula</h2><p>Cada actividad se convierte a 0–10 cuando está activada la conversión. Una nota bruta superior a 10 bloquea los cálculos dependientes hasta corregir la escala. Solo se utilizan las actividades evaluadas; una casilla vacía no es un cero.</p><p>Las excepciones individuales permiten usar siempre la media, obligarla cuando un NP computa como cero o sustituir por el último examen. AJ (ausencia justificada pendiente) queda fuera del cálculo; la nota previa se conserva al activar y desactivar AJ.</p><p>La media ponderada usa los pesos individuales de las actividades. La regla «N mejores» elige las N mayores notas normalizadas; si hay menos, utiliza las disponibles.</p><div class="section-note"><strong>Recuperaciones.</strong> Una recuperación enlazada sustituye la evidencia original si eliges «sustituir siempre», o cuenta solo si mejora su nota con «conservar la mayor». Nunca se suma como segundo examen. Una actividad posterior sin nota no puede considerarse la «última» para activar la regla condicional; en ese caso se usa la media de las evaluadas.</div><p class="note">Los porcentajes deben sumar 100. Una categoría sin evidencias se excluye y el peso de las evaluadas se redistribuye. Las competencias se calculan con sus propios vínculos.</p></section></div>`;
 }
 function renderCompetencies() {
     const group = currentGroup(), catalog = (0, official_competencies_js_1.officialCompetenciesForGroup)(group, STATE.competencyVersion);
@@ -6057,11 +6402,11 @@ function renderFinalEvaluation() {
     const periods = [...STATE.doc.periods].sort((a, b) => a.order - b.order);
     const rule = cfg?.rule || 'mean';
     const students = allStudents();
-    const rows = students.map((student, i) => {
+    const bodies = renderGradeTableBodies(students, student => {
         const evidence = (0, calculations_js_1.finalEvidence)(STATE.doc, student.id, STATE.groupId);
-        return `${originGroupHeader(students, i, periods.length + 2)}<tr><td class="name-col"><span>${esc(student.name)}</span>${studentOriginBadge(student)}</td>${evidence.evidence.map(e => `<td><div class="final-period-cell"><span class="hint">Auto: ${gradeChip(e.automatic)}</span><input class="note-input ${e.manual !== null ? 'grade-colored' : ''}" ${e.manual !== null ? gradeStyle(e.manual) : ''} inputmode="decimal" type="text" maxlength="10" data-finalstudent="${esc(student.id)}" data-finalperiod="${esc(e.periodId)}" aria-label="Nota manual de ${esc(student.name)} en ${esc(e.name)}" placeholder="Automática" value="${e.manual === null ? '' : esc(String(e.manual).replace('.', ','))}"/><span class="hint">${e.manual === null ? 'Usando automática' : 'Usando manual'}</span></div></td>`).join('')}<td class="final-col"><strong>${gradeChip(evidence.grade)}</strong>${evidence.issue ? `<small class="warning-calculation">⚠ Revisa las notas de los periodos.</small>` : ''}</td></tr>`;
-    }).join('');
-    return `<section class="panel panel-pad"><h2>Evaluación final del curso</h2><p class="subtitle">Pestaña independiente de los periodos. Recupera automáticamente la nota final de cada evaluación. Para sustituirla, escribe una nota manual de 0 a 10; deja la casilla vacía para volver a la automática.</p><div class="final-config"><label>Regla final<select id="final-rule">${Object.entries(FINAL_RULE_LABELS).map(([k, v]) => opt(k, v, rule)).join('')}</select></label><div class="final-weights">${periods.map(p => `<label class="final-weight-block"><span>${esc(p.name)}</span><span class="final-include"><input type="checkbox" data-finalinclude="${esc(p.id)}" ${(cfg?.excludedPeriodIds || []).includes(p.id) ? '' : 'checked'}/>Incluir en final</span><span class="hint">Peso relativo</span><input type="number" min="0" max="1000" step="any" value="${esc(cfg?.weights?.[p.id] ?? 1)}" data-finalweight="${esc(p.id)}" ${rule === 'weighted_mean' ? '' : 'disabled'} /></label>`).join('')}</div></div><p class="hint">Los pesos son relativos, no necesitan sumar 100. Los periodos sin nota o desmarcados se excluyen del cálculo; los pesos solo se usan con media ponderada. Se conserva la precisión completa hasta mostrar el resultado.</p></section><section class="panel"><div class="panel-header"><strong>Resumen anual</strong><span class="hint">${esc(currentGroup().name)}</span></div><div class="student-order-bar">${studentSortControls()}</div><div class="table-scroller"><table class="grade-table final-table"><thead><tr><th class="name-col">Alumno</th>${periods.map(p => `<th><span class="class-stat-heading">${esc(p.name)} ${classStatButton('annual-period', p.id, p.name)}</span><small>Media final /10</small></th>`).join('')}<th class="final-col"><span class="class-stat-heading">Nota final curso ${classStatButton('course', STATE.groupId, 'nota final del curso')}</span></th></tr></thead><tbody>${rows || `<tr><td class="empty-table-message" colspan="${periods.length + 2}">No hay alumnos.</td></tr>`}</tbody></table></div></section>`;
+        return `<tr><td class="name-col"><span>${esc(student.name)}</span>${studentOriginBadge(student)}</td>${evidence.evidence.map(e => `<td><div class="final-period-cell"><span class="hint">Auto: ${gradeChip(e.automatic)}</span><input class="note-input ${e.manual !== null ? 'grade-colored' : ''}" ${e.manual !== null ? gradeStyle(e.manual) : ''} inputmode="decimal" type="text" maxlength="10" data-finalstudent="${esc(student.id)}" data-finalperiod="${esc(e.periodId)}" aria-label="Nota manual de ${esc(student.name)} en ${esc(e.name)}" placeholder="Automática" value="${e.manual === null ? '' : esc(String(e.manual).replace('.', ','))}"/><span class="hint">${e.manual === null ? 'Usando automática' : 'Usando manual'}</span></div></td>`).join('')}<td class="final-col"><strong>${gradeChip(evidence.grade)}</strong>${evidence.issue ? `<small class="warning-calculation">⚠ Revisa las notas de los periodos.</small>` : ''}</td></tr>`;
+    }, periods.length + 2, 'No hay alumnos.');
+    return `<section class="panel panel-pad"><h2>Evaluación final del curso</h2><p class="subtitle">Pestaña independiente de los periodos. Recupera automáticamente la nota final de cada evaluación. Para sustituirla, escribe una nota manual de 0 a 10; deja la casilla vacía para volver a la automática.</p><div class="final-config"><label>Regla final<select id="final-rule">${Object.entries(FINAL_RULE_LABELS).map(([k, v]) => opt(k, v, rule)).join('')}</select></label><div class="final-weights">${periods.map(p => `<label class="final-weight-block"><span>${esc(p.name)}</span><span class="final-include"><input type="checkbox" data-finalinclude="${esc(p.id)}" ${(cfg?.excludedPeriodIds || []).includes(p.id) ? '' : 'checked'}/>Incluir en final</span><span class="hint">Peso relativo</span><input type="number" min="0" max="1000" step="any" value="${esc(cfg?.weights?.[p.id] ?? 1)}" data-finalweight="${esc(p.id)}" ${rule === 'weighted_mean' ? '' : 'disabled'} /></label>`).join('')}</div></div><p class="hint">Los pesos son relativos, no necesitan sumar 100. Los periodos sin nota o desmarcados se excluyen del cálculo; los pesos solo se usan con media ponderada. Se conserva la precisión completa hasta mostrar el resultado.</p></section><section class="panel"><div class="panel-header"><strong>Resumen anual</strong><span class="hint">${esc(currentGroup().name)}</span></div><div class="student-order-bar">${studentSortControls()}</div><div class="table-scroller"><table class="grade-table final-table"><thead><tr><th class="name-col">Alumno</th>${periods.map(p => `<th><span class="class-stat-heading">${esc(p.name)} ${classStatButton('annual-period', p.id, p.name)}</span><small>Media final /10</small></th>`).join('')}<th class="final-col"><span class="class-stat-heading">Nota final curso ${classStatButton('course', STATE.groupId, 'nota final del curso')}</span></th></tr></thead>${bodies}</table></div></section>`;
 }
 function bindFinalEvaluation() {
     const groupId = STATE.groupId;
@@ -6130,7 +6475,7 @@ function openAssessmentCreator() {
     const kinds = [{ id: '', name: 'Nota numérica' }, ...STATE.doc.rubrics.map(r => ({ id: r.id, name: 'Rúbrica existente: ' + r.name })), { id: '__new', name: 'Crear rúbrica aquí' }, { id: '__import', name: 'Importar rúbrica Excel, CSV o JSON' }];
     dialog.classList.add('activity-modal');
     dialog.addEventListener('close', () => dialog.classList.remove('activity-modal'), { once: true });
-    dialog.innerHTML = `<form class="modal-inner" id="activity-form"><h2 id="modal-heading">Nueva actividad</h2><p class="subtitle">La nota siempre se normaliza a /10 si lo eliges; una rúbrica se transforma a /10 automáticamente.</p><div class="modal-fields"><label>Nombre de la actividad<input name="name" class="text-field" maxlength="150" required value="Examen"/></label><label>Categoría<select name="categoryId">${visibleCategories().map(c => opt(c.id, c.name)).join('')}</select></label><details class="activity-disclosure" open><summary><span class="disclosure-symbol" aria-hidden="true">Ⅰ</span> Escala y forma de calificación <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="activity-disclosure-body"><label>Forma de evaluar<select name="kind" id="activity-kind">${kinds.map(x => opt(x.id, x.name)).join('')}</select></label><div id="activity-new-rubric" class="activity-rubric-box hidden"><label>Nombre de la nueva rúbrica<input name="rubricName" class="text-field" value="Actitud" maxlength="150"/></label><label>Criterios, uno por línea (criterio; máximo; peso)<textarea name="rubricRows" class="text-field" rows="5" placeholder="Asistencia;2;20
+    dialog.innerHTML = `<form class="modal-inner" id="activity-form"><h2 id="modal-heading">Nueva actividad</h2><p class="subtitle">La nota siempre se normaliza a /10 si lo eliges; una rúbrica se transforma a /10 automáticamente.</p><div class="modal-fields"><label>Nombre de la actividad<input name="name" class="text-field" maxlength="150" required value="Examen"/></label><label>Categoría<select name="categoryId">${(0, model_js_1.effectiveCategories)(STATE.doc, STATE.groupId, STATE.periodId).map(c => opt(c.id, c.name)).join('')}</select></label><details class="activity-disclosure" open><summary><span class="disclosure-symbol" aria-hidden="true">Ⅰ</span> Escala y forma de calificación <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="activity-disclosure-body"><label>Forma de evaluar<select name="kind" id="activity-kind">${kinds.map(x => opt(x.id, x.name)).join('')}</select></label><div id="activity-new-rubric" class="activity-rubric-box hidden"><label>Nombre de la nueva rúbrica<input name="rubricName" class="text-field" value="Actitud" maxlength="150"/></label><label>Criterios, uno por línea (criterio; máximo; peso)<textarea name="rubricRows" class="text-field" rows="5" placeholder="Asistencia;2;20
 Participación;2;20"></textarea></label></div><div id="activity-import-rubric" class="activity-rubric-box hidden"><label>Archivo de rúbrica (.xlsx, .csv o .json)<input type="file" name="rubricFile" id="activity-rubric-file" accept=".xlsx,.csv,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/></label><p class="hint" id="activity-rubric-preview">Las rúbricas Excel con descriptores Bien/Regular/Mal se pueden importar directamente.</p></div><div id="activity-numeric-options" class="activity-numeric-options"><label>Nota máxima<input name="maxScore" class="text-field" type="number" min="0.01" max="1000" step="any" value="10"/></label><label>Conversión para cálculos<select name="convertToTen"><option value="true">Convertir a 0–10</option><option value="false">Usar la nota bruta</option></select></label></div></div></details><details class="activity-disclosure"><summary><span class="disclosure-symbol" aria-hidden="true">Ⅱ</span> Penalización ortográfica <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="activity-disclosure-body"><div class="orthography-activity-options" id="activity-orthography"><h3>Faltas de ortografía (opcional)</h3><label>Penalización recuperable<select name="orthEnabled" id="activity-orth-enabled"><option value="false">Desactivada</option><option value="true">Activada</option></select></label><div class="orthography-config-fields"><label>Descuento por falta (sobre 10)<input class="text-field" name="orthRate" type="number" step="0.01" min="0" max="10" value="${esc(STATE.doc.settings.orthographyDefaults?.penaltyPerFault ?? 0.10)}"/></label><label>Copias exigidas por falta<input class="text-field" name="orthCopies" type="number" step="1" min="1" max="1000" value="${esc(STATE.doc.settings.orthographyDefaults?.repetitions ?? 30)}"/></label><label>Devolución al entregar<select name="orthRecoverable"><option value="true">Sí</option><option value="false">No</option></select></label></div><p class="hint">La nota original no se pierde. La penalización se aplica después de convertir a /10; al marcar Entregadas se restaura la nota íntegra.</p></div></div></details><details id="activity-greek-etymology" class="activity-disclosure hidden"><summary><span class="disclosure-symbol" aria-hidden="true">Ⅲ</span> Etimología griega (Latín 4.º) <span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="activity-disclosure-body"><label>Permitir hasta 1 punto adicional en este examen<select name="greekEtymologyBonusEnabled"><option value="false">No</option><option value="true">Sí, bonificación individual 0–1</option></select></label><p class="hint">Solo cuenta con una nota de examen de al menos 5 antes del extra y sin faltas pendientes (o después de entregarlas). Máximo 10 puntos. Se conserva siempre la nota original.</p></div></details><label class="activity-weight">Peso relativo de la actividad<input name="weight" class="text-field" type="number" min="0.01" max="1000" step="any" value="1"/></label></div><p class="modal-error" role="alert"></p><div class="modal-actions"><button type="button" class="btn" id="cancel-activity">Cancelar</button><button type="submit" class="btn primary">Crear actividad</button></div></form>`;
     const form = $('#activity-form', dialog), selector = $('#activity-kind', form);
     const categoryInput = form.elements.categoryId, orthSelector = form.elements.orthEnabled;
@@ -6316,7 +6661,8 @@ function bindCommon() {
         input?.select();
     });
     document.querySelectorAll('[data-period-choice]').forEach(b => {
-        b.onclick = () => { STATE.periodId = b.dataset.periodChoice; STATE.tab = 'cuaderno'; render(); };
+        b.onclick = () => { STATE.periodId = b.dataset.periodChoice; if (!['calculos', 'competencias'].includes(STATE.tab))
+            STATE.tab = 'cuaderno'; render(); };
         b.ondblclick = event => { event.preventDefault(); managePeriodFromTab(b.dataset.periodChoice); };
     });
     document.querySelectorAll('[data-notebook-evaluation-open]').forEach(button => button.onclick = async () => {
@@ -6653,12 +6999,12 @@ function openOrthographyGrade(studentId, assessmentId) {
         return toast('La penalización no está disponible en esta actividad.');
     const current = STATE.doc.grades.find(g => g.studentId === studentId && g.assessmentId === assessmentId);
     const config = assessment.orthography;
-    dialog.innerHTML = `<form class="modal-inner orthography-dialog" id="orthography-form"><h2 id="modal-heading">${esc(assessment.name)}</h2><p class="subtitle">${esc(student.name)}${current?.notSubmitted ? ' · No presentado' : ''} · La nota sin faltas se conserva por separado.</p><div class="modal-fields"><label>Nota original sin faltas (sobre ${esc(rawFmt(assessment.maxScore))})<input class="text-field" id="orth-base" type="text" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="8,50" value="${current && !current.notSubmitted ? esc(rawFmt(current.score)) : ''}"/></label><label>Número de faltas<input class="text-field" id="orth-count" type="number" min="0" max="1000" step="1" value="${current?.orthographyFaults ?? 0}"/></label>${assessment.greekEtymologyBonusEnabled ? `<label>Etimología griega · extra asignado de 0 a 1 punto<input class="text-field" id="orth-greek-bonus" type="text" inputmode="decimal" maxlength="4" value="${esc(rawFmt(current?.greekEtymologyBonus ?? 0))}" placeholder="0,00"/></label>` : ''}<div class="orthography-preview" role="status" aria-live="polite"><div class="cardline"><span>Penalización</span><strong id="orth-discount">—</strong></div>${assessment.greekEtymologyBonusEnabled ? '<div class="cardline"><span>Etimología aplicada</span><strong id="orth-greek-applied">—</strong></div>' : ''}<div class="cardline"><strong>Nota que computa /10</strong><span id="orth-effective" class="grade-chip">—</span></div></div><label class="orthography-delivered"><input id="orth-delivered" type="checkbox" ${current?.orthographyDelivered ? 'checked' : ''}/> <strong>Entregadas</strong> — faltas copiadas ${esc(config.repetitions)} veces cada una</label><p class="hint">${config.refundable ? 'Al marcar «Entregadas», se restaura automáticamente la nota sin penalización.' : 'En este examen, la devolución de la nota está desactivada.'} Se descuentan ${esc(rawFmt(config.penaltyPerFault))} puntos por falta sobre diez (mínimo 0).</p></div><div class="modal-error" role="alert"></div><div class="modal-actions"><button class="btn" type="button" id="cancel-orthography">Cancelar</button><button class="btn primary" type="submit">Guardar nota</button></div></form>`;
+    dialog.innerHTML = `<form class="modal-inner orthography-dialog" id="orthography-form"><h2 id="modal-heading">${esc(assessment.name)}</h2><p class="subtitle">${esc(student.name)}${current?.notSubmitted ? ' · No presentado' : ''} · La nota sin faltas se conserva por separado.</p><div class="modal-fields"><label>Nota original sin faltas (sobre ${esc(rawFmt(assessment.maxScore))})<input class="text-field" id="orth-base" type="text" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="8,50" value="${current && !current.notSubmitted ? esc(rawFmt(current.score)) : ''}"/></label><label>Número de faltas<input class="text-field" id="orth-count" type="number" min="0" max="1000" step="1" value="${current?.orthographyFaults ? esc(current.orthographyFaults) : ''}" placeholder="Sin faltas"/></label>${assessment.greekEtymologyBonusEnabled ? `<label>Etimología griega · extra asignado de 0 a 1 punto<input class="text-field" id="orth-greek-bonus" type="text" inputmode="decimal" maxlength="4" value="${esc(rawFmt(current?.greekEtymologyBonus ?? 0))}" placeholder="0,00"/></label>` : ''}<div class="orthography-preview" role="status" aria-live="polite"><div class="cardline"><span>Penalización</span><strong id="orth-discount">—</strong></div>${assessment.greekEtymologyBonusEnabled ? '<div class="cardline"><span>Etimología aplicada</span><strong id="orth-greek-applied">—</strong></div>' : ''}<div class="cardline"><strong>Nota que computa /10</strong><span id="orth-effective" class="grade-chip">—</span></div></div><label class="orthography-delivered"><input id="orth-delivered" type="checkbox" ${current?.orthographyDelivered ? 'checked' : ''}/> <strong>Entregadas</strong> — faltas copiadas ${esc(config.repetitions)} veces cada una</label><p class="hint">${config.refundable ? 'Al marcar «Entregadas», se restaura automáticamente la nota sin penalización.' : 'En este examen, la devolución de la nota está desactivada.'} Se descuentan ${esc(rawFmt(config.penaltyPerFault))} puntos por falta sobre diez (mínimo 0).</p></div><div class="modal-error" role="alert"></div><div class="modal-actions"><button class="btn" type="button" id="cancel-orthography">Cancelar</button><button class="btn primary" type="submit">Guardar nota</button></div></form>`;
     const form = $('#orthography-form', dialog), base = $('#orth-base', form), count = $('#orth-count', form), delivered = $('#orth-delivered', form), discount = $('#orth-discount', form), effective = $('#orth-effective', form);
     const greekInput = $('#orth-greek-bonus', form), greekApplied = $('#orth-greek-applied', form);
     const refresh = () => {
         const faults = Number(count.value);
-        const validFaults = /^\d{1,4}$/.test(count.value) && faults <= 1000;
+        const validFaults = (count.value.trim() === '' || /^\d{1,4}$/.test(count.value)) && faults <= 1000;
         delivered.disabled = !config.refundable || !validFaults || faults === 0 || !base.value.trim();
         if (delivered.disabled)
             delivered.checked = false;
@@ -6713,7 +7059,7 @@ function openOrthographyGrade(studentId, assessmentId) {
         const submit = $('[type=submit]', form);
         submit.disabled = true;
         try {
-            await commit(d => (0, model_js_1.setOrthographyGrade)(d, studentId, assessmentId, { score: base.value.trim(), faults: count.value, delivered: delivered.checked, ...(greekInput ? { greekEtymologyBonus: greekInput.value.trim() || '0' } : {}) }), 'Calificar examen con faltas');
+            await commit(d => (0, model_js_1.setOrthographyGrade)(d, studentId, assessmentId, { score: base.value.trim(), faults: count.value.trim() === '' ? '0' : count.value, delivered: delivered.checked, ...(greekInput ? { greekEtymologyBonus: greekInput.value.trim() || '0' } : {}) }), 'Calificar examen con faltas');
             dialog.close();
         }
         catch (err) {
@@ -6734,7 +7080,7 @@ function openAssessmentTools(id) {
     $('#dismiss-tools', dialog).onclick = () => dialog.close();
     $('#edit-assessment', dialog).onclick = () => {
         dialog.close();
-        fieldsModal('Editar actividad', [{ id: 'name', label: 'Nombre', value: a.name }, { id: 'categoryId', label: 'Categoría', type: 'select', value: a.categoryId, options: visibleCategories().map(c => ({ value: c.id, label: c.name })) }, { id: 'maxScore', label: 'Nota máxima', type: 'number', value: a.maxScore, min: 0.01, max: 1000, step: 'any' }, { id: 'convertToTen', label: 'Conversión para cálculos', type: 'select', value: String(a.convertToTen), options: [{ value: 'true', label: 'Convertir a 0–10' }, { value: 'false', label: 'Usar nota bruta' }] }, { id: 'rubricId', required: false, label: 'Tipo de evaluación', type: 'select', value: a.rubricId || '', options: [{ value: '', label: 'Nota numérica' }, ...STATE.doc.rubrics.map(r => ({ value: r.id, label: 'Rúbrica: ' + r.name }))] }, { id: 'weight', label: 'Peso relativo de la actividad', type: 'number', value: a.weight, min: 0.01, max: 1000, step: 'any' },
+        fieldsModal('Editar actividad', [{ id: 'name', label: 'Nombre', value: a.name }, { id: 'categoryId', label: 'Categoría', type: 'select', value: a.categoryId, options: (0, model_js_1.effectiveCategories)(STATE.doc, STATE.groupId, STATE.periodId).map(c => ({ value: c.id, label: c.name })) }, { id: 'maxScore', label: 'Nota máxima', type: 'number', value: a.maxScore, min: 0.01, max: 1000, step: 'any' }, { id: 'convertToTen', label: 'Conversión para cálculos', type: 'select', value: String(a.convertToTen), options: [{ value: 'true', label: 'Convertir a 0–10' }, { value: 'false', label: 'Usar nota bruta' }] }, { id: 'rubricId', required: false, label: 'Tipo de evaluación', type: 'select', value: a.rubricId || '', options: [{ value: '', label: 'Nota numérica' }, ...STATE.doc.rubrics.map(r => ({ value: r.id, label: 'Rúbrica: ' + r.name }))] }, { id: 'weight', label: 'Peso relativo de la actividad', type: 'number', value: a.weight, min: 0.01, max: 1000, step: 'any' },
             { id: 'orthEnabled', label: 'Penalización por faltas', type: 'select', value: String(a.orthography?.enabled ?? false), options: [{ value: 'false', label: 'Desactivada' }, { value: 'true', label: 'Activada' }] },
             { id: 'orthRate', label: 'Puntos por falta (sobre 10)', type: 'number', value: a.orthography?.penaltyPerFault ?? STATE.doc.settings.orthographyDefaults?.penaltyPerFault ?? 0.1, min: 0, max: 10, step: '0.01' },
             { id: 'orthCopies', label: 'Copias exigidas por falta', type: 'number', value: a.orthography?.repetitions ?? STATE.doc.settings.orthographyDefaults?.repetitions ?? 30, min: 1, max: 1000, step: '1' },
@@ -6955,6 +7301,23 @@ function openGradeCellActions(studentId, assessmentId) {
     dialog.showModal();
 }
 function bindNotebook() {
+    const adjustNotebookZoom = delta => {
+        const next = Math.min(NOTEBOOK_ZOOM_MAX, Math.max(NOTEBOOK_ZOOM_MIN, STATE.notebookZoom + delta));
+        if (next === STATE.notebookZoom)
+            return;
+        STATE.notebookZoom = next;
+        try {
+            localStorage.setItem('appnotas-notebook-zoom', String(next));
+        }
+        catch { }
+        paintNotebookZoom(root);
+        bindGradeTableHeaders();
+        $('#notebook-zoom-value').textContent = next + ' %';
+        $('#notebook-zoom-out').disabled = next <= NOTEBOOK_ZOOM_MIN;
+        $('#notebook-zoom-in').disabled = next >= NOTEBOOK_ZOOM_MAX;
+    };
+    $('#notebook-zoom-out')?.addEventListener('click', () => adjustNotebookZoom(-10));
+    $('#notebook-zoom-in')?.addEventListener('click', () => adjustNotebookZoom(10));
     $('#manage-origin-groups')?.addEventListener('click', openOriginGroupsManager);
     $('#configure-itaca-attitude')?.addEventListener('click', openItacaAttitudeCondition);
     $('#itaca-general-rule')?.addEventListener('change', e => {
@@ -7053,7 +7416,9 @@ function bindNotebook() {
         requestAnimationFrame(() => { restoreGradeScroll(position); requestAnimationFrame(() => restoreGradeScroll(position)); });
     };
     document.querySelectorAll('[data-student][data-assessment]').forEach(field => {
-        let move = 0, positionAtEnter = null;
+        let move = 0, positionAtEnter = null, lastInputScroll = null;
+        // Registrar el desplazamiento ANTES de que el blur/teclado iPadOS lo altere.
+        field.addEventListener('input', () => { lastInputScroll = snapshotGradeScroll(); });
         field.addEventListener('keydown', e => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -7068,8 +7433,9 @@ function bindNotebook() {
             }
         });
         field.addEventListener('change', async () => {
-            const position = positionAtEnter || snapshotGradeScroll();
+            const position = positionAtEnter || lastInputScroll || snapshotGradeScroll();
             positionAtEnter = null;
+            lastInputScroll = null;
             try {
                 await commit(d => (0, model_js_1.setGrade)(d, field.dataset.student, field.dataset.assessment, field.value.trim() === '' ? null : field.value.trim().replace(',', '.')), 'Editar nota');
                 restoreFocus(field.dataset.student, field.dataset.assessment, move, position);
@@ -7162,16 +7528,22 @@ function bindRules() {
         const category = STATE.doc.categories.find(c => c.id === b.dataset.deleteCategory);
         if (!category)
             return;
-        if (!window.confirm(`Retirar «${category.name}» de este grupo? No se eliminarán actividades ni notas de otras asignaturas. Debe estar vacía en todas las evaluaciones del grupo.`))
+        if (!window.confirm(`¿Retirar «${category.name}» únicamente de ${currentPeriod().name}? No se modifican las demás evaluaciones.`))
             return;
         try {
-            await commit(d => (0, model_js_1.removeCategoryFromGroup)(d, STATE.groupId, category.id), 'Retirar categoría del grupo');
+            await commit(d => (0, model_js_1.setPeriodCategoryEnabled)(d, STATE.groupId, STATE.periodId, category.id, false), 'Retirar categoría de evaluación');
         }
         catch (err) {
             fail(err);
         }
     });
-    $('#new-category').onclick = () => fieldsModal('Nueva categoría', [{ id: 'name', label: 'Nombre' }, { id: 'weight', label: 'Porcentaje predeterminado (revisa que la suma sea 100)', type: 'number', value: 0, min: 0, max: 100, step: 'any' }], async (v) => commit(d => (0, model_js_1.addCategory)(d, v.name, Number(v.weight), 'mean', STATE.groupId)));
+    $('#new-category').onclick = () => fieldsModal('Nueva categoría en esta evaluación', [{ id: 'name', label: 'Nombre' }, { id: 'weight', label: 'Porcentaje en esta evaluación (revisa que la suma sea 100)', type: 'number', value: 0, min: 0, max: 100, step: 'any' }], async (v) => commit(d => (0, model_js_1.addPeriodCategory)(d, STATE.groupId, STATE.periodId, v.name, Number(v.weight))), 'Se añadirá únicamente a la materia y evaluación seleccionadas. Podrás activarla también en otros períodos.');
+    $('#enable-category')?.addEventListener('click', () => {
+        const categoryId = $('#category-to-enable')?.value;
+        if (!categoryId)
+            return toast('Selecciona una categoría existente.');
+        commit(d => (0, model_js_1.setPeriodCategoryEnabled)(d, STATE.groupId, STATE.periodId, categoryId, true), 'Activar categoría en evaluación').catch(fail);
+    });
     document.querySelectorAll('[data-periodweight]').forEach(field => field.onchange = async () => { try {
         await commit(d => (0, model_js_1.setPeriodCategory)(d, STATE.groupId, STATE.periodId, field.dataset.periodweight, { weight: Number(field.value) }));
     }
@@ -7193,7 +7565,7 @@ function bindRules() {
         fail(err);
         render();
     } });
-    $('#reset-rules').onclick = async () => { if (window.confirm('Restablecer los porcentajes y reglas de este grupo y periodo a los valores predeterminados?'))
+    $('#reset-rules').onclick = async () => { if (window.confirm('¿Restablecer los porcentajes y reglas de esta evaluación? La selección de categorías se conservará.'))
         try {
             await commit(d => (0, model_js_1.resetPeriodCategories)(d, STATE.groupId, STATE.periodId));
         }
@@ -7204,7 +7576,7 @@ function bindRules() {
         const source = $('#source-period').value;
         if (!source)
             return toast('Selecciona un periodo de origen.');
-        if (!window.confirm('Sobrescribir las reglas de este periodo con las del periodo seleccionado?'))
+        if (!window.confirm('¿Copiar las categorías evaluables, sus porcentajes y reglas desde el otro período? No se pueden retirar categorías que ya tengan actividades o condiciones de Ítaca aquí.'))
             return;
         try {
             await commit(d => (0, model_js_1.copyPeriodCategories)(d, STATE.groupId, source, STATE.periodId));
@@ -7337,8 +7709,8 @@ function bindSettings() {
             const registration = await navigator.serviceWorker.getRegistration('./');
             if (!registration?.active)
                 throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
-            const expected = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './src/pwa-controls.js', './src/model.js', './src/cuaderno.js', './src/planner.js', './src/planner-ui.js', './src/timetable-export.js', './src/patio-rotation.js', './src/attitude-template.js', './src/rubric-xlsx.js', './vendor/jszip.min.js', './src/calculations.js', './src/statistics.js', './src/csv.js', './src/rubric-import.js', './src/rubric-ui.js', './src/history.js', './src/vault.js', './src/storage.js', './src/diagnostics.js', './src/curriculum-data.js', './src/official-competencies.js', './data/curriculos/gr1y2-nuevo.pdf', './data/curriculos/lat1y2-nuevo.pdf', './data/curriculos/lat4.pdf', './data/curriculos/lat2-2022.pdf'];
-            const cache = await caches.open('cuaderno-docente-static-v171-dev');
+            const expected = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './src/pwa-controls.js', './src/model.js', './src/cuaderno.js', './src/planner.js', './src/planner-ui.js', './src/extracurricular.js', './src/extracurricular-export.js', './src/extracurricular-ui.js', './src/timetable-export.js', './src/patio-rotation.js', './src/attitude-template.js', './src/rubric-xlsx.js', './vendor/jszip.min.js', './src/calculations.js', './src/statistics.js', './src/csv.js', './src/rubric-import.js', './src/rubric-ui.js', './src/history.js', './src/vault.js', './src/storage.js', './src/diagnostics.js', './src/curriculum-data.js', './src/official-competencies.js', './data/curriculos/gr1y2-nuevo.pdf', './data/curriculos/lat1y2-nuevo.pdf', './data/curriculos/lat4.pdf', './data/curriculos/lat2-2022.pdf'];
+            const cache = await caches.open('cuaderno-docente-static-v183-dev');
             const missing = [];
             for (const path of expected)
                 if (!await cache.match(path))
@@ -9437,6 +9809,259 @@ function bindEvaluationWorkspace(doc, ui, ctx) {
 }
 
 },
+"src/extracurricular-ui.js":function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderExtracurricular = renderExtracurricular;
+exports.bindExtracurricular = bindExtracurricular;
+const planner_js_1 = require("./planner.js");
+const extracurricular_js_1 = require("./extracurricular.js");
+const extracurricular_export_js_1 = require("./extracurricular-export.js");
+const courseLabel = ([year, level]) => [(0, extracurricular_export_js_1.extracurricularLevelLabel)(level), year].filter(Boolean).join(' · ');
+const dateLabel = date => new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(date + 'T12:00:00Z'));
+function renderExtracurricular(doc, esc) {
+    const activities = (0, extracurricular_js_1.extracurricularActivities)(doc);
+    const courses = activities.flatMap(activity => activity.courses);
+    const rows = (0, extracurricular_export_js_1.sortedExtracurricularRoster)(doc, courses);
+    const eligible = activities.map(activity => new Map((0, extracurricular_export_js_1.sortedExtracurricularRoster)(doc, activity.courses).map(row => [row.key, row.ids])));
+    return `<section class="panel panel-pad extracurricular">
+    <div class="extracurricular-tools"><h1>Actividades extraescolares</h1>
+      <button type="button" class="btn primary" id="extracurricular-add" ${doc.groups.length ? '' : 'disabled'}>+ Actividad extraescolar</button>
+    </div>
+    ${activities.length ? `<div class="extracurricular-tools"><label>Idioma del listado
+      <select id="extracurricular-language"><option value="es">Castellano</option><option value="val">Valencià</option></select>
+    </label></div>
+    <div class="table-scroller extracurricular-table-scroll" tabindex="0" role="region" aria-label="Participación en actividades extraescolares">
+      <table class="extracurricular-table"><thead><tr><th scope="col">Alumnado</th>${activities.map(activity => `
+        <th scope="col"><strong>${esc(activity.name)}</strong><time datetime="${esc(activity.date)}">${esc(dateLabel(activity.date))}</time>
+          <div class="extracurricular-actions">
+            <button type="button" class="btn small" data-extra-edit="${esc(activity.id)}" aria-label="Editar ${esc(activity.name)}">Editar</button>
+            <button type="button" class="btn small" data-extra-word="${esc(activity.id)}" aria-label="Exportar Word para ${esc(activity.name)}">Word</button>
+            <button type="button" class="btn small" data-extra-pdf="${esc(activity.id)}" aria-label="Exportar PDF para ${esc(activity.name)}">PDF</button>
+          </div>
+        </th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>
+          <th scope="row">${esc(row.student.name)}<small>${esc(courseLabel([row.group.course, row.group.level]) + ' · ' + (0, extracurricular_export_js_1.extracurricularGroupLabel)(row))}</small></th>
+          ${activities.map((activity, index) => {
+        const ids = eligible[index].get(row.key);
+        if (!ids)
+            return '<td>—</td>';
+        const answer = (0, extracurricular_js_1.extracurricularAnswer)(activity, ids);
+        return `<td><select data-extra-answer="${esc(activity.id)}" data-extra-student="${esc(row.key)}"
+              aria-label="Participación de ${esc(row.student.name)} en ${esc(activity.name)}">
+              <option value="" ${answer === undefined ? 'selected' : ''}>Pendiente</option>
+              <option value="yes" ${answer === true ? 'selected' : ''}>Sí</option>
+              <option value="no" ${answer === false ? 'selected' : ''}>No</option>
+            </select></td>`;
+    }).join('')}</tr>`).join('') || `<tr><td colspan="${activities.length + 1}">No hay alumnado en los cursos seleccionados.</td></tr>`}</tbody></table>
+    </div>` : `<p>${doc.groups.length ? 'Crea una actividad y selecciona sus cursos para añadir el alumnado.' : 'Crea un grupo en el cuaderno para poder seleccionar su curso.'}</p>`}
+  </section>`;
+}
+function bindExtracurricular({ root, dialog, doc, getDoc, commit, fail, esc, state }) {
+    const language = root.querySelector('#extracurricular-language');
+    if (language) {
+        language.value = state.extracurricularLanguage || 'es';
+        language.onchange = () => { state.extracurricularLanguage = language.value; };
+    }
+    const find = (book, id) => (0, extracurricular_js_1.extracurricularActivities)(book).find(activity => activity.id === id);
+    function edit(activity) {
+        const keys = [...new Set([...doc.groups.map(extracurricular_js_1.extracurricularCourseKey), ...(activity?.courses || [])])];
+        keys.sort((a, b) => (0, extracurricular_export_js_1.compareExtracurricularCourses)(JSON.parse(a), JSON.parse(b)));
+        dialog.innerHTML = `<form class="modal-inner" method="dialog">
+      <h2 id="modal-heading">${activity ? 'Editar actividad extraescolar' : 'Nueva actividad extraescolar'}</h2>
+      <div class="modal-fields">
+        <label>Nombre <input class="text-field" name="name" required maxlength="150" value="${esc(activity?.name)}"></label>
+        <label>Fecha <input class="text-field" name="date" type="date" required value="${esc(activity?.date || (0, planner_js_1.localToday)())}"></label>
+        <fieldset class="extracurricular-courses"><legend>Cursos participantes</legend>
+          ${keys.map(key => `<label><input type="checkbox" name="course" value="${esc(key)}" ${activity?.courses.includes(key) ? 'checked' : ''}> ${esc(courseLabel(JSON.parse(key)))}</label>`).join('')}
+        </fieldset>
+      </div>
+      <div class="modal-error" role="alert"></div>
+      <div class="modal-actions"><button class="btn" type="button" data-extra-cancel>Cancelar</button>
+        <button class="btn primary" type="submit">Guardar</button></div>
+    </form>`;
+        const form = dialog.querySelector('form');
+        form.querySelector('[data-extra-cancel]').onclick = () => dialog.close();
+        form.onsubmit = async (event) => {
+            event.preventDefault();
+            const data = new FormData(form), name = data.get('name').trim(), date = data.get('date'), courses = data.getAll('course');
+            const error = form.querySelector('.modal-error'), submit = form.querySelector('[type="submit"]');
+            if (!name || !courses.length) {
+                error.textContent = 'Indica un nombre y selecciona al menos un curso.';
+                return;
+            }
+            submit.disabled = true;
+            try {
+                await commit(next => {
+                    if (activity) {
+                        const current = find(next, activity.id);
+                        if (!current)
+                            throw new Error('La actividad ya no existe.');
+                        Object.assign(current, { name, date, courses });
+                    }
+                    else {
+                        (next.extracurricularActivities ??= []).push({ id: crypto.randomUUID(), name, date, courses, answers: {} });
+                    }
+                }, activity ? 'Editar actividad extraescolar' : 'Crear actividad extraescolar');
+                if (form.isConnected)
+                    dialog.close();
+            }
+            catch (err) {
+                error.textContent = err.message;
+            }
+            finally {
+                submit.disabled = false;
+            }
+        };
+        dialog.showModal();
+    }
+    root.querySelector('#extracurricular-add').onclick = () => edit();
+    root.querySelectorAll('[data-extra-edit]').forEach(button => {
+        button.onclick = () => edit(find(getDoc(), button.dataset.extraEdit));
+    });
+    root.querySelectorAll('[data-extra-answer]').forEach(select => {
+        select.onchange = async () => {
+            const { extraAnswer, extraStudent } = select.dataset;
+            const answer = select.value === '' ? undefined : select.value === 'yes';
+            const scroller = root.querySelector('.extracurricular-table-scroll'), left = scroller.scrollLeft, top = scroller.scrollTop;
+            const wasFocused = document.activeElement === select;
+            select.disabled = true;
+            try {
+                await commit(next => (0, extracurricular_js_1.setExtracurricularAnswer)(next, extraAnswer, extraStudent, answer), 'Registrar participación extraescolar');
+            }
+            catch (error) {
+                select.value = select.querySelector('[selected]')?.value || '';
+                fail(error);
+            }
+            finally {
+                select.disabled = false;
+                const nextScroller = root.querySelector('.extracurricular-table-scroll');
+                if (nextScroller && nextScroller !== scroller) {
+                    nextScroller.scrollLeft = left;
+                    nextScroller.scrollTop = top;
+                    if (wasFocused && document.activeElement === document.body) {
+                        [...nextScroller.querySelectorAll('[data-extra-answer]')].find(item => item.dataset.extraAnswer === extraAnswer && item.dataset.extraStudent === extraStudent)?.focus({ preventScroll: true });
+                    }
+                }
+            }
+        };
+    });
+    async function download(id, format) {
+        const book = getDoc(), activity = find(book, id);
+        const report = (0, extracurricular_export_js_1.extracurricularReport)(book, activity, language.value);
+        const blob = format === 'docx' ? await (0, extracurricular_export_js_1.extracurricularWord)(report, window.JSZip) : (0, extracurricular_export_js_1.extracurricularPdf)(report);
+        const url = URL.createObjectURL(blob), anchor = document.createElement('a');
+        const safeName = activity.name.replace(/[^\p{L}\p{N}_-]+/gu, '-').slice(0, 90);
+        anchor.href = url;
+        anchor.download = `AppNotas-${activity.date}-${safeName}-${language.value}.${format}`;
+        document.body.append(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+    root.querySelectorAll('[data-extra-word],[data-extra-pdf]').forEach(button => {
+        button.onclick = async () => {
+            button.disabled = true;
+            try {
+                await state.mutationQueue;
+                if (button.isConnected)
+                    await download(button.dataset.extraWord || button.dataset.extraPdf, button.dataset.extraWord ? 'docx' : 'pdf');
+            }
+            catch (error) {
+                fail(error);
+            }
+            finally {
+                button.disabled = false;
+            }
+        };
+    });
+}
+
+},
+"src/extracurricular.js":function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.extracurricularStudentKey = exports.extracurricularCourseKey = exports.extracurricularActivities = void 0;
+exports.assertExtracurricular = assertExtracurricular;
+exports.extracurricularRoster = extracurricularRoster;
+exports.extracurricularAnswer = extracurricularAnswer;
+exports.setExtracurricularAnswer = setExtracurricularAnswer;
+const planner_js_1 = require("./planner.js");
+const extracurricularActivities = doc => doc.extracurricularActivities === undefined ? [] : doc.extracurricularActivities;
+exports.extracurricularActivities = extracurricularActivities;
+const extracurricularCourseKey = group => JSON.stringify([group.course, group.level]);
+exports.extracurricularCourseKey = extracurricularCourseKey;
+const extracurricularStudentKey = student => student.personId || student.id;
+exports.extracurricularStudentKey = extracurricularStudentKey;
+function validCourseKey(key) {
+    if (typeof key !== 'string')
+        return false;
+    try {
+        const parts = JSON.parse(key);
+        return Array.isArray(parts) && parts.length === 2 && typeof parts[0] === 'string' &&
+            (parts[1] === null || typeof parts[1] === 'string') && JSON.stringify(parts) === key;
+    }
+    catch {
+        return false;
+    }
+}
+function assertActivity(activity, studentIds) {
+    if (typeof activity?.id !== 'string' || typeof activity.name !== 'string' || !activity.name.trim() ||
+        !Array.isArray(activity.courses) || !activity.courses.length ||
+        new Set(activity.courses).size !== activity.courses.length || !activity.courses.every(validCourseKey) ||
+        !activity.answers || typeof activity.answers !== 'object' || Array.isArray(activity.answers) ||
+        !Object.entries(activity.answers).every(([id, answer]) => studentIds.has(id) && typeof answer === 'boolean'))
+        throw new Error('Actividad extraescolar inválida.');
+    (0, planner_js_1.isoDate)(activity.date);
+}
+function assertExtracurricular(doc) {
+    const activities = (0, exports.extracurricularActivities)(doc);
+    if (!Array.isArray(activities) || new Set(activities.map(activity => activity?.id)).size !== activities.length)
+        throw new Error('Actividades extraescolares inválidas.');
+    if (!activities.length)
+        return;
+    const studentIds = new Set(doc.students.map(student => student.id));
+    for (const activity of activities)
+        assertActivity(activity, studentIds);
+}
+// La matrícula se consulta en el cuaderno. Las fichas vinculadas forman una sola fila.
+function extracurricularRoster(doc, courses) {
+    const selected = new Set(courses);
+    const groups = new Map(doc.groups.filter(group => selected.has((0, exports.extracurricularCourseKey)(group))).map(group => [group.id, group]));
+    const roster = new Map();
+    for (const student of doc.students) {
+        const group = groups.get(student.groupId);
+        if (!group)
+            continue;
+        const key = (0, exports.extracurricularStudentKey)(student);
+        const current = roster.get(key);
+        if (current) {
+            current.ids.push(student.id);
+            if (!current.student.originGroup && student.originGroup)
+                Object.assign(current, { student, group });
+        }
+        else
+            roster.set(key, { key, student, group, ids: [student.id] });
+    }
+    return [...roster.values()];
+}
+function extracurricularAnswer(activity, ids) {
+    const answers = new Set(ids.map(id => activity.answers[id]).filter(answer => typeof answer === 'boolean'));
+    return answers.size === 1 ? [...answers][0] : undefined;
+}
+function setExtracurricularAnswer(doc, activityId, key, answer) {
+    const activity = (0, exports.extracurricularActivities)(doc).find(item => item.id === activityId);
+    const row = activity && extracurricularRoster(doc, activity.courses).find(item => item.key === key);
+    if (!row || ![true, false, undefined].includes(answer))
+        throw new Error('Participación inválida.');
+    for (const id of row.ids) {
+        if (answer === undefined)
+            delete activity.answers[id];
+        else
+            activity.answers[id] = answer;
+    }
+}
+
+},
 "src/history.js":function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -9509,6 +10134,8 @@ exports.recordedScore = recordedScore;
 exports.migrateNotebook = migrateNotebook;
 exports.availableCategories = availableCategories;
 exports.effectiveCategories = effectiveCategories;
+exports.setPeriodCategoryEnabled = setPeriodCategoryEnabled;
+exports.addPeriodCategory = addPeriodCategory;
 exports.individualCategoryRule = individualCategoryRule;
 exports.setIndividualCategoryRule = setIndividualCategoryRule;
 exports.setPeriodCategory = setPeriodCategory;
@@ -9553,6 +10180,7 @@ exports.updateGroupInfo = updateGroupInfo;
 exports.renamePeriod = renamePeriod;
 exports.movePeriod = movePeriod;
 exports.removePeriod = removePeriod;
+const extracurricular_js_1 = require("./extracurricular.js");
 const attitude_template_js_1 = require("./attitude-template.js");
 const planner_js_1 = require("./planner.js");
 exports.SCHEMA_VERSION = 8;
@@ -9604,7 +10232,7 @@ function setItacaAttitudeCondition(doc, groupId, periodId, condition) {
     if (!group || !doc.periods.some(p => p.id === periodId))
         throw new Error('Grupo o evaluación de Ítaca inválidos.');
     if (condition !== null) {
-        if (!validItacaAttitudeShape(condition) || !(0, exports.categoryAvailableForGroup)(doc, groupId, condition.categoryId) ||
+        if (!validItacaAttitudeShape(condition) || !(0, exports.categoryAvailableForGroup)(doc, groupId, condition.categoryId, periodId) ||
             !isAttitudeCategory(doc, condition.categoryId))
             throw new Error('La condición debe usar una categoría Actitud válida.');
         if (condition.mode === 'criterion') {
@@ -9890,10 +10518,12 @@ function assertModel(doc) {
     if (!doc.groups.every(g => g.weeklyHours === undefined || (Number.isInteger(g.weeklyHours) && g.weeklyHours >= 1 && g.weeklyHours <= 30)))
         throw new Error('Horas semanales del grupo inválidas.');
     (0, planner_js_1.assertPlanner)(doc);
+    (0, extracurricular_js_1.assertExtracurricular)(doc);
     if (!doc.groups.every(g => (g.itacaRounding === undefined || exports.ITACA_ROUNDING.includes(g.itacaRounding))))
         throw new Error('Regla general de Nota Ítaca inválida.');
     if (!doc.groups.every(g => g.itacaAttitudeConditions === undefined || (g.itacaAttitudeConditions && typeof g.itacaAttitudeConditions === 'object' && !Array.isArray(g.itacaAttitudeConditions) &&
-        Object.entries(g.itacaAttitudeConditions).every(([periodId, condition]) => doc.periods.some(p => p.id === periodId) && validItacaAttitudeShape(condition)))))
+        Object.entries(g.itacaAttitudeConditions).every(([periodId, condition]) => doc.periods.some(p => p.id === periodId) && validItacaAttitudeShape(condition) &&
+            (0, exports.categoryAvailableForGroup)(doc, g.id, condition.categoryId, periodId)))))
         throw new Error('Condición de actitud de Ítaca inválida.');
     if (!doc.groups.every(g => g.orthographyRefundable === undefined || typeof g.orthographyRefundable === 'boolean'))
         throw new Error('Regla de devolución por faltas del grupo inválida.');
@@ -10013,19 +10643,30 @@ function assertModel(doc) {
     }
     if (doc.categories.some(x => (x.ownerGroupId !== undefined && !gs.has(x.ownerGroupId)) || !Number.isFinite(x.weight) || x.weight < 0 || x.weight > 100 || !exports.CATEGORY_RULES.includes(x.rule) || !validBestCount(x.bestCount ?? 2) || !validCategoryColumnColor(x.columnColor)))
         throw new Error('Categoría inválida.');
-    if (doc.assessments.some(a => !(0, exports.categoryAvailableForGroup)(doc, a.groupId, a.categoryId)))
-        throw new Error('Actividad en categoría no disponible para su grupo.');
+    if (doc.assessments.some(a => !(0, exports.categoryAvailableForGroup)(doc, a.groupId, a.categoryId, a.periodId)))
+        throw new Error('Actividad en categoría no disponible para su grupo y evaluación.');
     const profileKeys = new Set();
     for (const profile of doc.gradingProfiles) {
         if (!profile || typeof profile.id !== 'string' || !gs.has(profile.groupId) || !ps.has(profile.periodId) || !Array.isArray(profile.overrides))
             throw new Error('Perfil de evaluación inválido.');
+        if (profile.categoryIds !== undefined) {
+            const allowed = new Set(availableCategories(doc, profile.groupId).map(c => c.id));
+            if (!Array.isArray(profile.categoryIds) || new Set(profile.categoryIds).size !== profile.categoryIds.length ||
+                profile.categoryIds.some(id => typeof id !== 'string' || !allowed.has(id)))
+                throw new Error('Selección de categorías de evaluación inválida.');
+        }
         const key = profile.groupId + '|' + profile.periodId;
         if (profileKeys.has(key))
             throw new Error('Perfil de evaluación duplicado.');
         profileKeys.add(key);
         const categoriesSeen = new Set();
         for (const o of profile.overrides) {
-            if (!cs.has(o.categoryId) || categoriesSeen.has(o.categoryId) || !Number.isFinite(o.weight) || o.weight < 0 || o.weight > 100 || !exports.CATEGORY_RULES.includes(o.rule) || !validBestCount(o.bestCount))
+            // Los cuadernos anteriores podían conservar reglas de categorías
+            // ocultadas para un grupo. Son ajustes inactivos, no datos corruptos:
+            // exigir disponibilidad aquí bloquearía el descifrado de esos cuadernos.
+            if (!cs.has(o.categoryId) ||
+                categoriesSeen.has(o.categoryId) || !Number.isFinite(o.weight) || o.weight < 0 || o.weight > 100 ||
+                !exports.CATEGORY_RULES.includes(o.rule) || !validBestCount(o.bestCount))
                 throw new Error('Regla de periodo inválida.');
             categoriesSeen.add(o.categoryId);
         }
@@ -10034,7 +10675,7 @@ function assertModel(doc) {
     for (const rule of doc.individualCategoryRules) {
         const student = doc.students.find(s => s.id === rule.studentId);
         const key = rule.studentId + '|' + rule.categoryId + '|' + rule.periodId;
-        if (!student || !ps.has(rule.periodId) || !(0, exports.categoryAvailableForGroup)(doc, student.groupId, rule.categoryId) ||
+        if (!student || !ps.has(rule.periodId) || !(0, exports.categoryAvailableForGroup)(doc, student.groupId, rule.categoryId, rule.periodId) ||
             !exports.INDIVIDUAL_RULES.includes(rule.rule) || individualKeys.has(key))
             throw new Error('Excepción de cálculo individual inválida.');
         individualKeys.add(key);
@@ -10266,15 +10907,77 @@ function migrateNotebook(input) {
 }
 /** Las categorías antiguas son compartidas. Las nuevas pueden pertenecer a un grupo,
  * y cada grupo puede ocultar una categoría compartida sin modificar otros grupos. */
-function availableCategories(doc, groupId) {
+/** Catálogo compartido del grupo y selección específica de la evaluación.
+ * Sin categoryIds, los cuadernos antiguos conservan sus categorías originales.
+ * La selección explícita nunca altera ni elimina calificaciones almacenadas. */
+function availableCategories(doc, groupId, periodId = null) {
     const hidden = doc.groups.find(g => g.id === groupId)?.hiddenCategoryIds || [];
-    return doc.categories.filter(c => (!c.ownerGroupId || c.ownerGroupId === groupId) && !hidden.includes(c.id));
+    const all = doc.categories.filter(c => (!c.ownerGroupId || c.ownerGroupId === groupId) && !hidden.includes(c.id));
+    if (periodId === null)
+        return all;
+    const enabled = doc.gradingProfiles.find(p => p.groupId === groupId && p.periodId === periodId)?.categoryIds;
+    return enabled === undefined ? all : all.filter(c => enabled.includes(c.id));
 }
-const categoryAvailableForGroup = (doc, groupId, categoryId) => availableCategories(doc, groupId).some(c => c.id === categoryId);
+const categoryAvailableForGroup = (doc, groupId, categoryId, periodId = null) => availableCategories(doc, groupId, periodId).some(c => c.id === categoryId);
 exports.categoryAvailableForGroup = categoryAvailableForGroup;
 function effectiveCategories(doc, groupId, periodId) {
     const profile = doc.gradingProfiles.find(p => p.groupId === groupId && p.periodId === periodId);
-    return availableCategories(doc, groupId).map(c => ({ ...c, ...profile?.overrides.find(o => o.categoryId === c.id) }));
+    return availableCategories(doc, groupId, periodId).map(c => ({ ...c, ...profile?.overrides.find(o => o.categoryId === c.id) }));
+}
+/** Un solo perfil por grupo/evaluación, también para la selección de categorías. */
+function ensurePeriodProfile(doc, groupId, periodId) {
+    let profile = doc.gradingProfiles.find(p => p.groupId === groupId && p.periodId === periodId);
+    if (!profile) {
+        profile = mark({ id: uid(), groupId, periodId, overrides: [], createdAt: now() });
+        doc.gradingProfiles.push(profile);
+    }
+    return profile;
+}
+/** Ocultar categorías nunca destruye actividades, notas ni referencias docentes. */
+function setPeriodCategoryEnabled(doc, groupId, periodId, categoryId, enabled) {
+    if (!doc.groups.some(g => g.id === groupId) || !doc.periods.some(p => p.id === periodId) ||
+        !(0, exports.categoryAvailableForGroup)(doc, groupId, categoryId) || typeof enabled !== 'boolean')
+        throw new Error('Categoría, materia o evaluación inválida.');
+    const active = availableCategories(doc, groupId, periodId).map(c => c.id);
+    if (active.includes(categoryId) === enabled)
+        return doc;
+    if (!enabled) {
+        if (doc.assessments.some(a => a.groupId === groupId && a.periodId === periodId && a.categoryId === categoryId))
+            throw new Error('Esta categoría tiene actividades en esta evaluación. Muévelas o elimínalas antes de retirarla.');
+        if ((0, exports.itacaAttitudeCondition)(doc, groupId, periodId)?.categoryId === categoryId)
+            throw new Error('Esta categoría es requisito de Ítaca en esta evaluación. Desactiva primero la condición.');
+        if (doc.individualCategoryRules.some(r => r.categoryId === categoryId && r.periodId === periodId &&
+            doc.students.some(st => st.id === r.studentId && st.groupId === groupId)))
+            throw new Error('Esta categoría tiene reglas individuales en la evaluación. Restablécelas antes de retirarla.');
+    }
+    const profile = ensurePeriodProfile(doc, groupId, periodId);
+    profile.categoryIds = enabled
+        ? availableCategories(doc, groupId).filter(c => active.includes(c.id) || c.id === categoryId).map(c => c.id)
+        : active.filter(id => id !== categoryId);
+    // Mantener pesos y reglas de categorías temporalmente retiradas. No
+    // computan hasta reactivarse, pero tampoco se pierden sus preferencias.
+    profile.updatedAt = doc.updatedAt = now();
+    return doc;
+}
+/** Una nueva categoría se activa únicamente en esta materia y evaluación.
+ * Se inmoviliza la selección heredada de las demás evaluaciones del grupo
+ * antes de crearla, para que las nuevas categorías no aparezcan allí. */
+function addPeriodCategory(doc, groupId, periodId, name, weight = 0) {
+    if (!doc.groups.some(g => g.id === groupId) || !doc.periods.some(p => p.id === periodId))
+        throw new Error('Materia o evaluación inexistente.');
+    const otherPeriods = doc.periods.filter(p => p.id !== periodId);
+    const snapshots = otherPeriods.map(p => [p.id, availableCategories(doc, groupId, p.id).map(c => c.id)]);
+    const active = availableCategories(doc, groupId, periodId).map(c => c.id);
+    const category = addCategory(doc, name, weight, 'mean', groupId);
+    for (const [id, ids] of snapshots) {
+        const profile = ensurePeriodProfile(doc, groupId, id);
+        profile.categoryIds = ids;
+        profile.updatedAt = now();
+    }
+    const profile = ensurePeriodProfile(doc, groupId, periodId);
+    profile.categoryIds = [...active, category.id];
+    profile.updatedAt = doc.updatedAt = now();
+    return category;
 }
 /** Reglas excepcionales; la ausencia de registro conserva la regla general. */
 function individualCategoryRule(doc, studentId, categoryId, periodId) {
@@ -10282,7 +10985,7 @@ function individualCategoryRule(doc, studentId, categoryId, periodId) {
 }
 function setIndividualCategoryRule(doc, studentId, categoryId, periodId, rule) {
     const student = doc.students.find(s => s.id === studentId);
-    if (!student || !doc.periods.some(p => p.id === periodId) || !(0, exports.categoryAvailableForGroup)(doc, student.groupId, categoryId) ||
+    if (!student || !doc.periods.some(p => p.id === periodId) || !(0, exports.categoryAvailableForGroup)(doc, student.groupId, categoryId, periodId) ||
         !['general', ...exports.INDIVIDUAL_RULES].includes(rule))
         throw new Error('Regla individual, alumno, categoría o evaluación inválidos.');
     const index = doc.individualCategoryRules.findIndex(r => r.studentId === studentId && r.categoryId === categoryId && r.periodId === periodId);
@@ -10305,8 +11008,8 @@ function setPeriodCategory(doc, groupId, periodId, categoryId, patch) {
     if (!doc.groups.some(g => g.id === groupId) || !doc.periods.some(p => p.id === periodId))
         throw new Error('Grupo o periodo inexistente.');
     const base = doc.categories.find(c => c.id === categoryId);
-    if (!base || !(0, exports.categoryAvailableForGroup)(doc, groupId, categoryId))
-        throw new Error('Categoría no disponible para este grupo.');
+    if (!base || !(0, exports.categoryAvailableForGroup)(doc, groupId, categoryId, periodId))
+        throw new Error('Categoría no disponible en esta evaluación.');
     // Los identificadores son inmutables. Un parche de interfaz no puede
     // convertir una regla de un periodo en una regla de otra categoría.
     if (!patch || typeof patch !== 'object' || Array.isArray(patch) || Object.keys(patch).some(k => !['weight', 'rule', 'bestCount'].includes(k)))
@@ -10315,27 +11018,46 @@ function setPeriodCategory(doc, groupId, periodId, categoryId, patch) {
         ...(doc.gradingProfiles.find(x => x.groupId === groupId && x.periodId === periodId)?.overrides.find(x => x.categoryId === categoryId) || {}), ...patch };
     if (!Number.isFinite(next.weight) || next.weight < 0 || next.weight > 100 || !exports.CATEGORY_RULES.includes(next.rule) || !validBestCount(next.bestCount))
         throw new Error('Regla o porcentaje inválidos.');
-    let profile = doc.gradingProfiles.find(x => x.groupId === groupId && x.periodId === periodId);
-    if (!profile) {
-        profile = mark({ id: uid(), groupId, periodId, overrides: [], createdAt: now() });
-        doc.gradingProfiles.push(profile);
-    }
+    const profile = ensurePeriodProfile(doc, groupId, periodId);
     profile.overrides = profile.overrides.filter(x => x.categoryId !== categoryId);
     profile.overrides.push(next);
     profile.updatedAt = doc.updatedAt = now();
     return next;
 }
 function resetPeriodCategories(doc, groupId, periodId) {
-    doc.gradingProfiles = doc.gradingProfiles.filter(x => x.groupId !== groupId || x.periodId !== periodId);
-    doc.updatedAt = now();
+    const profile = doc.gradingProfiles.find(x => x.groupId === groupId && x.periodId === periodId);
+    if (profile) {
+        if (profile.categoryIds !== undefined) {
+            profile.overrides = [];
+            profile.updatedAt = now();
+        }
+        else
+            doc.gradingProfiles = doc.gradingProfiles.filter(x => x !== profile);
+        doc.updatedAt = now();
+    }
 }
+/** Copia tanto el conjunto de categorías evaluables como sus ponderaciones.
+ * Rechaza cualquier destino donde la copia ocultaría actividades o reglas. */
 function copyPeriodCategories(doc, groupId, sourcePeriodId, targetPeriodId) {
     if (sourcePeriodId === targetPeriodId)
         throw new Error('Selecciona otro periodo.');
     if (!doc.groups.some(g => g.id === groupId) || !doc.periods.some(p => p.id === sourcePeriodId) || !doc.periods.some(p => p.id === targetPeriodId))
         throw new Error('Grupo o periodo de origen o destino inexistente.');
-    for (const c of effectiveCategories(doc, groupId, sourcePeriodId))
-        setPeriodCategory(doc, groupId, targetPeriodId, c.id, { weight: c.weight, rule: c.rule, bestCount: c.bestCount ?? 2 });
+    const source = effectiveCategories(doc, groupId, sourcePeriodId);
+    const ids = new Set(source.map(c => c.id));
+    if (doc.assessments.some(a => a.groupId === groupId && a.periodId === targetPeriodId && !ids.has(a.categoryId)))
+        throw new Error('La evaluación de destino contiene actividades en categorías que la copia retiraría. Muévelas primero.');
+    if (doc.individualCategoryRules.some(r => r.periodId === targetPeriodId && !ids.has(r.categoryId) &&
+        doc.students.some(s => s.id === r.studentId && s.groupId === groupId)))
+        throw new Error('La evaluación de destino tiene excepciones individuales en categorías que la copia retiraría.');
+    if (((0, exports.itacaAttitudeCondition)(doc, groupId, targetPeriodId)) &&
+        !ids.has((0, exports.itacaAttitudeCondition)(doc, groupId, targetPeriodId).categoryId))
+        throw new Error('La evaluación de destino tiene una condición de Ítaca asociada a una categoría que la copia retiraría.');
+    const profile = ensurePeriodProfile(doc, groupId, targetPeriodId);
+    profile.categoryIds = source.map(c => c.id);
+    profile.overrides = source.map(c => ({ categoryId: c.id, weight: c.weight, rule: c.rule, bestCount: c.bestCount ?? 2 }));
+    profile.updatedAt = doc.updatedAt = now();
+    return profile;
 }
 function addGroup(doc, name, subject = 'Latín I', course = '2026-2027', level = levelForSubject(subject), weeklyHours = null) {
     const n = name.trim();
@@ -10377,9 +11099,23 @@ function configureSecondBachGroup(doc, group) {
 function addPeriod(doc, name) {
     if (!name.trim())
         throw new Error('Introduce un nombre de periodo.');
+    const predecessor = [...doc.periods].sort((a, b) => a.order - b.order).at(-1);
+    const selections = predecessor ? doc.groups.map(g => ({
+        groupId: g.id,
+        categoryIds: availableCategories(doc, g.id, predecessor.id).map(c => c.id),
+        overrides: effectiveCategories(doc, g.id, predecessor.id).map(c => ({
+            categoryId: c.id, weight: c.weight, rule: c.rule, bestCount: c.bestCount ?? 2
+        }))
+    })) : [];
     doc.periods.push(mark({ id: uid(), name: name.trim(), order: doc.periods.length, createdAt: now() }));
     doc.updatedAt = now();
-    return doc.periods.at(-1);
+    const period = doc.periods.at(-1);
+    for (const { groupId, categoryIds, overrides } of selections) {
+        const profile = ensurePeriodProfile(doc, groupId, period.id);
+        profile.categoryIds = categoryIds;
+        profile.overrides = overrides;
+    }
+    return period;
 }
 /** El grupo de procedencia identifica la tutoría/clase, NO el grupo de la asignatura.
  * Mantener name por compatibilidad con cálculos, importaciones y copias anteriores.
@@ -10501,7 +11237,11 @@ function removeCategory(doc, categoryId) {
     doc.categories = doc.categories.filter(c => c.id !== categoryId);
     doc.groups.forEach(g => { if (g.hiddenCategoryIds)
         g.hiddenCategoryIds = g.hiddenCategoryIds.filter(id => id !== categoryId); });
-    doc.gradingProfiles.forEach(p => p.overrides = p.overrides.filter(o => o.categoryId !== categoryId));
+    doc.gradingProfiles.forEach(p => {
+        p.overrides = p.overrides.filter(o => o.categoryId !== categoryId);
+        if (p.categoryIds)
+            p.categoryIds = p.categoryIds.filter(id => id !== categoryId);
+    });
     doc.competencies.forEach(c => c.links = c.links.filter(l => l.categoryId !== categoryId));
     doc.updatedAt = now();
 }
@@ -10529,6 +11269,15 @@ function removeCategoryFromGroup(doc, groupId, categoryId) {
         return 'deleted';
     }
     group.hiddenCategoryIds = [...(group.hiddenCategoryIds || []), categoryId];
+    // La ocultación global ya exigía que no hubiera actividades, reglas
+    // individuales, competencias ni condiciones de Ítaca. Limpiar también los
+    // perfiles de sus períodos para mantener válida la configuración histórica.
+    for (const profile of doc.gradingProfiles.filter(p => p.groupId === groupId)) {
+        profile.overrides = profile.overrides.filter(o => o.categoryId !== categoryId);
+        if (profile.categoryIds !== undefined)
+            profile.categoryIds = profile.categoryIds.filter(id => id !== categoryId);
+        profile.updatedAt = now();
+    }
     group.updatedAt = doc.updatedAt = now();
     return 'hidden';
 }
@@ -10548,6 +11297,9 @@ function copyPeriodAssessments(doc, groupId, sourcePeriodId, targetPeriodIds) {
             throw new Error('Una evaluación de destino ya contiene actividades. No se ha sobrescrito nada.');
     }
     for (const targetId of targetPeriodIds) {
+        // Habilitar antes de crear actividades, cuyos IDs de categoría se verifican
+        // ahora dentro de la evaluación de destino.
+        copyPeriodCategories(doc, groupId, sourcePeriodId, targetId);
         const translated = new Map();
         for (const a of source.filter(a => !a.recoveryOf)) {
             const copy = addAssessment(doc, { name: a.name, groupId, periodId: targetId, categoryId: a.categoryId, maxScore: a.maxScore, weight: a.weight, convertToTen: a.convertToTen, rubricId: a.rubricId, orthography: a.orthography ?? null, greekEtymologyBonusEnabled: a.greekEtymologyBonusEnabled ?? false });
@@ -10563,13 +11315,10 @@ function copyPeriodAssessments(doc, groupId, sourcePeriodId, targetPeriodIds) {
         // Conservar el orden original aunque las recuperaciones se creen al final.
         for (const [order, a] of source.entries())
             doc.assessments.find(x => x.id === translated.get(a.id)).order = order;
-        // También se copian reglas y porcentajes: sin ellos, una columna de Literatura
-        // podría tener peso cero aunque estuviera presente en la copia.
-        copyPeriodCategories(doc, groupId, sourcePeriodId, targetId);
     }
 }
 function addAssessment(doc, { name, groupId, periodId, categoryId, maxScore = 10, weight = 1, recoveryOf = null, recoveryMode = 'higher', convertToTen = true, rubricId = null, orthography = undefined, greekEtymologyBonusEnabled = false }) {
-    if (!name?.trim() || !doc.groups.some(g => g.id === groupId) || !doc.periods.some(p => p.id === periodId) || !(0, exports.categoryAvailableForGroup)(doc, groupId, categoryId) || !Number.isFinite(maxScore) || maxScore <= 0 || maxScore > 1000 || !Number.isFinite(weight) || weight <= 0 || weight > 1000)
+    if (!name?.trim() || !doc.groups.some(g => g.id === groupId) || !doc.periods.some(p => p.id === periodId) || !(0, exports.categoryAvailableForGroup)(doc, groupId, categoryId, periodId) || !Number.isFinite(maxScore) || maxScore <= 0 || maxScore > 1000 || !Number.isFinite(weight) || weight <= 0 || weight > 1000)
         throw new Error('Datos de actividad inválidos.');
     if (typeof convertToTen !== 'boolean' || (rubricId !== null && (!doc.rubrics.some(r => r.id === rubricId) || maxScore !== 10 || !convertToTen)))
         throw new Error('Escala o rúbrica inválida.');
@@ -10624,7 +11373,7 @@ function updateAssessment(doc, id, patch) {
     // recuperación de faltas; impedir el cambio antes de tocar actividad o agenda.
     if (doc.grades.some(g => g.assessmentId === id && g.orthographyDelivered) && !updated.orthography?.refundable)
         throw new Error('Este examen tiene faltas entregadas. No desactives la devolución ni elimines su configuración sin revisar antes esas calificaciones.');
-    if (!updated.name?.trim() || updated.name.length > 150 || !Number.isFinite(updated.maxScore) || updated.maxScore <= 0 || updated.maxScore > 1000 || !Number.isFinite(updated.weight) || updated.weight <= 0 || updated.weight > 1000 || !(0, exports.categoryAvailableForGroup)(doc, a.groupId, updated.categoryId))
+    if (!updated.name?.trim() || updated.name.length > 150 || !Number.isFinite(updated.maxScore) || updated.maxScore <= 0 || updated.maxScore > 1000 || !Number.isFinite(updated.weight) || updated.weight <= 0 || updated.weight > 1000 || !(0, exports.categoryAvailableForGroup)(doc, a.groupId, updated.categoryId, a.periodId))
         throw new Error('Datos de actividad inválidos.');
     if (doc.grades.some(g => g.assessmentId === id && g.score > updated.maxScore))
         throw new Error('Hay calificaciones que superan la nueva nota máxima.');
@@ -11049,6 +11798,8 @@ function removeStudent(doc, studentId) {
     doc.finalOverrides = doc.finalOverrides.filter(o => o.studentId !== studentId);
     doc.individualCategoryRules = doc.individualCategoryRules.filter(o => o.studentId !== studentId);
     const groupId = doc.students.find(s => s.id === studentId).groupId;
+    for (const activity of (0, extracurricular_js_1.extracurricularActivities)(doc))
+        delete activity.answers[studentId];
     doc.students = doc.students.filter(s => s.id !== studentId);
     doc.students.filter(s => s.groupId === groupId).sort((a, b) => a.order - b.order || a.id.localeCompare(b.id)).forEach((s, i) => { if (s.order !== i) {
         s.order = i;
@@ -11696,6 +12447,18 @@ function renderPatioPanel(y) {
             '<p class="hint">Sin guardias incorporadas. Utiliza «Importar rotación de Excel» para revisar las zonas y fechas antes de guardarlas.</p>') +
         '</div>';
 }
+function renderUpcomingExams(doc) {
+    const exams = (0, planner_js_1.upcomingExams)(doc);
+    if (!exams.length)
+        return '<p>No hay exámenes próximos programados.</p>';
+    return `<ul class="planner-event-list upcoming-exams">${exams.map(e => {
+        const group = eventGroup(doc, e);
+        const hours = e.time ? e.time + (e.endTime ? '–' + e.endTime : '') : 'Sin hora';
+        return `<li class="planner-event planner-event-exam"><div><strong>${esc(e.title)}</strong>
+   <small><time datetime="${esc(e.date)}">${esc(longDate(e.date))}</time> · ${esc(hours)}</small>
+   ${group ? `<small>${esc([group.subject, group.name].filter(Boolean).join(' · '))}</small>` : ''}</div></li>`;
+    }).join('')}</ul>`;
+}
 function renderPlanner(doc, ui) {
     const y = (0, planner_js_1.activeYear)(doc), mode = ui.plannerMode || 'week', focus = ui.plannerDate || (0, planner_js_1.localToday)();
     const start = (0, planner_js_1.addDays)(focus, -(0, planner_js_1.weekday)(focus));
@@ -11714,6 +12477,7 @@ function renderPlanner(doc, ui) {
  ${action('+ Cambio excepcional', 'id="plan-add-exception"')}
  ${action('Importar guardias de patio (.xlsx)', 'id="plan-import-patio"')}
  </div></details>
+ ${action('Exámenes', 'id="plan-show-exams" aria-haspopup="dialog"')}
  ${action('Sesiones de evaluación', 'id="plan-show-evaluations"', 'btn small planner-sessions-shortcut')}
  </div>`;
     let body = '';
@@ -11814,6 +12578,7 @@ function bindPlanner(doc, ui, ctx) {
         }
     });
     $('#plan-add-event').onclick = () => eventModal({ date: dateNow() });
+    $('#plan-show-exams').onclick = () => ctx.showInfo('Próximos exámenes', renderUpcomingExams(ctx.getDoc()));
     const openEvaluationWorkspace = () => {
         if (ctx.openEvaluations)
             ctx.openEvaluations();
@@ -12202,6 +12967,7 @@ exports.setSummerSchedule = setSummerSchedule;
 exports.saveTimetableBand = saveTimetableBand;
 exports.removeTimetableBand = removeTimetableBand;
 exports.isoDate = isoDate;
+exports.upcomingExams = upcomingExams;
 exports.createPlanner = createPlanner;
 exports.ensurePlanner = ensurePlanner;
 exports.activeYear = activeYear;
@@ -12400,10 +13166,23 @@ const weekday = v => { isoDate(v); return (new Date(`${v}T12:00:00Z`).getUTCDay(
 exports.weekday = weekday;
 const addDays = (v, n) => { isoDate(v); const d = new Date(`${v}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 exports.addDays = addDays;
-const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const localToday = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 exports.localToday = localToday;
 const timeValid = v => typeof v === 'string' && hm.test(v);
 exports.timeValid = timeValid;
+function upcomingExams(doc, now = new Date()) {
+    const today = (0, exports.localToday)(now);
+    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    return (doc.planner?.years ?? []).flatMap(y => y.events)
+        .filter(e => {
+        if (e.type !== 'exam' || e.date < today)
+            return false;
+        if (e.date > today)
+            return true;
+        return e.endTime ? e.endTime > time : !e.time || e.time >= time;
+    })
+        .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '24:00').localeCompare(b.time || '24:00'));
+}
 function yearRange(label) { const match = /^(\d{4})-(\d{4})$/.exec(label || ''); const y = match ? Number(match[1]) : new Date().getFullYear(); return { start: `${y}-09-01`, end: `${y + 1}-06-30` }; }
 function createPlanner(course = '2026-2027') {
     const name = /^\d{4}-\d{4}$/.test(course) ? course : '2026-2027';
@@ -13797,15 +14576,20 @@ function openStudentLinksManager({ dialog, getDoc, commit, toast, fail, groupId 
 "src/timetable-export.js":function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.timetableFileBase = void 0;
+exports.canEncodePdfText = exports.timetableFileBase = exports.wordXml = void 0;
 exports.timetableRows = timetableRows;
 exports.timetableDocxXml = timetableDocxXml;
 exports.timetableWordBlob = timetableWordBlob;
+exports.wordDocumentBlob = wordDocumentBlob;
+exports.pdfLiteral = pdfLiteral;
+exports.wrapPdfText = wrapPdfText;
 exports.timetablePdfBytes = timetablePdfBytes;
+exports.pdfDocumentBytes = pdfDocumentBytes;
 /** Exportación local del horario semanal: no consulta la red ni lee calificaciones. */
 const planner_js_1 = require("./planner.js");
 const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-const xml = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&apos;' }[c]));
+const wordXml = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&apos;' }[c]));
+exports.wordXml = wordXml;
 const palette = (_doc, slot) => (0, planner_js_1.plannerSlotColor)(slot);
 const slotLabel = (doc, s) => {
     const g = doc.groups.find(x => x.id === s.groupId);
@@ -13825,7 +14609,7 @@ const timetableFileBase = y => 'AppNotas-horario-' + String(y.name || 'curso').r
     ((0, planner_js_1.activeScheduleMode)(y) === 'summer' ? '-verano' : '-ordinario');
 exports.timetableFileBase = timetableFileBase;
 function wordRun(value, size = 18, bold = false) {
-    return '<w:r><w:rPr>' + (bold ? '<w:b/>' : '') + '<w:sz w:val="' + size + '"/></w:rPr><w:t xml:space="preserve">' + xml(value) + '</w:t></w:r>';
+    return '<w:r><w:rPr>' + (bold ? '<w:b/>' : '') + '<w:sz w:val="' + size + '"/></w:rPr><w:t xml:space="preserve">' + (0, exports.wordXml)(value) + '</w:t></w:r>';
 }
 function wordParagraph(value, size = 18, bold = false) {
     return '<w:p><w:pPr><w:spacing w:after="40"/></w:pPr>' + wordRun(value, size, bold) + '</w:p>';
@@ -13855,14 +14639,17 @@ function timetableDocxXml(doc, y) {
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
         '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + body + '</w:body></w:document>';
 }
-async function timetableWordBlob(doc, y, Zip) {
+function timetableWordBlob(doc, y, Zip) {
+    return wordDocumentBlob(timetableDocxXml(doc, y), Zip);
+}
+async function wordDocumentBlob(documentXml, Zip) {
     if (typeof Zip !== 'function')
         throw new Error('No está disponible el exportador Word local.');
     const zip = new Zip();
     zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
     zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
-    zip.file('word/document.xml', timetableDocxXml(doc, y));
-    return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    zip.file('word/document.xml', documentXml);
+    return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', compression: 'DEFLATE' });
 }
 /** PDF A4 apaisado, elaborado en el navegador sin bibliotecas ni llamadas externas. */
 const WIN1252 = Object.freeze({ '€': 128, '‚': 130, 'ƒ': 131, '„': 132, '…': 133, '†': 134, '‡': 135, 'ˆ': 136, '‰': 137,
@@ -13876,6 +14663,11 @@ function pdfBytes(text) {
     }
     return out;
 }
+const canEncodePdfText = text => Array.from(text).every(character => {
+    const code = character.codePointAt(0);
+    return (code >= 32 && code <= 126) || (code >= 160 && code <= 255) || Object.hasOwn(WIN1252, character);
+});
+exports.canEncodePdfText = canEncodePdfText;
 function pdfLiteral(text) {
     return Array.from(String(text), ch => {
         const n = ch.codePointAt(0);
@@ -13883,7 +14675,7 @@ function pdfLiteral(text) {
         return v === 40 ? '\\(' : v === 41 ? '\\)' : v === 92 ? '\\\\' : v < 32 || v === 127 ? ' ' : String.fromCharCode(v);
     }).join('');
 }
-function wrap(value, max = 21) {
+function wrapPdfText(value, max = 21) {
     const words = String(value).split(/\s+/), lines = [];
     let line = '';
     for (const word of words) {
@@ -13938,7 +14730,7 @@ function timetablePdfBytes(doc, y) {
             const x = left + firstWidth + j * dayWidth, slot = cell.slots[0];
             if (slot)
                 fill(x + 1, yBase + 1, dayWidth - 2, rowHeight - 2, lightRgb(slot.color));
-            const lines = cell.slots.flatMap(s => [...wrap(s.label, 24), ...(s.room ? wrap('Aula: ' + s.room, 24) : [])]);
+            const lines = cell.slots.flatMap(s => [...wrapPdfText(s.label, 24), ...(s.room ? wrapPdfText('Aula: ' + s.room, 24) : [])]);
             const visible = lines.slice(0, Math.max(1, Math.floor((rowHeight - 8) / 10)));
             visible.forEach((line, k) => printLine(line, x + 5, yBase + rowHeight - 13 - k * 10, 7.8));
         });
@@ -13949,21 +14741,34 @@ function timetablePdfBytes(doc, y) {
     columns.forEach(c => commands.push(c.x.toFixed(2) + ' ' + lower.toFixed(2) + ' m ' + c.x.toFixed(2) + ' ' + top.toFixed(2) + ' l S'));
     commands.push((left + firstWidth + 5 * dayWidth).toFixed(2) + ' ' + lower.toFixed(2) + ' m ' + (left + firstWidth + 5 * dayWidth).toFixed(2) + ' ' + top.toFixed(2) + ' l S');
     printLine('AppNotas · Exportación local no cifrada · Conserva este archivo en una ubicación autorizada', left, 22, 7);
-    const stream = commands.join('\n') + '\n', raw = [];
-    let length = 0, offsets = [0];
-    const append = text => { const bytes = pdfBytes(text); raw.push(...bytes); length += bytes.length; };
-    const obj = (i, body) => { offsets[i] = length; append(i + ' 0 obj\n' + body + '\nendobj\n'); };
+    return pdfDocumentBytes([commands], pageW, 595.28);
+}
+function pdfDocumentBytes(pages, width, height, baseFont = 'Helvetica', boldFont = baseFont) {
+    const raw = [], offsets = [0];
+    const append = text => { for (const byte of pdfBytes(text))
+        raw.push(byte); };
+    const obj = (id, body) => { offsets[id] = raw.length; append(id + ' 0 obj\n' + body + '\nendobj\n'); };
     append('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
     obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
-    obj(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
-    obj(3, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + pageW + ' 595.28] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>');
-    obj(4, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
-    obj(5, '<< /Length ' + pdfBytes(stream).length + ' >>\nstream\n' + stream + 'endstream');
-    const xref = length;
-    append('xref\n0 6\n0000000000 65535 f \n');
-    for (let i = 1; i <= 5; i++)
-        append(String(offsets[i]).padStart(10, '0') + ' 00000 n \n');
-    append('trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF');
+    const regularId = 4, boldId = boldFont === baseFont ? regularId : 4 + pages.length * 2;
+    obj(2, '<< /Type /Pages /Kids [' + pages.map((_, index) => (3 + index * 2 + (index ? 1 : 0)) + ' 0 R').join(' ') + '] /Count ' + pages.length + ' >>');
+    const font = name => '<< /Type /Font /Subtype /Type1 /BaseFont /' + name + ' /Encoding /WinAnsiEncoding >>';
+    pages.forEach((commands, index) => {
+        const pageId = index ? 4 + index * 2 : 3, contentId = index ? pageId + 1 : 5;
+        const stream = commands.join('\n') + '\n';
+        const boldResource = boldId === regularId ? '' : ' /F2 ' + boldId + ' 0 R';
+        obj(pageId, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + width + ' ' + height + '] /Resources << /Font << /F1 ' + regularId + ' 0 R' + boldResource + ' >> >> /Contents ' + contentId + ' 0 R >>');
+        if (index === 0)
+            obj(regularId, font(baseFont));
+        obj(contentId, '<< /Length ' + pdfBytes(stream).length + ' >>\nstream\n' + stream + 'endstream');
+    });
+    if (boldId !== regularId)
+        obj(boldId, font(boldFont));
+    const xref = raw.length;
+    append('xref\n0 ' + offsets.length + '\n0000000000 65535 f \n');
+    for (const offset of offsets.slice(1))
+        append(String(offset).padStart(10, '0') + ' 00000 n \n');
+    append('trailer\n<< /Size ' + offsets.length + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF');
     return Uint8Array.from(raw);
 }
 

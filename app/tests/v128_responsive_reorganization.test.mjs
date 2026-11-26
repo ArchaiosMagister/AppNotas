@@ -21,12 +21,12 @@ function navigationFor(tab='cuaderno',collapsed=false){
   });
 }
 
-test('tres accesos principales, tres herramientas y cinco vistas de cuaderno separadas',async()=>{
+test('cuatro accesos principales, tres herramientas y cinco vistas de cuaderno separadas',async()=>{
   const {html}=await navigationFor();
   const ids=[...html.matchAll(/data-tab="([^"]+)"/g)].map(x=>x[1]);
-  assert.deepEqual(ids,['cuaderno','planificador','evaluaciones',
+  assert.deepEqual(ids,['cuaderno','planificador','evaluaciones','extraescolares',
     'curriculo','rubricas','ajustes']);
-  assert.equal(new Set(ids).size,6);
+  assert.equal(new Set(ids).size,7);
   assert(!ids.includes('calculos')&&!ids.includes('competencias'),'Los accesos rápidos no deben duplicarse');
   for(const key of ids)assert(html.includes('data-tab="'+key+'"'));
   assert(html.includes('id="toggle-navigation"'),'La opción de plegar el menú permanece');

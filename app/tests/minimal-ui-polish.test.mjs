@@ -90,8 +90,8 @@ test('la barra de materias mantiene los botones y sus colores, sin menú oculto'
  assert(css.includes('.course-choice[aria-pressed="true"]'));
  assert(css.includes('min-height:44px'));
 });
-test('Agenda y Evaluaciones muestran un único título, sin ocultar el estado de guardado',()=>{
- assert(app.includes("!['planificador','evaluaciones'].includes(STATE.tab)?"));
+test('Agenda, Evaluaciones y Extraescolares muestran un único título, sin ocultar el estado de guardado',()=>{
+ assert(app.includes("!['planificador','evaluaciones','extraescolares'].includes(STATE.tab)?"));
  assert(app.includes('id="save-status"'));
  assert(app.includes('id="portable-status"'));
  assert(app.includes('id="lock"'));
@@ -140,12 +140,12 @@ test('iPhone/iPad: controles de 44 px y scroll horizontal accesible',()=>{
  assert(!stable.includes('@media(max-width:900px)'));
 });
 
-test('v164: cuatro espacios ocupados en navegación móvil sin pista vacía',()=>{
+test('cinco espacios ocupados en navegación móvil sin pista vacía',()=>{
  const responsive=css.slice(css.indexOf('/* v164 · Uso íntegro'));
  for(const rule of [
-  'grid-template-columns:repeat(4,minmax(0,1fr))',
+  'grid-template-columns:repeat(5,minmax(0,1fr))',
   '.tabs .academic-disclosure',
-  'grid-column:4;grid-row:1',
+  'grid-column:5;grid-row:1',
   '.tabs .nav-secondary',
   'display:contents',
   '.tabs .nav-academic-links',

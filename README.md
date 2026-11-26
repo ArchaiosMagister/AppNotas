@@ -99,7 +99,7 @@ La copia histórica .cdoc se conserva como opción de rescate, separada del arch
 
 ## Reorganización de interfaz para iPad y móvil
 
-La navegación principal da acceso a **Cuaderno**, **Agenda**, **Evaluaciones** y **Recursos**. En Recursos están **Currículo**, **Rúbricas** y **Ajustes y copias**. El menú **Aplicación** de la cabecera reúne el tema, la apertura de cuadernos, la instalación, las actualizaciones y el historial de cambios. **Cerrar cuaderno** y **Bloquear** quedan visibles.
+La navegación principal da acceso a **Cuaderno**, **Agenda**, **Evaluaciones**, **Extraescolares** y **Recursos**. En Recursos están **Currículo**, **Rúbricas** y **Ajustes y copias**. El menú **Aplicación** de la cabecera reúne el tema, la apertura de cuadernos, la instalación, las actualizaciones y el historial de cambios. **Cerrar cuaderno** y **Bloquear** quedan visibles.
 
 En **Cuaderno**, elige la materia y el grupo y pasa de **Notas** a **Cálculos**, **Competencias**, **Evaluación final** o **Vista alumno**. Los períodos aparecen en Notas. **+ Alumno** y **+ Actividad** están junto a **Acciones de la tabla**, donde se importa alumnado por CSV, se crean recuperaciones, se copian actividades y se programan exámenes. **Ítaca y procedencias** reúne los ajustes de redondeo y de tutorías de origen. **Materias y grupos** contiene la gestión de materias, los grupos y la vinculación de alumnado entre asignaturas.
 
