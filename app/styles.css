@@ -4158,3 +4158,91 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
 .extracurricular-table th{overflow-wrap:anywhere}
 .extracurricular-courses{display:grid;gap:.5rem}
 .extracurricular-courses label{display:flex;align-items:center;gap:.5rem}
+
+/* Cabecera global: los controles de aplicación nunca pertenecen a Recursos.
+   Las áreas táctiles son de 44 px o más; no se alteran los colores de materia. */
+.shell > .topbar {
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto;
+  align-items:center;gap:8px 12px;min-height:0;
+  padding-inline:max(12px,env(safe-area-inset-left,0px)) max(12px,env(safe-area-inset-right,0px));
+  padding-bottom:10px;
+}
+.topbar>.brand{grid-column:1;min-width:0;max-width:100%;flex:none;gap:9px}
+.topbar>.brand .brand-copy{min-width:0}
+.topbar>.brand .brand-copy strong{font-size:clamp(21px,2.3vw,28px)}
+.topbar>.brand .brand-copy small{white-space:normal;overflow-wrap:anywhere;font-size:9px}
+.topbar>.brand .brand-mark{width:40px;height:40px}
+.topbar>.topmeta{grid-column:2;display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px;width:auto;min-width:0}
+.topbar>.header-tools{grid-column:3;grid-row:1;position:relative;z-index:3;width:auto;min-width:0}
+.topbar>.header-tools>summary{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:8px 12px;white-space:nowrap;font-size:13px}
+.topbar>.header-tools>summary.settings-active{box-shadow:inset 0 0 0 2px currentColor}
+.settings-gear{flex:none;display:block}
+.topbar>.topmeta #save-status{min-height:34px;width:auto;min-width:0;max-width:100%;white-space:normal;text-align:center}
+.topbar>.topmeta .topbar-close-btn,.topbar>.topmeta .lock-btn{width:auto;min-width:0;min-height:44px;white-space:normal;font-size:12px}
+.topbar>.topmeta .history-actions{display:flex;flex-wrap:nowrap;gap:4px;margin:0}
+.topbar>.topmeta .history-actions .btn{width:44px;min-width:44px;min-height:44px;font-size:22px;line-height:1;padding:4px}
+.topbar>.topmeta .history-label{display:none}
+.topbar>.header-tools .header-tools-panel{right:0;left:auto;top:calc(100% + 8px);width:min(360px,calc(100vw - 24px));max-height:min(70vh,660px);max-height:min(70dvh,660px);padding:14px;overscroll-behavior:contain}
+.settings-panel-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.topbar .settings-panel-title #close-header-tools{min-width:44px;width:44px;min-height:44px;font-size:22px;padding:4px;flex:none}
+.topbar .header-tools-panel .btn.settings-current{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.topbar .header-tools-panel .btn,.topbar .header-tools-panel select{min-height:44px}
+.topbar .header-tools-panel .pwa-controls{grid-template-columns:repeat(2,minmax(0,1fr))}
+.topbar .header-tools-panel .theme-picker{flex-wrap:wrap}
+.topbar .header-tools-panel .theme-picker select{max-width:100%;min-width:0}
+.shell.student-focus>.topbar{grid-template-columns:minmax(0,1fr) auto}
+.shell.student-focus>.topbar .history-actions{display:none}
+.shell .workspace,.shell.nav-collapsed .workspace{display:flex;flex-direction:column;gap:10px}
+.shell .work-area{min-width:0;width:100%}
+@media(min-width:901px){
+  .shell .tabs,.shell.nav-collapsed .tabs{position:relative;display:grid;grid-template-columns:44px repeat(5,minmax(0,1fr));align-items:stretch;width:100%;max-height:none;overflow:visible;gap:6px;padding:6px}
+  .shell .tabs .nav-primary,.shell .tabs .nav-secondary{display:contents}
+  .shell .tabs .nav-collapse{display:flex;align-items:center;justify-content:center;width:44px;min-width:44px;min-height:44px;padding:4px}
+  .shell .tabs .nav-collapse .nav-text{display:none}
+  .shell .tabs .nav-primary>.tab,.shell .tabs .academic-disclosure>summary{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-width:0;min-height:44px;height:100%;padding:8px 6px;white-space:normal;text-align:center;border:1px solid transparent;border-bottom:3px solid transparent;border-radius:8px;font-size:13px}
+  .shell .tabs .nav-primary>.tab.active,.shell .tabs .academic-disclosure[open]>summary{background:var(--accent-soft);border-bottom-color:var(--accent)}
+  .shell .tabs .nav-primary>.tab .nav-glyph,.shell .tabs .academic-disclosure .nav-glyph{flex:0 0 auto}
+  .shell .tabs .nav-primary>.tab .nav-text,.shell .tabs .academic-disclosure>summary .nav-text{flex:0 1 auto;min-width:0;overflow-wrap:anywhere}
+  .shell.nav-collapsed .tabs .nav-primary>.tab .nav-text,.shell.nav-collapsed .tabs .academic-disclosure>summary .nav-text{display:none}
+  .shell .tabs .academic-disclosure{position:relative;min-width:0}
+  .shell .tabs .nav-academic-links{position:absolute;top:calc(100% + 6px);right:0;width:min(280px,calc(100vw - 28px));padding:8px;gap:5px;border:1px solid var(--line);border-radius:10px;background:var(--surface);box-shadow:0 10px 25px #0003;z-index:50}
+  .shell .tabs .academic-disclosure:not([open]) .nav-academic-links{display:none}
+  .shell .tabs .nav-academic-links .tab{width:100%;min-height:44px}
+  .shell.nav-collapsed .tabs .nav-academic-links .nav-text{display:inline}
+}
+.shell .class-toolbar .course-switch{flex:1 1 100%;width:100%}
+.shell .class-toolbar .course-switch .course-buttons{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,120px),1fr));gap:6px;overflow:visible;padding:2px 0;max-width:100%;scroll-snap-type:none}
+.shell .class-toolbar .course-switch .course-choice{min-width:0;width:100%;max-width:none;min-height:46px;height:100%;padding:8px;white-space:normal}
+.shell .class-toolbar .course-switch .course-choice .course-name{font-size:13px;overflow-wrap:anywhere}
+.shell .class-toolbar .group-actions-disclosure>summary,.shell .class-toolbar .group-choice{min-height:44px}
+.shell .academic-quick-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;overflow:visible}
+.shell .academic-quick-nav .btn{min-width:0;width:100%;min-height:44px;white-space:normal;overflow-wrap:anywhere;font-size:13px}
+@media(max-width:900px){
+  .shell > .topbar{grid-template-columns:minmax(0,1fr) auto}
+  .topbar>.topmeta{grid-column:1/-1;grid-row:2;justify-content:flex-end}
+  .topbar>.header-tools{grid-column:2}
+  .shell .class-toolbar .course-switch .course-buttons{grid-template-columns:repeat(auto-fit,minmax(min(100%,108px),1fr))}
+}
+@media(max-width:650px){
+  .shell > .topbar{gap:7px;padding-bottom:8px}
+  .topbar>.brand .brand-copy strong{font-size:23px}
+  .topbar>.brand .brand-copy small{font-size:8px;letter-spacing:.07em}
+  .topbar>.header-tools>summary{width:44px;min-width:44px;padding:6px}
+  .topbar>.header-tools .settings-label{display:none}
+  .topbar>.topmeta{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:5px;align-items:stretch;width:100%}
+  .topbar>.topmeta #save-status{grid-column:1/-1;grid-row:1;min-height:30px;justify-content:center}
+  .topbar>.topmeta .history-actions{grid-column:2;grid-row:2}
+  .topbar>.topmeta .topbar-close-btn{grid-column:1;grid-row:2;font-size:11px;padding:6px}
+  .topbar>.topmeta .lock-btn{grid-column:3;grid-row:2;font-size:11px;padding:6px}
+  .shell.student-focus>.topbar .topmeta .lock-btn{grid-column:1/-1}
+  .topbar>.header-tools .header-tools-panel{position:fixed;top:auto;right:max(8px,env(safe-area-inset-right,0px));left:max(8px,env(safe-area-inset-left,0px));bottom:max(8px,env(safe-area-inset-bottom,0px));width:auto;max-width:none;max-height:75vh;max-height:75dvh;border-radius:16px;padding:12px}
+  .shell .tabs .nav-primary>.tab,.shell .tabs .academic-disclosure>summary{min-height:60px}
+  .shell .class-toolbar .course-switch .course-buttons{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .shell .academic-quick-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .shell .academic-quick-nav .btn{font-size:12px}
+}
+@media(max-width:360px){
+  .shell .class-toolbar .course-switch .course-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .shell .tabs .nav-primary>.tab .nav-text,.shell .tabs .academic-disclosure>summary .nav-text{font-size:10px}
+}
+@media print{.shell > .topbar,.shell .tabs,.shell .academic-quick-nav{display:none!important}}
