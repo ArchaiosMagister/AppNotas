@@ -20,7 +20,8 @@ test('Cálculos y Competencias salen del lateral y conservan su acceso dentro de
  assert(!tools.includes("['competencias'"));
  assert(tools.includes("['curriculo'"));
  assert(tools.includes("['rubricas'"));
- assert(tools.includes("['ajustes'"));
+ assert(!tools.includes("['ajustes'"));
+ assert(app.includes('data-tab="ajustes"'));
  const notebooks=app.slice(app.indexOf('const NOTEBOOK_WORKSPACE_TABS='),app.indexOf('function renderPeriodButtons(){'));
  assert(notebooks.includes("['calculos'"));
  assert(notebooks.includes("['competencias'"));
