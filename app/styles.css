@@ -4211,8 +4211,8 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   .shell.nav-collapsed .tabs .nav-academic-links .nav-text{display:inline}
 }
 .shell .class-toolbar .course-switch{flex:1 1 100%;width:100%}
-.shell .class-toolbar .course-switch .course-buttons{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,120px),1fr));gap:6px;overflow:visible;padding:2px 0;max-width:100%;scroll-snap-type:none}
-.shell .class-toolbar .course-switch .course-choice{min-width:0;width:100%;max-width:none;min-height:46px;height:100%;padding:8px;white-space:normal}
+.shell .class-toolbar .course-switch .course-buttons{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;overflow:visible;padding:2px 0;max-width:100%;scroll-snap-type:none}
+.shell .class-toolbar .course-switch .course-choice{flex:1 1 120px;min-width:0;width:auto;max-width:none;min-height:46px;height:auto;padding:8px;white-space:normal}
 .shell .class-toolbar .course-switch .course-choice .course-name{font-size:13px;overflow-wrap:anywhere}
 .shell .class-toolbar .group-actions-disclosure>summary,.shell .class-toolbar .group-choice{min-height:44px}
 .shell .academic-quick-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;overflow:visible}
@@ -4221,7 +4221,7 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   .shell > .topbar{grid-template-columns:minmax(0,1fr) auto}
   .topbar>.topmeta{grid-column:1/-1;grid-row:2;justify-content:flex-end}
   .topbar>.header-tools{grid-column:2}
-  .shell .class-toolbar .course-switch .course-buttons{grid-template-columns:repeat(auto-fit,minmax(min(100%,108px),1fr))}
+  .shell .class-toolbar .course-switch .course-choice{flex-basis:108px}
 }
 @media(max-width:650px){
   .shell > .topbar{gap:7px;padding-bottom:8px}
@@ -4237,12 +4237,12 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   .shell.student-focus>.topbar .topmeta .lock-btn{grid-column:1/-1}
   .topbar>.header-tools .header-tools-panel{position:fixed;top:auto;right:max(8px,env(safe-area-inset-right,0px));left:max(8px,env(safe-area-inset-left,0px));bottom:max(8px,env(safe-area-inset-bottom,0px));width:auto;max-width:none;max-height:75vh;max-height:75dvh;border-radius:16px;padding:12px}
   .shell .tabs .nav-primary>.tab,.shell .tabs .academic-disclosure>summary{min-height:60px}
-  .shell .class-toolbar .course-switch .course-buttons{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .shell .class-toolbar .course-switch .course-choice{flex-basis:calc((100% - 12px) / 3)}
   .shell .academic-quick-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
   .shell .academic-quick-nav .btn{font-size:12px}
 }
 @media(max-width:360px){
-  .shell .class-toolbar .course-switch .course-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .shell .class-toolbar .course-switch .course-choice{flex-basis:calc((100% - 6px) / 2)}
   .shell .tabs .nav-primary>.tab .nav-text,.shell .tabs .academic-disclosure>summary .nav-text{font-size:10px}
 }
 @media print{.shell > .topbar,.shell .tabs,.shell .academic-quick-nav{display:none!important}}
