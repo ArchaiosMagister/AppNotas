@@ -21,23 +21,24 @@ function navigationFor(tab='cuaderno',collapsed=false){
   });
 }
 
-test('cuatro accesos principales, tres herramientas y cinco vistas de cuaderno separadas',async()=>{
+test('cuatro accesos principales, dos recursos y cinco vistas de cuaderno separadas',async()=>{
   const {html}=await navigationFor();
   const ids=[...html.matchAll(/data-tab="([^"]+)"/g)].map(x=>x[1]);
   assert.deepEqual(ids,['cuaderno','planificador','evaluaciones','extraescolares',
-    'curriculo','rubricas','ajustes']);
-  assert.equal(new Set(ids).size,7);
+    'curriculo','rubricas']);
+  assert.equal(new Set(ids).size,6);
   assert(!ids.includes('calculos')&&!ids.includes('competencias'),'Los accesos rápidos no deben duplicarse');
   for(const key of ids)assert(html.includes('data-tab="'+key+'"'));
   assert(html.includes('id="toggle-navigation"'),'La opción de plegar el menú permanece');
   assert(html.includes('aria-label="Trabajo diario"'));
-  assert(html.includes('aria-label="Recursos académicos y ajustes"'));
+  assert(html.includes('aria-label="Recursos académicos"'));
   assert(html.includes('Recursos'));
   const secondary=await navigationFor('final');
   for(const key of ['cuaderno','calculos','competencias','alumno'])
     assert(secondary.quick.includes('data-academic-quick="'+key+'"'));
   assert(!secondary.quick.includes('data-academic-quick="final"'),'Final se ubica en la barra de períodos');
-  assert(html.includes('Ajustes y copias'));
+  assert(!html.includes('Ajustes y copias'));
+  assert((await entry()).includes('data-tab="ajustes"'));
   assert(html.includes('aria-current="page"'));
 });
 
@@ -46,7 +47,7 @@ test('el destino activo se marca y Recursos abre automáticamente el panel secun
   assert(main.html.includes('data-tab="cuaderno" class="tab active" aria-current="page"'));
   assert(main.quick.includes('data-academic-quick="alumno"'));
   assert(!/class="academic-disclosure"[^>]*\bopen\b/.test(main.html));
-  for(const screen of ['curriculo','rubricas','ajustes']){
+  for(const screen of ['curriculo','rubricas']){
     const result=await navigationFor(screen);
     assert(result.html.includes('data-tab="'+screen+'" class="tab active" aria-current="page"'));
     assert(/class="academic-disclosure"[^>]*\bopen\b/.test(result.html),screen);
