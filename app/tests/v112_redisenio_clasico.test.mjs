@@ -8,7 +8,7 @@ const js=read('app.js'),css=read('styles.css'),index=read('index.html');
 
 test('v1.12: conserva las ocho rutas y acciones originales de las secciones',()=>{
   for(const tab of ['cuaderno','planificador','alumno','calculos','competencias','curriculo','rubricas','ajustes']){
-    assert(js.includes(`['${tab}',`),`No existe la pestaña ${tab}`);
+    assert(tab==='ajustes'?js.includes('data-tab="ajustes"'):js.includes(`['${tab}',`),`No existe el destino ${tab}`);
   }
   assert(js.includes('data-tab="${key}"'),'El nuevo renderizador mantiene data-tab por destino');
   assert(js.includes("PRIMARY_WORKSPACE_TABS"));
