@@ -4246,3 +4246,8 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   .shell .tabs .nav-primary>.tab .nav-text,.shell .tabs .academic-disclosure>summary .nav-text{font-size:10px}
 }
 @media print{.shell > .topbar,.shell .tabs,.shell .academic-quick-nav{display:none!important}}
+
+/* El visor privado conserva el indicador de guardado a ancho completo. */
+@media(max-width:650px){
+  .shell.student-focus>.topbar .topmeta #save-status{width:100%;max-width:none;justify-self:stretch;grid-column:1/-1}
+}
