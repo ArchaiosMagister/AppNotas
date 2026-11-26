@@ -1278,11 +1278,11 @@ html[data-theme="oled"] .notebook-more-actions>summary{background:#000!important
   .class-toolbar .course-disclosure{flex-basis:215px}
 }
 @media(max-width:900px){
-  /* Navegación móvil con cuatro destinos siempre visibles y gestión bajo menú. */
+  /* Navegación móvil con cinco destinos siempre visibles y gestión bajo menú. */
   .workspace,.shell.nav-collapsed .workspace{display:flex;flex-direction:column;gap:12px}
   .tabs,.shell.nav-collapsed .tabs{
     position:sticky;top:0;z-index:30;display:grid;
-    grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-template-columns:repeat(5,minmax(0,1fr));
     align-items:stretch;gap:5px;width:100%;max-height:none;
     padding:7px;border:1px solid var(--line);border-radius:12px;
     overflow:visible;box-shadow:0 4px 16px #0002
@@ -3530,14 +3530,14 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
 }
 @media(max-width:900px){
   .tabs,.shell.nav-collapsed .tabs{
-    grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-template-columns:repeat(5,minmax(0,1fr));
     align-items:stretch;
   }
   .tabs .nav-secondary,.shell.nav-collapsed .tabs .nav-secondary{
     display:contents;
   }
   .tabs .academic-disclosure{
-    grid-column:4;grid-row:1;min-width:0;
+    grid-column:5;grid-row:1;min-width:0;
     position:relative;z-index:40;margin:0;padding:0;
   }
   .tabs .academic-disclosure>summary{
@@ -4130,3 +4130,31 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
 @media(max-width:650px){
   #modal-form .modal-actions>.btn{min-height:44px}
 }
+
+.extracurricular-tools,.extracurricular-actions{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.5rem;
+}
+.extracurricular-tools{
+  justify-content:space-between;
+  margin-bottom:1rem;
+}
+.extracurricular-tools h1{margin:0}
+.extracurricular-table-scroll{overflow:auto;max-height:68vh}
+.extracurricular-table{width:100%;border-collapse:separate;border-spacing:0}
+.extracurricular-table th,.extracurricular-table td{
+  min-width:10rem;
+  padding:.65rem;
+  text-align:left;
+  border-bottom:1px solid var(--line);
+}
+.extracurricular-table thead th,.extracurricular-table tbody th{background:var(--surface)}
+.extracurricular-table thead th{position:sticky;top:0;z-index:2}
+.extracurricular-table tr>:first-child{position:sticky;left:0;min-width:9rem;max-width:16rem;z-index:1}
+.extracurricular-table thead tr>:first-child{z-index:3}
+.extracurricular-table time,.extracurricular-table small{display:block;margin:.25rem 0;white-space:normal}
+.extracurricular-table th{overflow-wrap:anywhere}
+.extracurricular-courses{display:grid;gap:.5rem}
+.extracurricular-courses label{display:flex;align-items:center;gap:.5rem}

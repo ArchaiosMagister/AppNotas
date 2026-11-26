@@ -2,7 +2,7 @@
 import {scheduleBands,slotsForMode,activeScheduleMode,SLOT_TYPES,plannerSlotColor} from './planner.js';
 
 const dayNames=['Lunes','Martes','Miércoles','Jueves','Viernes'];
-const xml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'' :'&apos;'}[c]));
+export const wordXml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'' :'&apos;'}[c]));
 const palette=(_doc,slot)=>plannerSlotColor(slot);
 const slotLabel=(doc,s)=>{
  const g=doc.groups.find(x=>x.id===s.groupId);
@@ -23,7 +23,7 @@ export const timetableFileBase=y=>
  (activeScheduleMode(y)==='summer'?'-verano':'-ordinario');
 
 function wordRun(value,size=18,bold=false){
- return '<w:r><w:rPr>'+(bold?'<w:b/>':'')+'<w:sz w:val="'+size+'"/></w:rPr><w:t xml:space="preserve">'+xml(value)+'</w:t></w:r>';
+ return '<w:r><w:rPr>'+(bold?'<w:b/>':'')+'<w:sz w:val="'+size+'"/></w:rPr><w:t xml:space="preserve">'+wordXml(value)+'</w:t></w:r>';
 }
 function wordParagraph(value,size=18,bold=false){
  return '<w:p><w:pPr><w:spacing w:after="40"/></w:pPr>'+wordRun(value,size,bold)+'</w:p>';
@@ -53,13 +53,17 @@ export function timetableDocxXml(doc,y){
  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
  '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+body+'</w:body></w:document>';
 }
-export async function timetableWordBlob(doc,y,Zip){
+export function timetableWordBlob(doc,y,Zip){
+ return wordDocumentBlob(timetableDocxXml(doc,y),Zip);
+}
+export async function wordDocumentBlob(documentXml,Zip){
+
  if(typeof Zip!=='function')throw new Error('No está disponible el exportador Word local.');
  const zip=new Zip();
  zip.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
  zip.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
- zip.file('word/document.xml',timetableDocxXml(doc,y));
- return zip.generateAsync({type:'blob',compression:'DEFLATE'});
+ zip.file('word/document.xml',documentXml);
+ return zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',compression:'DEFLATE'});
 }
 /** PDF A4 apaisado, elaborado en el navegador sin bibliotecas ni llamadas externas. */
 const WIN1252=Object.freeze({'€':128,'‚':130,'ƒ':131,'„':132,'…':133,'†':134,'‡':135,'ˆ':136,'‰':137,
@@ -70,13 +74,17 @@ function pdfBytes(text){
  for(const cp of String(text)){const n=cp.codePointAt(0);out.push(n<=255?n:(WIN1252[cp]||63));}
  return out;
 }
-function pdfLiteral(text){
+export const canEncodePdfText=text=>Array.from(text).every(character=>{
+ const code=character.codePointAt(0);
+ return (code>=32&&code<=126)||(code>=160&&code<=255)||Object.hasOwn(WIN1252,character);
+});
+export function pdfLiteral(text){
  return Array.from(String(text),ch=>{
   const n=ch.codePointAt(0);const v=n<=255?n:(WIN1252[ch]||63);
   return v===40?'\\(':v===41?'\\)':v===92?'\\\\':v<32||v===127?' ':String.fromCharCode(v);
  }).join('');
 }
-function wrap(value,max=21){
+export function wrapPdfText(value,max=21){
  const words=String(value).split(/\s+/),lines=[];
  let line='';
  for(const word of words){
@@ -118,7 +126,7 @@ export function timetablePdfBytes(doc,y){
   row.cells.forEach((cell,j)=>{
    const x=left+firstWidth+j*dayWidth,slot=cell.slots[0];
    if(slot)fill(x+1,yBase+1,dayWidth-2,rowHeight-2,lightRgb(slot.color));
-   const lines=cell.slots.flatMap(s=>[...wrap(s.label,24),...(s.room?wrap('Aula: '+s.room,24):[])]);
+   const lines=cell.slots.flatMap(s=>[...wrapPdfText(s.label,24),...(s.room?wrapPdfText('Aula: '+s.room,24):[])]);
    const visible=lines.slice(0,Math.max(1,Math.floor((rowHeight-8)/10)));
    visible.forEach((line,k)=>printLine(line,x+5,yBase+rowHeight-13-k*10,7.8));
   });
@@ -129,17 +137,30 @@ export function timetablePdfBytes(doc,y){
  columns.forEach(c=>commands.push(c.x.toFixed(2)+' '+lower.toFixed(2)+' m '+c.x.toFixed(2)+' '+top.toFixed(2)+' l S'));
  commands.push((left+firstWidth+5*dayWidth).toFixed(2)+' '+lower.toFixed(2)+' m '+(left+firstWidth+5*dayWidth).toFixed(2)+' '+top.toFixed(2)+' l S');
  printLine('AppNotas · Exportación local no cifrada · Conserva este archivo en una ubicación autorizada',left,22,7);
- const stream=commands.join('\n')+'\n',raw=[];let length=0,offsets=[0];
- const append=text=>{const bytes=pdfBytes(text);raw.push(...bytes);length+=bytes.length;};
- const obj=(i,body)=>{offsets[i]=length;append(i+' 0 obj\n'+body+'\nendobj\n');};
+ return pdfDocumentBytes([commands],pageW,595.28);
+}
+
+export function pdfDocumentBytes(pages,width,height,baseFont='Helvetica',boldFont=baseFont){
+ const raw=[],offsets=[0];
+ const append=text=>{for(const byte of pdfBytes(text))raw.push(byte);};
+ const obj=(id,body)=>{offsets[id]=raw.length;append(id+' 0 obj\n'+body+'\nendobj\n');};
  append('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
  obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
- obj(2,'<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
- obj(3,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+pageW+' 595.28] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>');
- obj(4,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
- obj(5,'<< /Length '+pdfBytes(stream).length+' >>\nstream\n'+stream+'endstream');
- const xref=length;append('xref\n0 6\n0000000000 65535 f \n');
- for(let i=1;i<=5;i++)append(String(offsets[i]).padStart(10,'0')+' 00000 n \n');
- append('trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF');
+ const regularId=4,boldId=boldFont===baseFont?regularId:4+pages.length*2;
+ obj(2,'<< /Type /Pages /Kids ['+pages.map((_,index)=>(3+index*2+(index?1:0))+' 0 R').join(' ')+'] /Count '+pages.length+' >>');
+ const font=name=>'<< /Type /Font /Subtype /Type1 /BaseFont /'+name+' /Encoding /WinAnsiEncoding >>';
+ pages.forEach((commands,index)=>{
+  const pageId=index?4+index*2:3,contentId=index?pageId+1:5;
+  const stream=commands.join('\n')+'\n';
+  const boldResource=boldId===regularId?'':' /F2 '+boldId+' 0 R';
+  obj(pageId,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+width+' '+height+'] /Resources << /Font << /F1 '+regularId+' 0 R'+boldResource+' >> >> /Contents '+contentId+' 0 R >>');
+  if(index===0)obj(regularId,font(baseFont));
+  obj(contentId,'<< /Length '+pdfBytes(stream).length+' >>\nstream\n'+stream+'endstream');
+ });
+ if(boldId!==regularId)obj(boldId,font(boldFont));
+ const xref=raw.length;
+ append('xref\n0 '+offsets.length+'\n0000000000 65535 f \n');
+ for(const offset of offsets.slice(1))append(String(offset).padStart(10,'0')+' 00000 n \n');
+ append('trailer\n<< /Size '+offsets.length+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF');
  return Uint8Array.from(raw);
 }

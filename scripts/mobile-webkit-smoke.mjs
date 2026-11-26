@@ -264,12 +264,12 @@ async function audit(engine,name){
      return {bar:rect(bar),cards:cards.map(rect),
       visible:cards.map(c=>getComputedStyle(c).display!=='none')};
     });
-    assert.equal(nav.cards.length,4,'Deben ocupar la barra 3 módulos + Recursos');
+    assert.equal(nav.cards.length,5,'Deben ocupar la barra cuatro módulos y Recursos');
     assert(nav.visible.every(Boolean),name+' hay botones de navegación ocultos');
     const min=Math.min(...nav.cards.map(c=>c.width)),max=Math.max(...nav.cards.map(c=>c.width));
     assert(max-min<=3,name+' botones de navegación con anchuras desiguales: '+JSON.stringify(nav));
     assert(Math.abs(nav.cards[0].left-nav.bar.left)<=11,name+' hueco inicial de navegación');
-    assert(Math.abs(nav.bar.right-nav.cards[3].right)<=11,name+' cuarta columna vacía');
+    assert(Math.abs(nav.bar.right-nav.cards.at(-1).right)<=11,name+' última columna vacía');
     assert(nav.cards.every(c=>c.height>=43.5),name+' navegación táctil insuficiente');
     // Medir icono, título y altura real, no solamente la presencia de botones.
     const alignment=await page.evaluate(()=>{
@@ -284,7 +284,7 @@ async function audit(engine,name){
        labelGrow:getComputedStyle(el.querySelector('.nav-text')).flexGrow};
      });
     });
-    const first=alignment[0],toolsNav=alignment[3];
+    const first=alignment[0],toolsNav=alignment.at(-1);
     assert(alignment.every(el=>Math.abs(el.height-first.height)<=2&&
       Math.abs(el.top-first.top)<=2),
      name+' Recursos no comparte altura/fila: '+JSON.stringify(alignment));

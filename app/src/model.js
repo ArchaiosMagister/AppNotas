@@ -1,3 +1,4 @@
+import {assertExtracurricular,extracurricularActivities} from './extracurricular.js';
 import {ATTITUDE_2BACH_CRITERIA} from './attitude-template.js';
 import {createPlanner,assertPlanner,weeklySlotCount} from './planner.js';
 export const SCHEMA_VERSION = 8;
@@ -278,6 +279,7 @@ export function assertModel(doc) {
   if(!Array.isArray(doc.gradingProfiles))throw new Error('Faltan perfiles de evaluación.');
   if(!doc.groups.every(g=>g.weeklyHours===undefined||(Number.isInteger(g.weeklyHours)&&g.weeklyHours>=1&&g.weeklyHours<=30)))throw new Error('Horas semanales del grupo inválidas.');
   assertPlanner(doc);
+  assertExtracurricular(doc);
   if(!doc.groups.every(g=>(g.itacaRounding===undefined||ITACA_ROUNDING.includes(g.itacaRounding))))throw new Error('Regla general de Nota Ítaca inválida.');
   if(!doc.groups.every(g=>g.itacaAttitudeConditions===undefined||(
     g.itacaAttitudeConditions&&typeof g.itacaAttitudeConditions==='object'&&!Array.isArray(g.itacaAttitudeConditions)&&
@@ -1283,6 +1285,7 @@ export function removeStudent(doc,studentId){
   doc.finalOverrides=doc.finalOverrides.filter(o=>o.studentId!==studentId);
   doc.individualCategoryRules=doc.individualCategoryRules.filter(o=>o.studentId!==studentId);
   const groupId=doc.students.find(s=>s.id===studentId).groupId;
+  for(const activity of extracurricularActivities(doc))delete activity.answers[studentId];
   doc.students=doc.students.filter(s=>s.id!==studentId);
   doc.students.filter(s=>s.groupId===groupId).sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id)).forEach((s,i)=>{if(s.order!==i){s.order=i;s.updatedAt=now();}});
   doc.updatedAt=now();
