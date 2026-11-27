@@ -77,7 +77,7 @@ export function createSyncController({transport,readLocal,acceptRemote,verifyLoc
     const job=Promise.resolve().then(run).finally(()=>{if(flight===job)flight=null;});
     flight=job;return job;
   }
-  return Object.freeze({start,stop,sync});
+  return Object.freeze({start,stop,sync,markPending:()=>{if(session)report(isOnline()?'pending':'offline');}});
 }
 
 /** Active-page scheduler; not a background service worker.
@@ -102,7 +102,9 @@ export function createSyncScheduler({controller,windowTarget,documentTarget,
     trigger();
   }
   function changed(){
-    if(!enabled||!visible())return;
+    if(!enabled)return;
+    controller.markPending?.();
+    if(!visible())return;
     cancel();timeout=setTimer(()=>{timeout=null;trigger();},debounceMs);
   }
   function stop(){
