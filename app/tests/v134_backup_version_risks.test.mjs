@@ -70,7 +70,7 @@ test('el nombre añade segundos sin afectar el contenido ni la compatibilidad de
   assert.equal(compareBookVersions(notebook,recovered.doc),'same');
   assert.equal(exportResult.file.version,1);
   assert.equal(exportResult.file.vault.kdf,'PBKDF2-SHA-256');
-  assert.equal(exportResult.file.vault.iterations,310000);
+  assert.equal(exportResult.file.vault.iterations,600000);
   assert(!bytes.includes('Tabularium_2026-11-22_093527'));
 });
 test('un archivo truncado se rechaza antes de cualquier sustitución',async()=>{

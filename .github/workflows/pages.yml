@@ -56,6 +56,8 @@ jobs:
         run: node scripts/build-static-site.mjs
       - name: Comprobar alojamiento único, cabeceras y migración cifrada
         run: node --test scripts/dedicated-hosting.test.mjs scripts/backup-origin-migration.test.mjs scripts/cloudflare-only.test.mjs
+      - name: Comprobar separación de despliegues y endpoints Dropbox
+        run: node --test scripts/dropbox-deployment.test.mjs
       - name: Empaquetar fuentes versionadas para testers
         if: github.ref == 'refs/heads/main'
         shell: bash

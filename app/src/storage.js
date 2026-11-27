@@ -2,6 +2,7 @@
  * que dos pestañas sobrescriban notas por accidente. */
 const DB_NAME='cuaderno-docente-v1';
 const STORE='vault';
+const DROPBOX_KEY='dropbox-credential-v1';
 
 function durableWrite(db){
   try{
@@ -42,7 +43,7 @@ export async function readEnvelope(db){return new Promise((resolve,reject)=>{
  * expected es obligatorio: null = almacén vacío; objeto = versión exacta que se leyó.
  * Leer y escribir EN LA MISMA transacción evita carreras entre pestañas.
  */
-export async function writeEnvelope(db,envelope,expected){return new Promise((resolve,reject)=>{
+export async function writeEnvelope(db,envelope,expected,expectedDropbox=undefined){return new Promise((resolve,reject)=>{
   let settled=false;
   if(expected===undefined){reject(new Error('Falta la versión esperada: se ha rechazado un guardado inseguro.'));return;}
   const done=(err)=>{if(settled)return;settled=true;err?reject(err):resolve();};
@@ -52,16 +53,31 @@ export async function writeEnvelope(db,envelope,expected){return new Promise((re
   t.onerror=()=>done(t.error||new Error('Fallo al guardar.'));
   t.onabort=()=>done(t.error||new Error('Guardado interrumpido.'));
   const store=t.objectStore(STORE);
+  const abort=e=>{done(e);try{t.abort();}catch{}};
   const get=store.get('main');
-  get.onerror=()=>done(get.error||new Error('No se ha podido verificar la copia anterior.'));
+  get.onerror=()=>abort(get.error||new Error('No se ha podido verificar la copia anterior.'));
+  function finish(previous){
+    try{
+      // A key change or empty installation invalidates any stale device link.
+      if(!previous||previous.salt!==envelope.salt||previous.iterations!==envelope.iterations)store.delete(DROPBOX_KEY);
+      store.put(envelope,'main');
+    }catch(e){abort(e);}
+  }
   get.onsuccess=()=>{
-    if(!sameEnvelope(get.result??null,expected)){
-      // Es imprescindible abortar: el error debe propagarse y no se escribe.
-      done(new EnvelopeConflictError());
-      try{t.abort();}catch{}
-      return;
-    }
-    try{store.put(envelope,'main');}catch(e){done(e);try{t.abort();}catch{}}
+    const previous=get.result??null;
+    if(!sameEnvelope(previous,expected)){abort(new EnvelopeConflictError());return;}
+    if(expectedDropbox===undefined){finish(previous);return;}
+    // Incoming sync must also compare the link inside this same transaction.
+    const link=store.get(DROPBOX_KEY);
+    link.onerror=()=>abort(link.error||new Error('No se ha podido verificar la vinculación.'));
+    link.onsuccess=()=>{
+      const current=link.result??null;
+      if(!current||!expectedDropbox||current.version!==expectedDropbox.version||
+        current.bookId!==expectedDropbox.bookId||!sameEnvelope(current.envelope,expectedDropbox.envelope)){
+        abort(new EnvelopeConflictError());return;
+      }
+      finish(previous);
+    };
   };
 });}
 
@@ -97,6 +113,7 @@ export function replaceEnvelopeWithRecovery(db,envelope,expected){return new Pro
     try{
       if(previous){rescue={version:1,createdAt:new Date().toISOString(),envelope:previous};store.put(rescue,RECOVERY_KEY);}
       else store.delete(RECOVERY_KEY);
+      store.delete(DROPBOX_KEY);
       store.put(envelope,'main');
     }catch(e){done(e);try{t.abort();}catch{}}
   };
@@ -122,6 +139,7 @@ export function swapRecoveryEnvelope(db,expectedMain,expectedRecovery,replacemen
     try{
       if(main){rescue={version:1,createdAt:new Date().toISOString(),envelope:main};store.put(rescue,RECOVERY_KEY);}
       else store.delete(RECOVERY_KEY);
+      store.delete(DROPBOX_KEY);
       store.put(replacement,'main');
     }catch(e){done(e);try{t.abort();}catch{}}
   };
@@ -160,5 +178,68 @@ export function recordExportReceipt(db,receipt,expected){return new Promise((res
       done(new EnvelopeConflictError());try{t.abort();}catch{}return;
     }
     try{store.put(receipt,EXPORT_RECEIPT_KEY);}catch(e){done(e);try{t.abort();}catch{}}
+  };
+});}
+
+/** Device-local credential, separate from notebook, export and rescue.
+ * Only ciphertext is accepted. All writes check the exact notebook revision.
+ */
+function validDropboxRecord(record,main){
+  const e=record?.envelope;
+  return record?.version===1&&typeof record.bookId==='string'&&record.bookId.length>0&&record.bookId.length<=128&&
+    Object.keys(record).sort().join(',')==='bookId,envelope,version'&&
+    e&&Object.keys(e).sort().join(',')==='data,format,iterations,iv,kdf,salt,version'&&
+    e.format==='CuadernoDocenteEncrypted'&&e.version===1&&e.kdf==='PBKDF2-SHA-256'&&
+    e.iterations===600000&&main?.iterations===e.iterations&&e.salt===main.salt&&
+    typeof e.iv==='string'&&/^[A-Za-z0-9+/]{16}$/.test(e.iv)&&
+    typeof e.data==='string'&&e.data.length>=24&&e.data.length<=24000&&/^[A-Za-z0-9+/]+={0,2}$/.test(e.data);
+}
+export function readDropboxCredential(db){return new Promise((resolve,reject)=>{
+  let t,value=null;
+  try{t=db.transaction(STORE,'readonly');}catch(e){reject(e);return;}
+  t.oncomplete=()=>resolve(value);
+  t.onerror=()=>reject(t.error||new Error('Dropbox credential read failed.'));
+  t.onabort=()=>reject(t.error||new Error('Dropbox credential read aborted.'));
+  const r=t.objectStore(STORE).get(DROPBOX_KEY);r.onsuccess=()=>{value=r.result??null;};
+});}
+export function writeDropboxCredential(db,record,expected){return new Promise((resolve,reject)=>{
+  if(expected===undefined||record!==null&&!validDropboxRecord(record,expected)){
+    reject(new Error('Invalid encrypted Dropbox credential.'));return;
+  }
+  let t,settled=false;
+  const done=e=>{if(settled)return;settled=true;e?reject(e):resolve();};
+  try{t=durableWrite(db);}catch(e){done(e);return;}
+  t.oncomplete=()=>done();
+  t.onerror=()=>done(t.error||new Error('Dropbox credential write failed.'));
+  t.onabort=()=>done(t.error||new Error('Dropbox credential write aborted.'));
+  const store=t.objectStore(STORE),r=store.get('main');
+  const abort=e=>{done(e);try{t.abort();}catch{}};
+  r.onerror=()=>abort(r.error||new Error('Cannot check local revision.'));
+  r.onsuccess=()=>{
+    if(!sameEnvelope(r.result??null,expected)){abort(new EnvelopeConflictError());return;}
+    try{if(record===null)store.delete(DROPBOX_KEY);else store.put(record,DROPBOX_KEY);}catch(e){abort(e);}
+  };
+});}
+
+/** Install a recovered notebook and its encrypted Dropbox credential together.
+ * Never replace an existing notebook or the recovery slot during onboarding.
+ */
+export function installDropboxNotebook(db,envelope,record){return new Promise((resolve,reject)=>{
+  if(!validDropboxRecord(record,envelope)||envelope?.format!=='CuadernoDocenteEncrypted'||
+     typeof envelope.data!=='string'||typeof envelope.iv!=='string'){
+    reject(new Error('Invalid encrypted Dropbox installation.'));return;
+  }
+  let t,settled=false;
+  const done=e=>{if(settled)return;settled=true;e?reject(e):resolve();};
+  try{t=durableWrite(db);}catch(e){done(e);return;}
+  t.oncomplete=()=>done();
+  t.onerror=()=>done(t.error||new Error('Dropbox installation failed.'));
+  t.onabort=()=>done(t.error||new Error('Dropbox installation aborted.'));
+  const store=t.objectStore(STORE),r=store.get('main');
+  const abort=e=>{done(e);try{t.abort();}catch{}};
+  r.onerror=()=>abort(r.error||new Error('Cannot check local notebook.'));
+  r.onsuccess=()=>{
+    if(r.result!=null){abort(new EnvelopeConflictError());return;}
+    try{store.put(envelope,'main');store.put(record,DROPBOX_KEY);}catch(e){abort(e);}
   };
 });}

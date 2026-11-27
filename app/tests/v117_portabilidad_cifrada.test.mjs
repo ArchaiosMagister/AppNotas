@@ -65,7 +65,7 @@ test('otro IV para cada exportación del mismo cuaderno, ciphertext diferente',a
   const a=await createPortableCopy(d,key,salt),b=await createPortableCopy(d,key,salt);
   assert.notEqual(a.file.vault.iv,b.file.vault.iv);
   assert.notEqual(a.file.vault.data,b.file.vault.data);
-  assert.equal(a.file.vault.iterations,310000);
+  assert.equal(a.file.vault.iterations,600000);
   assert.equal(a.file.vault.kdf,'PBKDF2-SHA-256');
 });
 test('contraseña incorrecta y datos alterados no producen un modelo restaurado',async()=>{
