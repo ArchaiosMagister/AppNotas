@@ -59,7 +59,7 @@ export function createDropboxSession({state,enqueue,canApply,adopt,onStatus,wind
       await checkLink();const token=await sessionProvider.getAccessToken();await checkLink();return token;
     }});
     const bridge=createLocalSyncBridge({state,enqueue,canApply,adopt,write:(db,env,expected)=>writeEnvelope(db,env,expected,link.record)});
-    const controller=createSyncController({transport,...bridge,verifyLocal:async(local,signal)=>{await checkLink();return bridge.verifyLocal(local,signal);},onStatus,isOnline:()=>windowTarget.navigator.onLine!==false});
+    const controller=createSyncController({transport,...bridge,verifyLocal:async(local,signal)=>{await checkLink();return bridge.verifyLocal(local,signal);},onStatus:value=>{if(value.status==='not-linked'&&gen===generation)stop();onStatus(value);},isOnline:()=>windowTarget.navigator.onLine!==false});
     inspect=()=>prepareConflictCopies({transport,readLocal:bridge.readLocal,verifyLocal:async(local)=>{await checkLink();return gen===generation&&await bridge.verifyLocal(local);}});
     scheduler=createSyncScheduler({controller,windowTarget,documentTarget});
     scheduler.start();
