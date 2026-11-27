@@ -2,6 +2,7 @@
  * que dos pestañas sobrescriban notas por accidente. */
 const DB_NAME='cuaderno-docente-v1';
 const STORE='vault';
+const DROPBOX_KEY='dropbox-credential-v1';
 
 function durableWrite(db){
   try{
@@ -42,7 +43,7 @@ export async function readEnvelope(db){return new Promise((resolve,reject)=>{
  * expected es obligatorio: null = almacén vacío; objeto = versión exacta que se leyó.
  * Leer y escribir EN LA MISMA transacción evita carreras entre pestañas.
  */
-export async function writeEnvelope(db,envelope,expected){return new Promise((resolve,reject)=>{
+export async function writeEnvelope(db,envelope,expected,expectedDropbox=undefined){return new Promise((resolve,reject)=>{
   let settled=false;
   if(expected===undefined){reject(new Error('Falta la versión esperada: se ha rechazado un guardado inseguro.'));return;}
   const done=(err)=>{if(settled)return;settled=true;err?reject(err):resolve();};
@@ -52,16 +53,31 @@ export async function writeEnvelope(db,envelope,expected){return new Promise((re
   t.onerror=()=>done(t.error||new Error('Fallo al guardar.'));
   t.onabort=()=>done(t.error||new Error('Guardado interrumpido.'));
   const store=t.objectStore(STORE);
+  const abort=e=>{done(e);try{t.abort();}catch{}};
   const get=store.get('main');
-  get.onerror=()=>done(get.error||new Error('No se ha podido verificar la copia anterior.'));
+  get.onerror=()=>abort(get.error||new Error('No se ha podido verificar la copia anterior.'));
+  function finish(previous){
+    try{
+      // A key change or empty installation invalidates any stale device link.
+      if(!previous||previous.salt!==envelope.salt||previous.iterations!==envelope.iterations)store.delete(DROPBOX_KEY);
+      store.put(envelope,'main');
+    }catch(e){abort(e);}
+  }
   get.onsuccess=()=>{
-    if(!sameEnvelope(get.result??null,expected)){
-      // Es imprescindible abortar: el error debe propagarse y no se escribe.
-      done(new EnvelopeConflictError());
-      try{t.abort();}catch{}
-      return;
-    }
-    try{store.put(envelope,'main');}catch(e){done(e);try{t.abort();}catch{}}
+    const previous=get.result??null;
+    if(!sameEnvelope(previous,expected)){abort(new EnvelopeConflictError());return;}
+    if(expectedDropbox===undefined){finish(previous);return;}
+    // Incoming sync must also compare the link inside this same transaction.
+    const link=store.get(DROPBOX_KEY);
+    link.onerror=()=>abort(link.error||new Error('No se ha podido verificar la vinculación.'));
+    link.onsuccess=()=>{
+      const current=link.result??null;
+      if(!current||!expectedDropbox||current.version!==expectedDropbox.version||
+        current.bookId!==expectedDropbox.bookId||!sameEnvelope(current.envelope,expectedDropbox.envelope)){
+        abort(new EnvelopeConflictError());return;
+      }
+      finish(previous);
+    };
   };
 });}
 
@@ -97,6 +113,7 @@ export function replaceEnvelopeWithRecovery(db,envelope,expected){return new Pro
     try{
       if(previous){rescue={version:1,createdAt:new Date().toISOString(),envelope:previous};store.put(rescue,RECOVERY_KEY);}
       else store.delete(RECOVERY_KEY);
+      store.delete(DROPBOX_KEY);
       store.put(envelope,'main');
     }catch(e){done(e);try{t.abort();}catch{}}
   };
@@ -122,6 +139,7 @@ export function swapRecoveryEnvelope(db,expectedMain,expectedRecovery,replacemen
     try{
       if(main){rescue={version:1,createdAt:new Date().toISOString(),envelope:main};store.put(rescue,RECOVERY_KEY);}
       else store.delete(RECOVERY_KEY);
+      store.delete(DROPBOX_KEY);
       store.put(replacement,'main');
     }catch(e){done(e);try{t.abort();}catch{}}
   };
@@ -166,7 +184,6 @@ export function recordExportReceipt(db,receipt,expected){return new Promise((res
 /** Device-local credential, separate from notebook, export and rescue.
  * Only ciphertext is accepted. All writes check the exact notebook revision.
  */
-const DROPBOX_KEY='dropbox-credential-v1';
 function validDropboxRecord(record,main){
   const e=record?.envelope;
   return record?.version===1&&typeof record.bookId==='string'&&record.bookId.length>0&&record.bookId.length<=128&&
