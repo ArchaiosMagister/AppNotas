@@ -6,7 +6,7 @@ import {beginAuthorization,completeAuthorization,sealDropboxCredential} from './
 import {createDropboxTransport,openDropboxSnapshot,unlockDropboxSnapshot,dropboxSyncDecision} from './dropbox-sync.js';
 import {seal,keyIterations,KDF_ITERATIONS,unlockVault} from './vault.js';
 import {assertModel} from './model.js';
-import {validateBookMetadata} from './cuaderno.js';
+import {validateBookMetadata,compareBookVersions} from './cuaderno.js';
 import {sameEnvelope,readEnvelope,writeDropboxCredential,installDropboxNotebook} from './storage.js';
 const PENDING='appnotas-dropbox-pkce-v1';
 import {DROPBOX_ORIGIN,validDropboxRedirect,dropboxFilePath} from './dropbox-config.js';
