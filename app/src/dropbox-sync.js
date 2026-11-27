@@ -67,9 +67,10 @@ export class DropboxSyncError extends Error{
  */
 export function createDropboxTransport({getAccessToken,fetchImpl=globalThis.fetch}){
   if(typeof getAccessToken!=='function'||typeof fetchImpl!=='function')throw new Error('Falta transporte autorizado.');
-  async function request(action,arg,body,signal){
+  async function request(action,arg,body,signal,beforeSend){
     const token=await getAccessToken();
     if(typeof token!=='string'||!token||/[\r\n]/.test(token))throw new DropboxSyncError('authorization');
+    if(signal?.aborted||beforeSend&&!await beforeSend()||signal?.aborted)throw new DropboxSyncError('local-changed');
     return fetchImpl(CONTENT+action,{method:'POST',headers:{Authorization:'Bearer '+token,'Dropbox-API-Arg':JSON.stringify(arg),...(body===undefined?{}:{'Content-Type':'application/octet-stream'})},body,signal,credentials:'omit',cache:'no-store',redirect:'error',referrerPolicy:'no-referrer'});
   }
   async function download({signal}={}){
@@ -88,12 +89,12 @@ export function createDropboxTransport({getAccessToken,fetchImpl=globalThis.fetc
     let snapshot;try{snapshot=JSON.parse(raw);}catch{throw new DropboxSyncError('format');}
     checkSnapshot(snapshot);return {rev,snapshot};
   }
-  async function upload({doc,key,salt,expectedRev,signal}){
+  async function upload({doc,key,salt,expectedRev,signal,beforeSend}){
     if(expectedRev===undefined)throw new DropboxSyncError('missing-revision');
     const mode=expectedRev===null?'add':{'.tag':'update',update:revision(expectedRev)};
     const snapshot=await sealDropboxSnapshot(doc,key,salt);
     const body=JSON.stringify(snapshot);
-    const res=await request('upload',{path:PATH,mode,autorename:false,strict_conflict:true,mute:true},body,signal);
+    const res=await request('upload',{path:PATH,mode,autorename:false,strict_conflict:true,mute:true},body,signal,beforeSend);
     if(res.status===409)throw new DropboxSyncError('conflict');
     if(!res.ok)throw new DropboxSyncError('http-'+res.status);
     const result=await res.json();return {rev:revision(result?.rev)};
