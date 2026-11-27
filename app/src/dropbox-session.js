@@ -7,9 +7,8 @@ import {createDropboxTransport} from './dropbox-sync.js';
 import {createSyncController,createSyncScheduler} from './dropbox-controller.js';
 import {readDropboxCredential} from './storage.js';
 import {refreshAuthorization} from './dropbox-oauth.js';
-export const DROPBOX_CLIENT_ID='';
-export const DROPBOX_ORIGIN='https://appnotas-docente.pages.dev';
-export const dropboxConfigured=origin=>origin===DROPBOX_ORIGIN&&/^[a-zA-Z0-9_-]{5,128}$/.test(DROPBOX_CLIENT_ID);
+import {DROPBOX_CLIENT_ID,dropboxConfigured,dropboxFilePath} from './dropbox-config.js';
+export {DROPBOX_CLIENT_ID,DROPBOX_ORIGIN,DROPBOX_TEST_ORIGIN,dropboxConfigured} from './dropbox-config.js';
 export function createSessionTokenProvider({clientId,refreshToken,refresh=refreshAuthorization,now=Date.now}){
   let token=null,expiry=0,pending=null,stopped=false,secret=refreshToken;
   const abort=new AbortController();
@@ -53,7 +52,7 @@ export function createDropboxSession({state,enqueue,canApply,adopt,onStatus,wind
         sessionProvider.stop();throw Object.assign(new Error('Dropbox link changed.'),{code:'link-changed'});
       }
     };
-    const transport=createDropboxTransport({getAccessToken:async()=>{
+    const transport=createDropboxTransport({path:dropboxFilePath(origin),getAccessToken:async()=>{
       await checkLink();const token=await sessionProvider.getAccessToken();await checkLink();return token;
     }});
     const bridge=createLocalSyncBridge({state,enqueue,canApply,adopt});
