@@ -5,9 +5,9 @@
 import {seal,KDF_ITERATIONS,keyIterations} from './vault.js';
 import {assertModel} from './model.js';
 import {compareBookVersions,validateBookMetadata} from './cuaderno.js';
-import {writeEnvelope,sameEnvelope,readDropboxCredential,writeDropboxCredential} from './storage.js';
+import {writeEnvelope,sameEnvelope,readEnvelope,readDropboxCredential,writeDropboxCredential} from './storage.js';
 import {sealDropboxCredential,openDropboxCredential} from './dropbox-oauth.js';
-export function createLocalSyncBridge({state,enqueue,canApply=()=>true,adopt,onChanged=()=>{},write=writeEnvelope}){
+export function createLocalSyncBridge({state,enqueue,canApply=()=>true,adopt,onChanged=()=>{},write=writeEnvelope,read=readEnvelope}){
   const readLocal=()=>{
     if(!state.doc||!state.envelope||!state.key||!state.salt||state.saveError||state.failedEnvelope||
       state.saving||state.pending||keyIterations(state.key)!==KDF_ITERATIONS||!canApply())return null;
@@ -15,6 +15,9 @@ export function createLocalSyncBridge({state,enqueue,canApply=()=>true,adopt,onC
   };
   const matches=(expected,signal)=>!signal?.aborted&&state.doc===expected.doc&&state.key===expected.key&&
     sameEnvelope(state.envelope,expected.envelope)&&!state.saveError&&!state.failedEnvelope&&!state.saving&&canApply();
+  async function verifyLocal(expected,signal){
+    return !!expected?.envelope&&matches(expected,signal)&&sameEnvelope(await read(state.db),expected.envelope)&&matches(expected,signal);
+  }
   async function acceptRemote({expected,doc,signal}){
     if(!expected?.envelope||!matches(expected,signal))return false;
     return enqueue(async()=>{
@@ -38,7 +41,7 @@ export function createLocalSyncBridge({state,enqueue,canApply=()=>true,adopt,onC
       return true;
     });
   }
-  return Object.freeze({readLocal,acceptRemote});
+  return Object.freeze({readLocal,acceptRemote,verifyLocal});
 }
 export async function saveLocalDropboxLink({state,clientId,refreshToken,expected=state.envelope}){
   if(!state.doc||!state.key||!state.salt||!expected||!sameEnvelope(state.envelope,expected))
@@ -48,11 +51,17 @@ export async function saveLocalDropboxLink({state,clientId,refreshToken,expected
   if(state.doc!==doc||state.key!==key||!sameEnvelope(state.envelope,expected))throw new Error('Notebook changed during linking.');
   await writeDropboxCredential(state.db,{version:1,bookId:doc.id,envelope},expected);
 }
-export async function loadLocalDropboxLink({state,clientId}){
+export async function loadLocalDropboxSession({state,clientId}){
   const doc=state.doc,key=state.key,salt=state.salt;
   if(!doc||!key||!salt||keyIterations(key)!==KDF_ITERATIONS)return null;
   const record=await readDropboxCredential(state.db);
   if(!record||record.version!==1||record.bookId!==doc.id||state.doc!==doc||state.key!==key)return null;
   const token=await openDropboxCredential(record.envelope,key,salt,clientId);
-  return state.doc===doc&&state.key===key?token:null;
+  return state.doc===doc&&state.key===key?{token,record}:null;
+}
+
+export async function loadLocalDropboxLink(options){return (await loadLocalDropboxSession(options))?.token??null;}
+/** A different credential, book or deletion invalidates this unlocked session. */
+export function sameDropboxLink(a,b){
+  return !!a&&!!b&&a.version===1&&b.version===1&&a.bookId===b.bookId&&sameEnvelope(a.envelope,b.envelope);
 }
