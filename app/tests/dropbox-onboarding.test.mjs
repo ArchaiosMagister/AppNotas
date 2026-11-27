@@ -35,9 +35,9 @@ async function fixture(mode){
 }
 test('new cloud copy requires explicit approval and uses add-only upload',async()=>{
   const f=await fixture('link');
-  assert.equal(await f.flow.link({state:f.state}),false);
+  assert.equal(await f.flow.link({state:f.state,password}),false);
   assert.equal(f.uploads(),0);assert.equal(f.record(),null);
-  assert.equal(await f.flow.link({state:f.state,confirmInitialize:async()=>true}),true);
+  assert.equal(await f.flow.link({state:f.state,password,confirmInitialize:async()=>true}),true);
   assert.equal(f.uploads(),1);
   assert.equal(await openDropboxCredential(f.record().envelope,f.key,f.salt,clientId),'fake-refresh');
   assert.equal(JSON.stringify(f.record()).includes('fake-refresh'),false);
@@ -61,6 +61,13 @@ test('restore refuses a local notebook even if it appears during confirmation',a
 });
 test('linking existing remote does not replace or upload local data during onboarding',async()=>{
   const f=await fixture('link');await f.remote();
-  assert.equal(await f.flow.link({state:f.state}),true);
+  assert.equal(await f.flow.link({state:f.state,password}),true);
   assert.equal(f.uploads(),0);assert.equal(f.stored(),f.state.envelope);
+});
+
+test('link refuses a weak or incorrect password before accessing the remote copy',async()=>{
+  const f=await fixture('link');
+  await assert.rejects(f.flow.link({state:f.state,password:'short-pass12',confirmInitialize:async()=>true}));
+  await assert.rejects(f.flow.link({state:f.state,password:'incorrect long fictional password',confirmInitialize:async()=>true}));
+  assert.equal(f.uploads(),0);assert.equal(f.record(),null);
 });
