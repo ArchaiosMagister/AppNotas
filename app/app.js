@@ -171,7 +171,7 @@ function paintDropboxStatus(){
   const button=root.querySelector('#dropbox-sync');
   if(button){button.title=message;button.setAttribute('aria-label','Dropbox: '+message);}
   const label=root.querySelector('#dropbox-sync .dropbox-label');
-  if(label)label.textContent=dropboxStatus==='syncing'?'Sincronizando…':'Dropbox';
+  if(label)label.textContent=dropboxStatus==='conflict'?'Conflicto':dropboxStatus==='syncing'?'Sincronizando…':'Dropbox';
 }
 const dropboxSession=createDropboxSession({state:STATE,enqueue:enqueueMutation,windowTarget:window,documentTarget:document,origin:location.origin,
   canApply:()=>!dialog.open&&!STATE.studentPresentation&&!document.activeElement?.matches?.('input,select,textarea,[contenteditable=true]'),
@@ -199,13 +199,16 @@ async function finishDropboxLink(){
   if(!callback||callback.mode!=='link'||!dropboxConfigured(location.origin)){startDropboxSession();return;}
   if(!STATE.doc||STATE.envelope?.iterations!==KDF_ITERATIONS){toast('Refuerza la contraseña y vuelve a vincular Dropbox.');return;}
   if(!window.confirm('¿Vincular este cuaderno con la cuenta de Dropbox que acabas de autorizar?')){startDropboxSession();return;}
+  const password=await requestBackupPassword('Vincular Dropbox · contraseña del cuaderno (mínimo 16 caracteres)');
+  if(password===null){startDropboxSession();return;}
+  if(password.length<16){toast('Dropbox requiere una frase de contraseña de al menos 16 caracteres. Refuérzala antes de vincular.');startDropboxSession();return;}
   const flow=createDropboxOnboarding({clientId:DROPBOX_CLIENT_ID,origin:location.origin});dropboxOnboarding=flow;
   dropboxSession.stop();
   try{
     await enqueueMutation(async()=>{
       await STATE.saveQueue;
       await flow.begin(callback);
-      const linked=await flow.link({state:STATE,confirmInitialize:async()=>window.confirm('No hay una copia en Dropbox. ¿Crear ahora la primera copia cifrada de este cuaderno?')});
+      const linked=await flow.link({state:STATE,password,confirmInitialize:async()=>window.confirm('No hay una copia en Dropbox. ¿Crear ahora la primera copia cifrada de este cuaderno?')});
       toast(linked?'Dropbox vinculado.':'Vinculación cancelada. El cuaderno local permanece intacto.');
     });
   }catch{toast('No se pudo vincular Dropbox. Comprueba la cuenta, la contraseña y si existe otro cuaderno remoto. No se ha sobrescrito el cuaderno local.');}
@@ -247,11 +250,26 @@ async function unlinkDropbox(){
     dropboxStatus='not-linked';paintDropboxStatus();toast('Dropbox desvinculado de este dispositivo.');
   }catch{toast('No se pudo desvincular Dropbox. Comprueba el almacenamiento local.');}
 }
+async function openDropboxConflictCopies(){
+  if(!dropboxSession.active()||!STATE.doc||dialog.open){toast('Desbloquea el cuaderno vinculado.');return;}
+  const key=STATE.key;
+  let copies;
+  try{copies=await dropboxSession.conflictCopies();}catch{toast('No se han podido preparar dos versiones incompatibles autenticadas. Comprueba el estado de Dropbox y el guardado local.');return;}
+  if(STATE.key!==key||dialog.open)return;
+  const stamp=new Date().toISOString().slice(0,10);
+  dialog.innerHTML='<div class="modal-inner"><h2 id="modal-heading">Conflicto de sincronización</h2><p>Las dos versiones se conservan sin fusionar ni sobrescribir. Descarga ambas copias cifradas y verifica que puedes abrirlas antes de decidir cuál conservar. Guarda los archivos en una ubicación local autorizada.</p><p class="hint">No se han cambiado las notas ni en Dropbox ni en el dispositivo. Cada copia se abre con la contraseña del cuaderno.</p><div class="modal-actions"><button class="btn" type="button" id="dropbox-copy-local">Descargar versión local</button><button class="btn" type="button" id="dropbox-copy-remote">Descargar versión Dropbox</button><button class="btn" type="button" id="dropbox-copy-close">Cerrar</button></div></div>';
+  $('#dropbox-copy-local',dialog).onclick=()=>downloadEncryptedEnvelope(copies.local,'AppNotas-conflicto-local-'+stamp+'.cdoc');
+  $('#dropbox-copy-remote',dialog).onclick=()=>downloadEncryptedEnvelope(copies.remote,'AppNotas-conflicto-dropbox-'+stamp+'.cdoc');
+  $('#dropbox-copy-close',dialog).onclick=()=>dialog.close();
+  dialog.addEventListener('close',()=>{copies=null;},{once:true});
+  dialog.showModal();
+}
 function renderDropboxSettings(){
-  return `<section id="dropbox-settings" class="panel panel-pad"><h2>Sincronización cifrada con Dropbox</h2>${isDropboxTest(location.origin)?'<p class="section-note"><strong>ENTORNO DE PRUEBAS.</strong> Solo datos ficticios. No importes ni escribas notas reales.</p>':''}<p data-dropbox-status role="status" aria-live="polite"></p><p class="hint">Los datos se cifran en este dispositivo antes de enviarse. No se guardan contraseñas en Dropbox. La sincronización se realizará mientras el cuaderno esté desbloqueado y la aplicación activa.</p>${STATE.envelope?.iterations!==KDF_ITERATIONS?'<p class="section-note">Para sincronizar, debes reforzar la contraseña del cuaderno. Conserva primero una copia cifrada comprobada.</p><button class="btn" type="button" id="dropbox-upgrade">Reforzar contraseña</button>':'<p class="hint">Formato de cifrado reforzado disponible.</p>'}${dropboxConfigured(location.origin)?(STATE.envelope?.iterations===KDF_ITERATIONS?'<div class="actions"><button class="btn dropbox-sync-btn" type="button" id="dropbox-link">Vincular Dropbox</button><button class="btn" type="button" id="dropbox-unlink">Desvincular este dispositivo</button></div><p class="hint">Si existe un cuaderno diferente en Dropbox, no se sustituirá. Conserva copias locales verificadas además de la sincronización.</p>':'<p class="hint">Refuerza la contraseña antes de vincular Dropbox.</p>'):'<p class="hint">La conexión con Dropbox todavía no está habilitada. Ningún dato se envía.</p>'}</section>`;
+  return `<section id="dropbox-settings" class="panel panel-pad"><h2>Sincronización cifrada con Dropbox</h2>${isDropboxTest(location.origin)?'<p class="section-note"><strong>ENTORNO DE PRUEBAS.</strong> Solo datos ficticios. No importes ni escribas notas reales.</p>':''}<p data-dropbox-status role="status" aria-live="polite"></p><p class="hint">Los datos se cifran en este dispositivo antes de enviarse. No se guardan contraseñas en Dropbox. La sincronización se realizará mientras el cuaderno esté desbloqueado y la aplicación activa.</p>${STATE.envelope?.iterations!==KDF_ITERATIONS?'<p class="section-note">Para sincronizar, debes reforzar la contraseña del cuaderno. Conserva primero una copia cifrada comprobada.</p><button class="btn" type="button" id="dropbox-upgrade">Reforzar contraseña</button>':'<p class="hint">Formato de cifrado reforzado disponible. Dropbox requiere una frase de contraseña de al menos 16 caracteres.</p>'+(!dropboxSession.active()?'<button class="btn" type="button" id="dropbox-upgrade">Reforzar contraseña</button>':'')}${dropboxConfigured(location.origin)?(STATE.envelope?.iterations===KDF_ITERATIONS?'<div class="actions"><button class="btn dropbox-sync-btn" type="button" id="dropbox-link">Vincular Dropbox</button><button class="btn" type="button" id="dropbox-unlink">Desvincular este dispositivo</button><button class="btn" type="button" id="dropbox-conflict-copies">Conservar ambas versiones (conflicto)</button></div><p class="hint">Si existe un cuaderno diferente en Dropbox, no se sustituirá. Conserva copias locales verificadas además de la sincronización.</p>':'<p class="hint">Refuerza la contraseña antes de vincular Dropbox.</p>'):'<p class="hint">La conexión con Dropbox todavía no está habilitada. Ningún dato se envía.</p>'}</section>`;
 }
 function openDropboxUpgrade(){
   if(dialog.open||!STATE.doc||!STATE.key)return;
+  if(dropboxSession.active()){toast('No cambies la clave de un cuaderno vinculado. Primero debes desvincularlo y conservar copias verificadas.');return;}
   const expected=STATE.envelope,before=STATE.doc,key=STATE.key;
   dialog.innerHTML='<form class="modal-inner" id="dropbox-upgrade-form"><h2 id="modal-heading">Reforzar contraseña del cuaderno</h2><p>Las notas no cambian. Las copias anteriores conservarán su contraseña antigua. Guarda y verifica una copia externa antes de continuar.</p><label for="dropbox-old-password">Contraseña actual</label><input class="text-field" id="dropbox-old-password" type="password" required autocomplete="off"/><label for="dropbox-new-password">Nueva contraseña (mínimo 16 caracteres)</label><input class="text-field" id="dropbox-new-password" type="password" required minlength="16" autocomplete="off"/><label for="dropbox-repeat-password">Repite la nueva contraseña</label><input class="text-field" id="dropbox-repeat-password" type="password" required minlength="16" autocomplete="off"/><label><input id="dropbox-backup-confirm" type="checkbox" required/> He guardado y verificado una copia externa cifrada.</label><p id="dropbox-upgrade-error" role="alert" class="modal-error"></p><div class="modal-actions"><button type="button" class="btn" id="dropbox-upgrade-cancel">Cancelar</button><button type="submit" class="btn primary">Reforzar contraseña</button></div></form>';
   const form=$('#dropbox-upgrade-form',dialog),err=$('#dropbox-upgrade-error',dialog),submit=form.querySelector('[type=submit]'),cancel=$('#dropbox-upgrade-cancel',dialog);
@@ -1993,7 +2011,7 @@ Participación;2;20"></textarea></label></div><div id="activity-import-rubric" c
   dialog.showModal();form.querySelector('[name=name]')?.focus();
 }
 function bindCommon(){
-  $('#dropbox-sync')?.addEventListener('click',()=>{if(dropboxSession.active())void dropboxSession.manual();else openDropboxSettings();});
+  $('#dropbox-sync')?.addEventListener('click',()=>{if(dropboxStatus==='conflict')openDropboxSettings();else if(dropboxSession.active())void dropboxSession.manual();else openDropboxSettings();});
   document.querySelectorAll('[data-shell-disclosure]').forEach(details=>details.addEventListener('toggle',()=>{
     const key=details.dataset.shellDisclosure;
     if(Object.prototype.hasOwnProperty.call(workspaceDisclosures,key))workspaceDisclosures[key]=details.open;
@@ -2739,6 +2757,7 @@ function bindSettings(){
   $('#dropbox-upgrade')?.addEventListener('click',openDropboxUpgrade);
   $('#dropbox-link')?.addEventListener('click',()=>navigateDropbox('link').catch(()=>toast('No se pudo iniciar la autorización de Dropbox. Comprueba el guardado y la conexión.')));
   $('#dropbox-unlink')?.addEventListener('click',()=>void unlinkDropbox());
+  $('#dropbox-conflict-copies')?.addEventListener('click',()=>void openDropboxConflictCopies());
   $('#reset-notebook')?.addEventListener('click',()=>$('#reset-notebook-file')?.click());
   $('#reset-notebook-file')?.addEventListener('change',async e=>{
     const file=e.target.files?.[0];e.target.value='';
@@ -2800,7 +2819,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v188-dev');
+      const cache=await caches.open('cuaderno-docente-static-v189-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
