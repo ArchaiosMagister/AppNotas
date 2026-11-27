@@ -3,33 +3,35 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
 import {initialNotebook,assertModel,setGrade} from '../src/model.js';
+import {sealDropboxCredential} from '../src/dropbox-oauth.js';
 import {createVault,seal,unlockVault,saltFromEnvelope} from '../src/vault.js';
-import {readEnvelope,writeEnvelope,sameEnvelope,EnvelopeConflictError} from '../src/storage.js';
+import {readEnvelope,writeEnvelope,sameEnvelope,EnvelopeConflictError,writeDropboxCredential,readDropboxCredential,replaceEnvelopeWithRecovery,readRecoveryEnvelope,swapRecoveryEnvelope,installDropboxNotebook} from '../src/storage.js';
 
 /** Simulador DETERMINISTA de transacciones serializadas de IndexedDB.
  * NO es un navegador real: verifica contratos, rechazo de carreras y lógica. */
 function makeMemoryDb(){
-  let record=null,locked=false;
+  let records=new Map(),locked=false;
   const waiting=[];
-  function next(){if(locked||!waiting.length)return;locked=true;const tx=waiting.shift();tx.active=true;tx.pump();}
+  function next(){if(locked||!waiting.length)return;locked=true;const tx=waiting.shift();tx.active=true;tx.records=new Map([...records].map(([k,v])=>[k,structuredClone(v)]));tx.pump();}
   const db={
     transaction(store,mode){
       assert.equal(store,'vault');
       assert(['readonly','readwrite'].includes(mode));
       const t={oncomplete:null,onabort:null,onerror:null,error:null,active:false,aborted:false,ops:[],busy:false,
         objectStore(name){assert.equal(name,'vault');return {
-          get(key){assert.equal(key,'main');const req={result:undefined,onsuccess:null,onerror:null};t.ops.push(()=>{req.result=structuredClone(record);req.onsuccess?.();});t.pump();return req;},
-          put(value,key){assert.equal(mode,'readwrite');assert.equal(key,'main');t.ops.push(()=>{record=structuredClone(value);});t.pump();}
+          get(key){const req={result:undefined,onsuccess:null,onerror:null};t.ops.push(()=>{req.result=structuredClone(t.records.get(key));req.onsuccess?.();});t.pump();return req;},
+          put(value,key){assert.equal(mode,'readwrite');t.ops.push(()=>{t.records.set(key,structuredClone(value));});t.pump();},
+          delete(key){assert.equal(mode,'readwrite');t.ops.push(()=>{t.records.delete(key);});t.pump();}
         };},
         pump(){if(!t.active||t.busy||t.aborted)return;t.busy=true;queueMicrotask(()=>{t.busy=false;if(t.aborted)return;
           if(t.ops.length){t.ops.shift()();t.pump();}
-          else {t.active=false;locked=false;t.oncomplete?.();next();}
+          else {if(mode==='readwrite')records=t.records;t.active=false;locked=false;t.oncomplete?.();next();}
         });},
         abort(){t.aborted=true;t.ops.length=0;t.active=false;locked=false;t.onabort?.();next();}
       };
       waiting.push(t);queueMicrotask(next);return t;
     },
-    readRaw(){return structuredClone(record);}
+    readRaw(){return structuredClone(records.get('main')??null);}
   };
   return db;
 }
@@ -130,4 +132,29 @@ test('v0.6: caché simulada rechaza recurso no precargado si el navegador se que
  let done;listeners.install({waitUntil(p){done=p;}});await done;
  let response;listeners.fetch({request:{url:origin+'/no-precache.html',method:'GET'},respondWith(p){response=p;}});
  await assert.rejects(response,/sin red/);
+});
+
+test('Dropbox link removal and incoming encrypted notebook CAS are atomic',async()=>{
+ const db=makeMemoryDb(),doc=initialNotebook(),{key,envelope}=await createVault(pass,doc),salt=saltFromEnvelope(envelope);
+ const record={version:1,bookId:doc.id,envelope:await sealDropboxCredential({clientId:'fictional-client',refreshToken:'fictional-token'},key,salt)};
+ await installDropboxNotebook(db,envelope,record);
+ assert.deepEqual(await readDropboxCredential(db),record);
+ const next=await seal(doc,key,salt);
+ await writeEnvelope(db,next,envelope,record);
+ await writeDropboxCredential(db,null,next);
+ await assert.rejects(writeEnvelope(db,envelope,next,record),{code:'ENVELOPE_CONFLICT'});
+ assert(sameEnvelope(await readEnvelope(db),next));
+ assert.equal(await readDropboxCredential(db),null);
+});
+test('restore and recovery revoke old Dropbox links while keeping encrypted rescue',async()=>{
+ const db=makeMemoryDb(),doc=initialNotebook(),{key,envelope}=await createVault(pass,doc),salt=saltFromEnvelope(envelope);
+ const record={version:1,bookId:doc.id,envelope:await sealDropboxCredential({clientId:'fictional-client',refreshToken:'fictional-token'},key,salt)};
+ await installDropboxNotebook(db,envelope,record);
+ const changed=await seal(doc,key,salt),rescue=await replaceEnvelopeWithRecovery(db,changed,envelope);
+ assert.equal(await readDropboxCredential(db),null);
+ assert(sameEnvelope(rescue.envelope,envelope));
+ await writeDropboxCredential(db,record,changed);
+ await swapRecoveryEnvelope(db,changed,await readRecoveryEnvelope(db));
+ assert.equal(await readDropboxCredential(db),null);
+ assert(sameEnvelope(await readEnvelope(db),envelope));
 });
