@@ -203,3 +203,26 @@ export function writeDropboxCredential(db,record,expected){return new Promise((r
     try{if(record===null)store.delete(DROPBOX_KEY);else store.put(record,DROPBOX_KEY);}catch(e){abort(e);}
   };
 });}
+
+/** Install a recovered notebook and its encrypted Dropbox credential together.
+ * Never replace an existing notebook or the recovery slot during onboarding.
+ */
+export function installDropboxNotebook(db,envelope,record){return new Promise((resolve,reject)=>{
+  if(!validDropboxRecord(record,envelope)||envelope?.format!=='CuadernoDocenteEncrypted'||
+     typeof envelope.data!=='string'||typeof envelope.iv!=='string'){
+    reject(new Error('Invalid encrypted Dropbox installation.'));return;
+  }
+  let t,settled=false;
+  const done=e=>{if(settled)return;settled=true;e?reject(e):resolve();};
+  try{t=durableWrite(db);}catch(e){done(e);return;}
+  t.oncomplete=()=>done();
+  t.onerror=()=>done(t.error||new Error('Dropbox installation failed.'));
+  t.onabort=()=>done(t.error||new Error('Dropbox installation aborted.'));
+  const store=t.objectStore(STORE),r=store.get('main');
+  const abort=e=>{done(e);try{t.abort();}catch{}};
+  r.onerror=()=>abort(r.error||new Error('Cannot check local notebook.'));
+  r.onsuccess=()=>{
+    if(r.result!=null){abort(new EnvelopeConflictError());return;}
+    try{store.put(envelope,'main');store.put(record,DROPBOX_KEY);}catch(e){abort(e);}
+  };
+});}
