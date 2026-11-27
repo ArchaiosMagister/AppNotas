@@ -24,7 +24,7 @@ import {installInstructions,mayReloadForUpdate,storagePersistence} from './src/p
 import {createDropboxSession,dropboxConfigured,DROPBOX_CLIENT_ID} from './src/dropbox-session.js';
 import {isDropboxTest} from './src/dropbox-config.js';
 import {prepareDropboxNavigation,captureDropboxCallback,createDropboxOnboarding} from './src/dropbox-onboarding.js';
-import {writeDropboxCredential} from './src/storage.js';
+import {writeDropboxCredential,readDropboxCredential} from './src/storage.js';
 
 const root=document.getElementById('app');
 const dialog=document.getElementById('modal');
@@ -257,7 +257,7 @@ async function openDropboxConflictCopies(){
   try{copies=await dropboxSession.conflictCopies();}catch{toast('No se han podido preparar dos versiones incompatibles autenticadas. Comprueba el estado de Dropbox y el guardado local.');return;}
   if(STATE.key!==key||dialog.open)return;
   const stamp=new Date().toISOString().slice(0,10);
-  dialog.innerHTML='<div class="modal-inner"><h2 id="modal-heading">Conflicto de sincronización</h2><p>Las dos versiones se conservan sin fusionar ni sobrescribir. Descarga ambas copias cifradas y verifica que puedes abrirlas antes de decidir cuál conservar. Guarda los archivos en una ubicación local autorizada.</p><p class="hint">No se han cambiado las notas ni en Dropbox ni en el dispositivo. Cada copia se abre con la contraseña del cuaderno.</p><div class="modal-actions"><button class="btn" type="button" id="dropbox-copy-local">Descargar versión local</button><button class="btn" type="button" id="dropbox-copy-remote">Descargar versión Dropbox</button><button class="btn" type="button" id="dropbox-copy-close">Cerrar</button></div></div>';
+  dialog.innerHTML='<div class="modal-inner"><h2 id="modal-heading">Conflicto de sincronización</h2><p>Las dos versiones se conservan sin fusionar ni sobrescribir. Descarga ambas copias cifradas y verifica que puedes abrirlas antes de decidir cuál conservar. Guarda los archivos en una ubicación local autorizada.</p><p class="hint">No se han cambiado las notas ni en Dropbox ni en el dispositivo. Cada copia se abre con la contraseña del cuaderno. Para continuar, conserva ambas, restaura la versión Dropbox mediante Restaurar copia, vuelve a vincular y añade manualmente los cambios de la versión local que quieras conservar.</p><div class="modal-actions"><button class="btn" type="button" id="dropbox-copy-local">Descargar versión local</button><button class="btn" type="button" id="dropbox-copy-remote">Descargar versión Dropbox</button><button class="btn" type="button" id="dropbox-copy-close">Cerrar</button></div></div>';
   $('#dropbox-copy-local',dialog).onclick=()=>downloadEncryptedEnvelope(copies.local,'AppNotas-conflicto-local-'+stamp+'.cdoc');
   $('#dropbox-copy-remote',dialog).onclick=()=>downloadEncryptedEnvelope(copies.remote,'AppNotas-conflicto-dropbox-'+stamp+'.cdoc');
   $('#dropbox-copy-close',dialog).onclick=()=>dialog.close();
@@ -271,7 +271,7 @@ function openDropboxUpgrade(){
   if(dialog.open||!STATE.doc||!STATE.key)return;
   if(dropboxSession.active()){toast('No cambies la clave de un cuaderno vinculado. Primero debes desvincularlo y conservar copias verificadas.');return;}
   const expected=STATE.envelope,before=STATE.doc,key=STATE.key;
-  dialog.innerHTML='<form class="modal-inner" id="dropbox-upgrade-form"><h2 id="modal-heading">Reforzar contraseña del cuaderno</h2><p>Las notas no cambian. Las copias anteriores conservarán su contraseña antigua. Guarda y verifica una copia externa antes de continuar.</p><label for="dropbox-old-password">Contraseña actual</label><input class="text-field" id="dropbox-old-password" type="password" required autocomplete="off"/><label for="dropbox-new-password">Nueva contraseña (mínimo 16 caracteres)</label><input class="text-field" id="dropbox-new-password" type="password" required minlength="16" autocomplete="off"/><label for="dropbox-repeat-password">Repite la nueva contraseña</label><input class="text-field" id="dropbox-repeat-password" type="password" required minlength="16" autocomplete="off"/><label><input id="dropbox-backup-confirm" type="checkbox" required/> He guardado y verificado una copia externa cifrada.</label><p id="dropbox-upgrade-error" role="alert" class="modal-error"></p><div class="modal-actions"><button type="button" class="btn" id="dropbox-upgrade-cancel">Cancelar</button><button type="submit" class="btn primary">Reforzar contraseña</button></div></form>';
+  dialog.innerHTML='<form class="modal-inner" id="dropbox-upgrade-form"><h2 id="modal-heading">Reforzar contraseña del cuaderno</h2><p>Las notas no cambian. Las copias anteriores conservarán su contraseña antigua. Guarda y verifica una copia .cuaderno de esta revisión desde Ajustes antes de continuar. Si ya existe una copia en Dropbox, no cambies la contraseña hasta haber conservado ambas copias y retirado la anterior de Dropbox: no se cambiará su clave automáticamente.</p><label for="dropbox-old-password">Contraseña actual</label><input class="text-field" id="dropbox-old-password" type="password" required autocomplete="off"/><label for="dropbox-new-password">Nueva contraseña (mínimo 16 caracteres)</label><input class="text-field" id="dropbox-new-password" type="password" required minlength="16" autocomplete="off"/><label for="dropbox-repeat-password">Repite la nueva contraseña</label><input class="text-field" id="dropbox-repeat-password" type="password" required minlength="16" autocomplete="off"/><label><input id="dropbox-backup-confirm" type="checkbox" required/> He guardado y verificado una copia externa cifrada.</label><p id="dropbox-upgrade-error" role="alert" class="modal-error"></p><div class="modal-actions"><button type="button" class="btn" id="dropbox-upgrade-cancel">Cancelar</button><button type="submit" class="btn primary">Reforzar contraseña</button></div></form>';
   const form=$('#dropbox-upgrade-form',dialog),err=$('#dropbox-upgrade-error',dialog),submit=form.querySelector('[type=submit]'),cancel=$('#dropbox-upgrade-cancel',dialog);
   cancel.onclick=()=>dialog.close();
   form.onsubmit=e=>{
@@ -283,6 +283,9 @@ function openDropboxUpgrade(){
     enqueueMutation(async()=>{
       await STATE.saveQueue;
       if(STATE.doc!==before||STATE.key!==key||!sameEnvelope(STATE.envelope,expected)||STATE.saveError||STATE.failedEnvelope)throw new Error('El cuaderno ha cambiado.');
+      if(await readDropboxCredential(STATE.db))throw new Error('Desvincula Dropbox antes de cambiar la clave.');
+      const receipt=await readExportReceipt(STATE.db);
+      if(backupProtection(before,receipt)!=='current')throw new Error('Verifica primero una copia .cuaderno de la revisión actual.');
       const upgraded=await prepareVaultUpgrade(oldPassword,newPassword,expected);
       assertModel(upgraded.doc);
       if(compareBookVersions(before,upgraded.doc)!=='same')throw new Error('La copia no coincide con el cuaderno.');
@@ -291,7 +294,7 @@ function openDropboxUpgrade(){
       STATE.key=upgraded.key;STATE.salt=upgraded.salt;STATE.envelope=upgraded.envelope;
       STATE.history=emptyHistory();STATE.exportReceipt=null;
       dialog.close();render();startDropboxSession();toast('Contraseña reforzada. Guarda y verifica una nueva copia cifrada.');
-    }).catch(()=>{if(form.isConnected)err.textContent='No se ha completado el cambio. Comprueba las contraseñas y el estado del cuaderno.';}).finally(()=>{
+    }).catch(()=>{if(form.isConnected)err.textContent='No se ha completado el cambio. Comprueba las contraseñas, verifica una copia .cuaderno de la revisión actual y desvincula Dropbox si estaba vinculado.';}).finally(()=>{
       dialog.removeEventListener('cancel',preventClose);submit.disabled=false;cancel.disabled=false;
     });
   };
