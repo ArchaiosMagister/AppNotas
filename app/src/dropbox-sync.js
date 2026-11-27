@@ -2,7 +2,7 @@
  * Never upload the notebook itself: only a freshly sealed, authenticated snapshot.
  * The current local vault format is reused; KDF hardening is a release prerequisite.
  */
-import {seal,unlockVault,validateEnvelope} from './vault.js';
+import {seal,unlockVault,validateEnvelope,KDF_ITERATIONS,keyIterations} from './vault.js';
 import {assertModel,SCHEMA_VERSION} from './model.js';
 import {validateBookMetadata,compareBookVersions,MAX_CUADERNO_BYTES} from './cuaderno.js';
 const TYPE='AppNotasDropbox';
@@ -21,10 +21,13 @@ function checkSnapshot(snapshot){
      !exact(snapshot.vault,['format','version','kdf','iterations','salt','iv','data']))
     throw new Error('Formato Dropbox no reconocido.');
   if(JSON.stringify(snapshot).length>MAX_CUADERNO_BYTES)throw new Error('Copia demasiado grande.');
-  return validateEnvelope(snapshot.vault);
+  const params=validateEnvelope(snapshot.vault);
+  if(snapshot.vault.iterations!==KDF_ITERATIONS)throw new Error('Dropbox requires the strengthened vault.');
+  return params;
 }
 export async function sealDropboxSnapshot(doc,key,salt){
   checkDoc(doc);
+  if(keyIterations(key)!==KDF_ITERATIONS)throw new Error('Dropbox requires the strengthened vault.');
   const snapshot={type:TYPE,version:1,vault:await seal(doc,key,salt,undefined,AAD)};
   checkSnapshot(snapshot);return snapshot;
 }
@@ -35,6 +38,7 @@ export async function unlockDropboxSnapshot(snapshot,password){
 }
 export async function openDropboxSnapshot(snapshot,key,salt){
   const params=checkSnapshot(snapshot);
+  if(keyIterations(key)!==KDF_ITERATIONS)throw new Error('Dropbox requires the strengthened vault.');
   if(!sameBytes(params.salt,salt))throw new Error('El cuaderno remoto utiliza otra clave.');
   let doc;
   try{
