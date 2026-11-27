@@ -28,6 +28,12 @@ import {writeDropboxCredential,readDropboxCredential} from './src/storage.js';
 
 const root=document.getElementById('app');
 const dialog=document.getElementById('modal');
+// Closed dialogs must not retain passwords (including a generated password
+// temporarily displayed as text) in their DOM controls.
+function clearSecretInputs(scope){
+  for(const input of scope.querySelectorAll('input[type="password"],input[data-secret-input]'))input.value='';
+}
+dialog.addEventListener('close',()=>{if(!dialog.open)clearSecretInputs(dialog);});
 // Control de instalación y actualizaciones: ninguna recarga automática durante una edición.
 let pendingInstallPrompt=null;
 let pwaRegistration=null;
@@ -273,8 +279,9 @@ function openDropboxUpgrade(){
   const expected=STATE.envelope,before=STATE.doc,key=STATE.key;
   dialog.innerHTML='<form class="modal-inner" id="dropbox-upgrade-form"><h2 id="modal-heading">Reforzar contraseña del cuaderno</h2><p>Las notas no cambian. Las copias anteriores conservarán su contraseña antigua. Guarda y verifica una copia .cuaderno de esta revisión desde Ajustes antes de continuar. Si ya existe una copia en Dropbox, no cambies la contraseña hasta haber conservado ambas copias y retirado la anterior de Dropbox: no se cambiará su clave automáticamente.</p><label for="dropbox-old-password">Contraseña actual</label><input class="text-field" id="dropbox-old-password" type="password" required autocomplete="off"/><label for="dropbox-new-password">Nueva contraseña (mínimo 16 caracteres)</label><input class="text-field" id="dropbox-new-password" type="password" required minlength="16" autocomplete="off"/><button type="button" class="btn" id="dropbox-generate-password">Generar contraseña aleatoria segura</button><p class="hint">Si generas una contraseña, se mostrará temporalmente para que la guardes en un gestor de contraseñas autorizado. No la compartas.</p><label for="dropbox-repeat-password">Repite la nueva contraseña</label><input class="text-field" id="dropbox-repeat-password" type="password" required minlength="16" autocomplete="off"/><label><input id="dropbox-backup-confirm" type="checkbox" required/> He guardado y verificado una copia externa cifrada.</label><p id="dropbox-upgrade-error" role="alert" class="modal-error"></p><div class="modal-actions"><button type="button" class="btn" id="dropbox-upgrade-cancel">Cancelar</button><button type="submit" class="btn primary">Reforzar contraseña</button></div></form>';
   const form=$('#dropbox-upgrade-form',dialog),err=$('#dropbox-upgrade-error',dialog),submit=form.querySelector('[type=submit]'),cancel=$('#dropbox-upgrade-cancel',dialog);
-  cancel.onclick=()=>dialog.close();
-  $('#dropbox-generate-password',dialog).onclick=()=>{const generated=generateStrongPassphrase();const fresh=$('#dropbox-new-password',dialog);fresh.type='text';fresh.value=generated;$('#dropbox-repeat-password',dialog).value=generated;};
+  cancel.onclick=()=>{clearSecretInputs(form);dialog.close();};
+  form.addEventListener('reset',()=>clearSecretInputs(form));
+  $('#dropbox-generate-password',dialog).onclick=()=>{const generated=generateStrongPassphrase();const fresh=$('#dropbox-new-password',dialog);fresh.dataset.secretInput='';fresh.type='text';fresh.value=generated;$('#dropbox-repeat-password',dialog).value=generated;};
   form.onsubmit=e=>{
     e.preventDefault();const old=$('#dropbox-old-password',dialog),fresh=$('#dropbox-new-password',dialog),repeat=$('#dropbox-repeat-password',dialog);
     if(fresh.value!==repeat.value){err.textContent='Las contraseñas nuevas no coinciden.';return;}
@@ -696,6 +703,9 @@ async function init(){
 }
 function showUnlock(isNew,callback=null){
   clearDropboxOnboarding();
+  clearSecretInputs(dialog);
+  if(dialog.open)dialog.close();
+  dialog.replaceChildren();
   dropboxCallback=callback?.mode===(isNew?'restore':'link')?callback:null;
   dropboxSession.stop();
   unbindGradeTableHeaders();
@@ -704,6 +714,7 @@ function showUnlock(isNew,callback=null){
   $('#unlock-form').addEventListener('submit',e=>{
     e.preventDefault();
     const password=$('#password').value, confirmation=$('#confirm-password')?.value, button=e.submitter||$('#unlock-form button');
+    clearSecretInputs(e.currentTarget);
     const creationMode=e.submitter?.dataset.createMode==='demo'?'demo':'empty';
     button.disabled=true;$('#unlock-error').textContent='';
     enqueueMutation(async()=>{
@@ -763,11 +774,12 @@ function requestBackupPassword(title){
   return new Promise(resolve=>{
     if(dialog.open){resolve(null);return;}
     dialog.innerHTML=`<form class="modal-inner" id="backup-password-form"><h2 id="modal-heading">${esc(title)}</h2><label for="backup-password">Contraseña de la copia cifrada</label><input id="backup-password" class="text-field" type="password" minlength="12" autocomplete="off" spellcheck="false" required/><div class="modal-actions"><button type="button" class="btn" id="cancel-backup-password">Cancelar</button><button class="btn primary" type="submit">Continuar</button></div></form>`;
-    const cancelled=()=>{if(dialog.open)return;dialog.removeEventListener('close',cancelled);resolve(null);};
+    const input=$('#backup-password',dialog);
+    const cancelled=()=>{if(dialog.open)return;input.value='';dialog.removeEventListener('close',cancelled);resolve(null);};
     dialog.addEventListener('close',cancelled);
-    $('#cancel-backup-password',dialog).onclick=()=>dialog.close();
+    $('#cancel-backup-password',dialog).onclick=()=>{input.value='';dialog.close();};
     $('#backup-password-form',dialog).onsubmit=e=>{
-      e.preventDefault();const secret=$('#backup-password',dialog).value;
+      e.preventDefault();const secret=input.value;input.value='';
       dialog.removeEventListener('close',cancelled);dialog.close();resolve(secret);
     };
     dialog.showModal();$('#backup-password',dialog).focus();
@@ -2823,7 +2835,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v190-dev');
+      const cache=await caches.open('cuaderno-docente-static-v191-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
