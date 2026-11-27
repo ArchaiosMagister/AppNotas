@@ -9,17 +9,17 @@ import {assertModel} from './model.js';
 import {validateBookMetadata} from './cuaderno.js';
 import {sameEnvelope,readEnvelope,writeDropboxCredential,installDropboxNotebook} from './storage.js';
 const PENDING='appnotas-dropbox-pkce-v1';
-const ORIGIN='https://appnotas-docente.pages.dev';
+import {DROPBOX_ORIGIN,validDropboxRedirect,dropboxFilePath} from './dropbox-config.js';
 const MODES=new Set(['link','restore']);
 export async function prepareDropboxNavigation({clientId,mode,storage,origin,now=Date.now()}){
-  if(origin!==ORIGIN||!MODES.has(mode))throw new Error('Dropbox onboarding unavailable.');
-  const result=await beginAuthorization(clientId,now);
+  if(!validDropboxRedirect(origin+'/')||!MODES.has(mode))throw new Error('Dropbox onboarding unavailable.');
+  const result=await beginAuthorization(clientId,now,origin+'/');
   storage.setItem(PENDING,JSON.stringify({mode,pending:result.pending}));
   return result.url;
 }
 export function captureDropboxCallback({location,history,storage}){
   const url=new URL(location.href);
-  if(url.origin!==ORIGIN||url.pathname!=='/'||
+  if(!validDropboxRedirect(url.origin+url.pathname)||
      !['code','state','error','error_description'].some(k=>url.searchParams.has(k)))return null;
   // Scrub even unexpected/invalid callbacks. No query is kept in app history.
   history.replaceState(null,'',url.pathname);
@@ -28,16 +28,16 @@ export function captureDropboxCallback({location,history,storage}){
   if(!raw)return null;
   try{
     const record=JSON.parse(raw);
-    if(!MODES.has(record.mode)||!record.pending)return null;
+    if(!MODES.has(record.mode)||!record.pending||record.pending.redirectUri!==url.origin+url.pathname)return null;
     return {mode:record.mode,pending:record.pending,callbackUrl:url.href};
   }catch{return null;}
 }
 export function createDropboxOnboarding({clientId,authorize=completeAuthorization,transportFactory=createDropboxTransport,
-  read=readEnvelope,writeLink=writeDropboxCredential,install=installDropboxNotebook}){
+  read=readEnvelope,writeLink=writeDropboxCredential,install=installDropboxNotebook,origin=DROPBOX_ORIGIN}){
   let used=false,session=null;
   const guard=()=>{if(!session||session.signal.aborted)throw new Error('Dropbox onboarding cancelled.');return session;};
   async function begin(callback){
-    if(used||!callback||!MODES.has(callback.mode))throw new Error('Dropbox authorization already used or invalid.');
+    if(used||!callback||!MODES.has(callback.mode)||new URL(callback.callbackUrl).origin!==origin)throw new Error('Dropbox authorization already used or invalid.');
     used=true;
     const controller=new AbortController();
     const task={mode:callback.mode,controller,signal:controller.signal,token:null,accessToken:null,transport:null};
@@ -46,7 +46,7 @@ export function createDropboxOnboarding({clientId,authorize=completeAuthorizatio
       const result=await authorize({clientId,pending:callback.pending,callbackUrl:callback.callbackUrl,signal:task.signal});
       if(guard()!==task)throw new Error('Dropbox onboarding cancelled.');
       task.token=result.refreshToken;task.accessToken=result.accessToken;
-      task.transport=transportFactory({getAccessToken:async()=>{
+      task.transport=transportFactory({path:dropboxFilePath(origin),getAccessToken:async()=>{
         if(guard()!==task)throw new Error('Dropbox onboarding cancelled.');
         return task.accessToken;
       }});
@@ -72,7 +72,7 @@ export function createDropboxOnboarding({clientId,authorize=completeAuthorizatio
       if(await confirmInitialize()!==true)return false;
       if(!valid()||!sameEnvelope(await read(db),expected)||!valid())throw new Error('Local notebook changed.');
       // Add only, never overwrite, even if a different device creates first.
-      await task.transport.upload({doc,key,salt,expectedRev:null,signal:task.signal});
+      await task.transport.upload({doc,key,salt,expectedRev:null,signal:task.signal,beforeSend:async()=>valid()&&sameEnvelope(await read(db),expected)&&valid()});
     }
     if(!valid())throw new Error('Local notebook changed.');
     const envelope=await sealDropboxCredential({clientId,refreshToken:task.token},key,salt);
