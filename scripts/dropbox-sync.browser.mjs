@@ -37,7 +37,10 @@ for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
         assert.equal(url.searchParams.get('redirect_uri'),origin+'/');
         assert.equal(url.searchParams.get('code_challenge_method'),'S256');
         assert.equal(url.searchParams.get('scope'),'files.content.read files.content.write');
-        return route.fulfill({status:302,headers:{location:origin+'/?code=fictional-code&state='+encodeURIComponent(url.searchParams.get('state'))}});
+        const callback=origin+'/?code=fictional-code&state='+encodeURIComponent(url.searchParams.get('state'));
+        // WebKit cannot fulfill a 302 in Playwright routing. Navigate from a
+        // synthetic provider page instead; same origin/state roundtrip.
+        return route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><script>location.replace('+JSON.stringify(callback)+')</script>'});
       }
       if(['https://api.dropboxapi.com','https://content.dropboxapi.com'].includes(url.origin)){
         if(req.method()==='OPTIONS')return route.fulfill({status:204,headers});
