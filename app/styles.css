@@ -4236,3 +4236,8 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
 @media(max-width:650px){
   .shell.student-focus>.topbar .topmeta #save-status{width:100%;max-width:none;justify-self:stretch;grid-column:1/-1}
 }
+
+/* Dropbox: compact on phones; no new header row. */
+.btn.dropbox-sync-btn{background:#0061fe;border-color:#0061fe;color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0;min-width:34px}
+.btn.dropbox-sync-btn:hover,.btn.dropbox-sync-btn:focus-visible{background:#0055df;border-color:#0055df;color:#fff}
+@media(max-width:850px){.dropbox-sync-btn .dropbox-label{display:none}.btn.dropbox-sync-btn{padding-inline:7px}}
