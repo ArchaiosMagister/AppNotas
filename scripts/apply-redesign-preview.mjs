@@ -7,7 +7,7 @@ export async function applyRedesignPreview(output){
   const one=(s,a,b)=>{if(s.split(a).length!==2)throw new Error('Ancla no inequívoca: '+a.slice(0,80));return s.replace(a,()=>b);};
   await edit('src/storage.js',s=>one(s,"const DB_NAME='cuaderno-docente-v1';","const DB_NAME='cuaderno-docente-redesign-preview-v1';"));
   await edit('src/dropbox-config.js',s=>s.replace(/export const dropboxConfigured=origin=>[\s\S]*?;/,"export const dropboxConfigured=()=>false;"));
-  await edit('sw.js',s=>s.replaceAll('cuaderno-docente-static-','cuaderno-redesign-preview-static-'));
+  await edit('sw.js',s=>s.replaceAll('cuaderno-docente-static-','cuaderno-redesign-preview-static-').replace(/(const CACHE='[^']+)';/,"$1-r2';"));
   await edit('manifest.webmanifest',s=>{const m=JSON.parse(s);m.name='CuadernoDocente · PRUEBAS';m.short_name='Notas PRUEBAS';return JSON.stringify(m,null,2);});
   await edit('index.html',s=>one(one(s,'<body>','<body><aside class="redesign-preview-banner" role="note">VERSIÓN DE PRUEBAS · Solo alumnado ficticio · No importes el cuaderno real</aside>'),'CuadernoDocente · v1.0 · Tabularium','CuadernoDocente · PRUEBAS de diseño').replace('content="Cuaderno"','content="Notas PRUEBAS"'));
   await edit('app.js',s=>{

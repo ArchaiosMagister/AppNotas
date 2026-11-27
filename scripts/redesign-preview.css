@@ -44,3 +44,33 @@ html[data-redesign-preview] #unlock-form [data-create-mode="empty"]{display:none
 html[data-redesign-preview] #dropbox-sync,html[data-redesign-preview] #dropbox-settings{display:none}
 @media(max-width:650px){.preview-density select{min-height:44px}.preview-evolution-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,110px),1fr))}}
 @media print{.redesign-preview-banner,.preview-density{display:none}}
+
+
+/* Summary columns must not absorb surplus width in fixed-layout tables.
+   Keep the natural table width (190 + 165 per activity + 104 + 112). */
+html[data-redesign-preview] .table-scroller>.grade-table:has(#configure-itaca-attitude){
+  width:calc(var(--notebook-table-min-width,1100px) - 34px);
+  min-width:calc(var(--notebook-table-min-width,1100px) - 34px);
+}
+html[data-redesign-preview] .table-scroller>.grade-table:has(#configure-itaca-attitude) :is(th,td).name-col{
+  width:190px;min-width:190px;max-width:190px;
+}
+html[data-redesign-preview] .table-scroller>.grade-table:has(#configure-itaca-attitude) :is(th,td).final-col{
+  width:104px;min-width:104px;max-width:104px;padding-inline:4px;box-sizing:border-box;
+}
+html[data-redesign-preview] .table-scroller>.grade-table:has(#configure-itaca-attitude) :is(th,td).itaca-col{
+  width:112px;min-width:112px;max-width:112px;padding-inline:4px;box-sizing:border-box;
+}
+html[data-redesign-preview] .grade-table #configure-itaca-attitude{
+  max-width:100%;white-space:normal;padding-inline:2px;min-height:44px;
+}
+html[data-redesign-preview] .grade-table th.final-col .class-stat-heading{white-space:normal}
+@media(max-width:800px){
+  html[data-redesign-preview] .table-scroller>.grade-table:has(#configure-itaca-attitude){
+    width:calc(var(--notebook-table-min-width,1100px) - 84px);
+    min-width:calc(var(--notebook-table-min-width,1100px) - 84px);
+  }
+  html[data-redesign-preview] .table-scroller>.grade-table:has(#configure-itaca-attitude) :is(th,td).name-col{
+    width:140px;min-width:140px;max-width:140px;
+  }
+}
