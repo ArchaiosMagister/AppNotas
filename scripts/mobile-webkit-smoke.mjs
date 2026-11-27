@@ -61,6 +61,30 @@ async function auditExamsAndGroupedScroll(browser,name){
   const examTitles=modal.locator('li strong');
   assert.deepEqual(await examTitles.allTextContents(),['Examen de hoy','Examen del curso siguiente']);
   assert.match(await modal.locator('li').first().innerText(),/12:00.*Latín I/s);
+  await page.evaluate(()=>{
+   Object.defineProperties(navigator,{
+    canShare:{configurable:true,value:({files})=>files[0].type==='text/calendar'},
+    share:{configurable:true,value:async({files})=>{window.sharedExam=await files[0].text();}}
+   });
+  });
+  page.once('dialog',dialog=>dialog.accept());
+  await modal.getByRole('button',{name:/Examen de hoy.*Añadir al calendario/s}).click();
+  await modal.getByRole('status').getByText(/Archivo .ics compartido/).waitFor();
+  const shared=await page.evaluate(()=>window.sharedExam);
+  assert.match(shared,/DTSTART:20261124T120000/);
+  assert.match(shared,/SUMMARY:Examen: Examen de hoy/);
+  assert.equal((shared.match(/BEGIN:VEVENT/g)||[]).length,1);
+
+  await page.evaluate(()=>Object.defineProperty(navigator,'canShare',{value:()=>false}));
+  page.once('dialog',dialog=>dialog.accept());
+  const downloadPromise=page.waitForEvent('download');
+  await modal.getByRole('button',{name:/Examen del curso siguiente.*Añadir al calendario/s}).click();
+  const download=await downloadPromise;
+  assert.match(download.suggestedFilename(),/^AppNotas-evento-2027-10-01-.*\.ics$/);
+  const downloaded=await readFile(await download.path(),'utf8');
+  assert.match(downloaded,/DTSTART;VALUE=DATE:20271001/);
+  assert.match(downloaded,/SUMMARY:Examen: Examen del curso siguiente/);
+
   await modal.getByRole('button',{name:'Cerrar'}).click();
   await page.clock.setFixedTime(new Date(2028,0,1));
   await page.locator('#plan-show-exams').click();

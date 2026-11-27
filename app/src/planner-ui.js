@@ -113,16 +113,16 @@ function renderPatioPanel(y){
   '</div>';
 }
 
-function renderUpcomingExams(doc){
- const exams=upcomingExams(doc);
+function renderUpcomingExams(doc,exams){
  if(!exams.length)return '<p>No hay exámenes próximos programados.</p>';
- return `<ul class="planner-event-list upcoming-exams">${exams.map(e=>{
+ return `<ul class="planner-event-list upcoming-exams">${exams.map((e,index)=>{
   const group=eventGroup(doc,e);
   const hours=e.time?e.time+(e.endTime?'–'+e.endTime:''):'Sin hora';
-  return `<li class="planner-event planner-event-exam"><div><strong>${esc(e.title)}</strong>
+  return `<li><button type="button" class="planner-event planner-event-exam" data-export-exam="${index}"><span class="exam-details"><strong>${esc(e.title)}</strong>
    <small><time datetime="${esc(e.date)}">${esc(longDate(e.date))}</time> · ${esc(hours)}</small>
-   ${group?`<small>${esc([group.subject,group.name].filter(Boolean).join(' · '))}</small>`:''}</div></li>`;
- }).join('')}</ul>`;
+   ${group?`<small>${esc([group.subject,group.name].filter(Boolean).join(' · '))}</small>`:''}</span>
+   <small class="exam-export-label">Añadir al calendario</small></button></li>`;
+ }).join('')}</ul><p class="hint" id="exam-export-status" role="status"></p>`;
 }
 
 export function renderPlanner(doc,ui){
@@ -220,7 +220,18 @@ export function bindPlanner(doc,ui,ctx){
   }catch(error){ctx.fail(error);}
  });
  $('#plan-add-event').onclick=()=>eventModal({date:dateNow()});
- $('#plan-show-exams').onclick=()=>ctx.showInfo('Próximos exámenes',renderUpcomingExams(ctx.getDoc()));
+ $('#plan-show-exams').onclick=()=>{
+  const currentDoc=ctx.getDoc(),exams=upcomingExams(currentDoc);
+  ctx.showInfo('Próximos exámenes',renderUpcomingExams(currentDoc,exams));
+  const status=ctx.dialog.querySelector('#exam-export-status');
+  const buttons=[...ctx.dialog.querySelectorAll('[data-export-exam]')];
+  buttons.forEach(button=>button.onclick=async()=>{
+   buttons.forEach(item=>item.disabled=true);
+   status.textContent='';
+   try{await exportSingleEvent(exams[Number(button.dataset.exportExam)],status);}
+   finally{buttons.forEach(item=>item.disabled=false);}
+  });
+ };
  const openEvaluationWorkspace=()=>{
   if(ctx.openEvaluations)ctx.openEvaluations();
   else ctx.toast('Abre «Sesiones de evaluación» en el menú principal.');
@@ -424,15 +435,33 @@ export function bindPlanner(doc,ui,ctx){
   'La convocatoria aparecerá en las vistas de día, semana y mes. Su hora no depende de las clases del horario.');
   if(existing)delButton('events',existing.id);
  }
- function exportSingleEvent(event){
+ async function exportSingleEvent(event,status=null){
   if(!event)return;
   if(!window.confirm('Se generará un archivo .ics SIN CIFRAR con el título, fecha, hora y observaciones de esta cita. No incluyas datos personales de alumnos ni lo guardes en servicios no autorizados. ¿Continuar?'))return;
   try{
    const ics=calendarEventIcs(event);
    const filename='AppNotas-evento-'+event.date+'-'+event.id.slice(0,8)+'.ics';
-   download(new Blob([ics],{type:'text/calendar;charset=utf-8'}),filename);
-   ctx.toast('Cita exportada. Abre el archivo .ics e impórtalo en el calendario que elijas. No existe sincronización automática.');
-  }catch(error){ctx.fail(error);}
+   const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+   if(status){
+    const file=new File([blob],filename,{type:'text/calendar'});
+    const shareData={files:[file]};
+    if(typeof navigator.share==='function'&&navigator.canShare?.(shareData)){
+     try{
+      await navigator.share(shareData);
+      status.textContent='Archivo .ics compartido. Confirma la importación en el calendario que hayas elegido.';
+      return;
+     }catch(error){
+      if(error.name==='AbortError')return;
+     }
+    }
+   }
+   download(blob,filename);
+   if(status)status.textContent='Descarga iniciada. Abre el archivo .ics para importar el examen en tu calendario.';
+   else ctx.toast('Cita exportada. Abre el archivo .ics e impórtalo en el calendario que elijas. No existe sincronización automática.');
+  }catch(error){
+   if(status)status.textContent=error.message;
+   else ctx.fail(error);
+  }
  }
 
  function eventModal({date=dateNow(),event=null,assessmentId=null,groupId=null}={}){
