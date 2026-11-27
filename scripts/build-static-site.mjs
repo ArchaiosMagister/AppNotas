@@ -16,7 +16,10 @@ if(!['dist','_site'].includes(outputName)){
 const output=path.join(repo,outputName);
 const files=['index.html','styles.css','app.js','sw.js','manifest.webmanifest'];
 const dirs=['icons','src','vendor',path.join('data','curriculos')];
-const csp="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+// Only the isolated Cloudflare preview build gets Dropbox network access.
+const dropboxPreview=process.env.CF_PAGES==='1'&&process.env.CF_PAGES_BRANCH==='feature/dropbox-e2ee-sync';
+const dropboxEndpoints=' https://api.dropboxapi.com/oauth2/token https://content.dropboxapi.com/2/files/download https://content.dropboxapi.com/2/files/upload';
+const csp="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'".replace("connect-src 'self'","connect-src 'self'"+(dropboxPreview?dropboxEndpoints:''));
 const headers=[
   '/*',
   '  Content-Security-Policy: '+csp,
@@ -72,6 +75,7 @@ if(!html.includes("script-src 'self'")||!html.includes('src="./app.js"')){
 await rm(output,{recursive:true,force:true});
 await mkdir(output,{recursive:true});
 for(const file of files)await cp(path.join(source,file),path.join(output,file));
+if(dropboxPreview)await writeFile(path.join(output,'index.html'),html.replace("connect-src 'self'","connect-src 'self'"+dropboxEndpoints),'utf8');
 for(const dir of dirs){
   const dest=path.join(output,dir);
   await mkdir(path.dirname(dest),{recursive:true});
