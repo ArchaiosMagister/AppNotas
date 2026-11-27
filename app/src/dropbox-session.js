@@ -11,13 +11,14 @@ export const DROPBOX_ORIGIN='https://appnotas-docente.pages.dev';
 export const dropboxConfigured=origin=>origin===DROPBOX_ORIGIN&&/^[a-zA-Z0-9_-]{5,128}$/.test(DROPBOX_CLIENT_ID);
 export function createSessionTokenProvider({clientId,refreshToken,refresh=refreshAuthorization,now=Date.now}){
   let token=null,expiry=0,pending=null,stopped=false,secret=refreshToken;
+  const abort=new AbortController();
   async function getAccessToken(){
     if(stopped)throw new Error('Dropbox session stopped.');
     if(token&&now()<expiry-60000)return token;
     if(pending)return pending;
     const task=Promise.resolve().then(async()=>{
       if(stopped)throw new Error('Dropbox session stopped.');
-      const result=await refresh({clientId,refreshToken:secret});
+      const result=await refresh({clientId,refreshToken:secret,signal:abort.signal});
       if(stopped)throw new Error('Dropbox session stopped.');
       // Dropbox refresh tokens are reusable; unexpected rotation requires
       // relinking until persistence of the replacement is implemented.
@@ -26,7 +27,7 @@ export function createSessionTokenProvider({clientId,refreshToken,refresh=refres
     }).finally(()=>{if(pending===task)pending=null;});
     pending=task;return task;
   }
-  function stop(){stopped=true;token=null;secret=null;expiry=0;}
+  function stop(){stopped=true;abort.abort();token=null;secret=null;expiry=0;}
   return Object.freeze({getAccessToken,stop});
 }
 export function createDropboxSession({state,enqueue,canApply,adopt,onStatus,windowTarget,documentTarget,origin,
