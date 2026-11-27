@@ -60,3 +60,14 @@ test('download distinguishes a missing remote from errors and validates size',as
   await assert.rejects(create(new Response('{}',{status:401})).download(),{code:'http-401'});
   await assert.rejects(create(new Response(body,{headers:{'Dropbox-API-Result':JSON.stringify({rev:'rev1',size:1})}})).download(),{code:'size'});
 });
+
+test('preview transport accesses only its isolated test file',async()=>{
+  const doc=book(),{key,envelope}=await createVault(password,doc),salt=saltFromEnvelope(envelope);
+  const calls=[];
+  const transport=createDropboxTransport({path:'/pruebas-cuaderno-cifrado.json',getAccessToken:async()=> 'test-token',fetchImpl:async(url,init)=>{
+    calls.push(JSON.parse(init.headers['Dropbox-API-Arg']).path);return new Response(JSON.stringify({rev:'newrev'}));
+  }});
+  await transport.upload({doc,key,salt,expectedRev:null});
+  assert.deepEqual(calls,['/pruebas-cuaderno-cifrado.json']);
+  assert.throws(()=>createDropboxTransport({path:'/arbitrary.json',getAccessToken:async()=> 'test-token'}));
+});
