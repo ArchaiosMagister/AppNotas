@@ -76,6 +76,11 @@ for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
   }
   try{
     const a=await device(),p=a.page;
+    const initialDropbox=p.locator('#dropbox-restore-locked');
+    assert.equal((await initialDropbox.textContent()).trim(),'Sincronizar con Dropbox');
+    assert(await initialDropbox.isVisible());
+    assert(await initialDropbox.evaluate(el=>Boolean(el.compareDocumentPosition(document.querySelector('#password'))&Node.DOCUMENT_POSITION_FOLLOWING)));
+    assert.equal(await p.locator('#password').inputValue(),'');
     await passwordForm(p);await p.locator('#confirm-password').fill(password);
     await p.locator('[data-create-mode="demo"]').click();
     await p.locator('#dropbox-sync').waitFor();
@@ -100,7 +105,8 @@ for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
     const before=revision;await edit(p,'2');
     await waitRevision(before);await waitStatus(p,'Sincronizado');
     const b=await device(),q=b.page;
-    await q.locator('#dropbox-restore-locked').click();
+    assert.equal(await q.locator('#password').inputValue(),'');
+    await q.getByRole('button',{name:'Sincronizar con Dropbox',exact:true}).click();
     await q.getByRole('button',{name:'Continuar recuperación de Dropbox'}).waitFor({timeout:30000});
     await q.locator('#dropbox-restore-locked').click();
     await q.locator('#backup-password').waitFor();await passwordForm(q,'#backup-password');
@@ -141,6 +147,11 @@ for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
     assert.equal(revision,stableRevision);
     await p.locator('#lock').click();await p.locator('#unlock-form').waitFor();
     assert.equal(await p.locator('#modal').evaluate(el=>el.childElementCount),0);
+    const requestCount=requests.length;
+    await p.getByRole('button',{name:'Desbloquear y sincronizar con Dropbox',exact:true}).click();
+    assert.equal(await p.locator('#password').evaluate(el=>el===document.activeElement),true);
+    assert.equal(requests.length,requestCount);
+    assert.equal(await p.locator('#password').inputValue(),'');
     assert.deepEqual(errors,[]);
     assert(requests.includes('/oauth2/token'));
     console.log(name+': PKCE, IndexedDB, cifrado, sincronización bidireccional, offline, conflicto, exportación y desvinculación OK');
