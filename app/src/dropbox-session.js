@@ -2,9 +2,10 @@
  * CSP review, account/device onboarding and end-to-end tests are complete.
  * A Dropbox app key is public; never put an app secret here.
  */
-import {createLocalSyncBridge,loadLocalDropboxLink} from './dropbox-local.js';
+import {createLocalSyncBridge,loadLocalDropboxSession,sameDropboxLink} from './dropbox-local.js';
 import {createDropboxTransport} from './dropbox-sync.js';
 import {createSyncController,createSyncScheduler} from './dropbox-controller.js';
+import {readDropboxCredential} from './storage.js';
 import {refreshAuthorization} from './dropbox-oauth.js';
 export const DROPBOX_CLIENT_ID='';
 export const DROPBOX_ORIGIN='https://appnotas-docente.pages.dev';
@@ -31,7 +32,7 @@ export function createSessionTokenProvider({clientId,refreshToken,refresh=refres
   return Object.freeze({getAccessToken,stop});
 }
 export function createDropboxSession({state,enqueue,canApply,adopt,onStatus,windowTarget,documentTarget,origin,
-    load=loadLocalDropboxLink,clientId=DROPBOX_CLIENT_ID}){
+    load=loadLocalDropboxSession,readLink=readDropboxCredential,clientId=DROPBOX_CLIENT_ID}){
   let generation=0,scheduler=null,provider=null;
   function stop(){generation++;scheduler?.stop();provider?.stop();scheduler=null;provider=null;}
   async function start(){
@@ -39,13 +40,22 @@ export function createDropboxSession({state,enqueue,canApply,adopt,onStatus,wind
     if(!dropboxConfigured(origin)||clientId!==DROPBOX_CLIENT_ID){onStatus({status:'not-configured'});return;}
     const gen=generation,key=state.key;
     if(!key||!state.doc)return;
-    let refreshToken;
-    try{refreshToken=await load({state,clientId});}
+    let link;
+    try{link=await load({state,clientId});}
     catch{if(gen===generation)onStatus({status:'error'});return;}
     if(gen!==generation||state.key!==key)return;
-    if(!refreshToken){onStatus({status:'not-linked'});return;}
-    provider=createSessionTokenProvider({clientId,refreshToken});
-    const transport=createDropboxTransport({getAccessToken:provider.getAccessToken});
+    if(!link){onStatus({status:'not-linked'});return;}
+    provider=createSessionTokenProvider({clientId,refreshToken:link.token});
+    const sessionProvider=provider;
+    const checkLink=async()=>{
+      if(gen!==generation||state.key!==key||state.doc?.id!==link.record.bookId||
+        !sameDropboxLink(await readLink(state.db),link.record)||gen!==generation||state.key!==key){
+        sessionProvider.stop();throw Object.assign(new Error('Dropbox link changed.'),{code:'link-changed'});
+      }
+    };
+    const transport=createDropboxTransport({getAccessToken:async()=>{
+      await checkLink();const token=await sessionProvider.getAccessToken();await checkLink();return token;
+    }});
     const bridge=createLocalSyncBridge({state,enqueue,canApply,adopt});
     const controller=createSyncController({transport,...bridge,onStatus,isOnline:()=>windowTarget.navigator.onLine!==false});
     scheduler=createSyncScheduler({controller,windowTarget,documentTarget});
