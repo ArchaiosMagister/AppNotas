@@ -7,7 +7,7 @@ import {assertModel,SCHEMA_VERSION} from './model.js';
 import {validateBookMetadata,compareBookVersions,MAX_CUADERNO_BYTES} from './cuaderno.js';
 const TYPE='AppNotasDropbox';
 const AAD=TYPE+'/v1';
-const PATH='/cuaderno-cifrado.json';
+import {DROPBOX_PRODUCTION_PATH,DROPBOX_TEST_PATH} from './dropbox-config.js';
 const CONTENT='https://content.dropboxapi.com/2/files/';
 const exact=(obj,keys)=>obj&&typeof obj==='object'&&!Array.isArray(obj)&&Object.keys(obj).sort().join(',')===keys.slice().sort().join(',');
 const bytes=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
@@ -65,7 +65,8 @@ export class DropboxSyncError extends Error{
 /** Direct browser-to-Dropbox adapter. OAuth tokens are injected by a future
  * session controller; no credentials are persisted or logged here.
  */
-export function createDropboxTransport({getAccessToken,fetchImpl=globalThis.fetch}){
+export function createDropboxTransport({getAccessToken,fetchImpl=globalThis.fetch,path=DROPBOX_PRODUCTION_PATH}){
+  if(![DROPBOX_PRODUCTION_PATH,DROPBOX_TEST_PATH].includes(path))throw new Error('Invalid Dropbox path.');
   if(typeof getAccessToken!=='function'||typeof fetchImpl!=='function')throw new Error('Falta transporte autorizado.');
   async function request(action,arg,body,signal,beforeSend){
     const token=await getAccessToken();
@@ -74,7 +75,7 @@ export function createDropboxTransport({getAccessToken,fetchImpl=globalThis.fetc
     return fetchImpl(CONTENT+action,{method:'POST',headers:{Authorization:'Bearer '+token,'Dropbox-API-Arg':JSON.stringify(arg),...(body===undefined?{}:{'Content-Type':'application/octet-stream'})},body,signal,credentials:'omit',cache:'no-store',redirect:'error',referrerPolicy:'no-referrer'});
   }
   async function download({signal}={}){
-    const res=await request('download',{path:PATH},undefined,signal);
+    const res=await request('download',{path},undefined,signal);
     if(res.status===409){
       let err;try{err=await res.json();}catch{}
       if(err?.error?.['.tag']==='path'&&err.error.path?.['.tag']==='not_found')return null;
@@ -94,7 +95,7 @@ export function createDropboxTransport({getAccessToken,fetchImpl=globalThis.fetc
     const mode=expectedRev===null?'add':{'.tag':'update',update:revision(expectedRev)};
     const snapshot=await sealDropboxSnapshot(doc,key,salt);
     const body=JSON.stringify(snapshot);
-    const res=await request('upload',{path:PATH,mode,autorename:false,strict_conflict:true,mute:true},body,signal,beforeSend);
+    const res=await request('upload',{path,mode,autorename:false,strict_conflict:true,mute:true},body,signal,beforeSend);
     if(res.status===409)throw new DropboxSyncError('conflict');
     if(!res.ok)throw new DropboxSyncError('http-'+res.status);
     const result=await res.json();return {rev:revision(result?.rev)};
