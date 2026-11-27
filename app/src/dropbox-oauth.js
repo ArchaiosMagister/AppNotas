@@ -2,7 +2,7 @@
  * UI must retain pending authorization only in sessionStorage, consume once,
  * and remove callback parameters before calling completeAuthorization.
  */
-import {seal,validateEnvelope} from './vault.js';
+import {seal,validateEnvelope,KDF_ITERATIONS,keyIterations} from './vault.js';
 const AUTH='https://www.dropbox.com/oauth2/authorize';
 const TOKEN='https://api.dropboxapi.com/oauth2/token';
 const REDIRECT='https://appnotas-docente.pages.dev/';
@@ -66,11 +66,13 @@ export async function refreshAuthorization({clientId,refreshToken,fetchImpl=glob
  */
 export async function sealDropboxCredential({clientId,refreshToken},key,salt){
   checkKey(clientId);if(!validToken(refreshToken))throw new Error('Invalid Dropbox credential.');
+  if(keyIterations(key)!==KDF_ITERATIONS)throw new Error('Dropbox requires the strengthened vault.');
   return seal({version:1,clientId,refreshToken},key,salt,undefined,AAD);
 }
 export async function openDropboxCredential(envelope,key,salt,clientId){
   checkKey(clientId);
   const params=validateEnvelope(envelope);
+  if(envelope.iterations!==KDF_ITERATIONS||keyIterations(key)!==KDF_ITERATIONS)throw new Error('Dropbox requires the strengthened vault.');
   if(!(salt instanceof Uint8Array)||!params.salt.every((b,i)=>b===salt[i])||salt.length!==params.salt.length)throw new Error('Dropbox credential belongs to another vault.');
   let data;
   try{
