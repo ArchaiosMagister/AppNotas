@@ -89,3 +89,10 @@ test('scheduler debounces changes, responds to foreground and stops on lock',()=
   assert.equal(stops,1);assert.equal(timers.size,0);assert.equal(poll,null);
   win.dispatchEvent(new Event('online'));assert.equal(calls,5);
 });
+
+test('an obsolete IndexedDB revision prevents the first remote request',async()=>{
+  let calls=0;const local={doc:{},key:{},salt:new Uint8Array(16)};
+  const controller=createSyncController({readLocal:()=>local,verifyLocal:async()=>false,acceptRemote:async()=>false,
+    transport:{download:async()=>{calls++;return null;}}});
+  controller.start();assert.equal((await controller.sync()).status,'pending');assert.equal(calls,0);
+});
