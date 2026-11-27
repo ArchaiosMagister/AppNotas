@@ -12,9 +12,9 @@ async function fixture(){
   let stored=envelope,adopted=0,blocked=false;
   const queue=fn=>{state.pending++;return Promise.resolve().then(fn).finally(()=>state.pending--);};
   const write=async(db,next,expected)=>{if(stored!==expected)throw Object.assign(Error(),{code:'ENVELOPE_CONFLICT'});stored=next;};
-  const bridge=createLocalSyncBridge({state,enqueue:queue,canApply:()=>!blocked,adopt:()=>adopted++,write});
+  const bridge=createLocalSyncBridge({state,enqueue:queue,canApply:()=>!blocked,adopt:()=>adopted++,write,read:async()=>stored});
   const newer=structuredClone(doc);newer.students[0].name='Fictitious change';markBookChange(newer,doc);
-  return {state,bridge,newer,doc,stored:()=>stored,adopted:()=>adopted,block:()=>{blocked=true;},race:()=>{stored={...stored};}};
+  return {state,bridge,newer,doc,stored:()=>stored,adopted:()=>adopted,block:()=>{blocked=true;},race:()=>{stored={...stored,data:stored.data+'x'};}};
 }
 test('remote adoption commits only encrypted bytes before changing current state',async()=>{
   const f=await fixture(),expected=f.bridge.readLocal();
@@ -45,4 +45,10 @@ test('unrelated or earlier incoming versions are never accepted by the local bri
   assert.equal(await f.bridge.acceptRemote({expected,doc:other}),false);
   assert.equal(await f.bridge.acceptRemote({expected,doc:f.doc}),false);
   assert.equal(f.adopted(),0);
+});
+
+test('a stale tab cannot certify its revision for Dropbox upload',async()=>{
+  const f=await fixture(),expected=f.bridge.readLocal();
+  assert.equal(await f.bridge.verifyLocal(expected),true);
+  f.race();assert.equal(await f.bridge.verifyLocal(expected),false);
 });
