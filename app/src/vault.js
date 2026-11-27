@@ -7,6 +7,8 @@ const keyInfo=new WeakMap();
 const bytes=n=>crypto.getRandomValues(new Uint8Array(n));
 const encode=u=>{let s='';for(const b of u)s+=String.fromCharCode(b);return btoa(s);};
 const decode=s=>Uint8Array.from(atob(s),x=>x.charCodeAt(0));
+/** 192 random bits, generated locally; never persisted or sent to any service. */
+export function generateStrongPassphrase(){return encode(bytes(24)).replace(/\+/g,'-').replace(/\//g,'_');}
 export async function deriveKey(password,salt,iterations=KDF_ITERATIONS){
   if(typeof password!=='string'||password.length<12)throw new Error('La contraseña debe tener al menos 12 caracteres.');
   if(!(salt instanceof Uint8Array)||salt.length!==16)throw new Error('Sal inválida.');
