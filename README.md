@@ -23,6 +23,10 @@ En **Agenda docente → Sesiones de evaluación** se ofrece una sección «Alumn
 
 Antes de utilizar los nuevos vínculos con datos reales, guardar y verificar una copia cifrada del cuaderno. Se aconseja revisar visualmente coincidencias, tutorías y convocatorias con datos ficticios tras actualizar la PWA.
 
+## Sincronización cifrada con Dropbox (candidato)
+
+La PR #63 incorpora sincronización opcional en el alojamiento oficial de Cloudflare. La vista previa separada utiliza exclusivamente datos ficticios y un archivo remoto de pruebas. El candidato no debe fusionarse ni publicarse sin autorización expresa. Las notas se cifran en el dispositivo; ni Dropbox ni Cloudflare reciben la contraseña. Conservar copias externas verificadas, usar una contraseña aleatoria fuerte y seguir las condiciones del centro. Consulta [arquitectura, riesgos residuales y recuperación](docs/SEGURIDAD_DROPBOX.md).
+
 ## Estructura del repositorio
 
 | Ruta | Contenido |
