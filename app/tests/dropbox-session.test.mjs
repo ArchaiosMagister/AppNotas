@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {sameDropboxLink} from '../src/dropbox-local.js';
 import {createDropboxSession,createSessionTokenProvider,dropboxConfigured} from '../src/dropbox-session.js';
 test('a release without Dropbox app key performs no credential or network work',async()=>{
   let loads=0;const statuses=[];
@@ -25,4 +26,13 @@ test('locking while refresh is in progress does not revive credentials',async()=
   const pending=p.getAccessToken();await begun;p.stop();
   release({accessToken:'token',expiresIn:120});
   await assert.rejects(pending);await assert.rejects(p.getAccessToken());
+});
+
+test('deleted or replaced credentials invalidate a session link',()=>{
+  const e={format:'x',version:1,kdf:'x',iterations:600000,salt:'salt',iv:'iv',data:'cipher'};
+  const a={version:1,bookId:'book',envelope:e};
+  assert.equal(sameDropboxLink(a,structuredClone(a)),true);
+  assert.equal(sameDropboxLink(a,null),false);
+  assert.equal(sameDropboxLink(a,{...a,bookId:'other'}),false);
+  assert.equal(sameDropboxLink(a,{...a,envelope:{...e,data:'changed'}}),false);
 });
