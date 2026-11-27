@@ -16,7 +16,7 @@ const headers={'access-control-allow-origin':origin,'access-control-allow-method
 const grade='.grade-table input.note-input:not(.original-note-input)';
 async function waitStatus(page,status){await page.waitForFunction(s=>document.querySelector('#dropbox-sync')?.title===s,status,{timeout:30000});}
 async function passwordForm(page,selector='#password'){await page.locator(selector).fill(password);}
-async function edit(page,value){const input=page.locator(grade).first();await input.fill(value);await input.press('Tab');await page.waitForFunction(v=>document.querySelector('.grade-table input.note-input:not(.original-note-input)')?.value===v,value);}
+async function edit(page,value){const input=page.locator(grade).first();await input.fill(value);await input.press('Tab');await page.locator('h1').click();await page.waitForFunction(v=>document.querySelector('.grade-table input.note-input:not(.original-note-input)')?.value===v,value);}
 for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
   const browser=await engine.launch({headless:true});
   let remote=null,revision=0,uploads=0;
