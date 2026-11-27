@@ -50,9 +50,14 @@ try{
       const layout=await page.evaluate(({selector})=>{
        const bounds=[...document.querySelectorAll(selector)].filter(el=>el.getClientRects().length).map(el=>({name:el.className,x:el.getBoundingClientRect().x,right:el.getBoundingClientRect().right}));
        const controls=[...document.querySelectorAll('.header-tools>summary,#close-notebook,#lock,#undo-change,#redo-change,.nav-primary>.tab,.academic-disclosure>summary,.course-choice,.academic-quick-nav .btn')].filter(el=>el.getClientRects().length).map(el=>({name:el.id||el.textContent.trim(),w:el.getBoundingClientRect().width,h:el.getBoundingClientRect().height}));
-       return {screen:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth,bounds,controls};
+       const nav=document.querySelector('.tabs');
+       const bottom=Math.max(...[...nav.querySelectorAll('.nav-primary>.tab,.academic-disclosure>summary')]
+        .map(el=>el.getBoundingClientRect().bottom));
+       const navGap=nav.getBoundingClientRect().bottom-bottom;
+       return {screen:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth,bounds,controls,navGap};
       },{selector});
       assert(layout.scroll<=layout.screen+3,engine+' overflow '+width+' '+theme+' '+JSON.stringify(layout));
+      assert(layout.navGap<=10,engine+' espacio bajo la navegación '+width+' '+theme+' '+layout.navGap);
       for(const b of layout.bounds)assert(b.x>=-1&&b.right<=layout.screen+1,engine+' outside '+width+' '+JSON.stringify(b));
       for(const c of layout.controls)assert(c.w>=43.5&&c.h>=43.5,engine+' small '+width+' '+JSON.stringify(c));
       if([390,834,1440].includes(width))await page.screenshot({path:out+'/'+engine+'-'+mobile+'-'+width+'-'+theme+'-header.png'});

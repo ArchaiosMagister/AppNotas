@@ -1738,10 +1738,6 @@ html[data-theme="light"][data-course-skin="marmorea"] .brand-mark{
 html[data-theme="light"][data-course-skin="marmorea"] .tabs{
   background:radial-gradient(circle at 15% 10%,#fffdf9,var(--surface) 70%);
 }
-html[data-theme="light"][data-course-skin="marmorea"] .tabs::after{
-  content:"";height:145px;flex:0 0 145px;display:block;opacity:.4;
-  background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20260%20300%22%20fill%3D%22none%22%20stroke%3D%22%2392765c%22%20stroke-width%3D%222.5%22%20stroke-linejoin%3D%22round%22%20opacity%3D%22.65%22%3E%3Cpath%20d%3D%22M24%2075H236M34%2087H226M48%2099H212M63%2099L55%20263h150L197%2099M46%20263h168v11H46zM27%20275h205v11H27z%22%2F%3E%3Cpath%20d%3D%22M73%20102L68%20259M91%20102L90%20259M110%20102L110%20259M130%20102L130%20259M150%20102L150%20259M169%20102L171%20259M187%20102L192%20259%22%2F%3E%3Cpath%20d%3D%22M28%2066c-14-4-18-14-12-26%208-12%2025-9%2027%204%202%2013-17%2017-21%205-2-6%208-10%2011-4M232%2066c14-4%2018-14%2012-26-8-12-25-9-27%204-2%2013%2017%2017%2021%205%202-6-8-10-11-4%22%2F%3E%3Cpath%20d%3D%22M28%2066c23%204%2034-10%2046-16%2018-12%2035-12%2056-12s38%200%2056%2012c12%206%2023%2020%2046%2016M56%2076c27-16%2045-20%2074-20s47%204%2074%2020%22%2F%3E%3Cpath%20d%3D%22M15%20286h230%22%2F%3E%3C%2Fsvg%3E") center bottom / contain no-repeat;pointer-events:none
-}
 html[data-theme="light"][data-course-skin="marmorea"] .headrow{
   border-bottom:2px solid #ad936e
 }
@@ -1782,10 +1778,6 @@ html[data-theme="light"][data-course-skin="tabularium"] .brand-mark{
 }
 html[data-theme="light"][data-course-skin="tabularium"] .tabs{
   background:linear-gradient(125deg,#fcf2e2,#f8ebd9 75%);
-}
-html[data-theme="light"][data-course-skin="tabularium"] .tabs::after{
-  content:"";display:block;height:174px;flex:0 0 174px;opacity:.55;
-  background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20280%20320%22%20fill%3D%22none%22%20stroke%3D%22%2394684e%22%20stroke-width%3D%222.5%22%20opacity%3D%22.70%22%3E%3Cpath%20d%3D%22M14%20305V95H266v210M4%2091H276M8%2077H272M17%2065H263M28%2046H252L270%2065H10zM48%20305V134h184v171%22%2F%3E%3Cpath%20d%3D%22M83%20305V194a57%2057%200%200%201%20114%200v111M108%20305V191a32%2032%200%200%201%2064%200v114%22%2F%3E%3Cpath%20d%3D%22M28%20113h224M31%20129h218M29%20301h222M17%20314h246%22%2F%3E%3Cpath%20d%3D%22M40%20136v162M240%20136v162M59%20154v145M221%20154v145%22%2F%3E%3Cpath%20d%3D%22M25%20100v12M60%20100v12M95%20100v12M130%20100v12M165%20100v12M200%20100v12M235%20100v12%22%2F%3E%3Cpath%20d%3D%22M33%2076h214M38%2061h204M104%2046h73%22%2F%3E%3Cpath%20d%3D%22M109%20125l-15%2027M171%20125l15%2027M128%20136v22M152%20136v22M120%20170l-14%2024M160%20170l14%2024%22%2F%3E%3C%2Fsvg%3E") center bottom / contain no-repeat;pointer-events:none
 }
 html[data-theme="light"][data-course-skin="tabularium"] .headrow{
   border-bottom:1px solid #b98d69
@@ -1848,11 +1840,6 @@ html[data-theme="light"][data-course-skin="attica"] .topbar .header-tools>summar
 html[data-theme="light"][data-course-skin="attica"] .tabs{
   background:linear-gradient(145deg,#fdfefe,#f3f9fc 90%)
 }
-html[data-theme="light"][data-course-skin="attica"] .tabs::after{
-  content:"";display:block;height:154px;flex:0 0 154px;
-  background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20300%20240%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22sky%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23e1f1fa%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23eff5f3%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cpath%20fill%3D%22url(%23sky)%22%20d%3D%22M0%200h300v240H0z%22%2F%3E%3Cpath%20fill%3D%22%23b8d1db%22%20d%3D%22M0%20171l55-23%2037%2015%2059-41%2052%2017%2055-28%2042%2025v104H0z%22%2F%3E%3Cpath%20fill%3D%22%2393b7c8%22%20d%3D%22M0%20197l48-16%2040%2010%2085-25%2067%2023%2060-9v60H0z%22%2F%3E%3Cpath%20fill%3D%22%23cbbda6%22%20d%3D%22M0%20213q80-20%20151-53t149-10v90H0z%22%2F%3E%3Cpath%20fill%3D%22%23f8f5e8%22%20stroke%3D%22%236f8da1%22%20stroke-width%3D%222%22%20d%3D%22M90%2090h139v11H90zM103%2078h113l15%2012H88zM105%2062h109v16H105zM112%2050h95v12h-95zM111%20101h105v57H111zM102%20159h120v9H102z%22%2F%3E%3Cpath%20fill%3D%22%2386a9b7%22%20d%3D%22M117%20104h8v51h-8zm20%200h8v51h-8zm20%200h8v51h-8zm20%200h8v51h-8zm20%200h8v51h-8z%22%2F%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22%23607e8d%22%20stroke-width%3D%221.4%22%20d%3D%22M104%2075h112M101%2090h123M98%20167h127%22%2F%3E%3Cpath%20fill%3D%22%23537b73%22%20d%3D%22M36%20220l7-78%2010%2078zM51%20220l8-96%2010%2096zM270%20221l7-87%209%2087z%22%2F%3E%3Cpath%20fill%3D%22%23f5f1e6%22%20stroke%3D%22%238fa7ae%22%20d%3D%22M0%20212l38-12%2015%2016%2018-11%2021%2017%2028-9%2029%2027H0z%22%2F%3E%3C%2Fsvg%3E") center bottom / contain no-repeat;
-  border-radius:6px;opacity:.88;pointer-events:none
-}
 html[data-theme="light"][data-course-skin="attica"] .headrow{
   border-bottom:1px solid #bdd5e4
 }
@@ -1874,8 +1861,6 @@ html[data-theme="dark"][data-course-skin] .topbar::before{
 html[data-theme="oled"][data-course-skin] .topbar::before{
   background:#000!important
 }
-html[data-theme="dark"][data-course-skin] .tabs::after,
-html[data-theme="oled"][data-course-skin] .tabs::after{display:none}
 html[data-theme="oled"][data-course-skin] .shell,
 html[data-theme="oled"][data-course-skin] .topbar{
   background:#000!important
@@ -1886,10 +1871,8 @@ html[data-theme="oled"][data-course-skin] .topbar .topbar-close-btn{
 html[data-theme="oled"][data-course-skin] .topbar .topbar-close-btn:hover{
   background:#181818;color:#fff
 }
-/* Impedir que ornamentos laterales creen una segunda fila o tapen menús.
-   El espacio superior se mantiene completo en modo pantalla completa iOS. */
+/* Mantener el espacio superior en modo pantalla completa iOS. */
 @media(max-width:900px){
-  html[data-course-skin] .tabs::after{display:none!important}
   .topbar{padding-top:calc(60px + env(safe-area-inset-top,0px))!important}
   .topbar .brand-copy strong{font-size:24px}
 }
@@ -1903,7 +1886,6 @@ html[data-theme="oled"][data-course-skin] .topbar .topbar-close-btn:hover{
 @media print{
   .topbar::before{display:none!important}
   .topbar{padding-top:12px!important}
-  html[data-course-skin] .tabs::after{display:none!important}
 }
 
 
@@ -3393,7 +3375,10 @@ html[data-theme="oled"] .notebook-eval-open{background:#000}
 .planner-create-options>.btn:hover,.planner-create-options>.btn:focus-visible{background:var(--raised)}
 .planner-tools-minimal>.btn{min-height:39px;font-size:12px}
 .upcoming-exams{list-style:none;padding:0}
-.upcoming-exams .planner-event{overflow-wrap:anywhere}
+.upcoming-exams .planner-event{width:100%;min-height:44px;align-items:center;flex-wrap:wrap;text-align:left;overflow-wrap:anywhere}
+.upcoming-exams .planner-event:hover{background:var(--accent-soft)}
+.upcoming-exams .exam-details{display:grid;gap:5px;min-width:0}
+.upcoming-exams .exam-export-label{color:var(--accent-text);font-weight:700}
 html[data-theme="oled"] .planner-create-options,
 html[data-theme="oled"] .planner-create-menu>summary,
 html[data-theme="oled"] .notebook-grade-options,
@@ -4195,7 +4180,7 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
 .shell .workspace,.shell.nav-collapsed .workspace{display:flex;flex-direction:column;gap:10px}
 .shell .work-area{min-width:0;width:100%}
 @media(min-width:901px){
-  .shell .tabs,.shell.nav-collapsed .tabs{position:relative;display:grid;grid-template-columns:44px repeat(5,minmax(0,1fr));align-items:stretch;width:100%;max-height:none;overflow:visible;gap:6px;padding:6px}
+  .shell .tabs,.shell.nav-collapsed .tabs{position:relative;top:auto;display:grid;grid-template-columns:44px repeat(5,minmax(0,1fr));align-items:stretch;width:100%;max-height:none;overflow:visible;gap:6px;padding:6px}
   .shell .tabs .nav-primary,.shell .tabs .nav-secondary{display:contents}
   .shell .tabs .nav-collapse{display:flex;align-items:center;justify-content:center;width:44px;min-width:44px;min-height:44px;padding:4px}
   .shell .tabs .nav-collapse .nav-text{display:none}
