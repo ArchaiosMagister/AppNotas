@@ -7,7 +7,7 @@
 import {openDropboxSnapshot,dropboxSyncDecision} from './dropbox-sync.js';
 import {compareBookVersions} from './cuaderno.js';
 
-export function createSyncController({transport,readLocal,acceptRemote,onStatus=()=>{},isOnline=()=>true}){
+export function createSyncController({transport,readLocal,acceptRemote,verifyLocal=async()=>true,onStatus=()=>{},isOnline=()=>true}){
   let generation=0,session=null,flight=null;
   function report(status,details={}){
     const value={status,...details};
@@ -41,12 +41,14 @@ export function createSyncController({transport,readLocal,acceptRemote,onStatus=
       if(!local?.doc||!local.key||!local.salt)return status('unavailable');
       status('syncing');
       try{
+        if(!await verifyLocal(local,signal)||!active()||!unchanged(local))return status('pending');
         const entry=await transport.download({signal});
         if(!active())return {status:'locked'};
         if(!unchanged(local))return status('pending');
         const remote=entry?await openDropboxSnapshot(entry.snapshot,local.key,local.salt):null;
         if(!active())return {status:'locked'};
         if(!unchanged(local))return status('pending');
+        if(!await verifyLocal(local,signal)||!active()||!unchanged(local))return status('pending');
         const decision=dropboxSyncDecision(local.doc,remote,{allowInitialize});
         if(decision==='stop')return status('remote-missing');
         if(decision==='conflict')return status('conflict',{reason:compareBookVersions(local.doc,remote)});
@@ -58,12 +60,14 @@ export function createSyncController({transport,readLocal,acceptRemote,onStatus=
           const after=readLocal();
           return status(after?.key===local.key&&after.doc===remote?'synced':'pending');
         }
-        await transport.upload({doc:local.doc,key:local.key,salt:local.salt,expectedRev:entry?.rev??null,signal});
+        await transport.upload({doc:local.doc,key:local.key,salt:local.salt,expectedRev:entry?.rev??null,signal,beforeSend:async()=>active()&&unchanged(local)&&await verifyLocal(local,signal)&&active()&&unchanged(local)});
         if(!active())return {status:'locked'};
         return status(unchanged(local)?'synced':'pending');
       }catch(error){
         if(!active())return {status:'locked'};
         // Never display provider responses, tokens, notebook data or stack traces.
+        if(error?.code==='local-changed')return status('pending');
+        if(error?.code==='link-changed')return status('not-linked');
         if(error?.code==='conflict')return status('conflict',{reason:'remote-revision-changed'});
         return status(isOnline()?'error':'offline');
       }
