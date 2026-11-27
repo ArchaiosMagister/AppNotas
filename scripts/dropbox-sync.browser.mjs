@@ -80,12 +80,21 @@ for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
     await p.locator('[data-create-mode="demo"]').click();
     await p.locator('#dropbox-sync').waitFor();
     await p.locator('#dropbox-sync').click();
+    // Generate a password then cancel: the visible text and old password must
+    // both be erased even though the closed dialog remains in the DOM.
+    await p.locator('#dropbox-upgrade').click();
+    await p.locator('#dropbox-old-password').fill(password);
+    await p.locator('#dropbox-generate-password').click();
+    assert.match(await p.locator('#dropbox-new-password').inputValue(),/^[A-Za-z0-9_-]{32}$/);
+    await p.locator('#dropbox-upgrade-cancel').click();
+    for(const id of ['#dropbox-old-password','#dropbox-new-password','#dropbox-repeat-password'])assert.equal(await p.locator(id).inputValue(),'');
     await p.locator('#dropbox-link').click();
     await p.getByText('Dropbox autorizado. Desbloquea tu cuaderno para confirmar la vinculación.',{exact:true}).waitFor({timeout:30000});
     await passwordForm(p);await p.locator('#unlock-form button[type=submit]').click();
     await p.locator('#backup-password').waitFor();await passwordForm(p,'#backup-password');
     await p.locator('#backup-password-form button[type=submit]').click();
-    await waitStatus(p,'Sincronizado');assert.equal(uploads,1);console.log(name+': vinculación y primera copia OK');
+    await waitStatus(p,'Sincronizado');assert.equal(uploads,1);
+    assert.equal(await p.locator('#backup-password').inputValue(),'');console.log(name+': vinculación y primera copia OK');
     // Return to notebook after link and change a real UI score.
     await p.locator('.nav-primary [data-tab="cuaderno"]').click();
     const before=revision;await edit(p,'2');
@@ -130,6 +139,8 @@ for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
     await p.locator('#dropbox-unlink').click();
     await waitStatus(p,'Dropbox no vinculado');
     assert.equal(revision,stableRevision);
+    await p.locator('#lock').click();await p.locator('#unlock-form').waitFor();
+    assert.equal(await p.locator('#modal').evaluate(el=>el.childElementCount),0);
     assert.deepEqual(errors,[]);
     assert(requests.includes('/oauth2/token'));
     console.log(name+': PKCE, IndexedDB, cifrado, sincronización bidireccional, offline, conflicto, exportación y desvinculación OK');
