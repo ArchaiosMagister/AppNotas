@@ -58,3 +58,14 @@ test('token endpoint errors and missing scopes fail closed',async()=>{
   await assert.rejects(refreshAuthorization({clientId,refreshToken,fetchImpl:async()=>new Response('{}',{status:401})}));
   await assert.rejects(refreshAuthorization({clientId,refreshToken,fetchImpl:async()=>new Response(JSON.stringify({access_token:'fake',token_type:'bearer',expires_in:100,scope:'files.content.read'}))}));
 });
+
+test('preview OAuth redirect is bound to its pending state and token exchange',async()=>{
+  const redirect='https://feature-dropbox-e2ee-sync.appnotas-docente.pages.dev/';
+  const {url,pending}=await beginAuthorization(clientId,now,redirect);
+  assert.equal(new URL(url).searchParams.get('redirect_uri'),redirect);
+  await assert.rejects(completeAuthorization({clientId,pending,now,callbackUrl:'https://appnotas-docente.pages.dev/?code=fake&state='+pending.state,fetchImpl:async()=>{throw Error('unexpected network');}}));
+  await completeAuthorization({clientId,pending,now,callbackUrl:redirect+'?code=fake&state='+pending.state,fetchImpl:async(url,init)=>{
+    assert.equal(new URLSearchParams(init.body).get('redirect_uri'),redirect);return tokenResponse();
+  }});
+  await assert.rejects(beginAuthorization(clientId,now,'https://untrusted.example/'));
+});
