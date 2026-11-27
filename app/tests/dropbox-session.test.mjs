@@ -2,12 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {sameDropboxLink} from '../src/dropbox-local.js';
 import {createDropboxSession,createSessionTokenProvider,dropboxConfigured} from '../src/dropbox-session.js';
-test('a release without Dropbox app key performs no credential or network work',async()=>{
+test('production remains disabled and performs no credential or network work',async()=>{
   let loads=0;const statuses=[];
   const session=createDropboxSession({state:{key:{}},origin:'https://appnotas-docente.pages.dev',
     onStatus:s=>statuses.push(s.status),load:async()=>{loads++;throw Error();}});
   await session.start();assert.equal(loads,0);assert.deepEqual(statuses,['not-configured']);
   assert.equal(dropboxConfigured('https://appnotas-docente.pages.dev'),false);
+  assert.equal(dropboxConfigured('https://feature-dropbox-e2ee-sync.appnotas-docente.pages.dev'),true);
+  assert.equal(dropboxConfigured('https://untrusted.example'),false);
   assert.equal(session.active(),false);
 });
 test('session refresh coalesces calls and expires access tokens before use',async()=>{
