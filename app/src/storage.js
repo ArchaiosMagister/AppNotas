@@ -162,3 +162,44 @@ export function recordExportReceipt(db,receipt,expected){return new Promise((res
     try{store.put(receipt,EXPORT_RECEIPT_KEY);}catch(e){done(e);try{t.abort();}catch{}}
   };
 });}
+
+/** Device-local credential, separate from notebook, export and rescue.
+ * Only ciphertext is accepted. All writes check the exact notebook revision.
+ */
+const DROPBOX_KEY='dropbox-credential-v1';
+function validDropboxRecord(record,main){
+  const e=record?.envelope;
+  return record?.version===1&&typeof record.bookId==='string'&&record.bookId.length>0&&record.bookId.length<=128&&
+    Object.keys(record).sort().join(',')==='bookId,envelope,version'&&
+    e&&Object.keys(e).sort().join(',')==='data,format,iterations,iv,kdf,salt,version'&&
+    e.format==='CuadernoDocenteEncrypted'&&e.version===1&&e.kdf==='PBKDF2-SHA-256'&&
+    e.iterations===600000&&main?.iterations===e.iterations&&e.salt===main.salt&&
+    typeof e.iv==='string'&&/^[A-Za-z0-9+/]{16}$/.test(e.iv)&&
+    typeof e.data==='string'&&e.data.length>=24&&e.data.length<=24000&&/^[A-Za-z0-9+/]+={0,2}$/.test(e.data);
+}
+export function readDropboxCredential(db){return new Promise((resolve,reject)=>{
+  let t,value=null;
+  try{t=db.transaction(STORE,'readonly');}catch(e){reject(e);return;}
+  t.oncomplete=()=>resolve(value);
+  t.onerror=()=>reject(t.error||new Error('Dropbox credential read failed.'));
+  t.onabort=()=>reject(t.error||new Error('Dropbox credential read aborted.'));
+  const r=t.objectStore(STORE).get(DROPBOX_KEY);r.onsuccess=()=>{value=r.result??null;};
+});}
+export function writeDropboxCredential(db,record,expected){return new Promise((resolve,reject)=>{
+  if(expected===undefined||record!==null&&!validDropboxRecord(record,expected)){
+    reject(new Error('Invalid encrypted Dropbox credential.'));return;
+  }
+  let t,settled=false;
+  const done=e=>{if(settled)return;settled=true;e?reject(e):resolve();};
+  try{t=durableWrite(db);}catch(e){done(e);return;}
+  t.oncomplete=()=>done();
+  t.onerror=()=>done(t.error||new Error('Dropbox credential write failed.'));
+  t.onabort=()=>done(t.error||new Error('Dropbox credential write aborted.'));
+  const store=t.objectStore(STORE),r=store.get('main');
+  const abort=e=>{done(e);try{t.abort();}catch{}};
+  r.onerror=()=>abort(r.error||new Error('Cannot check local revision.'));
+  r.onsuccess=()=>{
+    if(!sameEnvelope(r.result??null,expected)){abort(new EnvelopeConflictError());return;}
+    try{if(record===null)store.delete(DROPBOX_KEY);else store.put(record,DROPBOX_KEY);}catch(e){abort(e);}
+  };
+});}
