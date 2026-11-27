@@ -12,5 +12,5 @@ test('Dropbox UI onboarding is gated and added to offline cache',async()=>{
   assert(app.includes('prepareDropboxNavigation({clientId:DROPBOX_CLIENT_ID'));
   assert(app.includes('captureDropboxCallback({location,history:window.history'));
   assert(sw.includes("'./src/dropbox-onboarding.js'"));
-  assert(app.includes("caches.open('cuaderno-docente-static-v189-dev')"));
+  assert(app.includes("caches.open('cuaderno-docente-static-v190-dev')"));
 });
