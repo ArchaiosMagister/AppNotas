@@ -50,21 +50,20 @@ test('la banda de Safari aporta 50 px libres encima de los botones sin superposi
   assert(css.includes('@media print{'));
   assert(css.includes('.topbar::before{display:none!important}'));
 });
-test('tres tratamientos visuales autónomos, con motivos clásicos sin peticiones remotas',async()=>{
+test('tres tratamientos visuales autónomos con navegación compacta y sin peticiones remotas',async()=>{
   const css=await read('styles.css');
   for(const key of ['marmorea','tabularium','attica']){
     assert(css.includes(`html[data-theme="light"][data-course-skin="${key}"]`),key);
     assert(css.includes(`html[data-theme="light"][data-course-skin="${key}"] .topbar`),key);
-    assert(css.includes(`html[data-theme="light"][data-course-skin="${key}"] .tabs::after`),key);
+    assert(css.includes(`html[data-theme="light"][data-course-skin="${key}"] .tabs{`),key);
   }
-  assert((css.match(/data:image\/svg\+xml/g)||[]).length>=3);
   assert(!css.includes('fonts.googleapis.com'),'No dependemos de fuentes de terceros');
   assert(!css.includes('cdn.jsdelivr.net'),'No dependemos de recursos externos');
   assert(css.includes('Baskerville'));
   assert(css.includes('Palatino Linotype'));
   assert(css.includes('html[data-theme="oled"][data-course-skin] .shell,'));
   assert(css.includes('background:#000!important'));
-  assert(css.includes('html[data-course-skin] .tabs::after{display:none!important}'));
+  assert(!css.includes('.tabs::after'),'La barra horizontal no debe reservar espacio para adornos laterales');
 });
 test('la interfaz existente conserva controles docentes y el modo grupo',async()=>{
   const [app]=await files();
@@ -98,7 +97,7 @@ test('las notas, identidad de alumno y cálculos mantienen su semántica con cua
   assert.deepEqual(doc,before);
 });
 test('la PWA precarga los mismos archivos y usa una caché nueva en SW y aplicación',async()=>{
-  const [app,css,sw,index]=await files();
+  const [app,,sw,index]=await files();
   const cacheId=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/)?.[1];
   assert(cacheId&&Number(cacheId.match(/v(\d+)/)?.[1])>=142,'La caché PWA debe tener versión actualizada');
   assert(sw.includes(`const CACHE='${cacheId}'`));
@@ -106,5 +105,4 @@ test('la PWA precarga los mismos archivos y usa una caché nueva en SW y aplicac
   assert(sw.includes("'./styles.css'"));
   assert(index.includes('href="./styles.css"'));
   assert(index.includes("img-src 'self' data:"));
-  assert(css.includes('data:image/svg+xml'));
 });
