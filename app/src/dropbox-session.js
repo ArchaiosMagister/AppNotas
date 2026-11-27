@@ -6,7 +6,7 @@ import {createLocalSyncBridge,loadLocalDropboxSession,sameDropboxLink} from './d
 import {createDropboxTransport} from './dropbox-sync.js';
 import {prepareConflictCopies} from './dropbox-conflict.js';
 import {createSyncController,createSyncScheduler} from './dropbox-controller.js';
-import {readDropboxCredential} from './storage.js';
+import {readDropboxCredential,writeEnvelope} from './storage.js';
 import {refreshAuthorization} from './dropbox-oauth.js';
 import {DROPBOX_CLIENT_ID,dropboxConfigured,dropboxFilePath} from './dropbox-config.js';
 export {DROPBOX_CLIENT_ID,DROPBOX_ORIGIN,DROPBOX_TEST_ORIGIN,dropboxConfigured} from './dropbox-config.js';
@@ -47,6 +47,7 @@ export function createDropboxSession({state,enqueue,canApply,adopt,onStatus,wind
     if(gen!==generation||state.key!==key)return;
     if(!link){onStatus({status:'not-linked'});return;}
     provider=createSessionTokenProvider({clientId,refreshToken:link.token});
+    link.token=null;
     const sessionProvider=provider;
     const checkLink=async()=>{
       if(gen!==generation||state.key!==key||state.doc?.id!==link.record.bookId||
@@ -57,8 +58,8 @@ export function createDropboxSession({state,enqueue,canApply,adopt,onStatus,wind
     const transport=createDropboxTransport({path:dropboxFilePath(origin),getAccessToken:async()=>{
       await checkLink();const token=await sessionProvider.getAccessToken();await checkLink();return token;
     }});
-    const bridge=createLocalSyncBridge({state,enqueue,canApply,adopt});
-    const controller=createSyncController({transport,...bridge,onStatus,isOnline:()=>windowTarget.navigator.onLine!==false});
+    const bridge=createLocalSyncBridge({state,enqueue,canApply,adopt,write:(db,env,expected)=>writeEnvelope(db,env,expected,link.record)});
+    const controller=createSyncController({transport,...bridge,verifyLocal:async(local,signal)=>{await checkLink();return bridge.verifyLocal(local,signal);},onStatus,isOnline:()=>windowTarget.navigator.onLine!==false});
     inspect=()=>prepareConflictCopies({transport,readLocal:bridge.readLocal,verifyLocal:async(local)=>{await checkLink();return gen===generation&&await bridge.verifyLocal(local);}});
     scheduler=createSyncScheduler({controller,windowTarget,documentTarget});
     scheduler.start();
