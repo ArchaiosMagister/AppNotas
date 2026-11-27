@@ -4,6 +4,7 @@
  */
 import {createLocalSyncBridge,loadLocalDropboxSession,sameDropboxLink} from './dropbox-local.js';
 import {createDropboxTransport} from './dropbox-sync.js';
+import {prepareConflictCopies} from './dropbox-conflict.js';
 import {createSyncController,createSyncScheduler} from './dropbox-controller.js';
 import {readDropboxCredential} from './storage.js';
 import {refreshAuthorization} from './dropbox-oauth.js';
@@ -32,8 +33,9 @@ export function createSessionTokenProvider({clientId,refreshToken,refresh=refres
 }
 export function createDropboxSession({state,enqueue,canApply,adopt,onStatus,windowTarget,documentTarget,origin,
     load=loadLocalDropboxSession,readLink=readDropboxCredential,clientId=DROPBOX_CLIENT_ID}){
-  let generation=0,scheduler=null,provider=null;
-  function stop(){generation++;scheduler?.stop();provider?.stop();scheduler=null;provider=null;}
+  let generation=0,scheduler=null,provider=null,inspect=null;
+  const conflictCopies=async()=>{if(!inspect)throw new Error('Dropbox session unavailable.');return inspect();};
+  function stop(){generation++;scheduler?.stop();provider?.stop();scheduler=null;provider=null;inspect=null;}
   async function start(){
     stop();
     if(!dropboxConfigured(origin)||clientId!==DROPBOX_CLIENT_ID){onStatus({status:'not-configured'});return;}
@@ -57,8 +59,9 @@ export function createDropboxSession({state,enqueue,canApply,adopt,onStatus,wind
     }});
     const bridge=createLocalSyncBridge({state,enqueue,canApply,adopt});
     const controller=createSyncController({transport,...bridge,onStatus,isOnline:()=>windowTarget.navigator.onLine!==false});
+    inspect=()=>prepareConflictCopies({transport,readLocal:bridge.readLocal,verifyLocal:async(local)=>{await checkLink();return gen===generation&&await bridge.verifyLocal(local);}});
     scheduler=createSyncScheduler({controller,windowTarget,documentTarget});
     scheduler.start();
   }
-  return Object.freeze({start,stop,changed:()=>scheduler?.changed(),manual:()=>scheduler?.manual()??Promise.resolve({status:'not-linked'}),active:()=>!!scheduler});
+  return Object.freeze({start,stop,conflictCopies,changed:()=>scheduler?.changed(),manual:()=>scheduler?.manual()??Promise.resolve({status:'not-linked'}),active:()=>!!scheduler});
 }
