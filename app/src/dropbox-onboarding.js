@@ -40,20 +40,20 @@ export function createDropboxOnboarding({clientId,authorize=completeAuthorizatio
     if(used||!callback||!MODES.has(callback.mode))throw new Error('Dropbox authorization already used or invalid.');
     used=true;
     const controller=new AbortController();
-    const task={mode:callback.mode,controller,signal:controller.signal,token:null,transport:null};
+    const task={mode:callback.mode,controller,signal:controller.signal,token:null,accessToken:null,transport:null};
     session=task;
     try{
       const result=await authorize({clientId,pending:callback.pending,callbackUrl:callback.callbackUrl,signal:task.signal});
       if(guard()!==task)throw new Error('Dropbox onboarding cancelled.');
-      task.token=result.refreshToken;
+      task.token=result.refreshToken;task.accessToken=result.accessToken;
       task.transport=transportFactory({getAccessToken:async()=>{
         if(guard()!==task)throw new Error('Dropbox onboarding cancelled.');
-        return result.accessToken;
+        return task.accessToken;
       }});
       return task.mode;
     }catch(e){stop();throw e;}
   }
-  function stop(){if(session){session.controller.abort();session.token=null;session.transport=null;}session=null;}
+  function stop(){if(session){session.controller.abort();session.token=null;session.accessToken=null;session.transport=null;}session=null;}
   async function link({state,confirmInitialize=async()=>false}){
     const task=guard();
     if(task.mode!=='link'||!task.transport||!task.token)throw new Error('Link mode required.');
