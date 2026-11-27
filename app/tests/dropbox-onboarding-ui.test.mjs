@@ -15,5 +15,7 @@ test('Dropbox UI onboarding is gated and added to offline cache',async()=>{
   assert(app.includes('prepareDropboxNavigation({clientId:DROPBOX_CLIENT_ID'));
   assert(app.includes('captureDropboxCallback({location,history:window.history'));
   assert(sw.includes("'./src/dropbox-onboarding.js'"));
-  assert(app.includes("caches.open('cuaderno-docente-static-v192-dev')"));
+  const cache=sw.match(/const CACHE='(cuaderno-docente-static-v(\d+)-dev)'/);
+  assert(cache&&Number(cache[2])>=192,'Cache must not revert to an older release');
+  assert(app.includes("caches.open('"+cache[1]+"')"),'App and service worker must use the same current cache');
 });
