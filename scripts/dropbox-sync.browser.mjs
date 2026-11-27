@@ -21,6 +21,7 @@ for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
   const browser=await engine.launch({headless:true});
   let remote=null,revision=0,uploads=0;
   const requests=[],errors=[];
+  async function waitRevision(previous){const until=Date.now()+30000;while(revision<=previous&&Date.now()<until)await new Promise(r=>setTimeout(r,100));assert(revision>previous,'expected a new remote revision');}
   async function device(){
     const ctx=await browser.newContext({serviceWorkers:'block',acceptDownloads:true,viewport:{width:834,height:1194}});
     await ctx.route('**/*',async route=>{
@@ -81,11 +82,11 @@ for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
     await passwordForm(p);await p.locator('#unlock-form button[type=submit]').click();
     await p.locator('#backup-password').waitFor();await passwordForm(p,'#backup-password');
     await p.locator('#backup-password-form button[type=submit]').click();
-    await waitStatus(p,'Sincronizado');assert.equal(uploads,1);
+    await waitStatus(p,'Sincronizado');assert.equal(uploads,1);console.log(name+': vinculación y primera copia OK');
     // Return to notebook after link and change a real UI score.
     await p.locator('.nav-primary [data-tab="cuaderno"]').click();
     const before=revision;await edit(p,'2');
-    await waitStatus(p,'Sincronizado');assert(revision>before);
+    await waitRevision(before);await waitStatus(p,'Sincronizado');
     const b=await device(),q=b.page;
     await q.locator('#dropbox-restore-locked').click();
     await q.getByRole('button',{name:'Continuar recuperación de Dropbox'}).waitFor({timeout:30000});
@@ -93,19 +94,21 @@ for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
     await q.locator('#backup-password').waitFor();await passwordForm(q,'#backup-password');
     await q.locator('#backup-password-form button[type=submit]').click();
     await q.locator(grade).first().waitFor();assert.equal(await q.locator(grade).first().inputValue(),'2');
-    await waitStatus(q,'Sincronizado');
-    const beforeB=revision;await edit(q,'3');await waitStatus(q,'Sincronizado');assert(revision>beforeB);
+    await waitStatus(q,'Sincronizado');console.log(name+': recuperación en segundo dispositivo OK');
+    const beforeB=revision;await edit(q,'3');await waitRevision(beforeB);await waitStatus(q,'Sincronizado');
     await p.evaluate(()=>window.dispatchEvent(new Event('pageshow')));
     await p.waitForFunction(()=>document.querySelector('.grade-table input.note-input:not(.original-note-input)')?.value==='3');
+    console.log(name+': sincronización bidireccional OK');
     // Offline concurrent edits must stop rather than overwrite either copy.
     await a.ctx.setOffline(true);await edit(p,'4');
     const beforeConflict=revision;
-    await edit(q,'5');await waitStatus(q,'Sincronizado');assert(revision>beforeConflict);
+    await edit(q,'5');await waitRevision(beforeConflict);await waitStatus(q,'Sincronizado');
     await a.ctx.setOffline(false);
     await p.evaluate(()=>window.dispatchEvent(new Event('online')));
     await waitStatus(p,'Conflicto: se conservan ambas versiones');
     assert.equal(await p.locator(grade).first().inputValue(),'4');
     assert.equal(await q.locator(grade).first().inputValue(),'5');
+    console.log(name+': conflicto offline conservado OK');
     const stableRevision=revision;
     await p.locator('#dropbox-sync').click();
     await p.locator('#dropbox-conflict-copies').click();
