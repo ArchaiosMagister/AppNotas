@@ -4241,3 +4241,10 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
 .btn.dropbox-sync-btn{background:#0061fe;border-color:#0061fe;color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0;min-width:34px}
 .btn.dropbox-sync-btn:hover,.btn.dropbox-sync-btn:focus-visible{background:#0055df;border-color:#0055df;color:#fff}
 @media(max-width:850px){.dropbox-sync-btn .dropbox-label{display:none}.btn.dropbox-sync-btn{padding-inline:7px}}
+
+/* Dropbox onboarding, before the local password and creation controls. */
+.unlock-box .unlock-dropbox{margin-top:16px}
+.unlock-box .unlock-dropbox .dropbox-sync-btn{margin:0;min-height:46px;white-space:normal;line-height:1.25;padding:10px 12px}
+.unlock-box .unlock-dropbox .dropbox-sync-btn svg{flex-shrink:0}
+.unlock-box .unlock-dropbox .hint{margin:8px 0 0;font-size:12px;line-height:1.4}
+html[data-theme="dark"] .unlock-box .unlock-dropbox .dropbox-sync-btn,html[data-theme="oled"] .unlock-box .unlock-dropbox .dropbox-sync-btn{background:#0061fe;border-color:#0061fe;color:white}
