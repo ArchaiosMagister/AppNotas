@@ -46,3 +46,10 @@ test('verified upgrade uses new salt, password and stronger KDF without mutating
   await assert.rejects(prepareVaultUpgrade(pass,pass,legacy));
   await assert.rejects(prepareVaultUpgrade('Incorrect test passphrase',newPass,legacy));
 });
+
+test('password generator uses a 32-character base64url random value',async()=>{
+  const {generateStrongPassphrase}=await import('../src/vault.js');
+  const values=Array.from({length:32},()=>generateStrongPassphrase());
+  assert(values.every(x=>/^[A-Za-z0-9_-]{32}$/.test(x)));
+  assert.equal(new Set(values).size,values.length);
+});
