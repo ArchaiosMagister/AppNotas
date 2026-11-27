@@ -5,7 +5,8 @@
 import {seal,validateEnvelope,KDF_ITERATIONS,keyIterations} from './vault.js';
 const AUTH='https://www.dropbox.com/oauth2/authorize';
 const TOKEN='https://api.dropboxapi.com/oauth2/token';
-const REDIRECT='https://appnotas-docente.pages.dev/';
+import {DROPBOX_ORIGIN,validDropboxRedirect} from './dropbox-config.js';
+const REDIRECT=DROPBOX_ORIGIN+'/';
 const AAD='AppNotas/DropboxCredential/v1';
 const SCOPE='files.content.read files.content.write';
 const TTL=10*60*1000;
@@ -16,17 +17,17 @@ const validKey=k=>typeof k==='string'&&/^[a-zA-Z0-9_-]{5,128}$/.test(k);
 const validToken=t=>typeof t==='string'&&t.length>0&&t.length<=8192&&!/[\s\x00-\x1f]/.test(t);
 const validNonce=s=>typeof s==='string'&&/^[A-Za-z0-9_-]{43}$/.test(s);
 const checkKey=k=>{if(!validKey(k))throw new Error('Dropbox app key not configured.');};
-export async function beginAuthorization(clientId,now=Date.now()){
-  checkKey(clientId);
+export async function beginAuthorization(clientId,now=Date.now(),redirectUri=REDIRECT){
+  checkKey(clientId);if(!validDropboxRedirect(redirectUri))throw new Error('Invalid Dropbox redirect.');
   const verifier=random(),state=random();
   const challenge=b64url(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(verifier))));
   const url=new URL(AUTH);
-  url.search=new URLSearchParams({client_id:clientId,response_type:'code',redirect_uri:REDIRECT,
+  url.search=new URLSearchParams({client_id:clientId,response_type:'code',redirect_uri:redirectUri,
     code_challenge:challenge,code_challenge_method:'S256',state,token_access_type:'offline',scope:SCOPE}).toString();
-  return {url:url.href,pending:{version:1,clientId,verifier,state,createdAt:now}};
+  return {url:url.href,pending:{version:1,clientId,verifier,state,createdAt:now,redirectUri}};
 }
 function validatePending(p,clientId,now){
-  if(!p||p.version!==1||p.clientId!==clientId||!validNonce(p.state)||!validNonce(p.verifier)||
+  if(!p||p.version!==1||p.clientId!==clientId||!validDropboxRedirect(p.redirectUri)||!validNonce(p.state)||!validNonce(p.verifier)||
     !Number.isFinite(p.createdAt)||now<p.createdAt||now-p.createdAt>TTL)throw new Error('Dropbox authorization expired or invalid.');
 }
 async function tokenRequest(params,fetchImpl,signal){
@@ -47,13 +48,13 @@ async function tokenRequest(params,fetchImpl,signal){
 export async function completeAuthorization({clientId,pending,callbackUrl,now=Date.now(),fetchImpl=globalThis.fetch,signal}){
   checkKey(clientId);validatePending(pending,clientId,now);
   const url=new URL(callbackUrl);
-  if(url.origin+url.pathname!==REDIRECT||url.hash||url.searchParams.getAll('state').length!==1||
+  if(url.origin+url.pathname!==pending.redirectUri||url.hash||url.searchParams.getAll('state').length!==1||
     url.searchParams.get('state')!==pending.state)throw new Error('Invalid Dropbox authorization callback.');
   if(url.searchParams.has('error'))throw new Error('Dropbox authorization cancelled.');
   const code=url.searchParams.get('code');
   if(url.searchParams.getAll('code').length!==1||!validToken(code))throw new Error('Missing Dropbox authorization code.');
   const result=await tokenRequest({grant_type:'authorization_code',code,client_id:clientId,
-    redirect_uri:REDIRECT,code_verifier:pending.verifier},fetchImpl,signal);
+    redirect_uri:pending.redirectUri,code_verifier:pending.verifier},fetchImpl,signal);
   if(!result.refreshToken)throw new Error('Dropbox did not grant offline authorization.');
   return result;
 }
