@@ -4,7 +4,7 @@
  */
 import {beginAuthorization,completeAuthorization,sealDropboxCredential} from './dropbox-oauth.js';
 import {createDropboxTransport,openDropboxSnapshot,unlockDropboxSnapshot,dropboxSyncDecision} from './dropbox-sync.js';
-import {seal,keyIterations,KDF_ITERATIONS} from './vault.js';
+import {seal,keyIterations,KDF_ITERATIONS,unlockVault} from './vault.js';
 import {assertModel} from './model.js';
 import {validateBookMetadata} from './cuaderno.js';
 import {sameEnvelope,readEnvelope,writeDropboxCredential,installDropboxNotebook} from './storage.js';
@@ -54,13 +54,17 @@ export function createDropboxOnboarding({clientId,authorize=completeAuthorizatio
     }catch(e){stop();throw e;}
   }
   function stop(){if(session){session.controller.abort();session.token=null;session.accessToken=null;session.transport=null;}session=null;}
-  async function link({state,confirmInitialize=async()=>false}){
+  async function link({state,password,confirmInitialize=async()=>false}){
     const task=guard();
     if(task.mode!=='link'||!task.transport||!task.token)throw new Error('Link mode required.');
     const {doc,key,salt,envelope:expected,db}=state;
     const valid=()=>guard()===task&&state.doc===doc&&state.key===key&&sameEnvelope(state.envelope,expected)&&
       !state.saveError&&!state.failedEnvelope&&!state.saving;
     if(!doc||!key||!expected||keyIterations(key)!==KDF_ITERATIONS||!valid())throw new Error('Unlock strengthened notebook first.');
+    // A 600k vault alone does not prove password strength; verify locally.
+    if(typeof password!=='string'||password.length<16)throw new Error('Dropbox requires a passphrase of at least 16 characters.');
+    const proof=await unlockVault(password,expected);
+    if(compareBookVersions(doc,proof.doc)!=='same'||!valid())throw new Error('Local password verification failed.');
     assertModel(doc);validateBookMetadata(doc);
     if(!sameEnvelope(await read(db),expected)||!valid())throw new Error('Local notebook changed.');
     const entry=await task.transport.download({signal:task.signal});
@@ -83,6 +87,7 @@ export function createDropboxOnboarding({clientId,authorize=completeAuthorizatio
   async function restore({db,password,confirmRestore=async()=>false}){
     const task=guard();
     if(task.mode!=='restore'||!task.transport||!task.token)throw new Error('Restore mode required.');
+    if(typeof password!=='string'||password.length<16)throw new Error('Dropbox requires a passphrase of at least 16 characters.');
     if(await read(db)!==null)throw new Error('Local notebook already exists.');
     const entry=await task.transport.download({signal:task.signal});
     if(guard()!==task||!entry)throw new Error('No remote notebook available.');
