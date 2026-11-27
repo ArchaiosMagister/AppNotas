@@ -111,3 +111,10 @@ for(const forbidden of ['tests','qa','.github','MANIFEST_SHA256.txt','CuadernoDo
   }
 }
 console.log('Sitio estático validado en '+outputName+'; '+assets.length+' entradas precargadas.');
+
+// Only the explicitly named preview branch (or an opted-in local build) is transformed.
+if(cloudflare&&process.env.CF_PAGES_BRANCH==='preview/redisenio-suave'||!cloudflare&&process.env.APPNOTAS_REDESIGN_PREVIEW==='1'){
+  const {applyRedesignPreview}=await import('./apply-redesign-preview.mjs');
+  await applyRedesignPreview(output);
+  console.log('Preview experimental aislada; Dropbox deshabilitado.');
+}
