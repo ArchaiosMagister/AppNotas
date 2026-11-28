@@ -4467,10 +4467,18 @@ html[data-theme="dark"] .student-origin-badge[class*="origin-color-"]{background
 html[data-theme="oled"] .student-origin-badge[class*="origin-color-"]{background:#000;color:var(--origin-dark-ink);border-color:var(--origin-border);border-left-width:3px}
 
 /* Selector nativo: desplegable táctil bajo el nombre, sin menús recortados por la tabla. */
-.student-name-cell .student-origin-select{display:inline-block;flex:0 1 auto;width:auto;min-width:68px;max-width:100%;min-height:30px;padding:3px 7px;font:inherit;font-size:11px;font-weight:800;line-height:1.4;cursor:pointer;white-space:nowrap;border-radius:7px;transition:none}
+.student-name-cell .student-origin-select{display:inline-block;flex:0 1 auto;width:100px;min-width:0;max-width:100%;min-height:30px;padding:3px 16px;font:inherit;font-size:11px;font-weight:800;line-height:1.4;cursor:pointer;white-space:nowrap;border-radius:999px;transition:none;text-align:center;text-align-last:center;appearance:none;-webkit-appearance:none;text-overflow:ellipsis}
+.student-name-cell .student-origin-select-short{width:56px;flex:0 0 56px}
+html[data-theme] .student-name-cell select.student-origin-select[class*="origin-color-"]{border-left-width:1px;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:right 9px center,right 6px center;background-size:3px 3px;background-repeat:no-repeat}
+.grade-table thead .student-name-heading{display:flex;align-items:center;justify-content:space-between;gap:5px;min-width:0}
+.grade-table thead .student-name-heading>.student-group-switch{gap:4px;font-size:10px;line-height:1.15;min-height:30px;white-space:normal;flex-shrink:0}
+.student-name-heading .student-group-switch-track{flex-basis:30px;width:30px;height:18px}
+.student-name-heading .student-group-switch-track::after{width:12px;height:12px}
+.student-name-heading .student-group-switch input:checked+.student-group-switch-track::after{transform:translateX(12px)}
+@media(pointer:coarse),(max-width:650px){.grade-table thead .student-name-heading>.student-group-switch{min-height:44px}.student-name-heading .student-group-switch>span:last-child{max-width:33px}}
 .student-origin-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .student-origin-select option{background:var(--surface);color:var(--ink);font-weight:600}
-@media(pointer:coarse),(max-width:650px){.student-name-cell .student-origin-select{min-height:44px;min-width:76px}}
+@media(pointer:coarse),(max-width:650px){.student-name-cell .student-origin-select{min-height:44px}}
 
 /* Detalle de corrección sin texto en línea ni desplazamiento de la cifra. */
 .table-scroller>.grade-table tbody td .grade-info-trigger{

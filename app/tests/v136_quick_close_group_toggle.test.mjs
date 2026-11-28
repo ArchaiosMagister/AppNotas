@@ -110,7 +110,16 @@ test('el grupo se ordena primero por procedencia y después por apellido A-Z, si
 
 test('el modo grupo es compartido por cuaderno y directorio individual; no cambia estructura de notas',async()=>{
   const js=await read('app.js');
-  assert.equal(js.split('<div class="student-order-bar">${studentSortControls()}</div>').length-1,3,'Cuaderno, directorio y evaluación final comparten el interruptor');
+  assert.equal(js.split('<div class="student-order-bar">${studentSortControls()}</div>').length-1,2,'Directorio y evaluación final conservan el interruptor');
+  assert.equal(js.split('<div class="student-order-bar">${studentSortControls(false)}</div>').length-1,1,'El menú Alumnado conserva el selector de orden sin duplicar el interruptor');
+  assert.equal(js.split('<span>Alumno</span>${studentGroupSwitch()}</div></th>').length-1,1,'El cuaderno muestra el interruptor junto al encabezado Alumno');
+  assert.equal(js.split('id="student-group-mode"').length-1,1,'Una sola definición del interruptor');
+  assert(js.includes('${showGroupSwitch?'));
+  assert(js.includes('${studentGroupSwitch()}</div>'));
+  const css=await read('styles.css');
+  assert(css.includes('.student-name-cell .student-origin-select-short{width:56px;flex:0 0 56px}'));
+  assert(css.includes('border-radius:999px;transition:none;text-align:center;text-align-last:center'));
+  assert(css.includes('.student-name-cell .student-origin-select{min-height:44px}'));
   assert(js.includes('renderGradeTableBodies(students,s=>'));
   assert(js.includes('renderGradeTableBodies(students,student=>'));
   assert(js.includes('originDirectoryHeader(students,i)'));
