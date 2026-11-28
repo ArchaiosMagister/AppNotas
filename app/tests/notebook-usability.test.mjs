@@ -93,3 +93,10 @@ test('detalle ortográfico completo fuera del flujo de celda; menú y nota indep
  assert.match(css,/\.table-scroller>\.grade-table tbody td:has\(>\.grade-cell-stack\)\{\s*vertical-align:middle/);
  assert(css.includes('grid-template-rows:minmax(var(--notebook-menu-size,44px),1fr) var(--notebook-face-height,44px) minmax(var(--notebook-menu-size,44px),1fr)'));
 });
+
+test('la notificación de scroll no cierra un detalle cuyo anclaje sigue visible',async()=>{
+ const js=await read('app.js');
+ assert(js.includes("window.addEventListener('scroll',positionGradeInfo,true)"));
+ assert(js.includes('r.right<=visible.left||r.left>=visible.right||r.bottom<=visible.top||r.top>=visible.bottom'));
+ assert(js.includes('window.visualViewport?.addEventListener(\'resize\',positionGradeInfo)'));
+});

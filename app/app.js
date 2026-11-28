@@ -1447,15 +1447,24 @@ function showGradeInfo(button,pinned=false){
  document.body.append(layer);
  gradeInfo={button,layer,pinned};
  button.setAttribute('aria-expanded','true');button.setAttribute('aria-describedby',layer.id);
+ positionGradeInfo();
+ layer.addEventListener('pointerenter',()=>clearTimeout(gradeInfoLeave));
+ layer.addEventListener('pointerleave',delayCloseGradeInfo);
+}
+function positionGradeInfo(){
+ if(!gradeInfo)return;
+ const {button,layer}=gradeInfo;
+ if(!button.isConnected){closeGradeInfo();return;}
  const r=button.getBoundingClientRect(),v=window.visualViewport;
  const left=v?.offsetLeft||0,top=v?.offsetTop||0,width=v?.width||window.innerWidth,height=v?.height||window.innerHeight;
+ const scroller=button.closest('.table-scroller')?.getBoundingClientRect();
+ const visible={left:Math.max(left,scroller?.left??left),right:Math.min(left+width,scroller?.right??left+width),top:Math.max(top,scroller?.top??top),bottom:Math.min(top+height,scroller?.bottom??top+height)};
+ if(r.right<=visible.left||r.left>=visible.right||r.bottom<=visible.top||r.top>=visible.bottom){closeGradeInfo();return;}
  layer.style.maxWidth=Math.max(80,Math.min(320,width-24))+'px';
  const size=layer.getBoundingClientRect();
  const x=Math.max(left+8,Math.min(r.left+r.width/2-size.width/2,left+width-size.width-8));
  const y=r.bottom+6+size.height<=top+height-8?r.bottom+6:Math.max(top+8,r.top-size.height-6);
  layer.style.left=x+'px';layer.style.top=y+'px';
- layer.addEventListener('pointerenter',()=>clearTimeout(gradeInfoLeave));
- layer.addEventListener('pointerleave',delayCloseGradeInfo);
 }
 function bindGradeInfo(){
  root.querySelectorAll('[data-grade-info]').forEach(button=>{
@@ -1471,8 +1480,12 @@ function bindGradeInfo(){
 }
 document.addEventListener('pointerdown',event=>{if(gradeInfo&&!gradeInfo.button.contains(event.target)&&!gradeInfo.layer.contains(event.target))closeGradeInfo();},true);
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&gradeInfo){closeGradeInfo();event.preventDefault();event.stopPropagation();}},true);
-window.addEventListener('scroll',()=>{if(gradeInfo)closeGradeInfo();},true);
-window.addEventListener('resize',closeGradeInfo);
+// Un scroll previo al hover puede notificarse después del pointerenter.
+// Reubicar, no cerrar, mientras el anclaje sigue visible.
+window.addEventListener('scroll',positionGradeInfo,true);
+window.addEventListener('resize',positionGradeInfo);
+window.visualViewport?.addEventListener('scroll',positionGradeInfo);
+window.visualViewport?.addEventListener('resize',positionGradeInfo);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)closeGradeInfo();});
 
 function renderNotebook(){
@@ -3104,7 +3117,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/evaluation-groups.js','./src/evaluation-ui.js','./src/evaluation-workspace.js','./src/notebook-evaluation-notice.js','./src/evaluation-period-board.js','./src/evaluation-session-presentation.js','./src/student-link-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/dropbox-conflict.js','./src/dropbox-config.js','./src/dropbox-onboarding.js','./src/dropbox-session.js','./src/period-preferences.js','./src/dropbox-controller.js','./src/dropbox-local.js','./src/dropbox-sync.js','./src/dropbox-oauth.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v211-dev');
+      const cache=await caches.open('cuaderno-docente-static-v212-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
