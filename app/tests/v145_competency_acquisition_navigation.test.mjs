@@ -54,7 +54,8 @@ test('resultados de competencias oficiales y personalizadas muestran nivel, desc
   const level=app.slice(app.indexOf('function competencyLevelChip('),app.indexOf('function competencyScaleLegend('));
   assert(level.includes('competencyAcquisitionLevel(score)'));
   assert(level.includes('competencyAcquisitionLabel(score)'));
-  assert(level.includes('Media original:'));
+  assert(level.includes("sourceLabel='Media original'"));
+  assert(level.includes('${esc(sourceLabel)}:'));
   assert(level.includes('aria-label="Nivel'));
   assert(level.includes('Sin evidencias'));
   assert(app.includes('Nivel de adquisición de la media'),'Estadísticas de clase usan el nivel medio');
