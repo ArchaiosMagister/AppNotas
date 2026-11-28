@@ -127,7 +127,7 @@ function firstBreak(y,mode){
 }
 /** Proyección desde las fórmulas del libro, sin asumir que las vacaciones
  * interrumpen el ciclo: el Excel avanza por semanas naturales. */
-export function previewPatioRotation(doc,source,{from,to,summerFrom='',skipHolidays=true}={}){
+export function previewPatioRotation(doc,source,{from,to,summerFrom='',skipHolidays=true,overwrite=false}={}){
  const y=activeYear(doc);
  isoDate(from);isoDate(to);isoDate(source.firstMonday);
  // El primer lunes puede preceder al inicio administrativo del curso por
@@ -141,6 +141,7 @@ export function previewPatioRotation(doc,source,{from,to,summerFrom='',skipHolid
   isoDate(summerFrom);
   if(summerFrom<from||summerFrom>to)throw new Error('La fecha de inicio del horario de verano debe estar dentro del intervalo.');
  }
+ if(typeof overwrite!=='boolean')throw new Error('Modo de importación inválido.');
  if(typeof skipHolidays!=='boolean')throw new Error('Configuración de festivos inválida.');
  const regular=firstBreak(y,'regular'),summer=firstBreak(y,'summer');
  const entries=[];let excluded=0,existing=0;
@@ -154,19 +155,39 @@ export function previewPatioRotation(doc,source,{from,to,summerFrom='',skipHolid
   const zone=source.standard[zoneIndex],rainZone=source.rain[zoneIndex],mode=
    summerFrom?(date>=summerFrom?'summer':'regular'):(y.summerEnabled?'summer':'regular');
   const times=mode==='summer'?summer:regular;
-  const conflict=y.events.find(e=>e.date===date&&e.type==='patio');
+  const conflicts=y.events.filter(e=>e.date===date&&e.type==='patio');
+  const conflict=conflicts.find(e=>e.patioRotationSource!=='xlsx-first-break-v1')||conflicts[0];
   if(conflict)existing++;
   entries.push({date,day,week,zone,zoneIndex,rainZone,
    start:times.start,end:times.end,mode,existingId:conflict?.id??null});
  }
- if(!entries.length)throw new Error('No hay guardias para el marcador y fechas seleccionados.');
+ const plan=patioImportPlan(y,entries,from,to,overwrite);
+ if(!entries.length&&!plan.removals.length)throw new Error('No hay guardias para el marcador y fechas seleccionados.');
  if(entries.length>240)throw new Error('Demasiadas guardias; reduce el intervalo.');
- return {yearId:y.id,entries,excluded,existing,firstMonday:source.firstMonday,cycleWeeks:source.cycleWeeks,
+ return {yearId:y.id,from,to,overwrite,plan,entries,excluded,existing,firstMonday:source.firstMonday,cycleWeeks:source.cycleWeeks,
   weekdays:source.positions.map((x,i)=>x===null?null:i).filter(x=>x!==null),
   secondCount:source.secondCount};
 }
-/** Operación determinista/idempotente y solo aditiva: no sobrescribe guardias
- * previas ni toca horarios, otros eventos, notas o competencias. */
+/** Solo se sustituyen eventos identificados como importados de Excel.
+ * Ante una guardia manual, esta prevalece; nunca se modifica ni se borra. */
+function patioImportPlan(year,entries,from,to,overwrite){
+ const old=year.events.filter(e=>e.type==='patio'&&e.date>=from&&e.date<=to);
+ const imported=e=>e.patioRotationSource==='xlsx-first-break-v1';
+ const kept=new Set(),rows=entries.map(entry=>{
+  const matches=old.filter(e=>e.date===entry.date);
+  const manual=matches.find(e=>!imported(e));
+  const previous=matches.find(imported);
+  if(!matches.length)return {date:entry.date,action:'create',id:null};
+  if(!overwrite||manual)return {date:entry.date,action:'skip',id:(manual||previous).id};
+  kept.add(previous.id);
+  return {date:entry.date,action:'replace',id:previous.id};
+ });
+ const removals=overwrite?old.filter(e=>imported(e)&&!kept.has(e.id))
+  .map(e=>({id:e.id,date:e.date,title:e.title,time:e.time,notes:e.notes})):[];
+ return {rows,removals};
+}
+/** Importación aditiva por defecto. En modo sustitución, preparar todos los
+ * cambios en una copia antes de tocar el curso activo. */
 export function addPatioRotationEvents(doc,preview){
  if(!preview||!Array.isArray(preview.entries)||preview.entries.length>240||
     new Set(preview.entries.map(x=>x.date)).size!==preview.entries.length)
@@ -175,22 +196,33 @@ export function addPatioRotationEvents(doc,preview){
  if(preview.yearId!==y.id)throw new Error('La vista previa pertenece a otro curso académico. Revisa de nuevo las asignaciones.');
  // Validar todos los registros ANTES de escribir para evitar operaciones
  // parciales incluso cuando la función se use fuera de una transacción.
+ isoDate(preview.from);isoDate(preview.to);
+ if(preview.from<y.start||preview.to>y.end||preview.from>preview.to||typeof preview.overwrite!=='boolean')throw new Error('Intervalo de importación inválido.');
  for(const entry of preview.entries){
   isoDate(entry.date);
-  if(entry.date<y.start||entry.date>y.end||!entry.zone||!entry.rainZone||
-     entry.zone.length>150||entry.rainZone.length>150||
+  if(entry.date<preview.from||entry.date>preview.to||typeof entry.zone!=='string'||typeof entry.rainZone!=='string'||!entry.zone||!entry.rainZone||
+     ('1.er patio · '+entry.zone).length>150||entry.rainZone.length>150||!Number.isInteger(entry.week)||entry.week<1||
      !timeValid(entry.start)||!timeValid(entry.end)||
      entry.end<=entry.start)
    throw new Error('Una guardia tiene fecha, zona o franja inválida.');
  }
- for(const entry of preview.entries){
-  if(y.events.some(e=>e.type==='patio'&&e.date===entry.date))continue;
+ const plan=patioImportPlan(y,preview.entries,preview.from,preview.to,preview.overwrite);
+ if(preview.overwrite&&JSON.stringify(plan)!==JSON.stringify(preview.plan))
+  throw new Error('Las guardias han cambiado desde la vista previa. Revisa de nuevo las asignaciones.');
+ const target=preview.overwrite?structuredClone(doc):doc,ty=activeYear(target);
+ const removedIds=new Set(plan.removals.map(e=>e.id));
+ if(removedIds.size){ty.events=ty.events.filter(e=>!removedIds.has(e.id));target.updatedAt=new Date().toISOString();}
+ let replaced=0,skipped=0;
+ for(const [i,entry] of preview.entries.entries()){
+  const row=plan.rows[i];
+  if(row.action==='skip'){skipped++;continue;}
   const note='Zona habitual: '+entry.zone+'\nLluvia o viento: '+entry.rainZone+
     '\nRotación del Excel, semana '+entry.week+'. Comprobar si el centro comunica cambios.';
-  const ev=saveEvent(doc,{date:entry.date,type:'patio',title:'1.er patio · '+entry.zone,
+  const ev=saveEvent(target,{id:row.action==='replace'?row.id:null,date:entry.date,type:'patio',title:'1.er patio · '+entry.zone,
    time:entry.start,endTime:entry.end,notes:note});
   ev.patioRotationSource='xlsx-first-break-v1';
-  created.push(ev.id);
+  if(row.action==='replace')replaced++;else created.push(ev.id);
  }
- return {created:created.length,skipped:preview.entries.length-created.length,ids:created};
+ if(preview.overwrite){y.events=ty.events;doc.updatedAt=target.updatedAt;}
+ return {created:created.length,skipped,ids:created,replaced,removed:removedIds.size};
 }
