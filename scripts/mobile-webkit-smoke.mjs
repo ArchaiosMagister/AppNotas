@@ -417,10 +417,12 @@ async function audit(engine,name){
     await tableMenu.locator('#csv-import').click();
     const chooser=await chooserPromise;
     assert.equal(await chooser.element().getAttribute('id'),'csv-file');
+    // El selector externo puede cerrar el menú. Volver a abrirlo antes de recuperar.
+    if(!await tableMenu.evaluate(el=>el.open))await tableMenu.locator('summary').click();
     await tableMenu.locator('#new-recovery').click();
     assert(await page.getByRole('heading',{name:'Nueva recuperación'}).isVisible());
     await page.keyboard.press('Escape');
-    await tableMenu.locator('summary').click();
+    if(await tableMenu.evaluate(el=>el.open))await tableMenu.locator('summary').click();
 
     const finalView=page.getByRole('button',{name:'Evaluación final',exact:true});
     assert.equal(await finalView.count(),1);

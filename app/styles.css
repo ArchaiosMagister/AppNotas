@@ -3317,7 +3317,7 @@ html[data-theme="oled"] .notebook-eval-open{background:#000}
 .student-focus .academic-quick-nav{display:none!important}
 /* La materia sigue a un toque; los nombres repetidos de los grupos dejan de ocupar
  * altura en cada botón. El grupo activo se conserva en la cabecera. */
-.course-choice .course-group-caption{display:none!important}
+.course-choice .course-group-caption{display:block}
 .course-choice .course-name{font-size:12px}
 .class-toolbar{padding:10px 12px;box-shadow:none}
 .panel{box-shadow:0 2px 9px #00000006}
@@ -3452,7 +3452,7 @@ html[data-theme="oled"] .planner-create-options>.btn:hover{background:#101010}
 .class-toolbar .class-more-actions{flex:0 0 auto;margin-left:auto}
 .class-toolbar .group-actions-disclosure>summary{min-height:44px;padding:8px 10px;
  font-size:12px;border-radius:9px}
-.class-toolbar .course-switch .course-group-caption{display:none!important}
+.class-toolbar .course-switch .course-group-caption{display:block}
 /* Un solo título por módulo: Agenda y Evaluaciones conservan los suyos. */
 .planner-view{gap:11px}
 .planner-view .planner-intro{padding:13px 15px;gap:10px;box-shadow:none}
@@ -4217,16 +4217,28 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
 }
 .shell .class-toolbar .course-switch{flex:1 1 100%;width:100%}
 .shell .class-toolbar .course-switch .course-buttons{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;overflow:visible;padding:2px 0;max-width:100%;scroll-snap-type:none}
-.shell .class-toolbar .course-switch .course-choice{flex:1 1 120px;min-width:0;width:auto;max-width:none;min-height:46px;height:auto;padding:8px;white-space:normal}
+.shell .class-toolbar .course-switch .course-choice{flex:1 1 calc((100% - 24px) / 5);min-width:0;width:auto;max-width:none;min-height:56px;height:auto;padding:6px 8px;white-space:normal;flex-direction:column;gap:3px}
+.shell .class-toolbar .course-switch .course-group-caption{font-size:11px;line-height:1.3;overflow-wrap:anywhere;white-space:normal}
+.shell .class-toolbar .course-switch .course-choice[aria-pressed="true"] .course-name{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+.shell .class-toolbar .selectors{flex:1 1 100%;gap:6px}
+.shell .class-toolbar .class-more-actions{margin-left:auto}
+.shell .class-toolbar .group-switch{padding-top:0;border-top:0}
 .shell .class-toolbar .course-switch .course-choice .course-name{font-size:13px;overflow-wrap:anywhere}
 .shell .class-toolbar .group-actions-disclosure>summary,.shell .class-toolbar .group-choice{min-height:44px}
 .shell .academic-quick-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;overflow:visible}
-.shell .academic-quick-nav .btn{min-width:0;width:100%;min-height:44px;white-space:normal;overflow-wrap:anywhere;font-size:13px}
+.shell .academic-quick-nav .btn{min-width:0;width:100%;min-height:44px;white-space:normal;overflow-wrap:anywhere;font-size:13px;border-bottom:3px solid transparent}
+.shell .academic-quick-nav .btn.academic-quick-active{border-bottom-color:var(--accent);font-weight:800}
+.shell .term-bar{padding:5px;margin-bottom:8px;box-shadow:none}
+.shell .term-bar .term-buttons{width:100%;gap:6px}
+.shell .term-bar .term-edit{min-width:44px;min-height:44px;padding:5px;flex-shrink:0}
+.shell .term-bar .term-add{background:transparent;border-color:var(--line);color:var(--muted);font-weight:650;min-height:44px}
+.shell .term-bar .term-item.active .term-button,.shell .term-bar .term-final.active{font-weight:800;text-decoration:underline;text-underline-offset:3px}
+.shell .term-bar .term-item .term-button{overflow-wrap:anywhere}
 @media(max-width:900px){
   .shell > .topbar{grid-template-columns:minmax(0,1fr) auto}
   .topbar>.topmeta{grid-column:1/-1;grid-row:2;justify-content:flex-end}
   .topbar>.header-tools{grid-column:2}
-  .shell .class-toolbar .course-switch .course-choice{flex-basis:108px}
+  .shell .class-toolbar .course-switch .course-choice{flex-basis:calc((100% - 12px) / 3)}
 }
 @media(max-width:650px){
   .shell > .topbar{gap:7px;padding-bottom:8px}
@@ -4272,20 +4284,11 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
 html[data-theme="dark"] .unlock-box .unlock-dropbox .dropbox-sync-btn,html[data-theme="oled"] .unlock-box .unlock-dropbox .dropbox-sync-btn{background:#0061fe;border-color:#0061fe;color:white}
 
 /* Approved visual layer: does not override grade colours or their palette. */
-html[data-redesign]{--redesign-accent:#C58A42;--redesign-row-pad:5px}
-html[data-redesign-subject="Latín 4.º"]{--redesign-accent:#C6A04A}
-html[data-redesign-subject="Latín II"]{--redesign-accent:#B46C43}
-html[data-redesign-subject="Griego I"]{--redesign-accent:#5086BB}
-html[data-redesign-subject="Griego II"]{--redesign-accent:#425A98}
+html[data-redesign]{--redesign-accent:var(--accent);--redesign-row-pad:5px}
 html[data-redesign-density="normal"]{--redesign-row-pad:9px}
 html[data-redesign-density="wide"]{--redesign-row-pad:15px}
 html[data-redesign] .shell>.topbar{border-bottom:4px solid var(--redesign-accent)}
-html[data-redesign] .shell .course-choice[data-course-subject="Latín 4.º"]{--redesign-course:#C6A04A}
-html[data-redesign] .shell .course-choice[data-course-subject="Latín I"]{--redesign-course:#C58A42}
-html[data-redesign] .shell .course-choice[data-course-subject="Latín II"]{--redesign-course:#B46C43}
-html[data-redesign] .shell .course-choice[data-course-subject="Griego I"]{--redesign-course:#5086BB}
-html[data-redesign] .shell .course-choice[data-course-subject="Griego II"]{--redesign-course:#425A98}
-html[data-redesign] .shell .course-choice[aria-pressed="true"]{border-bottom:3px solid var(--redesign-course,var(--redesign-accent));background:color-mix(in srgb,var(--redesign-course,var(--redesign-accent)) 14%,var(--surface));color:var(--ink)}
+html[data-redesign] .shell .course-choice[aria-pressed="true"]{border-bottom:3px solid var(--course-accent,var(--redesign-accent));background:color-mix(in srgb,var(--course-accent,var(--redesign-accent)) 14%,var(--surface));color:var(--ink)}
 html[data-redesign] .shell .tabs .tab.active{border-bottom-color:var(--redesign-accent)}
 html[data-redesign] .panel{border-radius:12px;box-shadow:none}
 html[data-redesign] .btn{border-radius:8px}
