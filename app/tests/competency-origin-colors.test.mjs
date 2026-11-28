@@ -32,9 +32,26 @@ test('mismo color de subgrupo en diferentes cursos; etiquetas libres neutras y e
  const code=source.slice(source.indexOf('const ORIGIN_PALETTE='),source.indexOf('const originEqual='));
  const {originColorClass,originLabel}=runInNewContext(code+';({originColorClass,originLabel})',{esc:s=>String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;')});
  for(const label of ['A','a','1A','1.º A','2º Bach A','Grupo A'])assert.equal(originColorClass(label),'origin-color-blue',label);
- assert.equal(originColorClass('2B'),'origin-color-red');assert.equal(originColorClass('1.º C'),'origin-color-green');
+ assert.equal(originColorClass('2B'),'origin-color-red');assert.equal(originColorClass('1.º C'),'origin-color-green');assert.equal(originColorClass('1.º F'),'origin-color-orange');
  for(const label of ['','Optativa','Sin etiqueta','<script>'])assert.equal(originColorClass(label),'origin-color-neutral');
  assert(originLabel('<script>').includes('&lt;script&gt;'));assert.equal(originLabel(''),'');
  for(const letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')assert(css.includes('.student-origin-badge.'+originColorClass(letter)+'{'));
  for(const theme of ['light','dark','oled'])assert(css.includes('html[data-theme="'+theme+'"] .student-origin-badge[class*="origin-color-"]'));
+});
+
+test('paleta de procedencias: contraste WCAG AA en claro, oscuro y OLED y separación C/F',()=>{
+ const rgb=hex=>hex.slice(1).match(/../g).map(v=>parseInt(v,16));
+ const lum=hex=>rgb(hex).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
+ const contrast=(a,b)=>(Math.max(lum(a),lum(b))+.05)/(Math.min(lum(a),lum(b))+.05);
+ const values=new Map();
+ for(const match of css.matchAll(/\.student-origin-badge\.origin-color-([a-z]+)\{--origin-light:(#[0-9a-f]{6});--origin-ink:(#[0-9a-f]{6});--origin-border:(#[0-9a-f]{6});--origin-dark:(#[0-9a-f]{6});--origin-dark-ink:(#[0-9a-f]{6})\}/g)){
+  const [,name,bg,ink,border,dark,darkInk]=match;
+  values.set(name,{bg,ink,border,dark,darkInk});
+  for(const [a,b] of [[bg,ink],[dark,darkInk],['#000000',darkInk]])assert(contrast(a,b)>=4.5,name);
+ }
+ assert.equal(values.size,13);
+ const green=values.get('green'),orange=values.get('orange');
+ for(const key of ['bg','border','darkInk']){
+  const a=rgb(green[key]),b=rgb(orange[key]);assert(Math.hypot(...a.map((v,i)=>v-b[i]))>80,key+' C/F');
+ }
 });

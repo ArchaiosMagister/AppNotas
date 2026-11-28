@@ -4456,19 +4456,19 @@ html:is([data-redesign-density="normal"],[data-redesign-density="wide"]) .table-
 @media(max-width:650px){.planner-view .planner-intro h2{font-size:19px}.planner-view .planner-controls,.planner-view .planner-intro{padding:8px}.planner-view .planner-content{padding:9px}}
 
 /* Etiquetas de procedencia: mismo código en cualquier materia, contraste independiente del acento. */
-.student-origin-badge.origin-color-blue{--origin-light:#dbeafe;--origin-ink:#1e40af;--origin-border:#60a5fa;--origin-dark:#172d50;--origin-dark-ink:#bfdbfe}
-.student-origin-badge.origin-color-red{--origin-light:#fee2e2;--origin-ink:#991b1b;--origin-border:#f87171;--origin-dark:#471d24;--origin-dark-ink:#fecaca}
-.student-origin-badge.origin-color-green{--origin-light:#dcfce7;--origin-ink:#166534;--origin-border:#4ade80;--origin-dark:#153b29;--origin-dark-ink:#bbf7d0}
-.student-origin-badge.origin-color-violet{--origin-light:#ede9fe;--origin-ink:#5b21b6;--origin-border:#a78bfa;--origin-dark:#38235a;--origin-dark-ink:#ddd6fe}
-.student-origin-badge.origin-color-amber{--origin-light:#fef3c7;--origin-ink:#854d0e;--origin-border:#fbbf24;--origin-dark:#48320c;--origin-dark-ink:#fde68a}
-.student-origin-badge.origin-color-teal{--origin-light:#ccfbf1;--origin-ink:#115e59;--origin-border:#2dd4bf;--origin-dark:#143d39;--origin-dark-ink:#99f6e4}
-.student-origin-badge.origin-color-pink{--origin-light:#fce7f3;--origin-ink:#9d174d;--origin-border:#f472b6;--origin-dark:#48203a;--origin-dark-ink:#fbcfe8}
-.student-origin-badge.origin-color-slate{--origin-light:#e2e8f0;--origin-ink:#334155;--origin-border:#94a3b8;--origin-dark:#293241;--origin-dark-ink:#e2e8f0}
-.student-origin-badge.origin-color-orange{--origin-light:#ffedd5;--origin-ink:#9a3412;--origin-border:#fb923c;--origin-dark:#48290e;--origin-dark-ink:#fed7aa}
-.student-origin-badge.origin-color-indigo{--origin-light:#e0e7ff;--origin-ink:#3730a3;--origin-border:#818cf8;--origin-dark:#292751;--origin-dark-ink:#c7d2fe}
-.student-origin-badge.origin-color-lime{--origin-light:#ecfccb;--origin-ink:#3f6212;--origin-border:#a3e635;--origin-dark:#2d3c14;--origin-dark-ink:#d9f99d}
-.student-origin-badge.origin-color-cyan{--origin-light:#cffafe;--origin-ink:#155e75;--origin-border:#22d3ee;--origin-dark:#143943;--origin-dark-ink:#a5f3fc}
+.student-origin-badge.origin-color-blue{--origin-light:#bfdbfe;--origin-ink:#1e3a8a;--origin-border:#3b82f6;--origin-dark:#1e3a70;--origin-dark-ink:#bfdbfe}
+.student-origin-badge.origin-color-red{--origin-light:#fecaca;--origin-ink:#7f1d1d;--origin-border:#ef4444;--origin-dark:#561e27;--origin-dark-ink:#fecaca}
+.student-origin-badge.origin-color-green{--origin-light:#a7e9b1;--origin-ink:#14532d;--origin-border:#22c55e;--origin-dark:#13452b;--origin-dark-ink:#a7f3b0}
+.student-origin-badge.origin-color-violet{--origin-light:#d8b4fe;--origin-ink:#581c87;--origin-border:#a855f7;--origin-dark:#462463;--origin-dark-ink:#e9d5ff}
+.student-origin-badge.origin-color-amber{--origin-light:#fef08a;--origin-ink:#713f12;--origin-border:#eab308;--origin-dark:#493c0c;--origin-dark-ink:#fef08a}
+.student-origin-badge.origin-color-teal{--origin-light:#99f6e4;--origin-ink:#134e4a;--origin-border:#14b8a6;--origin-dark:#154541;--origin-dark-ink:#99f6e4}
+.student-origin-badge.origin-color-pink{--origin-light:#f9a8d4;--origin-ink:#831843;--origin-border:#ec4899;--origin-dark:#55203f;--origin-dark-ink:#fbcfe8}
+.student-origin-badge.origin-color-slate{--origin-light:#cbd5e1;--origin-ink:#334155;--origin-border:#64748b;--origin-dark:#303b4c;--origin-dark-ink:#e2e8f0}
+.student-origin-badge.origin-color-orange{--origin-light:#fdba74;--origin-ink:#7c2d12;--origin-border:#f97316;--origin-dark:#542a13;--origin-dark-ink:#fed7aa}
+.student-origin-badge.origin-color-indigo{--origin-light:#c7d2fe;--origin-ink:#312e81;--origin-border:#6366f1;--origin-dark:#302c60;--origin-dark-ink:#c7d2fe}
+.student-origin-badge.origin-color-lime{--origin-light:#d9f99d;--origin-ink:#365314;--origin-border:#84cc16;--origin-dark:#354512;--origin-dark-ink:#d9f99d}
+.student-origin-badge.origin-color-cyan{--origin-light:#a5f3fc;--origin-ink:#164e63;--origin-border:#06b6d4;--origin-dark:#164454;--origin-dark-ink:#a5f3fc}
 .student-origin-badge.origin-color-neutral{--origin-light:#f1f5f9;--origin-ink:#475569;--origin-border:#94a3b8;--origin-dark:#2b3038;--origin-dark-ink:#e2e8f0}
-html[data-theme="light"] .student-origin-badge[class*="origin-color-"]{background:var(--origin-light);color:var(--origin-ink);border-color:var(--origin-border)}
-html[data-theme="dark"] .student-origin-badge[class*="origin-color-"]{background:var(--origin-dark);color:var(--origin-dark-ink);border-color:var(--origin-border)}
-html[data-theme="oled"] .student-origin-badge[class*="origin-color-"]{background:#000;color:var(--origin-dark-ink);border-color:var(--origin-border)}
+html[data-theme="light"] .student-origin-badge[class*="origin-color-"]{background:var(--origin-light);color:var(--origin-ink);border-color:var(--origin-border);border-left-width:3px}
+html[data-theme="dark"] .student-origin-badge[class*="origin-color-"]{background:var(--origin-dark);color:var(--origin-dark-ink);border-color:var(--origin-border);border-left-width:3px}
+html[data-theme="oled"] .student-origin-badge[class*="origin-color-"]{background:#000;color:var(--origin-dark-ink);border-color:var(--origin-border);border-left-width:3px}
