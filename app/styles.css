@@ -4284,9 +4284,14 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
 html[data-theme="dark"] .unlock-box .unlock-dropbox .dropbox-sync-btn,html[data-theme="oled"] .unlock-box .unlock-dropbox .dropbox-sync-btn{background:#0061fe;border-color:#0061fe;color:white}
 
 /* Approved visual layer: does not override grade colours or their palette. */
-html[data-redesign]{--redesign-accent:var(--accent);--redesign-row-pad:5px}
-html[data-redesign-density="normal"]{--redesign-row-pad:9px}
-html[data-redesign-density="wide"]{--redesign-row-pad:15px}
+html[data-redesign]{--redesign-accent:var(--accent);--redesign-row-pad:3px;--notebook-face-height:40px;--notebook-grade-height:36px;--notebook-menu-size:32px}
+html[data-redesign-density="normal"]{--redesign-row-pad:6px;--notebook-face-height:46px;--notebook-grade-height:42px;--notebook-menu-size:36px}
+html[data-redesign-density="wide"]{--redesign-row-pad:10px;--notebook-face-height:54px;--notebook-grade-height:44px;--notebook-menu-size:44px}
+@media(pointer:coarse),(max-width:650px){
+ html[data-redesign]{--notebook-face-height:44px;--notebook-grade-height:44px;--notebook-menu-size:44px}
+ html[data-redesign-density="normal"]{--notebook-face-height:48px}
+ html[data-redesign-density="wide"]{--notebook-face-height:54px}
+}
 html[data-redesign] .shell>.topbar{border-bottom:4px solid var(--redesign-accent)}
 html[data-redesign] .shell .course-choice[aria-pressed="true"]{border-bottom:3px solid var(--course-accent,var(--redesign-accent));background:color-mix(in srgb,var(--course-accent,var(--redesign-accent)) 14%,var(--surface));color:var(--ink)}
 html[data-redesign] .shell .tabs .tab.active{border-bottom-color:var(--redesign-accent)}
@@ -4355,18 +4360,25 @@ html[data-redesign] .grade-table th.final-col .class-stat-heading{white-space:no
 .table-scroller>.grade-table tbody td:has(>.grade-cell-stack){
   vertical-align:top;
   --notebook-grade-width:72px;
-  --notebook-grade-height:42px;
 }
 .table-scroller>.grade-table tbody td .grade-cell-stack{
-  grid-template-rows:54px minmax(34px,auto);
+  grid-template-rows:var(--notebook-face-height,44px) minmax(var(--notebook-menu-size,44px),auto);
   align-content:start;
-  min-height:88px;
+  min-height:calc(var(--notebook-face-height,44px) + var(--notebook-menu-size,44px));
   width:100%;
 }
 .table-scroller>.grade-table tbody td .grade-cell-face{
-  height:54px;
-  min-height:54px;
+  height:var(--notebook-face-height,44px);
+  min-height:var(--notebook-face-height,44px);
 }
+html:is([data-redesign-density="normal"],[data-redesign-density="wide"]) .table-scroller>.grade-table tbody td:has(>.grade-cell-stack){vertical-align:middle}
+html:is([data-redesign-density="normal"],[data-redesign-density="wide"]) .table-scroller>.grade-table tbody td .grade-cell-stack{
+ grid-template-rows:minmax(var(--notebook-menu-size),1fr) var(--notebook-face-height) minmax(var(--notebook-menu-size),1fr);
+ align-content:center;
+ min-height:calc(var(--notebook-face-height) + 2 * var(--notebook-menu-size));
+}
+html:is([data-redesign-density="normal"],[data-redesign-density="wide"]) .table-scroller>.grade-table tbody td .grade-cell-face{grid-row:2}
+html:is([data-redesign-density="normal"],[data-redesign-density="wide"]) .table-scroller>.grade-table tbody td .grade-cell-below{grid-row:3}
 .table-scroller>.grade-table tbody td .grade-cell-face :is(.grade-chip,.np-grade-marker,.grade-empty,.aj-badge,.note-input:not(.original-note-input)){
   box-sizing:border-box;
   display:inline-flex;
@@ -4397,10 +4409,10 @@ html[data-redesign] .grade-table th.final-col .class-stat-heading{white-space:no
   width:84px;
   min-width:84px;
   max-width:84px;
-  height:54px;
-  min-height:54px;
-  max-height:54px;
-  padding:4px;
+  height:var(--notebook-face-height,44px);
+  min-height:var(--notebook-face-height,44px);
+  max-height:var(--notebook-face-height,44px);
+  padding:0 4px;
   margin:0;
   gap:0;
   flex:none;
@@ -4419,8 +4431,16 @@ html[data-redesign] .grade-table th.final-col .class-stat-heading{white-space:no
   transform:translateY(-50%);
   margin:0;
 }
-.table-scroller>.grade-table tbody td .grade-cell-support{
-  min-height:34px;
-  align-self:start;
+.table-scroller>.grade-table tbody td .grade-cell-below{
+  align-self:start;display:flex;flex-direction:column;align-items:center;width:100%;min-width:0;
 }
+.table-scroller>.grade-table tbody td .grade-cell-menu{
+  position:static;min-height:0;width:100%;justify-content:center;
+}
+.table-scroller>.grade-table tbody td .grade-cell-menu .grade-cell-action-anchor{min-height:var(--notebook-menu-size,44px)}
+.table-scroller>.grade-table tbody td .grade-cell-menu .grade-cell-actions-trigger{
+  font-size:17px;min-width:var(--notebook-menu-size,44px);min-height:var(--notebook-menu-size,44px);
+}
+.table-scroller>.grade-table tbody td .grade-cell-support{min-height:0;padding:0;text-align:center;align-self:center}
+.table-scroller>.grade-table tbody td .grade-cell-support:empty,
 .table-scroller>.grade-table tbody td .grade-cell-menu:empty{display:none}
