@@ -39,7 +39,7 @@ try{
     assert.equal(await page.locator('.header-tools #close-notebook').count(),1);
     assert.equal(await page.locator('#close-notebook').isVisible(),false);
     assert.equal(await page.locator('.nav-primary .nav-glyph svg').count(),4);
-    const selector='.topbar,.topbar>.brand,.topbar>.topmeta,.tabs,.class-toolbar,.academic-quick-nav';
+    const selector='.topbar,.topbar>.brand,.topbar>.topmeta,.academic-year-tools,.tabs,.class-toolbar,.academic-quick-nav';
     for(const [width,height] of sizes.filter(([w])=>mobile?w<=1180:w>=768)){
      await page.setViewportSize({width,height});
      for(const theme of ['light','dark','oled']){
@@ -52,7 +52,7 @@ try{
       await page.locator('#close-header-tools').click();
       const layout=await page.evaluate(({selector})=>{
        const bounds=[...document.querySelectorAll(selector)].filter(el=>el.getClientRects().length).map(el=>({name:el.className,x:el.getBoundingClientRect().x,right:el.getBoundingClientRect().right}));
-       const controls=[...document.querySelectorAll('.header-tools>summary,#close-notebook,#dropbox-sync,#lock,#undo-change,#redo-change,.nav-primary>.tab,.academic-disclosure>summary,.course-choice,.academic-quick-nav .btn')].filter(el=>el.getClientRects().length).map(el=>({name:el.id||el.textContent.trim(),w:el.getBoundingClientRect().width,h:el.getBoundingClientRect().height}));
+       const controls=[...document.querySelectorAll('.header-tools>summary,#close-notebook,#dropbox-sync,#lock,#undo-change,#redo-change,#academic-course-select,#academic-rollover,.nav-primary>.tab,.academic-disclosure>summary,.course-choice,.academic-quick-nav .btn')].filter(el=>el.getClientRects().length).map(el=>({name:el.id||el.textContent.trim(),w:el.getBoundingClientRect().width,h:el.getBoundingClientRect().height}));
        const courses=[...document.querySelectorAll('.course-choice')];
        const captions=courses.map(c=>{const label=c.querySelector('.course-group-caption');return !!label&&getComputedStyle(label).display!=='none'&&label.getBoundingClientRect().height>0;});
        const courseTops=courses.slice(0,5).map(c=>c.getBoundingClientRect().top);
@@ -71,6 +71,11 @@ try{
       if([390,834,1440].includes(width))await page.screenshot({path:out+'/'+engine+'-'+mobile+'-'+width+'-'+theme+'-header.png'});
      }
     }
+    await page.locator('#academic-rollover').click();
+    await page.locator('#academic-rollover-form').waitFor();
+    assert.equal(await page.locator('#academic-rollover-form input[type=checkbox]').count(),10);
+    await page.locator('#cancel-rollover').click();
+    assert.equal(await page.locator('#academic-course-select').inputValue(),'2026-2027');
     await page.locator('.header-tools>summary').click();
     await page.locator('.header-tools [data-tab="ajustes"]').click();
     await page.getByRole('heading',{name:'Copias de seguridad cifradas'}).waitFor();
