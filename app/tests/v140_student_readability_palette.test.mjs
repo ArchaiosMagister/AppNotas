@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
-import {COURSE_SUBJECTS,SUBJECT_COLORS,initialNotebook,assertModel,setSubjectAccent} from '../src/model.js';
+import {COURSE_SUBJECTS,SUBJECT_COLORS,initialNotebook,assertModel,setSubjectAccent,academicSubjectAccent,academicCourseNames} from '../src/model.js';
+import {activeYear} from '../src/planner.js';
 import {overallGrade,finalGrade} from '../src/calculations.js';
 
 const read=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
@@ -13,8 +14,11 @@ test('la paleta vigente se usa en la interfaz sin alterar el cuaderno',async()=>
   const b=source.indexOf('function contrastFor(',a);
   assert(a>0&&b>a);
   const doc=initialNotebook(),unchanged=structuredClone(doc);
-  const colorFor=runInNewContext(source.slice(a,b)+';colorFor',{
-    STATE:{doc},SUBJECT_COLORS,subjectKey:(level,subject)=>level+':'+subject
+  const yearStart=source.indexOf('const selectedAcademicCourse=()=>{'),yearEnd=source.indexOf('const groupsForAcademicCourse=',yearStart);
+  assert(yearStart>=0&&yearEnd>yearStart,'El selector académico debe estar aislado');
+  const yearSource=source.slice(yearStart,yearEnd);
+  const colorFor=runInNewContext(yearSource+source.slice(a,b)+';colorFor',{
+    STATE:{doc},SUBJECT_COLORS,academicSubjectAccent,academicCourseNames,activeYear,subjectKey:(level,subject)=>level+':'+subject
   });
   const original={
     '4eso:Latín 4.º':'#B43F60',

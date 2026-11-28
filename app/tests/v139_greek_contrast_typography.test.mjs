@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
-import {initialNotebook,subjectKey,SUBJECT_COLORS,assertModel} from '../src/model.js';
+import {initialNotebook,subjectKey,SUBJECT_COLORS,assertModel,academicSubjectAccent,academicCourseNames} from '../src/model.js';
+import {activeYear} from '../src/planner.js';
 import {overallGrade,finalGrade} from '../src/calculations.js';
 
 const read=name=>readFile(new URL('../'+name,import.meta.url),'utf8');
@@ -16,8 +17,11 @@ async function presentation(subject){
   const cssProps=new Map(),dataset={};
   const state={theme:'light',level:'1bach',subject,doc};
   if(subject==='Griego II')state.level='2bach';
-  const api=runInNewContext(js.slice(start,end)+';({applyTheme,colorFor})',{
-    STATE:state,SUBJECT_COLORS,subjectKey,
+  const yearStart=js.indexOf('const selectedAcademicCourse=()=>{'),yearEnd=js.indexOf('const groupsForAcademicCourse=',yearStart);
+  assert(yearStart>=0&&yearEnd>yearStart,'El selector académico debe estar aislado');
+  const yearSource=js.slice(yearStart,yearEnd);
+  const api=runInNewContext(yearSource+js.slice(start,end)+';({applyTheme,colorFor})',{
+    STATE:state,SUBJECT_COLORS,subjectKey,academicSubjectAccent,academicCourseNames,activeYear,
     document:{documentElement:{dataset,style:{setProperty:(key,value)=>cssProps.set(key,value)}}}
   });
   const before=structuredClone(doc);

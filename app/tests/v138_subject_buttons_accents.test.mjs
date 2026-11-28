@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
-import {initialNotebook,assertModel,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,addGroup,setSubjectAccent} from '../src/model.js';
+import {initialNotebook,assertModel,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,addGroup,setSubjectAccent,academicSubjectAccent,academicCourseNames,setAcademicSubjectAccent,rolloverAcademicYear,ACADEMIC_ROLLOVER_OPTIONS} from '../src/model.js';
+import {activeYear,setActiveYear} from '../src/planner.js';
 import {overallGrade} from '../src/calculations.js';
 
 const read=file=>readFile(new URL('../'+file,import.meta.url),'utf8');
@@ -12,8 +13,11 @@ async function palette(doc){
   const a=app.indexOf('function colorFor(level,subject){');
   const b=app.indexOf('function contrastFor(',a);
   assert(a>0&&b>a,'La paleta de presentación debe estar aislada');
-  return runInNewContext(app.slice(a,b)+';({colorFor})',{
-    STATE:{doc},SUBJECT_COLORS,subjectKey
+  const yearStart=app.indexOf('const selectedAcademicCourse=()=>{'),yearEnd=app.indexOf('const groupsForAcademicCourse=',yearStart);
+  assert(yearStart>=0&&yearEnd>yearStart,'El selector académico debe estar aislado');
+  const yearSource=app.slice(yearStart,yearEnd);
+  return runInNewContext(yearSource+app.slice(a,b)+';({colorFor})',{
+    STATE:{doc},SUBJECT_COLORS,subjectKey,academicSubjectAccent,academicCourseNames,activeYear
   });
 }
 test('hay cinco materias visibles y ninguna necesita desplegable de asignatura o grupo',async()=>{
@@ -102,4 +106,20 @@ test('los controles académicos y la PWA siguen intactos',async()=>{
   assert(app.includes(`caches.open('${cacheId}')`));
   assert(sw.includes(`const CACHE='${cacheId}'`));
   assert(!app.includes('indexedDB.deleteDatabase'));
+});
+
+test('la interfaz usa el color propio de cada año y no cambia el histórico',async()=>{
+ const doc=initialNotebook(),source=activeYear(doc).id;
+ setSubjectAccent(doc,'1bach','Latín I','#742AC6');
+ const options=Object.fromEntries(ACADEMIC_ROLLOVER_OPTIONS.map(([key])=>[key,true]));
+ const {yearId}=rolloverAcademicYear(doc,{sourceCourse:'2026-2027',name:'2027-2028',start:'2027-09-01',end:'2028-06-30',options});
+ const {colorFor}=await palette(doc);
+ assert.equal(colorFor('1bach','Latín I'),'#742AC6');
+ setAcademicSubjectAccent(doc,'2027-2028','1bach','Latín I','#125A7E');
+ assert.equal(colorFor('1bach','Latín I'),'#125A7E');
+ setActiveYear(doc,source);
+ assert.equal(colorFor('1bach','Latín I'),'#742AC6');
+ setActiveYear(doc,yearId);
+ assert.equal(colorFor('1bach','Latín I'),'#125A7E');
+ assertModel(doc);
 });

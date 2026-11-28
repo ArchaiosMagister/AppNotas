@@ -129,7 +129,12 @@ function firstBreak(y,mode){
  * interrumpen el ciclo: el Excel avanza por semanas naturales. */
 export function previewPatioRotation(doc,source,{from,to,summerFrom='',skipHolidays=true}={}){
  const y=activeYear(doc);
- isoDate(from);isoDate(to);
+ isoDate(from);isoDate(to);isoDate(source.firstMonday);
+ // El primer lunes puede preceder al inicio administrativo del curso por
+ // unos días (p. ej. 31 de agosto para un curso que comienza el 1 de septiembre).
+ // Un Excel del curso anterior no puede proyectar su ciclo al curso actual.
+ if(source.firstMonday<addDays(y.start,-7)||source.firstMonday>y.end)
+  throw new Error('El Excel de guardias no corresponde al curso académico seleccionado ('+y.name+'). Selecciona el Excel del nuevo curso.');
  if(from>to||from<y.start||to>y.end||from<source.firstMonday||ordinal(to)-ordinal(from)>370)
   throw new Error('Selecciona un intervalo válido dentro del curso y posterior al inicio del Excel.');
  if(summerFrom){
@@ -156,7 +161,7 @@ export function previewPatioRotation(doc,source,{from,to,summerFrom='',skipHolid
  }
  if(!entries.length)throw new Error('No hay guardias para el marcador y fechas seleccionados.');
  if(entries.length>240)throw new Error('Demasiadas guardias; reduce el intervalo.');
- return {entries,excluded,existing,firstMonday:source.firstMonday,cycleWeeks:source.cycleWeeks,
+ return {yearId:y.id,entries,excluded,existing,firstMonday:source.firstMonday,cycleWeeks:source.cycleWeeks,
   weekdays:source.positions.map((x,i)=>x===null?null:i).filter(x=>x!==null),
   secondCount:source.secondCount};
 }
@@ -167,6 +172,7 @@ export function addPatioRotationEvents(doc,preview){
     new Set(preview.entries.map(x=>x.date)).size!==preview.entries.length)
   throw new Error('Previsualización de guardias inválida.');
  const y=activeYear(doc),created=[];
+ if(preview.yearId!==y.id)throw new Error('La vista previa pertenece a otro curso académico. Revisa de nuevo las asignaciones.');
  // Validar todos los registros ANTES de escribir para evitar operaciones
  // parciales incluso cuando la función se use fuera de una transacción.
  for(const entry of preview.entries){

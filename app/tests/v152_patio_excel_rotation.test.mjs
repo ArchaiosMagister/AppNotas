@@ -264,3 +264,22 @@ test('modificar franja o mover clase mantiene inicio y fin de eventos y calendar
  assert.equal(overallGrade(doc,student.id,group.id,period.id),mean);
  assertModel(doc);
 });
+
+test('un nuevo curso rechaza el Excel anterior y acepta una nueva referencia semanal',()=>{
+ const {doc}=base(),source=model();
+ const preview=previewPatioRotation(doc,source,{from:'2026-11-23',to:'2026-11-27'});
+ addPatioRotationEvents(doc,preview);
+ const historical=structuredClone(activeYear(doc));
+ addAcademicYear(doc,{name:'2027-2028',start:'2027-09-01',end:'2028-06-30',copyFrom:historical.id});
+ const before=structuredClone(doc);
+ assert.throws(()=>previewPatioRotation(doc,source,{from:'2027-09-06',to:'2027-09-10'}),/no corresponde al curso académico/);
+ assert.throws(()=>addPatioRotationEvents(doc,preview),/otro curso académico/);
+ assert.deepEqual(doc,before);
+ const newSource={...source,firstMonday:'2027-08-30',positions:[0,null,null,null,null]};
+ const p=previewPatioRotation(doc,newSource,{from:'2027-09-06',to:'2027-09-10'});
+ assert.deepEqual(p.entries.map(e=>e.date),['2027-09-06']);
+ addPatioRotationEvents(doc,p);
+ assert.deepEqual(doc.planner.years[0],historical);
+ assert.equal(activeYear(doc).events.length,1);
+ assertModel(doc);
+});

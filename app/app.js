@@ -1,3 +1,4 @@
+import {rolloverAcademicYear,ACADEMIC_ROLLOVER_OPTIONS,academicCourseNames,academicSubjectAccent,setAcademicSubjectAccent} from './src/model.js';
 import {renderExtracurricular,bindExtracurricular} from './src/extracurricular-ui.js';
 import {initialNotebook,emptyNotebook,assertModel,migrateNotebook,effectiveCategories,setPeriodCategory,setPeriodCategoryEnabled,addPeriodCategory,resetPeriodCategories,copyPeriodCategories,updateAssessment,moveAssessment,removeAssessment,addGroup,addPeriod,addStudent,addAssessment,addCategory,removeCategoryFromGroup,availableCategories,copyPeriodAssessments,setGrade,setNotSubmitted,setPendingJustified,individualCategoryRule,setIndividualCategoryRule,addCompetency,setCompetencyLink,COURSE_SUBJECTS,SUBJECT_COLORS,subjectKey,validSubject,catalogForNotebook,addNotebookSubject,removeNotebookSubject,defaultSubjectAccent,setSubjectAccent,classifyGroup,createRubric,updateRubric,duplicateRubric,setRubricGrade,setFinalConfig,setFinalOverride,renameStudent,updateStudentIdentity,sortStudents,STUDENT_SORT_MODES,STUDENT_ACTIVITY_SORT_MODES,sortStudentPeriodActivities,moveStudent,removeStudent,updateGroupInfo,setGroupWeeklyHours,setStudentOriginGroups,originGroupOptions,assignStudentOriginGroup,levelForSubject,renamePeriod,movePeriod,removePeriod,recordedScore,parseScore,setOrthographyGrade,setOrthographyDefaults,groupOrthographyRefundable,setGroupOrthographyRefundable,ORTHOGRAPHY_DEFAULTS,ITACA_ROUNDING,itacaGroupRule,itacaStudentRule,setItacaGroupRule,setItacaStudentRule,setItacaAttitudeCondition,itacaAttitudeCondition,setCategoryColumnColor,categoryColumnColor,getGradeObservation,setGradeObservation} from './src/model.js';
 import {categoryGrade,categoryEvidence,overallGrade,competencyGrade,competencyArithmeticMean,gradeToFour,competencyAcquisitionLevel,competencyAcquisitionLabel,COMPETENCY_ACQUISITION_LABELS,formatGrade,gradeTone,calculationBreakdown,finalEvidence,finalGrade,normalizedScore,periodCalculationWarnings,effectiveAssessmentScore,orthographyPenalty,greekEtymologyBonusApplied,itacaGrade,itacaAttitudeBlock} from './src/calculations.js';
@@ -782,12 +783,47 @@ function navigateHistory(direction){
 }
 
 function chooseInitial(){
-  const group=STATE.doc.groups[0];STATE.groupId=group?.id||null;
+  const group=groupsForAcademicCourse()[0];STATE.groupId=group?.id||null;
   STATE.level=group?.level||'legacy';STATE.subject=group?group.subject:'Latín I';
   if(!group){const available=catalogForNotebook(STATE.doc).flatMap(entry=>entry.subjects.map(subject=>({level:entry.level,subject})));const selected=available.find(x=>x.level==='1bach'&&x.subject==='Latín I')||available[0];STATE.level=selected?.level||'1bach';STATE.subject=selected?.subject||'Latín I';}
   restoreOrdinaryPeriod();
 }
-const groupsForSubject=()=>STATE.doc.groups.filter(g=>(g.level??'legacy')===STATE.level&&g.subject===STATE.subject);
+const selectedAcademicCourse=()=>{
+  const year=activeYear(STATE.doc),legacy=STATE.legacyAcademicCourse;
+  return legacy?.bookId===STATE.doc.id&&legacy.plannerId===year.id&&academicCourseNames(STATE.doc).includes(legacy.name)?legacy.name:year.name;
+};
+const groupsForAcademicCourse=()=>STATE.doc.groups.filter(g=>g.course===selectedAcademicCourse());
+const groupsForSubject=()=>groupsForAcademicCourse().filter(g=>(g.level??'legacy')===STATE.level&&g.subject===STATE.subject);
+function openAcademicRollover(){
+  const active=selectedAcademicCourse(),years=academicCourseNames(STATE.doc);
+  const match=/^(\d{4})-(\d{4})$/.exec(active);
+  const first=match?Number(match[2]):new Date().getFullYear()+1;
+  const sourceOptions=years.map(y=>opt(y,y,active)).join('');
+  dialog.innerHTML=`<form class="modal-inner" id="academic-rollover-form"><h2 id="modal-heading">Iniciar nuevo curso académico</h2>
+  <p class="subtitle">Copia solo la estructura docente. El curso anterior y sus datos quedan disponibles. Antes de continuar, exporta y verifica una copia cifrada.</p>
+  <div class="modal-fields"><label>Curso de origen<select name="sourceCourse" required>${sourceOptions}</select></label>
+  <label>Nuevo curso<input class="text-field" name="name" required pattern="[0-9]{4}-[0-9]{4}" value="${first}-${first+1}"/></label>
+  <label>Inicio<input class="text-field" type="date" name="start" required value="${first}-09-01"/></label>
+  <label>Fin<input class="text-field" type="date" name="end" required value="${first+1}-06-30"/></label></div>
+  <h3>Configuración que se trasladará</h3><div class="copy-targets">${ACADEMIC_ROLLOVER_OPTIONS.map(([key,label])=>`<label><input type="checkbox" name="${key}" checked/><span>${esc(label)}</span></label>`).join('')}</div>
+  <p class="hint">Las competencias, actividades y condiciones de Ítaca requieren categorías; las actividades con rúbrica requieren rúbricas. El tema y los periodos de evaluación generales se mantienen como preferencias compartidas. No se copiarán alumnos, notas, observaciones, tutorías, citas ni eventos.</p>
+  <label><input type="checkbox" name="backupConfirmed" required/> He guardado y verificado una copia cifrada del curso anterior.</label>
+  <div class="modal-error" role="alert"></div><div class="modal-actions"><button type="button" class="btn" id="cancel-rollover">Cancelar</button><button type="submit" class="btn primary">Crear curso sin notas</button></div></form>`;
+  $('#cancel-rollover',dialog).onclick=()=>dialog.close();
+  const form=$('#academic-rollover-form',dialog);
+  form.onsubmit=async event=>{
+    event.preventDefault();const submit=form.querySelector('[type=submit]');submit.disabled=true;
+    try{
+      const data=new FormData(form),options=Object.fromEntries(ACADEMIC_ROLLOVER_OPTIONS.map(([key])=>[key,data.has(key)]));
+      if(!data.has('backupConfirmed'))throw new Error('Confirma la copia cifrada antes de continuar.');
+      if(backupProtection(STATE.doc,STATE.exportReceipt)!=='current')throw new Error('La revisión actual no tiene una copia cifrada verificada. En Ajustes y copias, exporta y comprueba la copia primero.');
+      await commit(d=>rolloverAcademicYear(d,{sourceCourse:data.get('sourceCourse'),name:data.get('name'),start:data.get('start'),end:data.get('end'),options}),'Iniciar nuevo curso académico');
+      STATE.legacyAcademicCourse=null;STATE.studentId=null;STATE.competencyVersion='auto';STATE.plannerDate=data.get('start');
+      STATE.tab='cuaderno';chooseInitial();dialog.close();render();toast('Nuevo curso creado sin alumnado ni calificaciones.');
+    }catch(err){$('.modal-error',form).textContent=err.message;}finally{submit.disabled=false;}
+  };
+  dialog.showModal();
+}
 function setSubjectChoice(level,subject){
   STATE.level=level;STATE.subject=subject;STATE.competencyVersion='auto';
   STATE.groupId=groupsForSubject()[0]?.id||null;
@@ -796,8 +832,7 @@ function setSubjectChoice(level,subject){
 /** Restaurar los acentos originales de cada materia, incluidos los personalizados.
  * El rediseño clásico no sustituye los colores almacenados del docente. */
 function colorFor(level,subject){
-  const key=subjectKey(level,subject);
-  return STATE.doc.settings.subjectAccents[key]||defaultSubjectAccent(level,subject);
+  return academicSubjectAccent(STATE.doc,selectedAcademicCourse(),level,subject);
 }
 function contrastFor(hex){
   const vals=[1,3,5].map(pos=>parseInt(hex.slice(pos,pos+2),16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);
@@ -1312,7 +1347,7 @@ function render(){
   ensurePlanner(STATE.doc);
   if(!STATE.level){chooseInitial();}
   const matching=groupsForSubject();
-  if(!matching.some(g=>g.id===STATE.groupId))STATE.groupId=matching[0]?.id||null;
+  if(!matching.some(g=>g.id===STATE.groupId)){STATE.groupId=matching[0]?.id||null;STATE.studentId=null;STATE.competencyVersion='auto';}
   if(periodBook!==STATE.doc.id||periodGroup!==STATE.groupId||!currentPeriod())restoreOrdinaryPeriod();
   deferredRender=false;applyDeferredPeriod();
   const period=currentPeriod();
@@ -1331,10 +1366,10 @@ function render(){
   // elegir entre Latin y Griego nunca depende de un segundo desplegable.
   const courseChoices=[...catalogForNotebook(STATE.doc).flatMap(({level,label,subjects})=>subjects.map(subject=>({
     level,subject,subjectName:subject,stage:label,
-    groupNames:STATE.doc.groups.filter(g=>g.level===level&&g.subject===subject).map(g=>g.name)
-  }))), ...[...new Set(STATE.doc.groups.filter(g=>g.level===null).map(g=>g.subject))].map(subject=>({
+    groupNames:groupsForAcademicCourse().filter(g=>g.level===level&&g.subject===subject).map(g=>g.name)
+  }))), ...[...new Set(groupsForAcademicCourse().filter(g=>g.level===null).map(g=>g.subject))].map(subject=>({
     level:'legacy',subject,subjectName:subject||'Sin asignatura',stage:'Sin clasificar',
-    groupNames:STATE.doc.groups.filter(g=>g.level===null&&g.subject===subject).map(g=>g.name)
+    groupNames:groupsForAcademicCourse().filter(g=>g.level===null&&g.subject===subject).map(g=>g.name)
   }))];
   const subjectLabel=STATE.subject||'Sin asignatura';
   const levelLabel=COURSE_SUBJECTS[STATE.level]?.label||'Sin clasificar';
@@ -1349,7 +1384,7 @@ function render(){
       <div class="header-tools-heading">Cuaderno y copias</div><div class="portable-controls" role="group" aria-label="Copias de cuaderno"><button type="button" class="btn small" id="open-notebook">Abrir cuaderno</button><button type="button" class="btn small ${STATE.tab==='ajustes'?'settings-current':''}" data-tab="ajustes" ${STATE.tab==='ajustes'?'aria-current="page"':''}>Configuración y copias cifradas</button><button type="button" class="btn topbar-close-btn" id="close-notebook" title="Guardar una copia cifrada y cerrar el cuaderno">Cerrar cuaderno</button></div>
       <div class="header-tools-heading">Aplicación</div>${pwaButtons()}
     </div>
-  </details></header><main class="content"><div class="workspace">${renderNavigation()}<div class="work-area">${!['planificador','evaluaciones','extraescolares'].includes(STATE.tab)?`<div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level,STATE.subject)])} · CUADERNO ACADÉMICO · v1.0</div><h1>${STATE.tab==='ajustes'?'Ajustes y copias':STATE.tab==='evaluaciones'?'Sesiones de evaluación':esc(subjectLabel)+' <span class="muted-slash">/</span> '+esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${STATE.tab==='ajustes'?'Preferencias generales y almacenamiento cifrado local':STATE.tab==='evaluaciones'?'Organización por tutorías y evaluaciones · Almacenamiento cifrado local':esc(levelLabel)+' · '+esc(group?.course||'Curso escolar por configurar')+' · '+esc(period?.name||'')+' · Almacenamiento cifrado local'}</p></div><span class="demo-tag">⚠ Copias solo en almacenamiento local</span></div>`:'' }<p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo" ${['planificador','extraescolares','ajustes'].includes(STATE.tab)?'hidden':''}>
+  </details><div class="academic-year-tools" role="group" aria-label="Gestión del curso académico"><label class="theme-picker">Curso académico <select id="academic-course-select" aria-label="Curso académico">${academicCourseNames(STATE.doc).map(y=>opt(y,y,selectedAcademicCourse())).join('')}</select></label><button type="button" class="btn small" id="academic-rollover">+ Nuevo curso</button></div></header><main class="content"><div class="workspace">${renderNavigation()}<div class="work-area">${!['planificador','evaluaciones','extraescolares'].includes(STATE.tab)?`<div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level,STATE.subject)])} · CUADERNO ACADÉMICO · v1.0</div><h1>${STATE.tab==='ajustes'?'Ajustes y copias':STATE.tab==='evaluaciones'?'Sesiones de evaluación':esc(subjectLabel)+' <span class="muted-slash">/</span> '+esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${STATE.tab==='ajustes'?'Preferencias generales y almacenamiento cifrado local':STATE.tab==='evaluaciones'?'Organización por tutorías y evaluaciones · Almacenamiento cifrado local':esc(levelLabel)+' · '+esc(group?.course||'Curso escolar por configurar')+' · '+esc(period?.name||'')+' · Almacenamiento cifrado local'}</p></div><span class="demo-tag">⚠ Copias solo en almacenamiento local</span></div>`:'' }<p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo" ${['planificador','extraescolares','ajustes'].includes(STATE.tab)?'hidden':''}>
   <div class="selectors">
     <div class="course-switch" role="group" aria-label="Seleccionar asignatura" title="Selecciona una asignatura">
       <div class="course-buttons">${courseChoices.map(x=>`<button type="button" class="btn course-choice" data-course-level="${esc(x.level)}" data-course-subject="${esc(x.subject)}" aria-pressed="${STATE.level===x.level&&STATE.subject===x.subject}" title="${esc(x.subjectName+' · '+x.stage)}"><strong class="course-name">${esc(x.subjectName)}</strong><small class="course-group-caption" title="${esc(x.groupNames.join(' · ')||'Sin grupo creado')}">${esc(x.groupNames.length?x.groupNames.join(' · '):'Sin grupo · crear grupo')}</small></button>`).join('')}</div>
@@ -2279,6 +2314,23 @@ Participación;2;20"></textarea></label></div><div id="activity-import-rubric" c
   dialog.showModal();form.querySelector('[name=name]')?.focus();
 }
 function bindCommon(){
+  $('#academic-rollover')?.addEventListener('click',openAcademicRollover);
+  $('#academic-course-select')?.addEventListener('change',async event=>{
+    const name=event.target.value;
+    try{
+      const year=STATE.doc.planner.years.find(y=>y.name===name);
+      if(year){
+        STATE.legacyAcademicCourse=null;
+        await commit(d=>setActiveYear(d,year.id),'Seleccionar curso académico');
+        STATE.plannerDate=year.start;
+      }else{
+        STATE.legacyAcademicCourse={bookId:STATE.doc.id,plannerId:activeYear(STATE.doc).id,name};
+        STATE.tab='cuaderno';
+      }
+      STATE.studentId=null;STATE.competencyVersion='auto';STATE.plannerEvaluationView=null;
+      chooseInitial();render();
+    }catch(err){fail(err);render();}
+  });
   bindOriginSelectors();
   const {groupId:boundGroup,periodId:boundPeriod}=currentView(),boundLevel=STATE.level,boundSubject=STATE.subject;
   $('#dropbox-sync')?.addEventListener('click',()=>{if(dropboxStatus==='conflict')openDropboxSettings();else if(dropboxSession.active())void dropboxSession.manual();else openDropboxSettings();});
@@ -2385,7 +2437,7 @@ function bindCommon(){
     }catch(error){fail(error);if(button.isConnected)button.disabled=false;}
   });
   document.querySelectorAll('[data-rename-period]').forEach(b=>b.onclick=()=>managePeriodFromTab(b.dataset.renamePeriod));
-  $('#accent-select')?.addEventListener('change',e=>{const value=e.target.value;return commit(d=>setSubjectAccent(d,boundLevel,boundSubject,value)).catch(fail);});
+  $('#accent-select')?.addEventListener('change',e=>{const value=e.target.value;return commit(d=>setAcademicSubjectAccent(d,selectedAcademicCourse(),boundLevel,boundSubject,value)).catch(fail);});
   document.querySelectorAll('[data-academic-quick]').forEach(button=>button.addEventListener('click',()=>{
     const destination=button.dataset.academicQuick;
     if(!['cuaderno','calculos','competencias','final','alumno'].includes(destination)||!STATE.groupId)return;
@@ -2444,7 +2496,7 @@ function bindCommon(){
     if(!validSubject(STATE.level,STATE.subject,STATE.doc))return toast('Selecciona primero un curso y asignatura.');
     fieldsModal(`Nuevo grupo · ${STATE.subject} · ${COURSE_SUBJECTS[boundLevel].label}`,[
       {id:'name',label:'Nombre del grupo de la asignatura',value:'Grupo A'},
-      {id:'course',label:'Curso escolar',value:activeYear(STATE.doc)?.name||'2026-2027'},
+      {id:'course',label:'Curso escolar',value:selectedAcademicCourse()},
       {id:'weeklyHours',label:'Horas semanales (opcional; límite para el horario)',type:'number',value:'',min:1,max:30,required:false}
     ],async v=>{
       let group;await commit(d=>{group=addGroup(d,v.name,boundSubject,v.course,boundLevel,v.weeklyHours);});if(STATE.level===boundLevel&&STATE.subject===boundSubject){STATE.groupId=group.id;render();}
@@ -3091,7 +3143,7 @@ function bindSettings(){
   });
   document.querySelectorAll('[data-accent]').forEach(input=>input.onchange=e=>{
     const [level,subject]=e.target.dataset.accent.split(':');
-    const color=e.target.value;commit(d=>setSubjectAccent(d,level,subject,color)).catch(fail);
+    const color=e.target.value;commit(d=>setAcademicSubjectAccent(d,selectedAcademicCourse(),level,subject,color)).catch(fail);
   });
   $('#reset-accents').onclick=async()=>{
     if(!window.confirm('¿Restablecer los cinco colores de acento?'))return;
@@ -3118,7 +3170,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/evaluation-groups.js','./src/evaluation-ui.js','./src/evaluation-workspace.js','./src/notebook-evaluation-notice.js','./src/evaluation-period-board.js','./src/evaluation-session-presentation.js','./src/student-link-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/dropbox-conflict.js','./src/dropbox-config.js','./src/dropbox-onboarding.js','./src/dropbox-session.js','./src/period-preferences.js','./src/dropbox-controller.js','./src/dropbox-local.js','./src/dropbox-sync.js','./src/dropbox-oauth.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v215-dev');
+      const cache=await caches.open('cuaderno-docente-static-v217-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

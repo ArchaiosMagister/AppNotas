@@ -4547,3 +4547,33 @@ html[data-theme="oled"] .grade-info-popover{background:#090909;border-color:#6b7
 .class-stat-details strong{display:block;font-size:13px}
 .class-stat-details p{margin:4px 0 0;overflow-wrap:anywhere;color:var(--muted)}
 @media(pointer:coarse){.table-scroller>.grade-table th.itaca-col .itaca-header-gear{width:42px;height:42px}}
+
+/* Selector académico: fila propia, fuera de los controles de guardado.
+   No reduce el ancho de la marca ni desplaza el menú de ajustes. */
+.topbar>.academic-year-tools{
+ grid-column:1/-1;grid-row:2;display:flex;flex-wrap:wrap;align-items:center;
+ justify-content:flex-end;gap:6px 10px;min-width:0;max-width:100%;
+}
+.topbar>.academic-year-tools .theme-picker{min-width:0;max-width:100%;flex-wrap:wrap}
+.topbar>.academic-year-tools select,.topbar>.academic-year-tools #academic-rollover{
+ min-height:44px;min-width:44px;max-width:100%;
+}
+.topbar>.academic-year-tools #academic-rollover{
+ background:#ffffff16;color:#fff;border-color:#ffffff54;white-space:normal;
+}
+.topbar>.academic-year-tools #academic-rollover:hover{background:#ffffff26}
+@media(max-width:900px){
+ .topbar>.academic-year-tools{grid-row:3}
+}
+@media(max-width:650px){
+ .topbar>.academic-year-tools{justify-content:space-between;gap:6px}
+ .topbar>.academic-year-tools .theme-picker{flex:1 1 140px;justify-content:space-between}
+ .topbar>.academic-year-tools #academic-rollover{flex:1 1 104px}
+}
+@media(min-width:651px) and (max-height:650px){
+ .topbar>.header-tools .header-tools-panel{
+  position:fixed;top:auto;left:auto;right:max(8px,env(safe-area-inset-right,0px));
+  bottom:max(8px,env(safe-area-inset-bottom,0px));width:min(360px,calc(100vw - 24px));
+  max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);overflow-y:auto;
+ }
+}
