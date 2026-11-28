@@ -181,6 +181,8 @@ const existingSubject=(doc,level,subject)=>catalogForNotebook(doc).some(entry=>e
 const validSubjectName=subject=>typeof subject==='string'&&subject===subject.trim()&&subject.length>0&&subject.length<=65&&!/[:<>\x00-\x1f]/.test(subject);
 export function addNotebookSubject(doc,level,subject,color='#64748B'){
  if(!Object.hasOwn(COURSE_SUBJECTS,level)||!validSubjectName(subject)||!/^#[0-9A-Fa-f]{6}$/.test(color))throw new Error('Etapa, nombre o color de la materia no válido.');
+ const fixed=levelForSubject(subject);
+ if(fixed&&fixed!==level)throw new Error('Esta asignatura corresponde a '+COURSE_SUBJECTS[fixed].label+'.');
  if(existingSubject(doc,level,subject))throw new Error('Esa materia ya está disponible en esta etapa.');
  const key=subjectKey(level,subject);
  const settings=doc.settings;
@@ -219,6 +221,8 @@ export function setSubjectAccent(doc,level,subject,color){
 export function classifyGroup(doc,id,level,subject){
   const group=doc.groups.find(g=>g.id===id);
   if(!group||!validSubject(level,subject,doc))throw new Error('Curso o asignatura inválidos.');
+  const fixed=levelForSubject(subject);
+  if(fixed&&fixed!==level)throw new Error('Esta asignatura corresponde a '+COURSE_SUBJECTS[fixed].label+'.');
   Object.assign(group,{level,subject,legacyUnclassified:false,updatedAt:now()});doc.updatedAt=now();return group;
 }
 
@@ -312,6 +316,7 @@ export function assertModel(doc) {
   const has = key => new Set(doc[key].map(x=>x.id));
   const gs = has('groups'), ps = has('periods'), cs = has('categories'), ss=has('students'), as=has('assessments'), rs=has('rubrics');
   if(doc.students.some(x=>!gs.has(x.groupId))) throw new Error('Estudiante sin grupo válido.');
+  if(doc.groups.some(g=>g.originGroupLabels!==undefined&&(!Array.isArray(g.originGroupLabels)||g.originGroupLabels.length>2000||g.originGroupLabels.some(x=>!validOriginLabel(x))||new Set(g.originGroupLabels).size!==g.originGroupLabels.length)))throw new Error('Catálogo de procedencias inválido.');
   // Vínculos de identidad opcionales: copias v8 antiguas siguen siendo válidas.
   if(doc.students.some(s=>s.personId!==undefined&&(typeof s.personId!=='string'||!/^[a-f0-9-]{36}$/i.test(s.personId))))
     throw new Error('Identidad compartida de alumno inválida.');
@@ -744,7 +749,8 @@ export function copyPeriodCategories(doc,groupId,sourcePeriodId,targetPeriodId){
   return profile;
 }
 export function addGroup(doc,name,subject='Latín I',course='2026-2027',level=levelForSubject(subject),weeklyHours=null){
-  const n=name.trim();
+  const n=name.trim(),fixed=levelForSubject(subject);
+  if(fixed&&fixed!==level)throw new Error('Esta asignatura corresponde a '+COURSE_SUBJECTS[fixed].label+'.');
   if(!n||!validSubject(level,subject,doc)||!course?.trim())throw new Error('Introduce grupo, curso y una asignatura compatible.');
   const weekly=weeklyHours===null||weeklyHours===''?null:Number(weeklyHours);
   if(weekly!==null&&(!Number.isInteger(weekly)||weekly<1||weekly>30))
@@ -1305,6 +1311,49 @@ export function setGroupWeeklyHours(doc,groupId,value){
  group.updatedAt=doc.updatedAt=now();return group;
 }
 /** Asignar la tutoría de procedencia a varios alumnos sin moverlos ni tocar notas. */
+const validOriginLabel=value=>typeof value==='string'&&value.length>0&&value.length<=60&&value===value.trim()&&!/[<>\x00-\x1f]/.test(value);
+/** Los grupos de procedencia se comparten por nivel y curso escolar, no por asignatura.
+ * Los rótulos históricos se leen sin migrarlos ni deducir nuevas identidades. */
+export function originGroupOptions(doc,groupId){
+ const group=doc.groups.find(g=>g.id===groupId);if(!group)return [];
+ const ids=new Set(doc.groups.filter(g=>g.id===groupId||(group.level&&g.level===group.level&&g.course===group.course)).map(g=>g.id));
+ const values=new Set();
+ for(const g of doc.groups)if(ids.has(g.id))for(const label of g.originGroupLabels||[])if(label)values.add(label);
+ for(const s of doc.students)if(ids.has(s.groupId)&&s.originGroup)values.add(s.originGroup);
+ for(const t of doc.tutorships||[])for(const source of t.sources||[])if(ids.has(source.groupId)&&source.originGroup)values.add(source.originGroup);
+ return [...values].sort((a,b)=>a.localeCompare(b,'es',{numeric:true,sensitivity:'base'})||a.localeCompare(b,'es'));
+}
+/** Cambiar únicamente procedencia. Si la ficha está vinculada, el llamador debe
+ * confirmar explícitamente la actualización de las otras fichas de esa persona. */
+export function assignStudentOriginGroup(doc,studentId,label,{linked=false}={}){
+ const student=doc.students.find(s=>s.id===studentId);
+ if(!student||typeof label!=='string')throw Error('Alumno o procedencia inválidos.');
+ const value=label.trim();
+ if(value&&!validOriginLabel(value))throw Error('Nombre del subgrupo inválido (máximo 60 caracteres).');
+ const related=student.personId?doc.students.filter(s=>s.personId===student.personId&&s.id!==student.id):[];
+ if(related.length&&!linked&&[student,...related].some(s=>(s.originGroup||'')!==value))
+  throw Error('Confirma el cambio de procedencia en las fichas vinculadas.');
+ const targets=[student,...(linked?related:[])],stamp=now();
+ // Conservar los nombres ya configurados, incluso si el último alumno cambia de etiqueta.
+ const additions=new Map();
+ for(const s of targets){
+  const g=doc.groups.find(g=>g.id===s.groupId);
+  if(!g)throw Error('Grupo inexistente.');
+  const labels=new Set(additions.get(g.id)||g.originGroupLabels||[]);
+  if(validOriginLabel(s.originGroup))labels.add(s.originGroup);
+  if(value)labels.add(value);
+  if(labels.size>2000)throw Error('Demasiados grupos de procedencia.');
+  additions.set(g.id,[...labels]);
+ }
+ let changed=false;
+ for(const g of doc.groups)if(additions.has(g.id)){
+  const labels=additions.get(g.id);
+  if(JSON.stringify(labels)!==JSON.stringify(g.originGroupLabels||[])){g.originGroupLabels=labels;g.updatedAt=stamp;changed=true;}
+ }
+ for(const s of targets)if((s.originGroup||'')!==value){s.originGroup=value;s.updatedAt=stamp;changed=true;}
+ if(changed)doc.updatedAt=stamp;
+ return student;
+}
 export function setStudentOriginGroups(doc,groupId,assignments){
  if(!doc.groups.some(g=>g.id===groupId)||!Array.isArray(assignments)||assignments.length>2000)
   throw new Error('Grupo o listado de procedencias inválidos.');
