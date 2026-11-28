@@ -283,3 +283,61 @@ test('un nuevo curso rechaza el Excel anterior y acepta una nueva referencia sem
  assert.equal(activeYear(doc).events.length,1);
  assertModel(doc);
 });
+
+test('sobrescritura opcional actualiza zonas y retira días obsoletos, conserva guardias manuales y otros datos',()=>{
+ const {doc,group}=base(),source=model(),range={from:'2026-11-23',to:'2026-11-27'};
+ addPatioRotationEvents(doc,previewPatioRotation(doc,source,{from:'2026-11-23',to:'2026-12-04'}));
+ const y=activeYear(doc),old=y.events.find(e=>e.date==='2026-11-24');
+ const outside=structuredClone(y.events.filter(e=>e.date>'2026-11-27'));
+ const manual=structuredClone(saveEvent(doc,{date:'2026-11-26',type:'patio',title:'Guardia manual',time:'10:45',endTime:'11:15',notes:'Conservar'}));
+ const exam=structuredClone(saveEvent(doc,{date:'2026-11-25',type:'exam',title:'Examen',groupId:group.id,time:'08:00'}));
+ const grades=structuredClone(doc.grades);
+ const next={...source,positions:[0,0,null,2,null],standard:source.standard.map((x,i)=>'Zona nueva '+i)};
+ const add=previewPatioRotation(doc,next,range);
+ assert.equal(add.plan.removals.length,0);
+ assert.equal(add.plan.rows.find(r=>r.date==='2026-11-24').action,'skip');
+ const p=previewPatioRotation(doc,next,{...range,overwrite:true});
+ assert.deepEqual(p.plan.rows.map(r=>r.action),['create','replace','skip']);
+ assert.deepEqual(p.plan.removals.map(r=>r.date),['2026-11-25','2026-11-27']);
+ const result=addPatioRotationEvents(doc,p);
+ assert.deepEqual([result.created,result.replaced,result.removed,result.skipped],[1,1,2,1]);
+ assert.equal(y.events.find(e=>e.id===old.id).title,'1.er patio · Zona nueva 0');
+ assert.deepEqual(y.events.find(e=>e.id===manual.id),manual);
+ assert.deepEqual(y.events.find(e=>e.id===exam.id),exam);
+ assert.deepEqual(y.events.filter(e=>e.date>'2026-11-27'),outside);
+ assert.deepEqual(doc.grades,grades);
+ assertModel(doc);
+ const again=previewPatioRotation(doc,next,{...range,overwrite:true});
+ assert.equal(addPatioRotationEvents(doc,again).created,0);
+ assertModel(doc);
+});
+test('sobrescritura valida todo antes de borrar y rechaza una vista previa obsoleta',()=>{
+ const {doc}=base(),source=model(),range={from:'2026-11-23',to:'2026-11-27'};
+ addPatioRotationEvents(doc,previewPatioRotation(doc,source,range));
+ const next={...source,positions:[0,0,null,null,null]};
+ const p=previewPatioRotation(doc,next,{...range,overwrite:true});
+ const faulty=structuredClone(p);faulty.entries[0].zone='x'.repeat(150);
+ const before=structuredClone(doc);
+ assert.throws(()=>addPatioRotationEvents(doc,faulty),/franja inválida/);
+ assert.deepEqual(doc,before);
+ saveEvent(doc,{date:'2026-11-24',type:'patio',title:'Guardia manual nueva'});
+ const changed=structuredClone(doc);
+ assert.throws(()=>addPatioRotationEvents(doc,p),/vista previa/);
+ assert.deepEqual(doc,changed);
+});
+test('sobrescritura permite eliminar guardias obsoletas incluso sin nuevas asignaciones en el intervalo',()=>{
+ const {doc}=base(),source=model(),range={from:'2026-11-25',to:'2026-11-25'};
+ addPatioRotationEvents(doc,previewPatioRotation(doc,source,range));
+ const next={...source,positions:[0,null,null,null,null]};
+ const p=previewPatioRotation(doc,next,{...range,overwrite:true});
+ assert.equal(p.entries.length,0);
+ assert.equal(addPatioRotationEvents(doc,p).removed,1);
+ assert.equal(activeYear(doc).events.length,0);
+ assertModel(doc);
+});
+test('sobrescritura se ofrece desactivada por defecto y exige revisión explícita',()=>{
+ const ui=readFileSync(new URL('../src/planner-ui.js',import.meta.url),'utf8');
+ assert(ui.includes('id="patio-overwrite" type="checkbox">'));
+ assert(ui.includes('Confirmar sustitución'));
+ assert(ui.includes('Eliminar importada'));
+});
