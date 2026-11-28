@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialNotebook,addStudent,addAssessment,createRubric,setRubricGrade,setItacaAttitudeCondition,setItacaGroupRule,setPeriodCategory,setFinalConfig,setGradeObservation,setCategoryColumnColor,rolloverAcademicYear,ACADEMIC_ROLLOVER_OPTIONS,academicSubjectAccent,assertModel} from '../src/model.js';
-import {saveSlot,activeYear} from '../src/planner.js';
+import {saveSlot,activeYear,saveEvent} from '../src/planner.js';
 const all=()=>Object.fromEntries(ACADEMIC_ROLLOVER_OPTIONS.map(([k])=>[k,true]));
 const request=options=>({sourceCourse:'2026-2027',name:'2027-2028',start:'2027-09-01',end:'2028-06-30',options});
 test('rollover preserves historical data, remaps references and excludes personal data',()=>{
@@ -18,6 +18,8 @@ test('rollover preserves historical data, remaps references and excludes persona
  const original=d.assessments[0];
  addAssessment(d,{name:'Recuperación',groupId:g.id,periodId:p.id,categoryId:original.categoryId,recoveryOf:original.id});
  saveSlot(d,{day:0,start:'08:00',end:'09:00',type:'class',groupId:g.id});
+ const patio=saveEvent(d,{date:'2026-11-24',type:'patio',title:'Patio original',time:'10:45',endTime:'11:15',notes:'Zona original'});
+ patio.patioRotationSource='xlsx-first-break-v1';
  const before=structuredClone(d);
  const result=rolloverAcademicYear(d,request(all()));
  assert.equal(result.groups,1);assertModel(d);
