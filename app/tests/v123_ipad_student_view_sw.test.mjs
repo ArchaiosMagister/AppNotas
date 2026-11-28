@@ -152,7 +152,7 @@ test('interfaz: desplegables de período, rúbrica y criterio + Enter sin salto'
   assert(app.includes('groupOrthographyRefundable(STATE.doc,STATE.groupId)'));
   assert(app.includes('snapshotGradeScroll()'));
   assert(app.includes('next.focus({preventScroll:true})'));
-  assert(app.includes('requestAnimationFrame(()=>{restoreGradeScroll(position)'));
+  assert(app.includes('requestAnimationFrame(()=>{if(sameView(view)&&!activePointers.size){restoreGradeScroll(position)'));
   assert(css.includes('.student-period-summary'));
   assert(css.includes('.student-rubric-item'));
   assert(css.includes('html[data-theme="oled"] .student-rubric-breakdown'));
