@@ -550,7 +550,7 @@ function bindClassStatistics(){
   unbindClassStats=()=>{hide();for(const f of off)f();};
 }
 
-const visibleCategories=()=>availableCategories(STATE.doc,STATE.groupId);
+const visibleCategories=()=>availableCategories(STATE.doc,STATE.groupId,STATE.periodId);
 document.documentElement.dataset.theme=STATE.theme;
 const currentGroup=()=>STATE.doc.groups.find(x=>x.id===STATE.groupId);
 const currentPeriod=()=>STATE.doc.periods.find(x=>x.id===STATE.periodId);
@@ -574,7 +574,17 @@ function setStudentSort(mode){
   }catch{}
   render();
 }
-const studentOriginBadge=student=>student.originGroup?`<span class="student-origin-badge" title="Grupo de procedencia">${esc(student.originGroup)}</span>`:'';
+// Paleta fija por letra de tutoría, independiente del acento de la asignatura.
+const ORIGIN_PALETTE=['blue','red','green','violet','amber','teal','pink','slate','orange','indigo','lime','cyan'];
+function originColorClass(value){
+  const label=String(value||'').normalize('NFKC').trim().toLocaleUpperCase('es');
+  // A, 1A, 1.º A, 2º Bach A y Grupo A comparten color. No interpretar
+  // la última letra de nombres libres (p. ej. "Optativa") como tutoría.
+  const letter=label.match(/(?:^|[\s\d.°º_-])([A-Z])$/u)?.[1];
+  return 'origin-color-'+(letter?ORIGIN_PALETTE[(letter.charCodeAt(0)-65)%ORIGIN_PALETTE.length]:'neutral');
+}
+const originLabel=value=>value?'<span class="student-origin-badge '+originColorClass(value)+'" title="Grupo de procedencia">'+esc(value)+'</span>':'';
+const studentOriginBadge=student=>originLabel(student.originGroup);
 const originEqual=(a,b)=>String(a||'').localeCompare(String(b||''),'es',{sensitivity:'base',numeric:true})===0;
 function renderGradeTableBodies(students,renderRow,columnCount,emptyMessage){
   if(!students.length)return `<tbody><tr><td class="empty-table-message" colspan="${columnCount}">${emptyMessage}</td></tr></tbody>`;
@@ -587,7 +597,7 @@ function renderGradeTableBodies(students,renderRow,columnCount,emptyMessage){
   }
   return groups.map(({name,students:members})=>`<tbody class="student-origin-group">
     <tr class="student-origin-divider"><th class="name-col" scope="rowgroup">
-      <span>Grupo de procedencia: ${esc(name||'Sin etiqueta')}</span>
+      <span>Grupo de procedencia: ${originLabel(name)||'Sin etiqueta'}</span>
       <small>${members.length} ${members.length===1?'alumno':'alumnos'}</small>
     </th><td colspan="${columnCount-1}" aria-hidden="true"></td></tr>
     ${members.map(renderRow).join('')}</tbody>`).join('');
@@ -596,7 +606,7 @@ function originDirectoryHeader(students,index){
   if(STATE.studentSort!=='originGroup')return '';
   const group=students[index].originGroup||'';
   if(index>0&&originEqual(group,students[index-1].originGroup||''))return '';
-  return `<div class="student-directory-divider" role="heading" aria-level="3">Grupo de procedencia: ${esc(group||'Sin etiqueta')}</div>`;
+  return `<div class="student-directory-divider" role="heading" aria-level="3">Grupo de procedencia: ${originLabel(group)||'Sin etiqueta'}</div>`;
 }
 
 let toastTimeout;
@@ -1935,7 +1945,7 @@ function renderStudentView(){
   const teachingControls=`<div class="student-navigation" role="group" aria-label="Cambiar de alumno"><button class="btn" type="button" id="previous-student" ${previous?'':'disabled'} aria-label="Alumno anterior">← Anterior</button><span class="student-position">${position+1} de ${students.length}</span><button class="btn" type="button" id="next-student" ${next?'':'disabled'} aria-label="Alumno siguiente">Siguiente →</button></div><div class="student-view-actions"><button class="btn" type="button" id="hide-student">Volver al listado</button><button class="btn primary" type="button" id="present-student">Mostrar al alumno</button></div>`;
   return `<section class="panel panel-pad student-privacy">
     <div class="student-detail-head">
-      <div><h2 id="student-view-title" tabindex="-1">${esc(student.name)}</h2><p class="subtitle">${esc(currentGroup().name)}${!presenting&&student.originGroup?' · Grupo de procedencia: '+esc(student.originGroup):''}</p></div>
+      <div><h2 id="student-view-title" tabindex="-1">${esc(student.name)}</h2><p class="subtitle">${esc(currentGroup().name)}${!presenting&&student.originGroup?' · Grupo de procedencia: '+studentOriginBadge(student):''}</p></div>
       ${presenting?exitButton:teachingControls}
     </div>
     <div class="student-view-options">
@@ -2889,13 +2899,15 @@ function bindRules(){
   };
 }
 function bindCompetencies(){
-  const {groupId}=currentView(),version=STATE.competencyVersion;
+  const {groupId,periodId}=currentView(),version=STATE.competencyVersion;
   $('#new-competency')?.addEventListener('click',()=>fieldsModal('Nueva competencia personalizada',[{id:'name',label:'Nombre de la competencia'}],async v=>commit(d=>addCompetency(d,v.name,groupId))));
   $('#comp-curr-version')?.addEventListener('change',e=>{STATE.competencyVersion=e.target.value;render();});
   document.querySelectorAll('[data-comp][data-linkcat], [data-official][data-linkcat]').forEach(input=>input.onchange=async e=>{
     const weight=Number(e.target.value),categoryId=e.target.dataset.linkcat,code=e.target.dataset.official,competencyId=e.target.dataset.comp;
     if(!Number.isFinite(weight)||weight<0||weight>1000){fail(new Error('Peso competencial fuera de rango.'));render();return;}
     try{await commit(d=>{
+      // Los enlaces son del grupo, pero solo se editan desde una evaluación activa.
+      if(!availableCategories(d,groupId,periodId).some(c=>c.id===categoryId))throw Error('La categoría no está activa en esta evaluación.');
       let id=competencyId;
       if(code){
         const catalogue=officialCompetenciesForGroup(d.groups.find(g=>g.id===groupId),version);
@@ -2978,7 +2990,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/evaluation-groups.js','./src/evaluation-ui.js','./src/evaluation-workspace.js','./src/notebook-evaluation-notice.js','./src/evaluation-period-board.js','./src/evaluation-session-presentation.js','./src/student-link-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/dropbox-conflict.js','./src/dropbox-config.js','./src/dropbox-onboarding.js','./src/dropbox-session.js','./src/period-preferences.js','./src/dropbox-controller.js','./src/dropbox-local.js','./src/dropbox-sync.js','./src/dropbox-oauth.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v204-dev');
+      const cache=await caches.open('cuaderno-docente-static-v205-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

@@ -4454,3 +4454,21 @@ html:is([data-redesign-density="normal"],[data-redesign-density="wide"]) .table-
 .planner-view .planner-create-menu>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media(min-width:901px){.planner-view .planner-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}.planner-view .planner-view-tabs{grid-column:1/-1}.planner-view .planner-date-controls{grid-column:1}.planner-view .planner-tools-minimal{grid-column:2;grid-row:2}.planner-view .planner-controls>.hint{grid-column:1/-1;grid-row:3}}
 @media(max-width:650px){.planner-view .planner-intro h2{font-size:19px}.planner-view .planner-controls,.planner-view .planner-intro{padding:8px}.planner-view .planner-content{padding:9px}}
+
+/* Etiquetas de procedencia: mismo código en cualquier materia, contraste independiente del acento. */
+.student-origin-badge.origin-color-blue{--origin-light:#dbeafe;--origin-ink:#1e40af;--origin-border:#60a5fa;--origin-dark:#172d50;--origin-dark-ink:#bfdbfe}
+.student-origin-badge.origin-color-red{--origin-light:#fee2e2;--origin-ink:#991b1b;--origin-border:#f87171;--origin-dark:#471d24;--origin-dark-ink:#fecaca}
+.student-origin-badge.origin-color-green{--origin-light:#dcfce7;--origin-ink:#166534;--origin-border:#4ade80;--origin-dark:#153b29;--origin-dark-ink:#bbf7d0}
+.student-origin-badge.origin-color-violet{--origin-light:#ede9fe;--origin-ink:#5b21b6;--origin-border:#a78bfa;--origin-dark:#38235a;--origin-dark-ink:#ddd6fe}
+.student-origin-badge.origin-color-amber{--origin-light:#fef3c7;--origin-ink:#854d0e;--origin-border:#fbbf24;--origin-dark:#48320c;--origin-dark-ink:#fde68a}
+.student-origin-badge.origin-color-teal{--origin-light:#ccfbf1;--origin-ink:#115e59;--origin-border:#2dd4bf;--origin-dark:#143d39;--origin-dark-ink:#99f6e4}
+.student-origin-badge.origin-color-pink{--origin-light:#fce7f3;--origin-ink:#9d174d;--origin-border:#f472b6;--origin-dark:#48203a;--origin-dark-ink:#fbcfe8}
+.student-origin-badge.origin-color-slate{--origin-light:#e2e8f0;--origin-ink:#334155;--origin-border:#94a3b8;--origin-dark:#293241;--origin-dark-ink:#e2e8f0}
+.student-origin-badge.origin-color-orange{--origin-light:#ffedd5;--origin-ink:#9a3412;--origin-border:#fb923c;--origin-dark:#48290e;--origin-dark-ink:#fed7aa}
+.student-origin-badge.origin-color-indigo{--origin-light:#e0e7ff;--origin-ink:#3730a3;--origin-border:#818cf8;--origin-dark:#292751;--origin-dark-ink:#c7d2fe}
+.student-origin-badge.origin-color-lime{--origin-light:#ecfccb;--origin-ink:#3f6212;--origin-border:#a3e635;--origin-dark:#2d3c14;--origin-dark-ink:#d9f99d}
+.student-origin-badge.origin-color-cyan{--origin-light:#cffafe;--origin-ink:#155e75;--origin-border:#22d3ee;--origin-dark:#143943;--origin-dark-ink:#a5f3fc}
+.student-origin-badge.origin-color-neutral{--origin-light:#f1f5f9;--origin-ink:#475569;--origin-border:#94a3b8;--origin-dark:#2b3038;--origin-dark-ink:#e2e8f0}
+html[data-theme="light"] .student-origin-badge[class*="origin-color-"]{background:var(--origin-light);color:var(--origin-ink);border-color:var(--origin-border)}
+html[data-theme="dark"] .student-origin-badge[class*="origin-color-"]{background:var(--origin-dark);color:var(--origin-dark-ink);border-color:var(--origin-border)}
+html[data-theme="oled"] .student-origin-badge[class*="origin-color-"]{background:#000;color:var(--origin-dark-ink);border-color:var(--origin-border)}
