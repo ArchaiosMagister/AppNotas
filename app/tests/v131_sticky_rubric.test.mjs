@@ -23,7 +23,10 @@ test('Rúbrica coloca valor y controles en dos niveles igual que la entrada ordi
   const end=js.indexOf('const ITACA_OPTIONS=',begin);
   assert(begin>=0&&end>begin);
   const table=js.slice(begin,end);
-  assert(table.includes('const gradeCellStack=(main,actions,secondary='));
+  assert(table.includes("const gradeCellStack=(main,actions='',secondary="));
+  for(const kind of ['final-col','itaca-col'])
+    assert(table.includes('<td class="'+kind+'">\${gradeCellStack('),
+      'La columna calculada comparte la pista de la nota: '+kind);
   assert(table.includes('gradeCellStack(main,gradeCellActions(s,a,g,npButton,ajButton),secondary)'));
   assert(!table.includes("g?.notSubmitted?'Pulsar para editar':'/10'"),
     'El /10 es redundante junto a la cifra principal');

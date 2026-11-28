@@ -1286,7 +1286,7 @@ function renderNotebook(){
   };
   // Una misma pista superior para todas las notas; el menú ⋯ permanece
   // disponible, anclado abajo a la derecha sin empujar la cifra hacia arriba.
-  const gradeCellStack=(main,actions,secondary='')=>`<div class="grade-cell-stack">
+  const gradeCellStack=(main,actions='',secondary='')=>`<div class="grade-cell-stack">
     <div class="grade-cell-face">${main}</div>
     <div class="grade-cell-support">${secondary}</div>
     <div class="grade-cell-menu">${actions}</div></div>`;
@@ -1313,8 +1313,7 @@ function renderNotebook(){
       const score=g?recordedScore(STATE.doc,a,g):null;
       const main=`<button class="rubric-grade-button" type="button" data-rubric-grade="${esc(a.id)}" data-rubric-student="${esc(s.id)}"
         aria-label="Evaluar ${esc(s.name)} en ${esc(a.name)} con rúbrica">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?npGradeMarker:g?gradeChip(score):'Evaluar'}</button>`;
-      const secondary=g?.notSubmitted?'<small class="grade-cell-helper">Pulsar para editar</small>':'';
-      return `<td${categoryCell(a)}>${gradeCellStack(main,gradeCellActions(s,a,g,npButton,ajButton),secondary)}</td>`;
+      return `<td${categoryCell(a)}>${gradeCellStack(main,gradeCellActions(s,a,g,npButton,ajButton))}</td>`;
     }
     if(a.orthography?.enabled){
       const value=g?effectiveAssessmentScore(STATE.doc,a,g):null;
@@ -1324,10 +1323,10 @@ function renderNotebook(){
       const applied=g?greekEtymologyBonusApplied(STATE.doc,a,g):0;
       const greekNote=a.greekEtymologyBonusEnabled&&assigned>0?
         ` · Etimología +${esc(rawFmt(assigned))}${applied===0?' (no computa)':''}`:'';
-      const note=g?`<small class="orthography-meta">Original: ${esc(rawFmt(g.score))}/${esc(rawFmt(a.maxScore))}${faults?` · ${g.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(amount))} (${faults} faltas)`}`:''}${greekNote}</small>`:'<small class="orthography-meta">Nota, faltas y entrega</small>';
+      const note=g&&(a.maxScore!==10||faults>0||assigned>0)?`<small class="orthography-meta">Original: ${esc(rawFmt(g.score))}/${esc(rawFmt(a.maxScore))}${faults?` · ${g.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(amount))} (${faults} faltas)`}`:''}${greekNote}</small>`:'';
       const main=`<button class="orthography-grade-button" type="button" data-orthography-grade="${esc(a.id)}" data-orthography-student="${esc(s.id)}"
         aria-label="Corregir ${esc(s.name)} en ${esc(a.name)}: nota, faltas y entrega">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?npGradeMarker:g?gradeChip(value):'<strong>+ Nota</strong>'}</button>`;
-      const secondary=g?.notSubmitted?'<small class="np-edit-hint">Pulsar para editar</small>':g?.pendingJustified?'':note;
+      const secondary=g?.notSubmitted||g?.pendingJustified?'':note;
       return `<td${categoryCell(a)}>${gradeCellStack(main,gradeCellActions(s,a,g,npButton,ajButton),secondary)}</td>`;
     }
     const isTenScale=a.maxScore===10||a.convertToTen;
@@ -1340,7 +1339,7 @@ function renderNotebook(){
       ?`<small class="original-score">(<input class="note-input original-note-input" type="text" inputmode="decimal" spellcheck="false" maxlength="12" aria-label="Nota original de ${esc(s.name)} en ${esc(a.name)}, sobre ${esc(rawFmt(a.maxScore))}" data-student="${esc(s.id)}" data-assessment="${esc(a.id)}" value="${esc(rawFmt(g.score))}"/> /${esc(rawFmt(a.maxScore))})</small>`
       :'';
     return `<td${categoryCell(a)}>${gradeCellStack(main,gradeCellActions(s,a,g,npButton,ajButton),secondary)}</td>`;
-  }).join('')}<td class="final-col"><button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip(overallGrade(STATE.doc,s.id,STATE.groupId,STATE.periodId))}</button></td><td class="itaca-col"><button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc,s.id,STATE.groupId,STATE.periodId)}${itacaStudentRule(STATE.doc,s.id,STATE.periodId)!=='general'?'<span class="itaca-exception" title="Excepción individual">*</span>':''}</button></td></tr>`,assessments.length+3,'Aún no hay alumnos en este grupo.');
+  }).join('')}<td class="final-col">${gradeCellStack(`<button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip(overallGrade(STATE.doc,s.id,STATE.groupId,STATE.periodId))}</button>`)}</td><td class="itaca-col">${gradeCellStack(`<button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc,s.id,STATE.groupId,STATE.periodId)}${itacaStudentRule(STATE.doc,s.id,STATE.periodId)!=='general'?'<span class="itaca-exception" title="Excepción individual">*</span>':''}</button>`)}</td></tr>`,assessments.length+3,'Aún no hay alumnos en este grupo.');
   const sum=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).reduce((s,c)=>s+c.weight,0);
   const problems=students.flatMap(st=>periodCalculationWarnings(STATE.doc,st.id,STATE.groupId,STATE.periodId)).filter(v=>v.includes('sin conversión'));
   return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><strong>Calificaciones</strong><p>Introduce notas directamente. Pulsa «⋯» en una celda para NP, AJ y observaciones; «⋯» en una columna para configurarla.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><details class="notebook-more-actions">
@@ -2859,7 +2858,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v193-dev');
+      const cache=await caches.open('cuaderno-docente-static-v194-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

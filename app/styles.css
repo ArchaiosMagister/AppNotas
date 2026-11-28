@@ -4324,3 +4324,78 @@ html[data-redesign] .grade-table th.final-col .class-stat-heading{white-space:no
 }
 
 @media print{.redesign-density{display:none}}
+
+/* Calificaciones: un eje común para todas las celdas del cuaderno.
+ * Los textos y los indicadores son independientes de la posición de la nota. */
+.table-scroller>.grade-table tbody td:has(>.grade-cell-stack){
+  vertical-align:top;
+  --notebook-grade-width:72px;
+  --notebook-grade-height:42px;
+}
+.table-scroller>.grade-table tbody td .grade-cell-stack{
+  grid-template-rows:54px minmax(34px,auto);
+  align-content:start;
+  min-height:88px;
+  width:100%;
+}
+.table-scroller>.grade-table tbody td .grade-cell-face{
+  height:54px;
+  min-height:54px;
+}
+.table-scroller>.grade-table tbody td .grade-cell-face :is(.grade-chip,.np-grade-marker,.grade-empty,.aj-badge,.note-input:not(.original-note-input)){
+  box-sizing:border-box;
+  display:inline-flex;
+  justify-content:center;
+  align-items:center;
+  width:var(--notebook-grade-width);
+  min-width:var(--notebook-grade-width);
+  max-width:var(--notebook-grade-width);
+  height:var(--notebook-grade-height);
+  min-height:var(--notebook-grade-height);
+  max-height:var(--notebook-grade-height);
+  flex:none;
+  margin:0;
+  padding:3px 4px;
+  border-radius:9px;
+}
+.table-scroller>.grade-table tbody td .grade-cell-face .aj-badge{
+  white-space:normal;
+  line-height:1.15;
+  text-align:center;
+}
+.table-scroller>.grade-table tbody td .grade-cell-face :is(.rubric-grade-button,.orthography-grade-button,.converted-primary,.score-button,.itaca-edit){
+  box-sizing:border-box;
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:84px;
+  min-width:84px;
+  max-width:84px;
+  height:54px;
+  min-height:54px;
+  max-height:54px;
+  padding:4px;
+  margin:0;
+  gap:0;
+  flex:none;
+}
+.table-scroller>.grade-table tbody td .grade-cell-face .itaca-edit .itaca-guard-indicator{
+  position:absolute;
+  right:calc(50% + var(--notebook-grade-width)/2 + 5px);
+  top:50%;
+  transform:translateY(-50%);
+  margin:0;
+}
+.table-scroller>.grade-table tbody td .grade-cell-face .itaca-edit .itaca-exception{
+  position:absolute;
+  left:calc(50% + var(--notebook-grade-width)/2 + 5px);
+  top:50%;
+  transform:translateY(-50%);
+  margin:0;
+}
+.table-scroller>.grade-table tbody td .grade-cell-support{
+  min-height:34px;
+  align-self:start;
+}
+.table-scroller>.grade-table tbody td .grade-cell-menu:empty{display:none}
