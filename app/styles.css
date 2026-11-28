@@ -4148,9 +4148,9 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
    Las áreas táctiles son de 44 px o más; no se alteran los colores de materia. */
 .shell > .topbar {
   display:grid;grid-template-columns:minmax(0,1fr) auto auto;
-  align-items:center;gap:8px 12px;min-height:0;
+  align-items:center;gap:6px 10px;min-height:0;
   padding-inline:max(12px,env(safe-area-inset-left,0px)) max(12px,env(safe-area-inset-right,0px));
-  padding-bottom:10px;
+  padding-bottom:6px;
 }
 .topbar>.brand{grid-column:1;min-width:0;max-width:100%;flex:none;gap:9px}
 .topbar>.brand .brand-copy{min-width:0}
@@ -4162,8 +4162,11 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
 .topbar>.header-tools>summary{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:8px 12px;white-space:nowrap;font-size:13px}
 .topbar>.header-tools>summary.settings-active{box-shadow:inset 0 0 0 2px currentColor}
 .settings-gear{flex:none;display:block}
-.topbar>.topmeta #save-status{min-height:34px;width:auto;min-width:0;max-width:100%;white-space:normal;text-align:center}
-.topbar>.topmeta .topbar-close-btn,.topbar>.topmeta .lock-btn{width:auto;min-width:0;min-height:44px;white-space:normal;font-size:12px}
+.topbar>.topmeta #save-status{min-height:30px;width:112px;min-width:112px;max-width:100%;white-space:normal;text-align:center;font-size:11px}
+.topbar>.topmeta .lock-btn{width:auto;min-width:44px;min-height:44px;white-space:normal;font-size:12px}
+.topbar>.topmeta .dropbox-sync-btn{min-height:44px;width:142px;max-width:100%;white-space:normal}
+.workspace-icon{display:block;flex:none;width:19px;height:19px;margin:auto}
+.topbar .header-tools-panel .topbar-close-btn{width:100%}
 .topbar>.topmeta .history-actions{display:flex;flex-wrap:nowrap;gap:4px;margin:0}
 .topbar>.topmeta .history-actions .btn{width:44px;min-width:44px;min-height:44px;font-size:22px;line-height:1;padding:4px}
 .topbar>.topmeta .history-label{display:none}
@@ -4214,12 +4217,13 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   .topbar>.brand .brand-copy small{font-size:8px;letter-spacing:.07em}
   .topbar>.header-tools>summary{width:44px;min-width:44px;padding:6px}
   .topbar>.header-tools .settings-label{display:none}
-  .topbar>.topmeta{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:5px;align-items:stretch;width:100%}
-  .topbar>.topmeta #save-status{grid-column:1/-1;grid-row:1;min-height:30px;justify-content:center}
-  .topbar>.topmeta .history-actions{grid-column:2;grid-row:2}
-  .topbar>.topmeta .topbar-close-btn{grid-column:1;grid-row:2;font-size:11px;padding:6px}
+  .topbar>.topmeta{display:grid;grid-template-columns:92px minmax(0,1fr) minmax(68px,auto);gap:5px;align-items:stretch;width:100%}
+  .topbar>.topmeta #save-status{grid-column:1/-1;grid-row:1;min-height:24px;width:100%;min-width:0;justify-content:center}
+  .topbar>.topmeta .history-actions{grid-column:1;grid-row:2}
+  .topbar>.topmeta .dropbox-sync-btn{grid-column:2;grid-row:2;width:100%;min-width:44px;font-size:11px;padding:4px;gap:4px}
   .topbar>.topmeta .lock-btn{grid-column:3;grid-row:2;font-size:11px;padding:6px}
-  .shell.student-focus>.topbar .topmeta .lock-btn{grid-column:1/-1}
+  .shell.student-focus>.topbar .topmeta .lock-btn{grid-column:3}
+  .shell.student-focus>.topbar .topmeta .dropbox-sync-btn{grid-column:1/3}
   .topbar>.header-tools .header-tools-panel{position:fixed;top:auto;right:max(8px,env(safe-area-inset-right,0px));left:max(8px,env(safe-area-inset-left,0px));bottom:max(8px,env(safe-area-inset-bottom,0px));width:auto;max-width:none;max-height:75vh;max-height:75dvh;border-radius:16px;padding:12px}
   .shell .tabs .nav-primary>.tab,.shell .tabs .academic-disclosure>summary{min-height:60px}
   .shell .class-toolbar .course-switch .course-choice{flex-basis:calc((100% - 12px) / 3)}
@@ -4240,7 +4244,8 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
 /* Dropbox: compact on phones; no new header row. */
 .btn.dropbox-sync-btn{background:#0061fe;border-color:#0061fe;color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0;min-width:34px}
 .btn.dropbox-sync-btn:hover,.btn.dropbox-sync-btn:focus-visible{background:#0055df;border-color:#0055df;color:#fff}
-@media(max-width:850px){.dropbox-sync-btn .dropbox-label{display:none}.btn.dropbox-sync-btn{padding-inline:7px}}
+@media(min-width:651px) and (max-width:850px){.topbar>.topmeta .dropbox-sync-btn{width:44px;padding-inline:7px}.topbar>.topmeta .dropbox-sync-btn .dropbox-label{display:none}}
+@media(max-width:650px){.topbar>.topmeta .dropbox-sync-btn .dropbox-label{display:inline;min-width:0;overflow-wrap:anywhere;line-height:1.1}}
 
 /* Dropbox onboarding, before the local password and creation controls. */
 .unlock-box .unlock-dropbox{margin-top:16px}

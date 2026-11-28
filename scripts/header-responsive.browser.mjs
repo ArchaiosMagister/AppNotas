@@ -19,7 +19,7 @@ const server=createServer(async(req,res)=>{
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const url='http://127.0.0.1:'+server.address().port+'/';
-const sizes=[[320,568],[375,812],[390,844],[430,932],[768,1024],[834,1194],[1024,768],[1180,820],[1366,768],[1440,900]];
+const sizes=[[320,568],[375,812],[390,844],[430,932],[768,1024],[820,1180],[834,1194],[932,430],[1024,768],[1180,820],[1366,768],[1440,900],[1920,1080]];
 try{
  for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
   const browser=await type.launch({headless:true});
@@ -36,6 +36,9 @@ try{
     await page.locator('.tabs [data-tab="cuaderno"]').waitFor({timeout:30000});
     assert.equal(await page.locator('.tabs [data-tab="ajustes"]').count(),0);
     assert.equal(await page.locator('.header-tools [data-tab="ajustes"]').count(),1);
+    assert.equal(await page.locator('.header-tools #close-notebook').count(),1);
+    assert.equal(await page.locator('#close-notebook').isVisible(),false);
+    assert.equal(await page.locator('.nav-primary .nav-glyph svg').count(),4);
     const selector='.topbar,.topbar>.brand,.topbar>.topmeta,.tabs,.class-toolbar,.academic-quick-nav';
     for(const [width,height] of sizes.filter(([w])=>mobile?w<=1180:w>=768)){
      await page.setViewportSize({width,height});
@@ -49,7 +52,7 @@ try{
       await page.locator('#close-header-tools').click();
       const layout=await page.evaluate(({selector})=>{
        const bounds=[...document.querySelectorAll(selector)].filter(el=>el.getClientRects().length).map(el=>({name:el.className,x:el.getBoundingClientRect().x,right:el.getBoundingClientRect().right}));
-       const controls=[...document.querySelectorAll('.header-tools>summary,#close-notebook,#lock,#undo-change,#redo-change,.nav-primary>.tab,.academic-disclosure>summary,.course-choice,.academic-quick-nav .btn')].filter(el=>el.getClientRects().length).map(el=>({name:el.id||el.textContent.trim(),w:el.getBoundingClientRect().width,h:el.getBoundingClientRect().height}));
+       const controls=[...document.querySelectorAll('.header-tools>summary,#close-notebook,#dropbox-sync,#lock,#undo-change,#redo-change,.nav-primary>.tab,.academic-disclosure>summary,.course-choice,.academic-quick-nav .btn')].filter(el=>el.getClientRects().length).map(el=>({name:el.id||el.textContent.trim(),w:el.getBoundingClientRect().width,h:el.getBoundingClientRect().height}));
        const nav=document.querySelector('.tabs');
        const bottom=Math.max(...[...nav.querySelectorAll('.nav-primary>.tab,.academic-disclosure>summary')]
         .map(el=>el.getBoundingClientRect().bottom));

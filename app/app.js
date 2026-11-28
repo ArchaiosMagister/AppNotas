@@ -1084,15 +1084,30 @@ async function savePreparedCopy(prepared,filename){
 /** Navegación minimalista: destinos diarios y un menú de herramientas.
  * Las cinco vistas del cuaderno siguen existiendo como navegación secundaria. */
 const workspaceDisclosures={tools:false,course:false,group:false,academic:false};
+const WORKSPACE_ICONS={
+  cuaderno:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11M15 9v11M3 14h18"/>',
+  planificador:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 14h2m4 0h2m-8 3h2"/>',
+  evaluaciones:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8 10l2 2 4-4M8 16h8"/>',
+  extraescolares:'<path d="M3 8h18v12H3zM8 8V5h8v3M3 13h18M10 13v2h4v-2"/>',
+  curriculo:'<path d="M3 5c4-1 7 0 9 2v14c-2-2-5-3-9-2zM21 5c-4-1-7 0-9 2v14c2-2 5-3 9-2z"/>',
+  rubricas:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="m7 8 1 1 2-2m-3 7 1 1 2-2m3-4h4m-4 6h4"/>',
+  recursos:'<path d="M4 6h16v14H4zM8 6V3h8v3M4 11h16"/>',
+  plegar:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+  deshacer:'<path d="m8 5-5 5 5 5M3 10h11a5 5 0 0 1 0 10"/>',
+  rehacer:'<path d="m16 5 5 5-5 5m5-5H10a5 5 0 0 0 0 10"/>'
+};
+function workspaceIcon(key){
+  return '<svg class="workspace-icon" aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+WORKSPACE_ICONS[key]+'</svg>';
+}
 const PRIMARY_WORKSPACE_TABS=[
-  ['cuaderno','Cuaderno','▦'],
-  ['planificador','Agenda','▣'],
-  ['evaluaciones','Evaluaciones','◷'],
-  ['extraescolares','Extraescolares','▤']
+  ['cuaderno','Cuaderno'],
+  ['planificador','Agenda'],
+  ['evaluaciones','Evaluaciones'],
+  ['extraescolares','Extraescolares']
 ];
 const ACADEMIC_WORKSPACE_TABS=[
-  ['curriculo','Currículo','◇'],
-  ['rubricas','Rúbricas','▤']
+  ['curriculo','Currículo'],
+  ['rubricas','Rúbricas']
 ];
 const NOTEBOOK_WORKSPACE_TABS=[
   ['cuaderno','Notas'],
@@ -1100,19 +1115,19 @@ const NOTEBOOK_WORKSPACE_TABS=[
   ['competencias','Competencias'],
   ['alumno','Vista alumno']
 ];
-function workspaceTab([key,label,glyph]){
+function workspaceTab([key,label]){
   const active=STATE.tab===key||
     (key==='cuaderno'&&['calculos','competencias','final','alumno'].includes(STATE.tab));
-  return `<button type="button" data-tab="${key}" class="tab ${active?'active':''}" ${active?'aria-current="page"':''} title="${label}"><span class="nav-glyph" aria-hidden="true">${glyph}</span><span class="nav-text">${label}</span></button>`;
+  return `<button type="button" data-tab="${key}" class="tab ${active?'active':''}" ${active?'aria-current="page"':''} title="${label}"><span class="nav-glyph" aria-hidden="true">${workspaceIcon(key)}</span><span class="nav-text">${label}</span></button>`;
 }
 function renderNavigation(){
   const toolsSelected=ACADEMIC_WORKSPACE_TABS.some(([key])=>STATE.tab===key);
   return `<nav class="tabs" aria-label="Navegación principal">
-    <button type="button" class="nav-collapse" id="toggle-navigation" aria-label="Plegar o desplegar navegación" aria-expanded="${!STATE.navCollapsed}" title="Plegar o desplegar menú"><span class="nav-collapse-glyph" aria-hidden="true">☷</span><span class="nav-text">Menú</span></button>
+    <button type="button" class="nav-collapse" id="toggle-navigation" aria-label="Plegar o desplegar navegación" aria-expanded="${!STATE.navCollapsed}" title="Plegar o desplegar menú"><span class="nav-collapse-glyph" aria-hidden="true">${workspaceIcon('plegar')}</span><span class="nav-text">Menú</span></button>
     <div class="nav-primary" role="group" aria-label="Trabajo diario">${PRIMARY_WORKSPACE_TABS.map(workspaceTab).join('')}</div>
     <div class="nav-secondary">
       <details class="academic-disclosure" data-shell-disclosure="academic" ${toolsSelected||workspaceDisclosures.academic?'open':''}>
-        <summary title="Abrir recursos académicos"><span class="nav-glyph" aria-hidden="true">◇</span><span class="nav-text">Recursos</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
+        <summary title="Abrir recursos académicos"><span class="nav-glyph" aria-hidden="true">${workspaceIcon('recursos')}</span><span class="nav-text">Recursos</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
         <div class="nav-academic-links" role="group" aria-label="Recursos académicos">${ACADEMIC_WORKSPACE_TABS.map(workspaceTab).join('')}</div>
       </details>
     </div>
@@ -1170,12 +1185,12 @@ function render(){
   const hasGroup=!!STATE.groupId;
   const color=STATE.level==='legacy'?'#F59E0B':colorFor(STATE.level,STATE.subject);
   root.innerHTML=`<div class="shell ${STATE.tab==='alumno'&&STATE.studentId?'student-focus':''} ${STATE.navCollapsed?'nav-collapsed':''}"><header class="topbar"><div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h30M12 16h24M15 19v17m9-17v17m9-17v17M9 39h30M12 36h24M12 12c1-5 6-8 12-8s11 3 12 8"/><path d="M19 12h10"/></svg></div><div class="brand-copy"><strong>AppNotas</strong><small>CuadernoDocente · Agenda y evaluación</small></div></div><div class="topmeta"><span class="pill security-pill" title="Cuaderno guardado cifrado en el dispositivo">🔒 Cifrado local</span><span id="save-status" role="status" class="pill status ok">Guardado cifrado</span>
-  <div class="history-actions" role="group" aria-label="Historial de cambios"><button type="button" class="btn small" id="undo-change" aria-label="Deshacer" title="Deshacer último cambio (Ctrl/Cmd+Z)" ${STATE.history.past.length?'':'disabled'}><span aria-hidden="true">↶</span><span class="history-label">Deshacer</span></button><button type="button" class="btn small" id="redo-change" aria-label="Rehacer" title="Rehacer (Ctrl/Cmd+Mayús+Z)" ${STATE.history.future.length?'':'disabled'}><span aria-hidden="true">↷</span><span class="history-label">Rehacer</span></button></div>
-    <button type="button" class="btn topbar-close-btn" id="close-notebook" title="Guardar una copia cifrada y cerrar el cuaderno">Cerrar cuaderno</button><button type="button" class="btn dropbox-sync-btn" id="dropbox-sync">${dropboxIcon}<span class="dropbox-label">Dropbox</span></button><button class="lock-btn" id="lock">Bloquear</button>
+  <div class="history-actions" role="group" aria-label="Historial de cambios"><button type="button" class="btn small" id="undo-change" aria-label="Deshacer" title="Deshacer último cambio (Ctrl/Cmd+Z)" ${STATE.history.past.length?'':'disabled'}>${workspaceIcon('deshacer')}<span class="history-label">Deshacer</span></button><button type="button" class="btn small" id="redo-change" aria-label="Rehacer" title="Rehacer (Ctrl/Cmd+Mayús+Z)" ${STATE.history.future.length?'':'disabled'}>${workspaceIcon('rehacer')}<span class="history-label">Rehacer</span></button></div>
+    <button type="button" class="btn dropbox-sync-btn" id="dropbox-sync" aria-label="Dropbox">${dropboxIcon}<span class="dropbox-label">Dropbox</span></button><button class="lock-btn" id="lock">Bloquear</button>
 </div><details class="header-tools" data-shell-disclosure="tools" ${workspaceDisclosures.tools?'open':''}><summary aria-label="Ajustes y copias" title="Ajustes y copias" class="${STATE.tab==='ajustes'?'settings-active':''}"><svg class="settings-gear" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3h2l.6 2.4 1.6.9 2.4-.7 2 3.5-1.8 1.8v2.2l1.8 1.8-2 3.5-2.4-.7-1.6.9L14 21h-4l-.6-2.4-1.6-.9-2.4.7-2-3.5 1.8-1.8v-2.2L3.4 9.1l2-3.5 2.4.7 1.6-.9L10 3z"/><circle cx="12" cy="12" r="3"/></svg><span class="settings-label">Ajustes y copias</span></summary>
     <div class="header-tools-panel"><div class="settings-panel-title"><strong>Ajustes y copias</strong><button type="button" class="btn" id="close-header-tools" aria-label="Cerrar ajustes">×</button></div>
       <div class="header-tools-heading">Apariencia</div><label class="theme-picker">Tema <select id="theme-select" aria-label="Modo de apariencia">${[['light','Claro'],['dark','Oscuro'],['oled','OLED']].map(([k,v])=>opt(k,v,STATE.theme)).join('')}</select></label>
-      <div class="header-tools-heading">Cuaderno y copias</div><div class="portable-controls" role="group" aria-label="Copias de cuaderno"><button type="button" class="btn small" id="open-notebook">Abrir cuaderno</button><button type="button" class="btn small ${STATE.tab==='ajustes'?'settings-current':''}" data-tab="ajustes" ${STATE.tab==='ajustes'?'aria-current="page"':''}>Configuración y copias cifradas</button></div>
+      <div class="header-tools-heading">Cuaderno y copias</div><div class="portable-controls" role="group" aria-label="Copias de cuaderno"><button type="button" class="btn small" id="open-notebook">Abrir cuaderno</button><button type="button" class="btn small ${STATE.tab==='ajustes'?'settings-current':''}" data-tab="ajustes" ${STATE.tab==='ajustes'?'aria-current="page"':''}>Configuración y copias cifradas</button><button type="button" class="btn topbar-close-btn" id="close-notebook" title="Guardar una copia cifrada y cerrar el cuaderno">Cerrar cuaderno</button></div>
       <div class="header-tools-heading">Aplicación</div>${pwaButtons()}
     </div>
   </details></header><main class="content"><div class="workspace">${renderNavigation()}<div class="work-area">${!['planificador','evaluaciones','extraescolares'].includes(STATE.tab)?`<div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level,STATE.subject)])} · CUADERNO ACADÉMICO · v1.0</div><h1>${STATE.tab==='ajustes'?'Ajustes y copias':STATE.tab==='evaluaciones'?'Sesiones de evaluación':esc(subjectLabel)+' <span class="muted-slash">/</span> '+esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${STATE.tab==='ajustes'?'Preferencias generales y almacenamiento cifrado local':STATE.tab==='evaluaciones'?'Organización por tutorías y evaluaciones · Almacenamiento cifrado local':esc(levelLabel)+' · '+esc(group?.course||'Curso escolar por configurar')+' · '+esc(period?.name||'')+' · Almacenamiento cifrado local'}</p></div><span class="demo-tag">⚠ Copias solo en almacenamiento local</span></div>`:'' }<p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo" ${['planificador','extraescolares','ajustes'].includes(STATE.tab)?'hidden':''}>
