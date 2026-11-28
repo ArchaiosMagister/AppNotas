@@ -9,10 +9,10 @@ test('independent periods, renamed/reordered/deleted groups and periods; no acad
  assert.equal(preferredPeriod(b,{...doc,periods:[{id:'p1',order:3}]},'g1'),'p1');assert.equal(preferredPeriod(b,doc,'missing'),'p1');assert.deepEqual(doc,before);
 });
 test('concurrent preferences converge by group; same-group conflict has deterministic tie-break',()=>{
- const base=emptyPeriodPreferences('book'),a=rememberPeriod(base,'g1','p2','a'),b=rememberPeriod(base,'g2','p1','b');
+ const base=emptyPeriodPreferences('book'),a=rememberPeriod(base,'g1','p2','a',1000),b=rememberPeriod(base,'g2','p1','b',1000);
  assert.deepEqual(mergePeriodPreferences(a,b),mergePeriodPreferences(b,a));
  assert.equal(mergePeriodPreferences(a,b).entries.length,2);
- const c=rememberPeriod(base,'g1','p1','z');assert.equal(mergePeriodPreferences(a,c).entries[0].periodId,'p1');
+ const c=rememberPeriod(base,'g1','p1','z',1000);assert.equal(mergePeriodPreferences(a,c).entries[0].periodId,'p1');
  assert.throws(()=>mergePeriodPreferences(a,emptyPeriodPreferences('other')));
 });
 test('ciphertext authenticated with separate AAD, wrong book and tampering rejected',async()=>{
@@ -79,4 +79,15 @@ test('un cambio local durante una subida obliga a sincronizar la nueva selecció
  }};
  assert.equal(await syncPeriodPreferences({store,transport,state}),true);
  assert.equal(rev,2);assert.equal(preferredPeriod(await openPeriodPreferences(remote.envelope,key,salt,doc.id),doc,'g1'),'p1');
+});
+
+test('selecciones offline: prevalece la más reciente con relojes razonables y se conserva compatibilidad v1',()=>{
+ const base=emptyPeriodPreferences('book'),legacy=rememberPeriod(base,'g1','p1','old',1);
+ const a=rememberPeriod(legacy,'g1','p2','z',1700000000000);
+ const b=rememberPeriod(legacy,'g1','p1','a',1700000001000);
+ assert.equal(preferredPeriod(mergePeriodPreferences(a,b),doc,'g1'),'p1');
+ assert.deepEqual(mergePeriodPreferences(a,b),mergePeriodPreferences(b,a));
+ const c=rememberPeriod(b,'g1','p2','a',1700000000000);
+ assert(c.entries[0].clock>b.entries[0].clock);
+ assert.equal(preferredPeriod(mergePeriodPreferences(b,c),doc,'g1'),'p2');
 });

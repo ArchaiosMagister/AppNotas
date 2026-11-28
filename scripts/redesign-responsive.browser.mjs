@@ -82,7 +82,33 @@ for(const [name,engine,opts] of [['desktop-chromium',chromium,{viewport:{width:1
  await page.waitForFunction(id=>document.querySelector('[data-period-choice][aria-pressed="true"]')?.dataset.periodChoice===id,nextPeriod);
  await page.reload();await page.locator('#password').fill(pw);await page.getByRole('button',{name:'Desbloquear',exact:true}).click();
  await page.waitForFunction(id=>document.querySelector('[data-period-choice][aria-pressed="true"]')?.dataset.periodChoice===id,nextPeriod);
- assert.deepEqual(errors,[]);console.log(name+': widths, themes, density, zoom, student, final and period persistence passed');
+ // Reproduce a race: the first save is asynchronous while a second field
+ // already contains an uncommitted edit. Do not replace that input or steal focus.
+ await page.locator('[data-period-choice]').first().click();
+ const firstPeriod=await page.locator('[data-period-choice]').first().getAttribute('data-period-choice');
+ await page.waitForFunction(id=>document.querySelector('[data-period-choice][aria-pressed="true"]')?.dataset.periodChoice===id,firstPeriod);
+ const gradeInput='.grade-table input[data-student][data-assessment]';
+ await page.locator(gradeInput).first().waitFor();
+ const edited=await page.evaluate(selector=>{
+  const fields=[...document.querySelectorAll(selector)].filter(e=>!e.disabled&&!e.readOnly&&e.getBoundingClientRect().width>0);
+  const a=fields[0],b=fields[1];if(!a||!b)throw Error('Need two editable grades');
+  const av=a.value==='2'?'3':'2',bv=b.value==='4'?'3':'4';
+  a.focus();a.value=av;a.dispatchEvent(new Event('input',{bubbles:true}));a.dispatchEvent(new Event('change',{bubbles:true}));a.blur();
+  b.focus();b.value=bv;b.dispatchEvent(new Event('input',{bubbles:true}));
+  window.__auditSecondField=b;
+  return [{student:a.dataset.student,assessment:a.dataset.assessment,value:av},{student:b.dataset.student,assessment:b.dataset.assessment,value:bv}];
+ },gradeInput);
+ await page.waitForFunction(()=>document.querySelector('#save-status')?.textContent==='Guardado cifrado');
+ // Permit the normal rendering and deferred-refresh timers to run.
+ await page.waitForTimeout(180);
+ assert(await page.evaluate(()=>window.__auditSecondField.isConnected&&document.activeElement===window.__auditSecondField));
+ assert.equal(await page.evaluate(()=>window.__auditSecondField.value),edited[1].value);
+ await page.evaluate(()=>{const b=window.__auditSecondField;b.dispatchEvent(new Event('change',{bubbles:true}));b.blur();delete window.__auditSecondField;});
+ await page.waitForFunction(()=>document.querySelector('#save-status')?.textContent==='Guardado cifrado');
+ await page.reload();await page.locator('#password').fill(pw);await page.getByRole('button',{name:'Desbloquear',exact:true}).click();
+ await page.locator(gradeInput).first().waitFor();
+ for(const e of edited)assert.equal(await page.locator(gradeInput+'[data-student="'+e.student+'"][data-assessment="'+e.assessment+'"]').inputValue(),e.value);
+ assert.deepEqual(errors,[]);console.log(name+': widths, themes, density, zoom, student, final, periods and concurrent grade edits passed');
  }finally{await browser.close();}
 }
 }finally{await new Promise(ok=>server.close(ok));}

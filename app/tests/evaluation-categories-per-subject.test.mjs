@@ -183,8 +183,9 @@ test('UI: creación, activación, eliminación y selector de actividades usan ca
   assert(app.includes('function renderRules(){'));
   assert(app.includes('id="category-to-enable"'));
   assert(app.includes('id="enable-category"'));
-  assert(app.includes('addPeriodCategory(d,STATE.groupId,STATE.periodId'));
-  assert(app.includes('setPeriodCategoryEnabled(d,STATE.groupId,STATE.periodId,category.id,false)'));
+  assert(app.includes('const {groupId,periodId}=currentView();'));
+  assert(app.includes('addPeriodCategory(d,groupId,periodId'));
+  assert(app.includes('setPeriodCategoryEnabled(d,groupId,periodId,category.id,false)'));
   assert(app.includes('effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).map(c=>opt(c.id,c.name))'));
   assert(css.includes('.period-category-picker{'));
 });
@@ -194,5 +195,6 @@ test('al cambiar de evaluación desde Cálculos permanece en la configuración y
   const head=app.slice(app.indexOf('function renderPeriodButtons(){'),app.indexOf('\nfunction render(){',app.indexOf('function renderPeriodButtons(){')));
   assert(head.includes("['cuaderno','calculos','competencias'].includes(STATE.tab)&&STATE.periodId===p.id"));
   assert.equal(head.split("['cuaderno','calculos','competencias'].includes(STATE.tab)&&STATE.periodId===p.id").length-1,3);
-  assert(app.includes("if(STATE.tab===tab){if(!['calculos','competencias'].includes(tab))STATE.tab='cuaderno';render();}"));
+  assert(app.includes("if(!['calculos','competencias'].includes(tab))STATE.tab='cuaderno';"));
+  assert(app.includes("STATE.periodId=id;periodGroup=groupId;periodBook=bookId;"));
 });

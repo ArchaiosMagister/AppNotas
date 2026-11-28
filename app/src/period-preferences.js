@@ -27,11 +27,12 @@ export function mergePeriodPreferences(a,b){
  for(const e of b.entries){const old=entries.get(e.groupId);if(!old||compare(e,old)>0)entries.set(e.groupId,e);}
  return validatePeriodPreferences({...a,entries:ordered(entries.values())},a.bookId);
 }
-export function rememberPeriod(p,groupId,periodId,device){
+export function rememberPeriod(p,groupId,periodId,device,at=Date.now()){
  validatePeriodPreferences(p,p.bookId);
  const old=p.entries.find(e=>e.groupId===groupId);
- if(old?.periodId===periodId)return p;
- const clock=(old?.clock||0)+1;
+ // Compatible with existing v1: a hybrid logical clock, no schema change.
+ if(!Number.isSafeInteger(at)||at<1)throw Error('Reloj de preferencias inválido.');
+ const clock=Math.max(at,(old?.clock||0)+1);
  return mergePeriodPreferences(p,{version:1,bookId:p.bookId,entries:[{groupId,periodId,device,clock}]});
 }
 export function preferredPeriod(p,doc,groupId){
@@ -81,7 +82,7 @@ export function createPeriodPreferenceStore({state,read=readPeriodPreferences,wr
  return Object.freeze({
   reset,load:()=>run(p=>p),
   get:()=>owner===state.key&&cache?.bookId===state.doc?.id?cache:null,
-  remember:(groupId,periodId)=>run(p=>rememberPeriod(p,groupId,periodId,device)),
+  remember:(groupId,periodId,at=Date.now())=>run(p=>rememberPeriod(p,groupId,periodId,device,at)),
   merge:(remote,guard)=>run(p=>mergePeriodPreferences(p,remote),guard)
  });
 }

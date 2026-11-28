@@ -177,7 +177,8 @@ test('interfaz: editar desde todas las casillas y mostrar al alumno solo con per
  assert(table.includes('observationButton(student.id,assessment.id)'), 'Las tres clases de celda conservan el acceso a observaciones');
  assert(table.includes('data-observation-student='));
  assert(table.includes('data-observation-assessment='));
- assert(app.includes("setGradeObservation(d,studentId,assessmentId,text.value,checkbox.checked)"));
+ assert(app.includes('const value=text.value,visible=checkbox.checked;'));
+ assert(app.includes('setGradeObservation(d,studentId,assessmentId,value,visible)'));
  assert(app.includes('openGradeObservation(b.dataset.observationStudent,b.dataset.observationAssessment)'));
  assert(app.includes('const scroll={x:window.scrollX,y:window.scrollY'));
  const student=app.slice(app.indexOf('function renderStudentView(){'),app.indexOf('function bindStudentView(){'));
