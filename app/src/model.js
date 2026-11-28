@@ -750,7 +750,7 @@ export function copyPeriodCategories(doc,groupId,sourcePeriodId,targetPeriodId){
 }
 export function addGroup(doc,name,subject='Latín I',course='2026-2027',level=levelForSubject(subject),weeklyHours=null){
   const n=name.trim(),fixed=levelForSubject(subject);
-  if(fixed&&fixed!==level)throw new Error('Esta asignatura corresponde a '+COURSE_SUBJECTS[fixed].label+'.');
+  if(fixed&&fixed!==level)throw new Error('Curso no compatible: esta asignatura corresponde a '+COURSE_SUBJECTS[fixed].label+'.');
   if(!n||!validSubject(level,subject,doc)||!course?.trim())throw new Error('Introduce grupo, curso y una asignatura compatible.');
   const weekly=weeklyHours===null||weeklyHours===''?null:Number(weeklyHours);
   if(weekly!==null&&(!Number.isInteger(weekly)||weekly<1||weekly>30))
