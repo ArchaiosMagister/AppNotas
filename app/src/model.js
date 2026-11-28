@@ -1,6 +1,6 @@
 import {assertExtracurricular,extracurricularActivities} from './extracurricular.js';
 import {ATTITUDE_2BACH_CRITERIA} from './attitude-template.js';
-import {createPlanner,assertPlanner,weeklySlotCount} from './planner.js';
+import {createPlanner,assertPlanner,weeklySlotCount,addAcademicYear} from './planner.js';
 export const SCHEMA_VERSION = 8;
 /** Solo una preferencia de visualización: nunca elimina ni modifica citas. */
 export function setEvaluationPastMode(doc,mode){
@@ -283,6 +283,9 @@ export function assertModel(doc) {
   if(!Array.isArray(doc.gradingProfiles))throw new Error('Faltan perfiles de evaluación.');
   if(!doc.groups.every(g=>g.weeklyHours===undefined||(Number.isInteger(g.weeklyHours)&&g.weeklyHours>=1&&g.weeklyHours<=30)))throw new Error('Horas semanales del grupo inválidas.');
   assertPlanner(doc);
+  for(const y of doc.planner?.years??[]){
+    if(y.subjectAccents!==undefined&&(!y.subjectAccents||typeof y.subjectAccents!=='object'||Array.isArray(y.subjectAccents)||Object.values(y.subjectAccents).some(c=>!/^#[0-9a-fA-F]{6}$/.test(c))))throw new Error('Colores de curso inválidos.');
+  }
   assertExtracurricular(doc);
   if(!doc.groups.every(g=>(g.itacaRounding===undefined||ITACA_ROUNDING.includes(g.itacaRounding))))throw new Error('Regla general de Nota Ítaca inválida.');
   if(!doc.groups.every(g=>g.itacaAttitudeConditions===undefined||(
@@ -1438,4 +1441,147 @@ export function removePeriod(doc,periodId){
     if(p.order!==order)Object.assign(p,{order,updatedAt:stamp});
   });
   doc.updatedAt=stamp;
+}
+
+
+/** Cambio de curso: copiar exclusivamente definiciones docentes. El documento
+ * original se sustituye solo tras validar la copia completa. No se copian
+ * alumnos, notas, observaciones, vínculos personales ni eventos fechados. */
+export const ACADEMIC_ROLLOVER_OPTIONS=Object.freeze([
+  ['groups','Asignaturas y estructura de grupos'],
+  ['categories','Categorías, porcentajes y reglas de cálculo'],
+  ['competencies','Competencias y sus vinculaciones'],
+  ['rubrics','Rúbricas de evaluación'],
+  ['itaca','Condiciones de redondeo de Ítaca'],
+  ['activities','Estructura de las actividades'],
+  ['final','Configuración de la evaluación final'],
+  ['schedule','Horario semanal'],
+  ['visual','Preferencias visuales (colores de materias, categorías y horario)']
+].map(Object.freeze));
+
+export function academicCourseNames(doc){
+  return [...new Set([...(doc.planner?.years??[]).map(y=>y.name),...doc.groups.map(g=>g.course)])]
+    .sort((a,b)=>b.localeCompare(a,'es'));
+}
+export function academicSubjectAccent(doc,course,level,subject){
+  const key=subjectKey(level,subject),year=doc.planner?.years.find(y=>y.name===course);
+  return year?.subjectAccents?.[key]??doc.settings.subjectAccents[key]??defaultSubjectAccent(level,subject);
+}
+export function setAcademicSubjectAccent(doc,course,level,subject,color){
+  const year=doc.planner?.years.find(y=>y.name===course);
+  if(!year?.subjectAccents)return setSubjectAccent(doc,level,subject,color);
+  if(!validSubject(level,subject,doc)||!/^#[0-9a-fA-F]{6}$/.test(color))throw new Error('Color o materia inválidos.');
+  year.subjectAccents[subjectKey(level,subject)]=color.toUpperCase();
+  doc.updatedAt=now();
+}
+
+export function rolloverAcademicYear(doc,{sourceCourse,name,start,end,options}){
+  if(!options||ACADEMIC_ROLLOVER_OPTIONS.some(([k])=>typeof options[k]!=='boolean'))throw new Error('Selecciona las opciones de traslado.');
+  const dest=String(name??'').trim();
+  const match=/^(\d{4})-(\d{4})$/.exec(dest);
+  if(!match||Number(match[2])!==Number(match[1])+1)throw new Error('Usa un curso académico consecutivo, por ejemplo 2027-2028.');
+  if(typeof start!=='string'||typeof end!=='string'||!start.startsWith(match[1]+'-')||!end.startsWith(match[2]+'-'))throw new Error('Las fechas deben corresponder al nuevo curso académico.');
+  if(!academicCourseNames(doc).includes(sourceCourse))throw new Error('Curso de origen inexistente.');
+  if(academicCourseNames(doc).includes(dest))throw new Error('El curso de destino ya existe. No se ha sobrescrito nada.');
+  if(!options.groups&&['categories','competencies','itaca','activities','final'].some(k=>options[k]))throw new Error('Para trasladar ajustes de grupo, marca también la estructura de grupos.');
+  if(!options.categories&&['competencies','itaca','activities'].some(k=>options[k]))throw new Error('Las competencias, las actividades y las condiciones de Ítaca requieren trasladar las categorías.');
+
+  const next=structuredClone(doc),sourceYear=next.planner?.years.find(y=>y.name===sourceCourse);
+  const oldGroups=next.groups.filter(g=>g.course===sourceCourse);
+  const oldActivities=next.assessments.filter(a=>oldGroups.some(g=>g.id===a.groupId));
+  if(options.schedule&&!sourceYear)throw new Error('El curso de origen no tiene calendario; desmarca el horario.');
+  if(options.activities&&!options.rubrics&&oldActivities.some(a=>a.rubricId))throw new Error('Hay actividades con rúbrica: marca también el traslado de rúbricas o desmarca las actividades.');
+  if(options.itaca&&oldGroups.some(g=>Object.values(g.itacaAttitudeConditions||{}).some(c=>c.mode==='criterion'))&&(!options.activities||!options.rubrics))throw new Error('La condición de Ítaca por criterio requiere copiar las actividades y sus rúbricas.');
+  const stamp=now(),fresh=fields=>mark({...fields,id:uid(),createdAt:stamp},stamp);
+  const groupMap=new Map(),rubricMap=new Map(),criterionMap=new Map(),assessmentMap=new Map();
+  const oldGlobalCategoryIds=next.categories.filter(c=>!c.ownerGroupId).map(c=>c.id);
+  // Las rúbricas que se utilizan en el origen se duplican con criterios nuevos.
+  // Las plantillas de biblioteca sin actividad siguen disponibles globalmente.
+  if(options.rubrics){
+    const used=new Set(oldActivities.map(a=>a.rubricId).filter(Boolean));
+    for(const r of next.rubrics.filter(r=>used.has(r.id))){
+      const criteria=r.criteria.map(c=>{
+        const id=uid();criterionMap.set(r.id+'|'+c.id,id);
+        return {id,name:c.name,maxScore:c.maxScore,weight:c.weight,...(c.levels?{levels:structuredClone(c.levels)}:{})};
+      });
+      const copy=fresh({name:(r.name.slice(0,138)+' · '+dest).slice(0,150),criteria});
+      rubricMap.set(r.id,copy.id);next.rubrics.push(copy);
+    }
+  }
+  if(options.groups)for(const old of oldGroups){
+    // Lista positiva: no copiar procedencias, excepciones individuales ni
+    // campos desconocidos que puedan incorporar datos personales en el futuro.
+    const group=fresh({name:old.name,course:dest,level:old.level,subject:old.subject,
+      ...(old.legacyUnclassified===true?{legacyUnclassified:true}:{}),
+      ...(old.weeklyHours!==undefined?{weeklyHours:old.weeklyHours}:{}),
+      ...(options.categories&&old.orthographyRefundable!==undefined?{orthographyRefundable:old.orthographyRefundable}:{}),
+      ...(options.itaca&&old.itacaRounding!==undefined?{itacaRounding:old.itacaRounding}:{}),
+      ...(options.categories?{hiddenCategoryIds:[...oldGlobalCategoryIds]}:{})});
+    next.groups.push(group);groupMap.set(old.id,group.id);
+    const categoryMap=new Map();
+    if(options.categories){
+      for(const c of availableCategories(doc,old.id)){
+        const copy=fresh({name:c.name,weight:c.weight,rule:c.rule,bestCount:c.bestCount??2,ownerGroupId:group.id,
+          ...(options.visual&&c.columnColor?{columnColor:c.columnColor}:{})});
+        next.categories.push(copy);categoryMap.set(c.id,copy.id);
+      }
+      for(const p of doc.periods){
+        const effective=effectiveCategories(doc,old.id,p.id);
+        next.gradingProfiles.push(fresh({groupId:group.id,periodId:p.id,
+          categoryIds:effective.map(c=>categoryMap.get(c.id)),
+          overrides:effective.map(c=>({categoryId:categoryMap.get(c.id),weight:c.weight,rule:c.rule,bestCount:c.bestCount??2}))}));
+      }
+    }
+    if(options.competencies){
+      for(const c of doc.competencies.filter(c=>c.groupId===old.id||(c.groupId===undefined&&doc.groups[0]?.id===old.id))){
+        next.competencies.push(fresh({groupId:group.id,name:c.name,...(c.curriculumKey!==undefined?{curriculumKey:c.curriculumKey}:{}),
+          links:c.links.filter(l=>categoryMap.has(l.categoryId)).map(l=>({categoryId:categoryMap.get(l.categoryId),weight:l.weight}))}));
+      }
+    }
+    if(options.activities){
+      const activities=oldActivities.filter(a=>a.groupId===old.id);
+      for(const a of activities)assessmentMap.set(a.id,uid());
+      for(const a of activities){
+        const copy={...fresh({name:a.name,groupId:group.id,periodId:a.periodId,categoryId:categoryMap.get(a.categoryId),
+          maxScore:a.maxScore,weight:a.weight,convertToTen:a.convertToTen,order:a.order,
+          rubricId:a.rubricId?rubricMap.get(a.rubricId):null,
+          ...(a.orthography!==undefined?{orthography:structuredClone(a.orthography)}:{}),
+          ...(a.greekEtymologyBonusEnabled?{greekEtymologyBonusEnabled:true}:{}),
+          ...(a.recoveryOf?{recoveryOf:assessmentMap.get(a.recoveryOf),recoveryMode:a.recoveryMode}:{})}),id:assessmentMap.get(a.id)};
+        next.assessments.push(copy);
+      }
+    }
+    if(options.itaca)for(const [periodId,c] of Object.entries(old.itacaAttitudeConditions||{})){
+      const condition={mode:c.mode,categoryId:categoryMap.get(c.categoryId),minScore:c.minScore};
+      if(c.mode==='criterion'){
+        const source=oldActivities.find(a=>a.id===c.assessmentId);
+        condition.assessmentId=assessmentMap.get(c.assessmentId);
+        condition.criterionId=criterionMap.get(source?.rubricId+'|'+c.criterionId);
+      }
+      setItacaAttitudeCondition(next,group.id,periodId,condition);
+    }
+    if(options.final){
+      const c=doc.finalConfigs.find(c=>c.groupId===old.id);
+      if(c)next.finalConfigs.push(fresh({groupId:group.id,rule:c.rule,weights:structuredClone(c.weights),excludedPeriodIds:[...c.excludedPeriodIds]}));
+    }
+  }
+  const year=addAcademicYear(next,{name:dest,start,end,copyFrom:options.schedule?sourceYear.id:null});
+  if(options.schedule){
+    // El método genérico relaciona por nombre; aquí usar exclusivamente IDs
+    // para evitar asociaciones incorrectas entre grupos homónimos.
+    year.slots=sourceYear.slots.map(s=>{
+      const old=doc.groups.find(g=>g.id===s.groupId),groupId=groupMap.get(s.groupId)||null;
+      return {id:uid(),day:s.day,start:s.start,end:s.end,type:s.type,groupId,
+        label:groupId?'':(s.label||[old?.subject,old?.name].filter(Boolean).join(' · ')),room:s.room??'',
+        ...(s.scheduleMode?{scheduleMode:s.scheduleMode}:{}),...(s.bandId?{bandId:s.bandId}:{}),
+        ...(options.visual&&s.color?{color:s.color}:{})};
+    });
+  }
+  year.subjectAccents=Object.fromEntries(catalogForNotebook(doc).flatMap(({level,subjects})=>subjects.map(subject=>[
+    subjectKey(level,subject),options.visual?academicSubjectAccent(doc,sourceCourse,level,subject):defaultSubjectAccent(level,subject)
+  ])));
+  next.updatedAt=stamp;
+  assertModel(next);
+  Object.assign(doc,next);
+  return {yearId:year.id,groups:groupMap.size,activities:assessmentMap.size,rubrics:rubricMap.size};
 }
