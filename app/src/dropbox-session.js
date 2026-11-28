@@ -4,6 +4,7 @@
  */
 import {createLocalSyncBridge,loadLocalDropboxSession,sameDropboxLink} from './dropbox-local.js';
 import {createDropboxTransport} from './dropbox-sync.js';
+import {createPeriodPreferenceTransport,syncPeriodPreferences} from './period-preferences.js';
 import {prepareConflictCopies} from './dropbox-conflict.js';
 import {createSyncController,createSyncScheduler} from './dropbox-controller.js';
 import {readDropboxCredential,writeEnvelope} from './storage.js';
@@ -31,11 +32,11 @@ export function createSessionTokenProvider({clientId,refreshToken,refresh=refres
   function stop(){stopped=true;abort.abort();token=null;secret=null;expiry=0;}
   return Object.freeze({getAccessToken,stop});
 }
-export function createDropboxSession({state,enqueue,canApply,adopt,onStatus,windowTarget,documentTarget,origin,
+export function createDropboxSession({state,preferences,enqueue,canApply,adopt,onStatus,windowTarget,documentTarget,origin,
     load=loadLocalDropboxSession,readLink=readDropboxCredential,clientId=DROPBOX_CLIENT_ID}){
-  let generation=0,scheduler=null,provider=null,inspect=null;
+  let generation=0,scheduler=null,provider=null,inspect=null,preferenceAbort=null,preferenceFlight=null,preferenceSync=null,academicSynced=false;
   const conflictCopies=async()=>{if(!inspect)throw new Error('Dropbox session unavailable.');return inspect();};
-  function stop(){generation++;scheduler?.stop();provider?.stop();scheduler=null;provider=null;inspect=null;}
+  function stop(){generation++;preferenceAbort?.abort();preferenceAbort=null;preferenceFlight=null;preferenceSync=null;academicSynced=false;scheduler?.stop();provider?.stop();scheduler=null;provider=null;inspect=null;}
   async function start(){
     stop();
     if(!dropboxConfigured(origin)||clientId!==DROPBOX_CLIENT_ID){onStatus({status:'not-configured'});return;}
@@ -55,14 +56,24 @@ export function createDropboxSession({state,enqueue,canApply,adopt,onStatus,wind
         sessionProvider.stop();throw Object.assign(new Error('Dropbox link changed.'),{code:'link-changed'});
       }
     };
-    const transport=createDropboxTransport({path:dropboxFilePath(origin),getAccessToken:async()=>{
-      await checkLink();const token=await sessionProvider.getAccessToken();await checkLink();return token;
-    }});
+    const getAccessToken=async()=>{await checkLink();const token=await sessionProvider.getAccessToken();await checkLink();return token;};
+    const transport=createDropboxTransport({path:dropboxFilePath(origin),getAccessToken});
+    if(preferences){
+      const sidecar=createPeriodPreferenceTransport({academicPath:dropboxFilePath(origin),getAccessToken});
+      const abort=new AbortController();preferenceAbort=abort;
+      preferenceSync=()=>{
+        if(!academicSynced||abort.signal.aborted||documentTarget.visibilityState==='hidden')return;
+        if(preferenceFlight)return preferenceFlight;
+        const job=syncPeriodPreferences({store:preferences,transport:sidecar,state,signal:abort.signal,check:checkLink})
+          .catch(()=>false).finally(()=>{if(preferenceFlight===job)preferenceFlight=null;});
+        preferenceFlight=job;return job;
+      };
+    }
     const bridge=createLocalSyncBridge({state,enqueue,canApply,adopt,write:(db,env,expected)=>writeEnvelope(db,env,expected,link.record)});
-    const controller=createSyncController({transport,...bridge,verifyLocal:async(local,signal)=>{await checkLink();return bridge.verifyLocal(local,signal);},onStatus:value=>{if(value.status==='not-linked'&&gen===generation)stop();onStatus(value);},isOnline:()=>windowTarget.navigator.onLine!==false});
+    const controller=createSyncController({transport,...bridge,verifyLocal:async(local,signal)=>{await checkLink();return bridge.verifyLocal(local,signal);},onStatus:value=>{academicSynced=value.status==='synced';if(value.status==='not-linked'&&gen===generation)stop();onStatus(value);if(academicSynced)void preferenceSync?.();},isOnline:()=>windowTarget.navigator.onLine!==false});
     inspect=()=>prepareConflictCopies({transport,readLocal:bridge.readLocal,verifyLocal:async(local)=>{await checkLink();return gen===generation&&await bridge.verifyLocal(local);}});
     scheduler=createSyncScheduler({controller,windowTarget,documentTarget});
     scheduler.start();
   }
-  return Object.freeze({start,stop,conflictCopies,changed:()=>scheduler?.changed(),manual:()=>scheduler?.manual()??Promise.resolve({status:'not-linked'}),active:()=>!!scheduler});
+  return Object.freeze({start,stop,conflictCopies,changed:()=>scheduler?.changed(),preferencesChanged:()=>preferenceSync?.(),manual:()=>scheduler?.manual()??Promise.resolve({status:'not-linked'}),active:()=>!!scheduler});
 }

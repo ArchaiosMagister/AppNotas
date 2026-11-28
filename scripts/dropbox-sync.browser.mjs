@@ -54,6 +54,10 @@ for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
           return json({access_token:'fictional-access-token',refresh_token:'fictional-refresh-token',token_type:'bearer',expires_in:14400,scope:'files.content.read files.content.write'});
         }
         const arg=JSON.parse(req.headers()['dropbox-api-arg']);
+        if(arg.path==='/pruebas-preferencias-cifradas.json'){
+          if(url.pathname==='/2/files/download')return json({error:{'.tag':'path',path:{'.tag':'not_found'}}},409);
+          throw Error('Unexpected preference upload in academic-only test');
+        }
         assert.equal(arg.path,'/pruebas-cuaderno-cifrado.json');
         if(url.pathname==='/2/files/download'){
           if(!remote)return json({error:{'.tag':'path',path:{'.tag':'not_found'}}},409);

@@ -4444,3 +4444,13 @@ html:is([data-redesign-density="normal"],[data-redesign-density="wide"]) .table-
 .table-scroller>.grade-table tbody td .grade-cell-support{min-height:0;padding:0;text-align:center;align-self:center}
 .table-scroller>.grade-table tbody td .grade-cell-support:empty,
 .table-scroller>.grade-table tbody td .grade-cell-menu:empty{display:none}
+
+/* Agenda: navegación temporal y acciones independientes; preserve existing handlers. */
+.planner-view .planner-intro{padding:8px 12px}
+.planner-view .planner-controls{padding:8px 12px;gap:6px}
+.planner-view .planner-content-head{margin-bottom:6px}
+.planner-view .planner-date-controls :is(.btn,input){min-height:44px}
+.planner-view .planner-view-btn.active{border-bottom:3px solid var(--accent);font-weight:800}
+.planner-view .planner-create-menu>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(min-width:901px){.planner-view .planner-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}.planner-view .planner-view-tabs{grid-column:1/-1}.planner-view .planner-date-controls{grid-column:1}.planner-view .planner-tools-minimal{grid-column:2;grid-row:2}.planner-view .planner-controls>.hint{grid-column:1/-1;grid-row:3}}
+@media(max-width:650px){.planner-view .planner-intro h2{font-size:19px}.planner-view .planner-controls,.planner-view .planner-intro{padding:8px}.planner-view .planner-content{padding:9px}}

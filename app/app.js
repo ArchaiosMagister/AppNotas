@@ -23,6 +23,7 @@ import {installInstructions,mayReloadForUpdate,storagePersistence} from './src/p
 
 import {createDropboxSession,dropboxConfigured,DROPBOX_CLIENT_ID} from './src/dropbox-session.js';
 import {isDropboxTest} from './src/dropbox-config.js';
+import {createPeriodPreferenceStore,preferredPeriod} from './src/period-preferences.js';
 import {prepareDropboxNavigation,captureDropboxCallback,createDropboxOnboarding} from './src/dropbox-onboarding.js';
 import {writeDropboxCredential,readDropboxCredential} from './src/storage.js';
 
@@ -166,6 +167,16 @@ const savedStudentActivityOrders=()=>{try{
 const STUDENT_ACTIVITY_SORT_OPTIONS=[['category','Por categoría'],['column','Orden del cuaderno'],['alphabetical','Nombre de actividad (A–Z)'],['reverse','Últimas actividades primero']];
 
 const STATE={evaluationWorkspaceTab:'sesiones',plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),notebookZoom:savedNotebookZoom(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),studentPlainSort:savedStudentPlainSort(),studentActivityOrders:savedStudentActivityOrders(),studentPeriodId:null,studentFull:false,studentPresentation:false,db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
+const periodPreferences=createPeriodPreferenceStore({state:STATE});
+let periodGroup=null,periodBook=null,preferenceError=false;
+function restoreOrdinaryPeriod(){STATE.periodId=preferredPeriod(periodPreferences.get(),STATE.doc,STATE.groupId);periodGroup=STATE.groupId;periodBook=STATE.doc.id;}
+async function loadOrdinaryPeriods(){try{await periodPreferences.load();preferenceError=false;}catch{preferenceError=true;}restoreOrdinaryPeriod();}
+function selectOrdinaryPeriod(id){return enqueueMutation(async()=>{
+ if(!STATE.doc?.periods.some(p=>p.id===id)||!currentGroup())return;
+ try{await periodPreferences.remember(STATE.groupId,id);preferenceError=false;}catch{preferenceError=true;toast('No se ha podido guardar la evaluación como preferencia cifrada. Las notas permanecen intactas.');}
+ STATE.periodId=id;periodGroup=STATE.groupId;periodBook=STATE.doc.id;
+ if(!['calculos','competencias'].includes(STATE.tab))STATE.tab='cuaderno';render();dropboxSession.preferencesChanged();
+});}
 let dropboxStatus='not-configured';
 let dropboxCallback=null,dropboxOnboarding=null;
 function clearDropboxOnboarding(){dropboxCallback=null;dropboxOnboarding?.stop();dropboxOnboarding=null;}
@@ -179,7 +190,7 @@ function paintDropboxStatus(){
   const label=root.querySelector('#dropbox-sync .dropbox-label');
   if(label)label.textContent=dropboxStatus==='conflict'?'Conflicto':dropboxStatus==='syncing'?'Sincronizando…':dropboxStatus==='pending'?'Pendiente':dropboxStatus==='offline'?'Sin conexión':'Dropbox';
 }
-const dropboxSession=createDropboxSession({state:STATE,enqueue:enqueueMutation,windowTarget:window,documentTarget:document,origin:location.origin,
+const dropboxSession=createDropboxSession({state:STATE,preferences:periodPreferences,enqueue:enqueueMutation,windowTarget:window,documentTarget:document,origin:location.origin,
   canApply:()=>!dialog.open&&!STATE.studentPresentation&&!document.activeElement?.matches?.('input,select,textarea,[contenteditable=true]'),
   adopt:()=>{STATE.history=emptyHistory();if(STATE.studentId&&!STATE.doc.students.some(s=>s.id===STATE.studentId))STATE.studentId=null;render();},
   onStatus:({status})=>{dropboxStatus=status;paintDropboxStatus();}});
@@ -234,7 +245,7 @@ async function finishDropboxRestore(){
       const restored=await flow.restore({db:STATE.db,password,confirmRestore:async()=>window.confirm('Se ha autenticado el cuaderno de Dropbox con tu contraseña. ¿Instalarlo cifrado en este dispositivo vacío?')});
       if(!restored){showUnlock(true);return;}
       STATE.exportReceipt=null;
-      adoptRestoredNotebook(restored.envelope,STATE.recovery,restored,restored.doc);
+      await adoptRestoredNotebook(restored.envelope,STATE.recovery,restored,restored.doc);
       toast('Cuaderno recuperado de Dropbox y guardado cifrado en este dispositivo.');
     });
   }catch{
@@ -300,6 +311,7 @@ function openDropboxUpgrade(){
       dropboxSession.stop();
       await writeEnvelope(STATE.db,upgraded.envelope,expected);
       STATE.key=upgraded.key;STATE.salt=upgraded.salt;STATE.envelope=upgraded.envelope;
+      periodPreferences.reset();
       STATE.history=emptyHistory();STATE.exportReceipt=null;
       dialog.close();render();startDropboxSession();toast('Contraseña reforzada. Guarda y verifica una nueva copia cifrada.');
     }).catch(()=>{if(form.isConnected)err.textContent='No se ha completado el cambio. Comprueba las contraseñas, verifica una copia .cuaderno de la revisión actual y desvincula Dropbox si estaba vinculado.';}).finally(()=>{
@@ -641,7 +653,7 @@ function chooseInitial(){
   const group=STATE.doc.groups[0];STATE.groupId=group?.id||null;
   STATE.level=group?.level||'legacy';STATE.subject=group?group.subject:'Latín I';
   if(!group){const available=catalogForNotebook(STATE.doc).flatMap(entry=>entry.subjects.map(subject=>({level:entry.level,subject})));const selected=available.find(x=>x.level==='1bach'&&x.subject==='Latín I')||available[0];STATE.level=selected?.level||'1bach';STATE.subject=selected?.subject||'Latín I';}
-  STATE.periodId=[...STATE.doc.periods].sort((a,b)=>a.order-b.order)[0]?.id||null;
+  restoreOrdinaryPeriod();
 }
 const groupsForSubject=()=>STATE.doc.groups.filter(g=>(g.level??'legacy')===STATE.level&&g.subject===STATE.subject);
 function setSubjectChoice(level,subject){
@@ -716,6 +728,7 @@ function showUnlock(isNew,callback=null){
   dropboxCallback=callback?.mode===(isNew?'restore':'link')?callback:null;
   dropboxSession.stop();
   unbindGradeTableHeaders();
+  periodPreferences.reset();periodGroup=null;periodBook=null;preferenceError=false;
   STATE.doc=null;STATE.key=null;STATE.salt=null;STATE.history=emptyHistory();STATE.studentPresentation=false;
   root.innerHTML=`<main class="unlock-screen"><div class="unlock-box"><div class="brand-mini">▦</div><div class="eyebrow">AppNotas · versión 1.0</div><h1>CuadernoDocente</h1>${isDropboxTest(location.origin)?'<p class="section-note"><strong>PRUEBAS: solo datos ficticios.</strong> No importes tu cuaderno real.</p>':''}<p>${isNew?'Elige un cuaderno vacío o uno de demostración con ocho alumnos ficticios. Ambos se guardan cifrados en este dispositivo.':'Desbloquea tu cuaderno local cifrado para continuar.'}</p>${STATE.reloadProbe?`<p class="${STATE.reloadProbe.ok?'section-note':'unlock-error'}" role="status">${STATE.reloadProbe.ok?'Recarga verificada: la misma copia cifrada continúa en IndexedDB. Desbloquéala para validar las notas.':'No se ha podido verificar el guardado tras recargar. Revisa el almacenamiento y no introduzcas más datos hasta comprobar la copia.'}</p>`:''}${pwaButtons()}<button type="button" class="btn unlock-help-primary" id="how-it-works" aria-label="Cómo funciona AppNotas y cómo guardar copias de seguridad">¿Cómo funciona? <span aria-hidden="true">ⓘ</span></button>${dropboxConfigured(location.origin)?`<div class="unlock-dropbox"><button class="btn dropbox-sync-btn" type="button" id="dropbox-restore-locked" aria-describedby="unlock-dropbox-hint">${dropboxIcon}${isNew?(dropboxCallback?.mode==='restore'?'Continuar recuperación de Dropbox':'Sincronizar con Dropbox'):'Desbloquear y sincronizar con Dropbox'}</button><p class="hint" id="unlock-dropbox-hint" role="status">${isNew?'¿Ya tienes un cuaderno en Dropbox? Recupéralo sin crear otro. Necesitarás su contraseña.':'Desbloquea tu cuaderno para sincronizarlo. Si aún no está vinculado, podrás hacerlo en Ajustes.'}</p></div>`:''}<form id="unlock-form"><label for="password">${isNew?'Crea una contraseña de 12 caracteres como mínimo':'Contraseña del cuaderno'}</label><input id="password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>${isNew?'<label for="confirm-password">Repite la contraseña</label><input id="confirm-password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>':''}<div id="unlock-error" class="unlock-error" role="alert"></div>${isNew?'<div class="modal-actions"><button class="btn primary" type="submit" data-create-mode="empty">Crear cuaderno vacío</button><button class="btn" type="submit" data-create-mode="demo">Crear cuaderno de demostración</button></div>':'<button class="btn primary" type="submit">Desbloquear</button>'}</form><p class="hint">La contraseña no se envía ni se almacena. Si la pierdes, no podrás recuperar los datos cifrados.</p><p class="hint">Almacena los cuadernos cifrados únicamente en dispositivos autorizados. Guarda y verifica copias de seguridad independientes en ubicaciones locales no sincronizadas. ${dropboxConfigured(location.origin)?'Dropbox es opcional y solo recibe el cuaderno cifrado cuando lo vinculas.':'No uses servicios en la nube.'}</p>${dropboxCallback?.mode==='link'?'<p class="hint">Dropbox autorizado. Desbloquea tu cuaderno para confirmar la vinculación.</p>':''}<button class="btn" id="restore-locked">Restaurar una copia cifrada</button><input class="hidden" type="file" id="restore-locked-file" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/>${STATE.recovery?'<div class="recovery-choice"><p class="hint">Hay una copia cifrada de rescate anterior a la última restauración.</p><button class="btn" id="recover-locked">Recuperar versión anterior</button><button class="btn" id="download-recovery-locked">Descargar copia de rescate</button></div>':''}</div></main>`;
   $('#unlock-form').addEventListener('submit',e=>{
@@ -741,7 +754,7 @@ function showUnlock(isNew,callback=null){
         const tracked=ensureBookMetadata(migrated.doc);
         if(migrated.migrated||tracked){await persist(migrated.doc);toast('Cuaderno anterior validado y preparado para copias portátiles.');}
       }
-      STATE.saveError=null;STATE.history=emptyHistory();chooseInitial();STATE.tab='cuaderno';STATE.studentId=null;render();
+      STATE.saveError=null;STATE.history=emptyHistory();chooseInitial();await loadOrdinaryPeriods();STATE.tab='cuaderno';STATE.studentId=null;render();
       if(STATE.reloadProbe?.ok)toast('Persistencia confirmada: el cuaderno cifrado se ha recuperado y validado tras recargar.');
       STATE.reloadProbe=null;
     }catch(err){STATE.doc=null;STATE.key=null;STATE.salt=null;$('#unlock-error').textContent=err.message;button.disabled=false;}
@@ -909,15 +922,16 @@ async function restoreBackup(file){
     const replacement=await seal(doc,opened.key,opened.salt);
     // La transacción CAS conserva el rescate y sustituye el principal atómicamente.
     const recovery=await replaceEnvelopeWithRecovery(STATE.db,replacement,existing);
-    adoptRestoredNotebook(replacement,recovery,{key:opened.key,salt:opened.salt},doc);
+    await adoptRestoredNotebook(replacement,recovery,{key:opened.key,salt:opened.salt},doc);
     toast(recovery?'Importación completada. Versión local anterior conservada como rescate cifrado.':'Importación completada. Copia íntegra y validada.');
   });
 }
-function adoptRestoredNotebook(envelope,recovery,opened,doc){
+async function adoptRestoredNotebook(envelope,recovery,opened,doc){
+  periodPreferences.reset();periodGroup=null;periodBook=null;
   clearDropboxOnboarding();dropboxSession.stop();dropboxStatus='not-linked';
   STATE.envelope=envelope;STATE.recovery=recovery;
   STATE.doc=doc;STATE.key=opened.key;STATE.salt=opened.salt;STATE.saveError=null;
-  STATE.history=emptyHistory();chooseInitial();STATE.tab='cuaderno';STATE.studentId=null;render();
+  STATE.history=emptyHistory();chooseInitial();await loadOrdinaryPeriods();STATE.tab='cuaderno';STATE.studentId=null;render();
 }
 
 /** Reiniciar exige leer un archivo portable EXACTO del cuaderno vigente. */
@@ -977,7 +991,7 @@ async function resetNotebookFromVerifiedCopy(file){
     // la misma transacción: un fallo deja el cuaderno anterior intacto.
     const recovery=await replaceEnvelopeWithRecovery(STATE.db,replacement,previousEnvelope);
     STATE.exportReceipt=null;
-    adoptRestoredNotebook(replacement,recovery,{key:STATE.key,salt:STATE.salt},blank);
+    await adoptRestoredNotebook(replacement,recovery,{key:STATE.key,salt:STATE.salt},blank);
     toast('Cuaderno vacío creado. Rescate cifrado disponible en Ajustes y copias.');
   });
 }
@@ -1008,7 +1022,7 @@ async function recoverPreviousVersion(){
     if(STATE.failedEnvelope)throw new Error('Descarga el intento de guardado cifrado y recarga antes de recuperar.');
     const replacement=upgraded.migrated||tracked?await seal(upgraded.doc,opened.key,opened.salt):recovery.envelope;
     const previous=await swapRecoveryEnvelope(STATE.db,STATE.envelope,recovery,replacement);
-    adoptRestoredNotebook(replacement,previous,opened,upgraded.doc);
+    await adoptRestoredNotebook(replacement,previous,opened,upgraded.doc);
     toast('Cuaderno anterior recuperado y validado. La otra versión sigue cifrada como rescate.');
   });
 }
@@ -1156,10 +1170,10 @@ function render(){
   if(!STATE.doc)return;
   ensurePlanner(STATE.doc);
   if(!STATE.level){chooseInitial();}
-  if(!currentPeriod())STATE.periodId=[...STATE.doc.periods].sort((a,b)=>a.order-b.order)[0]?.id||null;
-  const period=currentPeriod();
   const matching=groupsForSubject();
   if(!matching.some(g=>g.id===STATE.groupId))STATE.groupId=matching[0]?.id||null;
+  if(periodBook!==STATE.doc.id||periodGroup!==STATE.groupId||!currentPeriod())restoreOrdinaryPeriod();
+  const period=currentPeriod();
   const group=currentGroup();
   applyTheme();
   unbindClassStats();
@@ -2130,7 +2144,7 @@ function bindCommon(){
     input?.focus();input?.select();
   });
   document.querySelectorAll('[data-period-choice]').forEach(b=>{
-    b.onclick=()=>{STATE.periodId=b.dataset.periodChoice;if(!['calculos','competencias'].includes(STATE.tab))STATE.tab='cuaderno';render();};
+    b.onclick=()=>selectOrdinaryPeriod(b.dataset.periodChoice).catch(fail);
     b.ondblclick=event=>{event.preventDefault();managePeriodFromTab(b.dataset.periodChoice);};
   });
   document.querySelectorAll('[data-notebook-evaluation-open]').forEach(button=>button.onclick=async()=>{
@@ -2228,7 +2242,7 @@ function bindCommon(){
     const [level,...parts]=v.pair.split(':');const subject=parts.join(':');const groupId=STATE.groupId;
     await commit(d=>classifyGroup(d,groupId,level,subject));STATE.level=level;STATE.subject=subject;STATE.groupId=groupId;render();
   },'No se modificará ningún alumno, actividad o calificación.'));
-  $('#new-period')?.addEventListener('click',()=>fieldsModal('Nuevo periodo',[{id:'name',label:'Nombre del periodo',value:`${STATE.doc.periods.length+1}.ª evaluación`}],async v=>{let p;await commit(d=>{p=addPeriod(d,v.name);});STATE.periodId=p.id;STATE.tab='cuaderno';render();}));
+  $('#new-period')?.addEventListener('click',()=>fieldsModal('Nuevo periodo',[{id:'name',label:'Nombre del periodo',value:`${STATE.doc.periods.length+1}.ª evaluación`}],async v=>{let p;await commit(d=>{p=addPeriod(d,v.name);});STATE.tab='cuaderno';await selectOrdinaryPeriod(p.id);}));
   $('#new-assessment')?.addEventListener('click',openAssessmentCreator);
   $('#new-recovery')?.addEventListener('click',()=>{
     const candidates=allAssessments().filter(a=>!a.recoveryOf&&!STATE.doc.assessments.some(x=>x.recoveryOf===a.id));
@@ -2881,7 +2895,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v199-dev');
+      const cache=await caches.open('cuaderno-docente-static-v200-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
