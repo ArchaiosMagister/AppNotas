@@ -851,6 +851,7 @@ async function init(){
   }catch(e){root.innerHTML=`<div class="unlock-screen"><div class="unlock-box"><h1>Error de almacenamiento</h1><p>${esc(e.message)}</p><p>No introduzcas datos hasta solucionar el problema. Usa HTTPS o localhost y permite almacenamiento local.</p></div></div>`;}
 }
 function showUnlock(isNew,callback=null){
+  closeGradeInfo();
   clearDropboxOnboarding();
   clearSecretInputs(dialog);
   if(dialog.open)dialog.close();
@@ -1304,6 +1305,7 @@ function renderPeriodButtons(){
   return `<nav class="term-bar" aria-label="Períodos de calificación"><div class="term-buttons" role="group" aria-label="Períodos">${periods.slice(0,-1).map(periodButton).join('')}<span class="term-last-and-final">${lastPeriod?periodButton(lastPeriod):''}${finalButton}</span><button type="button" class="term-add" id="new-period" aria-label="Añadir período" title="Crear período">+ <span>Período</span></button></div></nav>${STATE.tab==='cuaderno'?renderNotebookEvaluationNotice(STATE.doc,STATE.groupId,STATE.periodId):''}`;
 }
 function render(){
+  closeGradeInfo();
   if(!STATE.doc)return;
   ensurePlanner(STATE.doc);
   if(!STATE.level){chooseInitial();}
@@ -1421,6 +1423,58 @@ function render(){
   setStatus();
 }
 
+// Una sola capa fuera de la tabla: no aumenta las filas ni se recorta por overflow.
+let gradeInfo=null,gradeInfoLeave=null;
+function closeGradeInfo(){
+ clearTimeout(gradeInfoLeave);gradeInfoLeave=null;
+ if(!gradeInfo)return;
+ const {button,layer}=gradeInfo;gradeInfo=null;
+ button.setAttribute('aria-expanded','false');button.removeAttribute('aria-describedby');
+ layer.remove();
+}
+function delayCloseGradeInfo(){
+ clearTimeout(gradeInfoLeave);
+ if(gradeInfo&&!gradeInfo.pinned)gradeInfoLeave=setTimeout(()=>{if(!gradeInfo?.pinned)closeGradeInfo();},160);
+}
+function showGradeInfo(button,pinned=false){
+ if(!button.isConnected||!button.dataset.gradeInfo||!STATE.doc||STATE.studentPresentation)return;
+ clearTimeout(gradeInfoLeave);
+ if(gradeInfo?.button===button){if(pinned)gradeInfo.pinned=true;return;}
+ closeGradeInfo();
+ const layer=document.createElement('div');
+ layer.id='grade-info-popover';layer.className='grade-info-popover';layer.setAttribute('role','tooltip');
+ layer.textContent=button.dataset.gradeInfo;
+ document.body.append(layer);
+ gradeInfo={button,layer,pinned};
+ button.setAttribute('aria-expanded','true');button.setAttribute('aria-describedby',layer.id);
+ const r=button.getBoundingClientRect(),v=window.visualViewport;
+ const left=v?.offsetLeft||0,top=v?.offsetTop||0,width=v?.width||window.innerWidth,height=v?.height||window.innerHeight;
+ layer.style.maxWidth=Math.max(80,Math.min(320,width-24))+'px';
+ const size=layer.getBoundingClientRect();
+ const x=Math.max(left+8,Math.min(r.left+r.width/2-size.width/2,left+width-size.width-8));
+ const y=r.bottom+6+size.height<=top+height-8?r.bottom+6:Math.max(top+8,r.top-size.height-6);
+ layer.style.left=x+'px';layer.style.top=y+'px';
+ layer.addEventListener('pointerenter',()=>clearTimeout(gradeInfoLeave));
+ layer.addEventListener('pointerleave',delayCloseGradeInfo);
+}
+function bindGradeInfo(){
+ root.querySelectorAll('[data-grade-info]').forEach(button=>{
+  button.addEventListener('pointerenter',event=>{if(event.pointerType==='mouse')showGradeInfo(button);});
+  button.addEventListener('pointerleave',delayCloseGradeInfo);
+  button.addEventListener('focus',()=>{if(button.matches(':focus-visible'))showGradeInfo(button);});
+  button.addEventListener('blur',()=>{if(gradeInfo?.button===button)closeGradeInfo();});
+  button.addEventListener('click',()=>{
+   if(gradeInfo?.button===button&&gradeInfo.pinned)closeGradeInfo();
+   else showGradeInfo(button,true);
+  });
+ });
+}
+document.addEventListener('pointerdown',event=>{if(gradeInfo&&!gradeInfo.button.contains(event.target)&&!gradeInfo.layer.contains(event.target))closeGradeInfo();},true);
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&gradeInfo){closeGradeInfo();event.preventDefault();event.stopPropagation();}},true);
+window.addEventListener('scroll',()=>{if(gradeInfo)closeGradeInfo();},true);
+window.addEventListener('resize',closeGradeInfo);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)closeGradeInfo();});
+
 function renderNotebook(){
   const assessments=allAssessments(),students=allStudents(),originOptions=originGroupOptions(STATE.doc,STATE.groupId);
   const visibleIds=new Set(assessments.map(a=>a.id));
@@ -1451,10 +1505,10 @@ function renderNotebook(){
       ${state?'<span class="visually-hidden">Estado: '+state+'</span>':''}
     </span>`;
   };
-  // Una cifra, un menú debajo y el texto auxiliar en flujo: sin superposiciones.
-  const gradeCellStack=(main,actions='',secondary='')=>`<div class="grade-cell-stack">
+  // La nota se centra en la celda, con el menú debajo y el detalle en una capa externa.
+  const gradeCellStack=(main,actions='',secondary='',info='')=>`<div class="grade-cell-stack">
     <div class="grade-cell-face">${main}</div>
-    <div class="grade-cell-below"><div class="grade-cell-menu">${actions}</div>
+    <div class="grade-cell-below"><div class="grade-cell-menu">${actions}${info?`<button type="button" class="grade-info-trigger" data-grade-info="${esc(info)}" aria-expanded="false" aria-label="Detalle de calificación: ${esc(info)}"><span aria-hidden="true">!</span></button>`:''}</div>
     <div class="grade-cell-support">${secondary}</div></div></div>`;
   const gradesByStudent=new Map();
   for(const grade of STATE.doc.grades){
@@ -1488,12 +1542,12 @@ function renderNotebook(){
       const assigned=g?.greekEtymologyBonus??0;
       const applied=g?greekEtymologyBonusApplied(STATE.doc,a,g):0;
       const greekNote=a.greekEtymologyBonusEnabled&&assigned>0?
-        ` · Etimología +${esc(rawFmt(assigned))}${applied===0?' (no computa)':''}`:'';
-      const note=g&&(a.maxScore!==10||faults>0||assigned>0)?`<small class="orthography-meta">Original: ${esc(rawFmt(g.score))}/${esc(rawFmt(a.maxScore))}${faults?` · ${g.orthographyDelivered?'✓ Entregadas':`−${esc(penaltyFmt(amount))} (${faults} faltas)`}`:''}${greekNote}</small>`:'';
+        ` · Etimología +${rawFmt(assigned)}${applied===0?' (no computa)':''}`:'';
+      const note=g&&(a.maxScore!==10||faults>0||assigned>0)?`Original: ${rawFmt(g.score)}/${rawFmt(a.maxScore)}${faults?` · ${g.orthographyDelivered?'✓ Entregadas':`−${penaltyFmt(amount)} (${faults} faltas)`}`:''}${greekNote}`:'';
       const main=`<button class="orthography-grade-button" type="button" data-orthography-grade="${esc(a.id)}" data-orthography-student="${esc(s.id)}"
         aria-label="Corregir ${esc(s.name)} en ${esc(a.name)}: nota, faltas y entrega">${g?.pendingJustified?'<span class="aj-badge">AJ · Pendiente</span>':g?.notSubmitted?npGradeMarker:g?gradeChip(value):'<strong>+ Nota</strong>'}</button>`;
-      const secondary=g?.notSubmitted||g?.pendingJustified?'':note;
-      return `<td${categoryCell(a)}>${gradeCellStack(main,gradeCellActions(s,a,g,npButton,ajButton),secondary)}</td>`;
+      const info=g?.notSubmitted||g?.pendingJustified?'':note;
+      return `<td${categoryCell(a)}>${gradeCellStack(main,gradeCellActions(s,a,g,npButton,ajButton),'',info)}</td>`;
     }
     const isTenScale=a.maxScore===10||a.convertToTen;
     const converted=g&&!g.notSubmitted&&!g.pendingJustified&&isTenScale?normalizedScore(g.score,a.maxScore,a.convertToTen):null;
@@ -2746,6 +2800,7 @@ function openGradeCellActions(studentId,assessmentId){
   dialog.showModal();
 }
 function bindNotebook(){
+  bindGradeInfo();
   const view=currentView();
   const panel=$('.notebook-panel');
   const menus=[...panel.querySelectorAll('.notebook-more-actions,.notebook-student-options,.notebook-grade-options')];
@@ -3049,7 +3104,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/evaluation-groups.js','./src/evaluation-ui.js','./src/evaluation-workspace.js','./src/notebook-evaluation-notice.js','./src/evaluation-period-board.js','./src/evaluation-session-presentation.js','./src/student-link-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/dropbox-conflict.js','./src/dropbox-config.js','./src/dropbox-onboarding.js','./src/dropbox-session.js','./src/period-preferences.js','./src/dropbox-controller.js','./src/dropbox-local.js','./src/dropbox-sync.js','./src/dropbox-oauth.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v210-dev');
+      const cache=await caches.open('cuaderno-docente-static-v211-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

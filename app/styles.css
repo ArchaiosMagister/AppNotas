@@ -4355,30 +4355,23 @@ html[data-redesign] .grade-table th.final-col .class-stat-heading{white-space:no
 
 @media print{.redesign-density{display:none}}
 
-/* Calificaciones: un eje común para todas las celdas del cuaderno.
- * Los textos y los indicadores son independientes de la posición de la nota. */
+/* Calificaciones: centrado real en los dos ejes, también en densidad compacta.
+ * Las pistas superior e inferior son simétricas, aun con nota original editable. */
 .table-scroller>.grade-table tbody td:has(>.grade-cell-stack){
-  vertical-align:top;
+  vertical-align:middle;
   --notebook-grade-width:72px;
 }
 .table-scroller>.grade-table tbody td .grade-cell-stack{
-  grid-template-rows:var(--notebook-face-height,44px) minmax(var(--notebook-menu-size,44px),auto);
-  align-content:start;
-  min-height:calc(var(--notebook-face-height,44px) + var(--notebook-menu-size,44px));
+  grid-template-rows:minmax(var(--notebook-menu-size,44px),1fr) var(--notebook-face-height,44px) minmax(var(--notebook-menu-size,44px),1fr);
+  align-content:center;
+  min-height:calc(var(--notebook-face-height,44px) + 2 * var(--notebook-menu-size,44px));
   width:100%;
 }
 .table-scroller>.grade-table tbody td .grade-cell-face{
-  height:var(--notebook-face-height,44px);
+  grid-row:2;height:var(--notebook-face-height,44px);
   min-height:var(--notebook-face-height,44px);
 }
-html:is([data-redesign-density="normal"],[data-redesign-density="wide"]) .table-scroller>.grade-table tbody td:has(>.grade-cell-stack){vertical-align:middle}
-html:is([data-redesign-density="normal"],[data-redesign-density="wide"]) .table-scroller>.grade-table tbody td .grade-cell-stack{
- grid-template-rows:minmax(var(--notebook-menu-size),1fr) var(--notebook-face-height) minmax(var(--notebook-menu-size),1fr);
- align-content:center;
- min-height:calc(var(--notebook-face-height) + 2 * var(--notebook-menu-size));
-}
-html:is([data-redesign-density="normal"],[data-redesign-density="wide"]) .table-scroller>.grade-table tbody td .grade-cell-face{grid-row:2}
-html:is([data-redesign-density="normal"],[data-redesign-density="wide"]) .table-scroller>.grade-table tbody td .grade-cell-below{grid-row:3}
+.table-scroller>.grade-table tbody td .grade-cell-below{grid-row:3}
 .table-scroller>.grade-table tbody td .grade-cell-face :is(.grade-chip,.np-grade-marker,.grade-empty,.aj-badge,.note-input:not(.original-note-input)){
   box-sizing:border-box;
   display:inline-flex;
@@ -4435,7 +4428,7 @@ html:is([data-redesign-density="normal"],[data-redesign-density="wide"]) .table-
   align-self:start;display:flex;flex-direction:column;align-items:center;width:100%;min-width:0;
 }
 .table-scroller>.grade-table tbody td .grade-cell-menu{
-  position:static;min-height:0;width:100%;justify-content:center;
+  position:relative;right:auto;bottom:auto;min-height:0;width:100%;justify-content:center;
 }
 .table-scroller>.grade-table tbody td .grade-cell-menu .grade-cell-action-anchor{min-height:var(--notebook-menu-size,44px)}
 .table-scroller>.grade-table tbody td .grade-cell-menu .grade-cell-actions-trigger{
@@ -4478,3 +4471,21 @@ html[data-theme="oled"] .student-origin-badge[class*="origin-color-"]{background
 .student-origin-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .student-origin-select option{background:var(--surface);color:var(--ink);font-weight:600}
 @media(pointer:coarse),(max-width:650px){.student-name-cell .student-origin-select{min-height:44px;min-width:76px}}
+
+/* Detalle de corrección sin texto en línea ni desplazamiento de la cifra. */
+.table-scroller>.grade-table tbody td .grade-info-trigger{
+ position:absolute;right:0;top:0;display:inline-flex;align-items:center;justify-content:center;
+ width:var(--notebook-menu-size,44px);height:var(--notebook-menu-size,44px);
+ min-width:var(--notebook-menu-size,44px);min-height:var(--notebook-menu-size,44px);
+ padding:0;border:0;background:transparent;color:var(--ink);cursor:pointer;border-radius:8px;
+}
+.grade-info-trigger>span{display:grid;place-items:center;width:20px;height:20px;border:1px solid currentColor;border-radius:50%;font-size:13px;font-weight:850;line-height:1;color:var(--ink)}
+.grade-info-trigger:is(:hover,:focus-visible,[aria-expanded="true"])>span{background:var(--ink);color:var(--surface)}
+.grade-info-trigger:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.grade-info-popover{
+ position:fixed;z-index:10000;box-sizing:border-box;width:max-content;max-width:min(320px,calc(100vw - 24px));
+ padding:10px 13px;border:1px solid var(--line);border-radius:10px;background:var(--raised);color:var(--ink);
+ box-shadow:0 5px 20px #0003;font-size:13px;font-weight:650;line-height:1.5;overflow-wrap:anywhere;text-align:left;
+}
+html[data-theme="oled"] .grade-info-popover{background:#090909;border-color:#6b7280}
+@media print{.grade-info-trigger,.grade-info-popover{display:none!important}}
