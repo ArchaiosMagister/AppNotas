@@ -169,6 +169,38 @@ const STUDENT_ACTIVITY_SORT_OPTIONS=[['category','Por categoría'],['column','Or
 const STATE={evaluationWorkspaceTab:'sesiones',plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),notebookZoom:savedNotebookZoom(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),studentPlainSort:savedStudentPlainSort(),studentActivityOrders:savedStudentActivityOrders(),studentPeriodId:null,studentFull:false,studentPresentation:false,db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
 const periodPreferences=createPeriodPreferenceStore({state:STATE});
 let periodGroup=null,periodBook=null,preferenceError=false,preferenceSyncState='';
+let deferredPeriod=false,deferredRender=false,refreshTimer=null;
+const activePointers=new Set();
+function currentView(){return {key:STATE.key,bookId:STATE.doc?.id,groupId:STATE.groupId,periodId:STATE.periodId,tab:STATE.tab};}
+function sameView(v){return STATE.key===v.key&&STATE.doc?.id===v.bookId&&STATE.groupId===v.groupId&&STATE.periodId===v.periodId&&STATE.tab===v.tab;}
+function activeEditor(){return root.contains(document.activeElement)&&document.activeElement.matches('input:not([type=button]):not([type=checkbox]):not([type=radio]):not([type=file]):not([type=color]),textarea,[contenteditable=true]');}
+function canRefreshView(){return !activePointers.size&&!activeEditor()&&!dialog.open&&!STATE.studentPresentation;}
+function applyDeferredPeriod(){
+ if(!deferredPeriod||preferenceError||!STATE.doc||STATE.pending||!canRefreshView()||!['cuaderno','calculos','competencias'].includes(STATE.tab))return false;
+ deferredPeriod=false;
+ const selected=preferredPeriod(periodPreferences.get(),STATE.doc,STATE.groupId);
+ if(selected===STATE.periodId)return false;
+ restoreOrdinaryPeriod();return true;
+}
+function scheduleDeferredRefresh(){
+ if(!deferredRender&&!deferredPeriod)return;
+ clearTimeout(refreshTimer);
+ refreshTimer=setTimeout(()=>{
+  refreshTimer=null;
+  if(!STATE.doc||STATE.pending||!canRefreshView())return;
+  const changed=applyDeferredPeriod();
+  if(changed||deferredRender)render();
+ },100);
+}
+function renderAfterMutation(){
+ if(activePointers.size||activeEditor()||STATE.pending>1){deferredRender=true;scheduleDeferredRefresh();return false;}
+ render();return true;
+}
+document.addEventListener('pointerdown',e=>activePointers.add(e.pointerId),true);
+for(const event of ['pointerup','pointercancel'])document.addEventListener(event,e=>{activePointers.delete(e.pointerId);scheduleDeferredRefresh();},true);
+window.addEventListener('blur',()=>{activePointers.clear();scheduleDeferredRefresh();});
+document.addEventListener('focusout',scheduleDeferredRefresh,true);
+dialog.addEventListener('close',scheduleDeferredRefresh);
 function restoreOrdinaryPeriod(){STATE.periodId=preferredPeriod(periodPreferences.get(),STATE.doc,STATE.groupId);periodGroup=STATE.groupId;periodBook=STATE.doc.id;}
 async function loadOrdinaryPeriods(incoming=null){try{await periodPreferences.load();if(incoming)await periodPreferences.merge(incoming);preferenceError=false;}catch{preferenceError=true;}restoreOrdinaryPeriod();}
 function selectOrdinaryPeriod(id){
@@ -206,10 +238,7 @@ const dropboxSession=createDropboxSession({state:STATE,preferences:periodPrefere
   onPreferences:ok=>{
     preferenceSyncState=ok?'Preferencias de evaluación sincronizadas.':'Preferencias de evaluación pendientes de sincronizar.';
     paintDropboxStatus();
-    if(ok&&!preferenceError&&STATE.doc&&!STATE.pending&&!dialog.open&&!STATE.studentPresentation&&['cuaderno','calculos','competencias'].includes(STATE.tab)&&!document.activeElement?.matches?.('input,select,textarea,[contenteditable=true]')){
-      const selected=preferredPeriod(periodPreferences.get(),STATE.doc,STATE.groupId);
-      if(selected!==STATE.periodId){restoreOrdinaryPeriod();render();}
-    }
+    if(ok&&!preferenceError&&STATE.doc){deferredPeriod=true;scheduleDeferredRefresh();}
   }});
 function startDropboxSession(){void dropboxSession.start().catch(()=>{dropboxStatus='error';paintDropboxStatus();});}
 function openDropboxSettings(){STATE.tab='ajustes';STATE.studentPresentation=false;render();$('#dropbox-settings')?.scrollIntoView({block:'nearest'});}
@@ -619,29 +648,31 @@ function updateUnloadWarning(){
 function enqueueMutation(fn){
   STATE.pending++;updateUnloadWarning();
   const job=STATE.mutationQueue.then(fn).finally(()=>{
-    STATE.pending--;updateUnloadWarning();
+    STATE.pending--;updateUnloadWarning();scheduleDeferredRefresh();
   });
   STATE.mutationQueue=job.catch(()=>{});
   return job;
 }
 
 function commit(action,label='Modificar cuaderno'){
+  const view=currentView();
   return enqueueMutation(async()=>{
-    if(!STATE.doc||!STATE.key)throw new Error('El cuaderno está bloqueado.');
+    if(!STATE.doc||!STATE.key||STATE.key!==view.key||STATE.doc.id!==view.bookId)throw new Error('El cuaderno cambió antes de guardar la acción.');
     if(STATE.saveError)throw new Error('El guardado está bloqueado por un error. No introduzcas más notas: recarga el cuaderno y revisa la situación.');
     const before=STATE.doc,next=structuredClone(before);
     action(next);assertModel(next);
     if(JSON.stringify(before)===JSON.stringify(next))return;
     // Guardar también el scroll al comenzar la escritura para que la reconstrucción
     // completa del DOM tras persistir no vuelva al principio de la página/tabla.
-    const notebookScroll=label==='Editar nota'&&STATE.tab==='cuaderno'?
+    const notebookScroll=label==='Editar nota'&&sameView(view)&&STATE.tab==='cuaderno'?
       {x:window.scrollX,y:window.scrollY,left:$('.table-scroller')?.scrollLeft??0,top:$('.table-scroller')?.scrollTop??0}:null;
     markBookChange(next,before);
     await persist(next);
     STATE.history=recordChange(STATE.history,before,next,label);
-    STATE.doc=next;render();dropboxSession.changed();
-    if(notebookScroll){
+    STATE.doc=next;const rendered=renderAfterMutation();dropboxSession.changed();
+    if(notebookScroll&&rendered&&sameView(view)){
       const restore=()=>{
+        if(!sameView(view)||activePointers.size||activeEditor())return;
         const table=$('.table-scroller');
         if(table){table.scrollLeft=notebookScroll.left;table.scrollTop=notebookScroll.top;}
         window.scrollTo(notebookScroll.x,notebookScroll.y);
@@ -746,7 +777,7 @@ function showUnlock(isNew,callback=null){
   dropboxCallback=callback?.mode===(isNew?'restore':'link')?callback:null;
   dropboxSession.stop();
   unbindGradeTableHeaders();
-  periodPreferences.reset();periodGroup=null;periodBook=null;preferenceError=false;preferenceSyncState='';
+  periodPreferences.reset();periodGroup=null;periodBook=null;preferenceError=false;preferenceSyncState='';deferredPeriod=false;deferredRender=false;clearTimeout(refreshTimer);
   STATE.doc=null;STATE.key=null;STATE.salt=null;STATE.history=emptyHistory();STATE.studentPresentation=false;
   root.innerHTML=`<main class="unlock-screen"><div class="unlock-box"><div class="brand-mini">▦</div><div class="eyebrow">AppNotas · versión 1.0</div><h1>CuadernoDocente</h1>${isDropboxTest(location.origin)?'<p class="section-note"><strong>PRUEBAS: solo datos ficticios.</strong> No importes tu cuaderno real.</p>':''}<p>${isNew?'Elige un cuaderno vacío o uno de demostración con ocho alumnos ficticios. Ambos se guardan cifrados en este dispositivo.':'Desbloquea tu cuaderno local cifrado para continuar.'}</p>${STATE.reloadProbe?`<p class="${STATE.reloadProbe.ok?'section-note':'unlock-error'}" role="status">${STATE.reloadProbe.ok?'Recarga verificada: la misma copia cifrada continúa en IndexedDB. Desbloquéala para validar las notas.':'No se ha podido verificar el guardado tras recargar. Revisa el almacenamiento y no introduzcas más datos hasta comprobar la copia.'}</p>`:''}${pwaButtons()}<button type="button" class="btn unlock-help-primary" id="how-it-works" aria-label="Cómo funciona AppNotas y cómo guardar copias de seguridad">¿Cómo funciona? <span aria-hidden="true">ⓘ</span></button>${dropboxConfigured(location.origin)?`<div class="unlock-dropbox"><button class="btn dropbox-sync-btn" type="button" id="dropbox-restore-locked" aria-describedby="unlock-dropbox-hint">${dropboxIcon}${isNew?(dropboxCallback?.mode==='restore'?'Continuar recuperación de Dropbox':'Sincronizar con Dropbox'):'Desbloquear y sincronizar con Dropbox'}</button><p class="hint" id="unlock-dropbox-hint" role="status">${isNew?'¿Ya tienes un cuaderno en Dropbox? Recupéralo sin crear otro. Necesitarás su contraseña.':'Desbloquea tu cuaderno para sincronizarlo. Si aún no está vinculado, podrás hacerlo en Ajustes.'}</p></div>`:''}<form id="unlock-form"><label for="password">${isNew?'Crea una contraseña de 12 caracteres como mínimo':'Contraseña del cuaderno'}</label><input id="password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>${isNew?'<label for="confirm-password">Repite la contraseña</label><input id="confirm-password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>':''}<div id="unlock-error" class="unlock-error" role="alert"></div>${isNew?'<div class="modal-actions"><button class="btn primary" type="submit" data-create-mode="empty">Crear cuaderno vacío</button><button class="btn" type="submit" data-create-mode="demo">Crear cuaderno de demostración</button></div>':'<button class="btn primary" type="submit">Desbloquear</button>'}</form><p class="hint">La contraseña no se envía ni se almacena. Si la pierdes, no podrás recuperar los datos cifrados.</p><p class="hint">Almacena los cuadernos cifrados únicamente en dispositivos autorizados. Guarda y verifica copias de seguridad independientes en ubicaciones locales no sincronizadas. ${dropboxConfigured(location.origin)?'Dropbox es opcional y solo recibe el cuaderno cifrado cuando lo vinculas.':'No uses servicios en la nube.'}</p>${dropboxCallback?.mode==='link'?'<p class="hint">Dropbox autorizado. Desbloquea tu cuaderno para confirmar la vinculación.</p>':''}<button class="btn" id="restore-locked">Restaurar una copia cifrada</button><input class="hidden" type="file" id="restore-locked-file" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/>${STATE.recovery?'<div class="recovery-choice"><p class="hint">Hay una copia cifrada de rescate anterior a la última restauración.</p><button class="btn" id="recover-locked">Recuperar versión anterior</button><button class="btn" id="download-recovery-locked">Descargar copia de rescate</button></div>':''}</div></main>`;
   $('#unlock-form').addEventListener('submit',e=>{
@@ -945,7 +976,7 @@ async function restoreBackup(file){
   });
 }
 async function adoptRestoredNotebook(envelope,recovery,opened,doc){
-  periodPreferences.reset();periodGroup=null;periodBook=null;
+  periodPreferences.reset();periodGroup=null;periodBook=null;deferredPeriod=false;deferredRender=false;clearTimeout(refreshTimer);
   clearDropboxOnboarding();dropboxSession.stop();dropboxStatus='not-linked';
   STATE.envelope=envelope;STATE.recovery=recovery;
   STATE.doc=doc;STATE.key=opened.key;STATE.salt=opened.salt;STATE.saveError=null;
@@ -1051,17 +1082,20 @@ async function recoverPreviousVersion(){
 async function closeNotebook(){
   await STATE.mutationQueue;await STATE.saveQueue;
   if(!STATE.doc||!STATE.key||STATE.saveError||STATE.failedEnvelope)throw new Error('No se puede cerrar: hay cambios sin guardar. Conserva el cuaderno local y resuelve el error.');
-  if(!sameEnvelope(await readEnvelope(STATE.db),STATE.envelope))throw new Error('El cuaderno cambió desde otra pestaña. No exportes una versión desactualizada.');
-  const snapshot=structuredClone(STATE.doc);
+  const doc=STATE.doc,key=STATE.key,salt=STATE.salt.slice(),expected=STATE.envelope,db=STATE.db;
+  const stillCurrent=()=>STATE.doc===doc&&STATE.key===key&&sameEnvelope(STATE.envelope,expected)&&!STATE.pending&&!STATE.saveError&&!STATE.failedEnvelope;
+  if(!sameEnvelope(await readEnvelope(db),expected)||!stillCurrent())throw new Error('El cuaderno cambió. Repite la preparación de la copia.');
+  const snapshot=structuredClone(doc);
   const exportedDate=new Date();
   const preferences=await periodPreferences.load().catch(()=>null);
-  const prepared=await createPortableCopy(snapshot,STATE.key,STATE.salt,exportedDate,preferences);
+  const prepared=await createPortableCopy(snapshot,key,salt,exportedDate,preferences);
+  if(!sameEnvelope(await readEnvelope(db),expected)||!stillCurrent())throw new Error('El cuaderno cambió durante la preparación. Repite la copia.');
   if(prepared.preferencesOmitted||!preferences)toast('La copia de las notas es válida; no ha sido posible incluir las preferencias de evaluación.');
   const filename=portableFilename(exportedDate);
   if(dialog.open)throw new Error('Cierra el diálogo actual para exportar.');
   dialog.innerHTML=`<div class="modal-inner portable-dialog"><h2 id="modal-heading">Cerrar cuaderno · copia cifrada</h2><p>Los cambios se han guardado en este dispositivo. La copia completa está cifrada con la contraseña de este cuaderno.</p><p><strong>${esc(filename)}</strong></p><p class="hint"><strong>Solo almacenamiento local autorizado por el centro:</strong> elige «En mi iPad» / «En mi iPhone», una carpeta local del ordenador o un USB sin sincronización. No elijas iCloud Drive, OneDrive ni carpetas sincronizadas. ${dropboxConfigured(location.origin)?'Esta exportación es independiente de Dropbox; no confirma que se haya completado la sincronización.':'Esta aplicación no accede a ninguna nube ni confirma la sincronización posterior.'}</p><p id="close-result" class="hint" role="status">El cuaderno local permanece intacto aunque canceles.</p><div class="modal-actions portable-choices"><button class="btn" id="close-cancel">Cancelar</button><button class="btn primary" id="close-save">Guardar archivo cifrado</button><button class="btn hidden" id="close-lock">Bloquear cuaderno</button></div></div>`;
   $('#close-cancel',dialog).onclick=()=>{dialog.close();toast('Exportación cancelada. El cuaderno local permanece guardado.');};
-  $('#close-save',dialog).onclick=()=>savePreparedCopy(prepared,filename);
+  $('#close-save',dialog).onclick=()=>savePreparedCopy(prepared,filename,{expected,key,db,doc});
   dialog.showModal();
 }
 function preparedSaveCompleted(){
@@ -1069,9 +1103,10 @@ function preparedSaveCompleted(){
   if(back){back.textContent='Volver al cuaderno';back.onclick=()=>dialog.close();}
   if(lock){lock.classList.remove('hidden');lock.onclick=()=>{dialog.close();showUnlock(false);toast('Cuaderno bloqueado. La copia local cifrada permanece en el dispositivo.');};}
 }
-async function savePreparedCopy(prepared,filename){
+async function savePreparedCopy(prepared,filename,source){
   const button=$('#close-save',dialog),message=$('#close-result',dialog);
   if(button.disabled)return;
+  button.disabled=true;
   const blob=new Blob([JSON.stringify(prepared.file)],{type:'application/octet-stream'});
   const downloadable=new File([blob],filename,{type:'application/octet-stream'});
   // showSaveFilePicker debe ejecutarse directamente en el evento click del usuario.
@@ -1093,8 +1128,9 @@ async function savePreparedCopy(prepared,filename){
       // Si el guardado falló, el control anterior nunca llega aquí.
       const receipt={version:1,bookId:prepared.bookId,head:prepared.head,exportedAt:prepared.exportedAt};
       try{
-        await recordExportReceipt(STATE.db,receipt,STATE.envelope);
-        STATE.exportReceipt=receipt;
+        if(STATE.key!==source.key||STATE.doc!==source.doc||!sameEnvelope(STATE.envelope,source.expected))throw Error('La revisión actual ya no coincide con el archivo.');
+        await recordExportReceipt(source.db,receipt,source.expected);
+        if(STATE.key===source.key&&STATE.doc===source.doc)STATE.exportReceipt=receipt;
         message.textContent='Archivo escrito en la ubicación elegida. Comprueba que sea exclusivamente local y que el archivo se puede abrir desde «Verificar copia».';
       }catch(e){message.textContent='Archivo escrito, pero no se pudo registrar la exportación local: '+e.message;}
       updatePortableStatus();preparedSaveCompleted();toast('Copia cifrada escrita. Verifica su presencia en la carpeta elegida.');
@@ -1193,6 +1229,7 @@ function render(){
   const matching=groupsForSubject();
   if(!matching.some(g=>g.id===STATE.groupId))STATE.groupId=matching[0]?.id||null;
   if(periodBook!==STATE.doc.id||periodGroup!==STATE.groupId||!currentPeriod())restoreOrdinaryPeriod();
+  deferredRender=false;applyDeferredPeriod();
   const period=currentPeriod();
   const group=currentGroup();
   applyTheme();
@@ -1573,7 +1610,8 @@ function editRubricModal(rubric=null){
     try{
       const criteria=validateRubricDraft([...list.querySelectorAll('[data-editor-row]')].map(r=>({name:$('[data-criterion-name]',r).value,maxScore:$('[data-criterion-max]',r).value,weight:$('[data-criterion-weight]',r).value})));
       form.querySelector('[type="submit"]').disabled=true;
-      await commit(d=>rubric?updateRubric(d,rubric.id,$('#rubric-editor-name',dialog).value,criteria):createRubric(d,$('#rubric-editor-name',dialog).value,criteria),rubric?'Editar rúbrica':'Crear rúbrica');
+      const name=$('#rubric-editor-name',dialog).value;
+      await commit(d=>rubric?updateRubric(d,rubric.id,name,criteria):createRubric(d,name,criteria),rubric?'Editar rúbrica':'Crear rúbrica');
       dialog.close();
     }catch(err){$('.modal-error',dialog).textContent=err.message;form.querySelector('[type="submit"]').disabled=false;}
   };
@@ -1617,7 +1655,8 @@ function openGradeObservation(studentId,assessmentId){
     const button=$('#save-grade-observation',form);
     button.disabled=true;
     try{
-      await commit(d=>setGradeObservation(d,studentId,assessmentId,text.value,checkbox.checked),'Editar observación de calificación');
+      const value=text.value,visible=checkbox.checked;
+      await commit(d=>setGradeObservation(d,studentId,assessmentId,value,visible),'Editar observación de calificación');
       if(dialog.open)dialog.close();
       const restore=()=>{
         const table=$('.table-scroller');
@@ -1998,11 +2037,12 @@ function bindFinalEvaluation(){
       .catch(err=>{fail(err);render();});
   });
   document.querySelectorAll('[data-finalstudent][data-finalperiod]').forEach(input=>input.onchange=async e=>{
-    const val=e.target.value.trim();try{await commit(d=>setFinalOverride(d,e.target.dataset.finalstudent,e.target.dataset.finalperiod,val===''?null:val.replace(',','.')),'Nota manual de periodo');}catch(err){fail(err);render();}
+    const val=e.target.value.trim(),studentId=e.target.dataset.finalstudent,periodId=e.target.dataset.finalperiod;try{await commit(d=>setFinalOverride(d,studentId,periodId,val===''?null:val.replace(',','.')),'Nota manual de periodo');}catch(err){fail(err);render();}
   });
 }
 
 function openCopyActivities(){
+  const {groupId,periodId}=currentView();
   const destinations=[...STATE.doc.periods].sort((a,b)=>a.order-b.order).filter(p=>p.id!==STATE.periodId);
   if(!destinations.length)return toast('Primero crea una segunda evaluación.');
   const source=allAssessments();
@@ -2012,12 +2052,13 @@ function openCopyActivities(){
   $('#copy-activities-form',dialog).onsubmit=async e=>{
     e.preventDefault();const targets=[...dialog.querySelectorAll('[data-copy-destination]:checked')].map(x=>x.value);
     if(!targets.length){$('.modal-error',dialog).textContent='Selecciona al menos una evaluación vacía.';return;}
-    try{await commit(d=>copyPeriodAssessments(d,STATE.groupId,STATE.periodId,targets),'Copiar actividades sin notas');dialog.close();toast('Estructura copiada; no se han duplicado calificaciones.');}
+    try{await commit(d=>copyPeriodAssessments(d,groupId,periodId,targets),'Copiar actividades sin notas');dialog.close();toast('Estructura copiada; no se han duplicado calificaciones.');}
     catch(err){$('.modal-error',dialog).textContent=err.message;}
   };
   dialog.showModal();
 }
 function openAssessmentCreator(){
+  const {groupId,periodId}=currentView();
   if(!STATE.doc.categories.length){toast('Crea primero una categoría desde Cálculos.');return;}
   const kinds=[{id:'',name:'Nota numérica'},...STATE.doc.rubrics.map(r=>({id:r.id,name:'Rúbrica existente: '+r.name})),{id:'__new',name:'Crear rúbrica aquí'}, {id:'__import',name:'Importar rúbrica Excel, CSV o JSON'}];
   dialog.classList.add('activity-modal');dialog.addEventListener('close',()=>dialog.classList.remove('activity-modal'),{once:true});
@@ -2080,7 +2121,7 @@ Participación;2;20"></textarea></label></div><div id="activity-import-rubric" c
           let rubricId=!kind||kind==='__new'||kind==='__import'?null:kind;
           if(draft)rubricId=createRubric(d,draft.name,draft.criteria).id;
           const orthography=rubricId?null:{enabled:v.orthEnabled==='true',penaltyPerFault:parseScore(v.orthRate),repetitions:Number(v.orthCopies),refundable:v.orthRecoverable==='true'};
-          addAssessment(d,{name:actionName,groupId:STATE.groupId,periodId:STATE.periodId,categoryId:v.categoryId,maxScore:rubricId?10:Number(v.maxScore),weight:Number(v.weight),convertToTen:rubricId?true:v.convertToTen==='true',rubricId,orthography,greekEtymologyBonusEnabled:v.greekEtymologyBonusEnabled==='true'});
+          addAssessment(d,{name:actionName,groupId,periodId,categoryId:v.categoryId,maxScore:rubricId?10:Number(v.maxScore),weight:Number(v.weight),convertToTen:rubricId?true:v.convertToTen==='true',rubricId,orthography,greekEtymologyBonusEnabled:v.greekEtymologyBonusEnabled==='true'});
         },'Crear actividad');
         dialog.close();toast('Actividad añadida al cuaderno.');
       }finally{btn.disabled=false;}
@@ -2089,6 +2130,7 @@ Participación;2;20"></textarea></label></div><div id="activity-import-rubric" c
   dialog.showModal();form.querySelector('[name=name]')?.focus();
 }
 function bindCommon(){
+  const {groupId:boundGroup,periodId:boundPeriod}=currentView(),boundLevel=STATE.level,boundSubject=STATE.subject;
   $('#dropbox-sync')?.addEventListener('click',()=>{if(dropboxStatus==='conflict')openDropboxSettings();else if(dropboxSession.active())void dropboxSession.manual();else openDropboxSettings();});
   document.querySelectorAll('[data-shell-disclosure]').forEach(details=>details.addEventListener('toggle',()=>{
     const key=details.dataset.shellDisclosure;
@@ -2193,7 +2235,7 @@ function bindCommon(){
     }catch(error){fail(error);if(button.isConnected)button.disabled=false;}
   });
   document.querySelectorAll('[data-rename-period]').forEach(b=>b.onclick=()=>managePeriodFromTab(b.dataset.renamePeriod));
-  $('#accent-select')?.addEventListener('change',e=>commit(d=>setSubjectAccent(d,STATE.level,STATE.subject,e.target.value)).catch(fail));
+  $('#accent-select')?.addEventListener('change',e=>{const value=e.target.value;return commit(d=>setSubjectAccent(d,boundLevel,boundSubject,value)).catch(fail);});
   document.querySelectorAll('[data-academic-quick]').forEach(button=>button.addEventListener('click',()=>{
     const destination=button.dataset.academicQuick;
     if(!['cuaderno','calculos','competencias','final','alumno'].includes(destination)||!STATE.groupId)return;
@@ -2255,11 +2297,11 @@ function bindCommon(){
       {id:'course',label:'Curso escolar',value:activeYear(STATE.doc)?.name||'2026-2027'},
       {id:'weeklyHours',label:'Horas semanales (opcional; límite para el horario)',type:'number',value:'',min:1,max:30,required:false}
     ],async v=>{
-      let group;await commit(d=>{group=addGroup(d,v.name,STATE.subject,v.course,STATE.level,v.weeklyHours);});STATE.groupId=group.id;render();
+      let group;await commit(d=>{group=addGroup(d,v.name,boundSubject,v.course,boundLevel,v.weeklyHours);});if(STATE.level===boundLevel&&STATE.subject===boundSubject){STATE.groupId=group.id;render();}
     },`Asignatura: ${COURSE_SUBJECTS[STATE.level].label} · ${STATE.subject}. El grupo se verá bajo su materia y podrá reunir alumnos de varias tutorías.`);
   };
   $('#classify-group')?.addEventListener('click',()=>fieldsModal('Clasificar grupo anterior',[{id:'pair',label:'Curso y asignatura',type:'select',options:pairOptions()}],async v=>{
-    const [level,...parts]=v.pair.split(':');const subject=parts.join(':');const groupId=STATE.groupId;
+    const [level,...parts]=v.pair.split(':');const subject=parts.join(':');const groupId=boundGroup;
     await commit(d=>classifyGroup(d,groupId,level,subject));STATE.level=level;STATE.subject=subject;STATE.groupId=groupId;render();
   },'No se modificará ningún alumno, actividad o calificación.'));
   $('#new-period')?.addEventListener('click',()=>fieldsModal('Nuevo periodo',[{id:'name',label:'Nombre del periodo',value:`${STATE.doc.periods.length+1}.ª evaluación`}],async v=>{let p;await commit(d=>{p=addPeriod(d,v.name);});STATE.tab='cuaderno';await selectOrdinaryPeriod(p.id);}));
@@ -2269,7 +2311,7 @@ function bindCommon(){
     if(!candidates.length)return toast('Primero crea una actividad sin recuperación vinculada.');
     fieldsModal('Nueva recuperación',[{id:'name',label:'Nombre',value:'Recuperación'},{id:'recoveryOf',label:'Actividad de origen',type:'select',options:candidates.map(a=>({value:a.id,label:a.name}))},{id:'recoveryMode',label:'Cómo sustituye la nota',type:'select',options:[{value:'higher',label:'Solo si mejora la original'},{value:'replace',label:'Sustituir siempre'}]},{id:'maxScore',label:'Puntuación máxima',type:'number',value:10,min:0.01,max:1000,step:'any'}],async v=>commit(d=>{
       const source=d.assessments.find(a=>a.id===v.recoveryOf);
-      addAssessment(d,{name:v.name,groupId:STATE.groupId,periodId:STATE.periodId,categoryId:source.categoryId,maxScore:Number(v.maxScore),weight:source.weight,convertToTen:source.convertToTen,recoveryOf:v.recoveryOf,recoveryMode:v.recoveryMode,orthography:source.orthography??null});
+      addAssessment(d,{name:v.name,groupId:boundGroup,periodId:boundPeriod,categoryId:source.categoryId,maxScore:Number(v.maxScore),weight:source.weight,convertToTen:source.convertToTen,recoveryOf:v.recoveryOf,recoveryMode:v.recoveryMode,orthography:source.orthography??null});
     }));
   });
   $('#csv-import')?.addEventListener('click',()=>$('#csv-file').click());
@@ -2437,7 +2479,7 @@ function openOrthographyGrade(studentId,assessmentId){
   $('#cancel-orthography',form).onclick=()=>dialog.close();
   form.onsubmit=async e=>{
     e.preventDefault();const submit=$('[type=submit]',form);submit.disabled=true;
-    try{await commit(d=>setOrthographyGrade(d,studentId,assessmentId,{score:base.value.trim(),faults:count.value.trim()===''?'0':count.value,delivered:delivered.checked,...(greekInput?{greekEtymologyBonus:greekInput.value.trim()||'0'}:{})}),'Calificar examen con faltas');dialog.close();}
+    try{const values={score:base.value.trim(),faults:count.value.trim()===''?'0':count.value,delivered:delivered.checked,...(greekInput?{greekEtymologyBonus:greekInput.value.trim()||'0'}:{})};await commit(d=>setOrthographyGrade(d,studentId,assessmentId,values),'Calificar examen con faltas');dialog.close();}
     catch(err){$('.modal-error',form).textContent=err.message;submit.disabled=false;}
   };
   refresh();dialog.showModal();base.focus();
@@ -2622,6 +2664,7 @@ function openGradeCellActions(studentId,assessmentId){
   dialog.showModal();
 }
 function bindNotebook(){
+  const view=currentView();
   const panel=$('.notebook-panel');
   const menus=[...panel.querySelectorAll('.notebook-more-actions,.notebook-student-options,.notebook-grade-options')];
   const closeMenu=(menu,focus=false)=>{menu.open=false;if(focus)menu.querySelector('summary')?.focus({preventScroll:true});};
@@ -2656,8 +2699,8 @@ function bindNotebook(){
   $('#configure-itaca-attitude')?.addEventListener('click',openItacaAttitudeCondition);
   $('#configure-itaca-attitude-toolbar')?.addEventListener('click',()=>{closeMenu($('.notebook-grade-options'),true);openItacaAttitudeCondition();});
   $('#itaca-general-rule')?.addEventListener('change',e=>{
-    const groupId=STATE.groupId;
-    commit(doc=>setItacaGroupRule(doc,groupId,e.target.value),'Redondeo general Nota Ítaca').catch(fail);
+    const groupId=view.groupId,rule=e.target.value;
+    commit(doc=>setItacaGroupRule(doc,groupId,rule),'Redondeo general Nota Ítaca').catch(fail);
   });
   document.querySelectorAll('[data-itaca-student]').forEach(button=>button.onclick=()=>openItacaStudentRule(button.dataset.itacaStudent));
   $('#copy-structure')?.addEventListener('click',openCopyActivities);
@@ -2700,7 +2743,7 @@ function bindNotebook(){
     {id:'lastName',label:'Apellidos',value:'',maxlength:100},
     {id:'firstName',label:'Nombre',value:'',maxlength:80},
     {id:'originGroup',label:'Grupo de procedencia (p. ej., 1.º A)',value:'',maxlength:60,required:false}
-  ],async v=>commit(d=>addStudent(d,STATE.groupId,{firstName:v.firstName,lastName:v.lastName,originGroup:v.originGroup})),'El grupo de procedencia es una etiqueta para las sesiones de evaluación; no separa las calificaciones de la optativa.');
+  ],async v=>commit(d=>addStudent(d,view.groupId,{firstName:v.firstName,lastName:v.lastName,originGroup:v.originGroup})),'El grupo de procedencia es una etiqueta para las sesiones de evaluación; no separa las calificaciones de la optativa.');
   document.querySelectorAll('[data-edit]').forEach(button=>button.onclick=()=>openAssessmentTools(button.dataset.edit));
   // Conservar ambos desplazamientos en el iPad. commit() reconstruye toda
   // la tabla y focus() sin preventScroll desplaza la página hacia arriba.
@@ -2713,7 +2756,10 @@ function bindNotebook(){
     if(table){table.scrollLeft=position.left;table.scrollTop=position.top;}
     window.scrollTo(position.x,position.y);
   };
-  const restoreFocus=(studentId,assessmentId,move=0,position=snapshotGradeScroll())=>{
+  const restoreFocus=(studentId,assessmentId,move=0,position=snapshotGradeScroll(),origin=null)=>{
+    if(!sameView(view)||activePointers.size||deferredRender)return;
+    const active=document.activeElement;
+    if(origin&&active&&active!==document.body&&active!==root&&active!==origin)return;
     const students=allStudents(),at=students.findIndex(s=>s.id===studentId);
     const targetId=students[Math.max(0,Math.min(students.length-1,at+move))]?.id;
     const next=[...document.querySelectorAll('input[data-student][data-assessment]')]
@@ -2723,7 +2769,7 @@ function bindNotebook(){
     restoreGradeScroll(position);
     // Tras cerrar o mover el teclado, WebKit puede ajustar el viewport en el
     // fotograma siguiente. No desplazar la tabla ni saltar al principio.
-    requestAnimationFrame(()=>{restoreGradeScroll(position);requestAnimationFrame(()=>restoreGradeScroll(position));});
+    requestAnimationFrame(()=>{if(sameView(view)&&!activePointers.size){restoreGradeScroll(position);requestAnimationFrame(()=>{if(sameView(view)&&!activePointers.size)restoreGradeScroll(position);});}});
   };
   document.querySelectorAll('[data-student][data-assessment]').forEach(field=>{
     let move=0,positionAtEnter=null,lastInputScroll=null;
@@ -2741,14 +2787,15 @@ function bindNotebook(){
     });
     field.addEventListener('change',async()=>{
       const position=positionAtEnter||lastInputScroll||snapshotGradeScroll();
-      positionAtEnter=null;lastInputScroll=null;
+      const {student:studentId,assessment:assessmentId}=field.dataset,value=field.value.trim(),direction=move;
+      positionAtEnter=null;lastInputScroll=null;move=0;
       try{
-        await commit(d=>setGrade(d,field.dataset.student,field.dataset.assessment,field.value.trim()===''?null:field.value.trim().replace(',','.')),'Editar nota');
-        restoreFocus(field.dataset.student,field.dataset.assessment,move,position);
+        await commit(d=>setGrade(d,studentId,assessmentId,value===''?null:value.replace(',','.')),'Editar nota');
+        restoreFocus(studentId,assessmentId,direction,position,field);
       }catch(err){
-        fail(err);render();
-        restoreFocus(field.dataset.student,field.dataset.assessment,0,position);
-      }finally{move=0;}
+        fail(err);renderAfterMutation();
+        restoreFocus(studentId,assessmentId,0,position,field);
+      }
     });
   });
   document.querySelectorAll('[data-explain]').forEach(b=>b.onclick=()=>{
@@ -2763,6 +2810,7 @@ function bindNotebook(){
 const INDIVIDUAL_LABELS={general:'Aplicar regla general del grupo',np_mean:'Media obligatoria si un NP computa como cero',mean:'Media aritmética siempre',last:'Última actividad sustitutiva (aunque baje la nota)'};
 /** Previsualizar con copia independiente; la configuración solo se guarda al confirmar. */
 function openIndividualRule(studentId,categoryId){
+  const {groupId,periodId}=currentView();
   const student=STATE.doc.students.find(s=>s.id===studentId&&s.groupId===STATE.groupId);
   const category=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).find(c=>c.id===categoryId);
   if(!student||!category)return;
@@ -2789,7 +2837,7 @@ function openIndividualRule(studentId,categoryId){
   $('#cancel-individual-rule',dialog).onclick=()=>dialog.close();
   $('#individual-rule-form',dialog).onsubmit=async event=>{
     event.preventDefault();const button=$('#save-individual-rule',dialog);button.disabled=true;
-    try{const selectedRule=$('#individual-rule-select',dialog).value;await commit(doc=>setIndividualCategoryRule(doc,studentId,categoryId,STATE.periodId,selectedRule),'Regla individual de categoría');if(dialog.open)dialog.close();}
+    try{const selectedRule=$('#individual-rule-select',dialog).value;await commit(doc=>setIndividualCategoryRule(doc,studentId,categoryId,periodId,selectedRule),'Regla individual de categoría');if(dialog.open)dialog.close();}
     catch(error){$('.modal-error',dialog).textContent=error.message;button.disabled=false;}
   };
   preview();if(!dialog.open)dialog.showModal();
@@ -2803,43 +2851,45 @@ function openIndividualRuleDirectory(){
   dialog.showModal();
 }
 function bindRules(){
-  document.querySelectorAll('[data-category-color]').forEach(field=>field.onchange=()=>commit(d=>setCategoryColumnColor(d,field.dataset.categoryColor,field.value),'Color de categoría').catch(fail));
+  const {groupId,periodId}=currentView();
+  document.querySelectorAll('[data-category-color]').forEach(field=>field.onchange=()=>{const id=field.dataset.categoryColor,value=field.value;return commit(d=>setCategoryColumnColor(d,id,value),'Color de categoría').catch(fail);});
   document.querySelectorAll('[data-category-color-reset]').forEach(button=>button.onclick=()=>commit(d=>setCategoryColumnColor(d,button.dataset.categoryColorReset,null),'Eliminar color de categoría').catch(fail));
   $('#individual-rules')?.addEventListener('click',openIndividualRuleDirectory);
   document.querySelectorAll('[data-delete-category]').forEach(b=>b.onclick=async()=>{
     const category=STATE.doc.categories.find(c=>c.id===b.dataset.deleteCategory);
     if(!category)return;
     if(!window.confirm(`¿Retirar «${category.name}» únicamente de ${currentPeriod().name}? No se modifican las demás evaluaciones.`))return;
-    try{await commit(d=>setPeriodCategoryEnabled(d,STATE.groupId,STATE.periodId,category.id,false),'Retirar categoría de evaluación');}catch(err){fail(err);}
+    try{await commit(d=>setPeriodCategoryEnabled(d,groupId,periodId,category.id,false),'Retirar categoría de evaluación');}catch(err){fail(err);}
   });
-  $('#new-category').onclick=()=>fieldsModal('Nueva categoría en esta evaluación',[{id:'name',label:'Nombre'},{id:'weight',label:'Porcentaje en esta evaluación (revisa que la suma sea 100)',type:'number',value:0,min:0,max:100,step:'any'}],async v=>commit(d=>addPeriodCategory(d,STATE.groupId,STATE.periodId,v.name,Number(v.weight))),'Se añadirá únicamente a la materia y evaluación seleccionadas. Podrás activarla también en otros períodos.');
+  $('#new-category').onclick=()=>fieldsModal('Nueva categoría en esta evaluación',[{id:'name',label:'Nombre'},{id:'weight',label:'Porcentaje en esta evaluación (revisa que la suma sea 100)',type:'number',value:0,min:0,max:100,step:'any'}],async v=>commit(d=>addPeriodCategory(d,groupId,periodId,v.name,Number(v.weight))),'Se añadirá únicamente a la materia y evaluación seleccionadas. Podrás activarla también en otros períodos.');
   $('#enable-category')?.addEventListener('click',()=>{
     const categoryId=$('#category-to-enable')?.value;
     if(!categoryId)return toast('Selecciona una categoría existente.');
-    commit(d=>setPeriodCategoryEnabled(d,STATE.groupId,STATE.periodId,categoryId,true),'Activar categoría en evaluación').catch(fail);
+    commit(d=>setPeriodCategoryEnabled(d,groupId,periodId,categoryId,true),'Activar categoría en evaluación').catch(fail);
   });
-  document.querySelectorAll('[data-periodweight]').forEach(field=>field.onchange=async()=>{try{await commit(d=>setPeriodCategory(d,STATE.groupId,STATE.periodId,field.dataset.periodweight,{weight:Number(field.value)}));}catch(err){fail(err);render();}});
-  document.querySelectorAll('[data-periodrule]').forEach(field=>field.onchange=async()=>{try{await commit(d=>setPeriodCategory(d,STATE.groupId,STATE.periodId,field.dataset.periodrule,{rule:field.value}));}catch(err){fail(err);render();}});
-  document.querySelectorAll('[data-bestcount]').forEach(field=>field.onchange=async()=>{try{await commit(d=>setPeriodCategory(d,STATE.groupId,STATE.periodId,field.dataset.bestcount,{bestCount:Number(field.value)}));}catch(err){fail(err);render();}});
-  $('#reset-rules').onclick=async()=>{if(window.confirm('¿Restablecer los porcentajes y reglas de esta evaluación? La selección de categorías se conservará.'))try{await commit(d=>resetPeriodCategories(d,STATE.groupId,STATE.periodId));}catch(err){fail(err);}};
+  document.querySelectorAll('[data-periodweight]').forEach(field=>field.onchange=async()=>{const categoryId=field.dataset.periodweight,patch={weight:Number(field.value)};try{await commit(d=>setPeriodCategory(d,groupId,periodId,categoryId,patch));}catch(err){fail(err);render();}});
+  document.querySelectorAll('[data-periodrule]').forEach(field=>field.onchange=async()=>{const categoryId=field.dataset.periodrule,patch={rule:field.value};try{await commit(d=>setPeriodCategory(d,groupId,periodId,categoryId,patch));}catch(err){fail(err);render();}});
+  document.querySelectorAll('[data-bestcount]').forEach(field=>field.onchange=async()=>{const categoryId=field.dataset.bestcount,patch={bestCount:Number(field.value)};try{await commit(d=>setPeriodCategory(d,groupId,periodId,categoryId,patch));}catch(err){fail(err);render();}});
+  $('#reset-rules').onclick=async()=>{if(window.confirm('¿Restablecer los porcentajes y reglas de esta evaluación? La selección de categorías se conservará.'))try{await commit(d=>resetPeriodCategories(d,groupId,periodId));}catch(err){fail(err);}};
   $('#copy-rules').onclick=async()=>{const source=$('#source-period').value;if(!source)return toast('Selecciona un periodo de origen.');if(!window.confirm('¿Copiar las categorías evaluables, sus porcentajes y reglas desde el otro período? No se pueden retirar categorías que ya tengan actividades o condiciones de Ítaca aquí.'))return;
-    try{await commit(d=>copyPeriodCategories(d,STATE.groupId,source,STATE.periodId));}catch(err){fail(err);}
+    try{await commit(d=>copyPeriodCategories(d,groupId,source,periodId));}catch(err){fail(err);}
   };
 }
 function bindCompetencies(){
-  $('#new-competency')?.addEventListener('click',()=>fieldsModal('Nueva competencia personalizada',[{id:'name',label:'Nombre de la competencia'}],async v=>commit(d=>addCompetency(d,v.name,STATE.groupId))));
+  const {groupId}=currentView(),version=STATE.competencyVersion;
+  $('#new-competency')?.addEventListener('click',()=>fieldsModal('Nueva competencia personalizada',[{id:'name',label:'Nombre de la competencia'}],async v=>commit(d=>addCompetency(d,v.name,groupId))));
   $('#comp-curr-version')?.addEventListener('change',e=>{STATE.competencyVersion=e.target.value;render();});
   document.querySelectorAll('[data-comp][data-linkcat], [data-official][data-linkcat]').forEach(input=>input.onchange=async e=>{
-    const weight=Number(e.target.value),categoryId=e.target.dataset.linkcat,code=e.target.dataset.official;
+    const weight=Number(e.target.value),categoryId=e.target.dataset.linkcat,code=e.target.dataset.official,competencyId=e.target.dataset.comp;
     if(!Number.isFinite(weight)||weight<0||weight>1000){fail(new Error('Peso competencial fuera de rango.'));render();return;}
     try{await commit(d=>{
-      let id=e.target.dataset.comp;
+      let id=competencyId;
       if(code){
-        const catalogue=officialCompetenciesForGroup(d.groups.find(g=>g.id===STATE.groupId),STATE.competencyVersion);
+        const catalogue=officialCompetenciesForGroup(d.groups.find(g=>g.id===groupId),version);
         const found=catalogue?.competencias.find(c=>c.key===code);
         if(!found)throw new Error('Competencia oficial no disponible.');
-        let stored=linkedOfficialCompetency(d,STATE.groupId,code);
-        if(!stored&&weight!==0)stored=addCompetency(d,`${found.code} · ${found.enunciado}`,STATE.groupId,code);
+        let stored=linkedOfficialCompetency(d,groupId,code);
+        if(!stored&&weight!==0)stored=addCompetency(d,`${found.code} · ${found.enunciado}`,groupId,code);
         if(!stored)return;
         id=stored.id;
       }
@@ -2888,14 +2938,14 @@ function bindSettings(){
   });
   document.querySelectorAll('[data-accent]').forEach(input=>input.onchange=e=>{
     const [level,subject]=e.target.dataset.accent.split(':');
-    commit(d=>setSubjectAccent(d,level,subject,e.target.value)).catch(fail);
+    const color=e.target.value;commit(d=>setSubjectAccent(d,level,subject,color)).catch(fail);
   });
   $('#reset-accents').onclick=async()=>{
     if(!window.confirm('¿Restablecer los cinco colores de acento?'))return;
     try{await commit(d=>{d.settings.subjectAccents={...SUBJECT_COLORS,...Object.fromEntries((d.settings.customSubjects||[]).map(x=>[subjectKey(x.level,x.subject),defaultSubjectAccent(x.level,x.subject)]))};d.updatedAt=new Date().toISOString();});}catch(e){fail(e);}
   };
-  $('#decimals').onchange=e=>commit(d=>{d.settings.decimals=Number(e.target.value);d.updatedAt=new Date().toISOString();}).catch(fail);
-  $('#rounding').onchange=e=>commit(d=>{d.settings.rounding=e.target.value;d.updatedAt=new Date().toISOString();}).catch(fail);
+  $('#decimals').onchange=e=>{const value=Number(e.target.value);return commit(d=>{d.settings.decimals=value;d.updatedAt=new Date().toISOString();}).catch(fail);};
+  $('#rounding').onchange=e=>{const value=e.target.value;return commit(d=>{d.settings.rounding=value;d.updatedAt=new Date().toISOString();}).catch(fail);};
   $('#check-reload').onclick=async()=>{
     try{
       await STATE.mutationQueue;await STATE.saveQueue;
@@ -2915,7 +2965,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/evaluation-groups.js','./src/evaluation-ui.js','./src/evaluation-workspace.js','./src/notebook-evaluation-notice.js','./src/evaluation-period-board.js','./src/evaluation-session-presentation.js','./src/student-link-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/dropbox-conflict.js','./src/dropbox-config.js','./src/dropbox-onboarding.js','./src/dropbox-session.js','./src/period-preferences.js','./src/dropbox-controller.js','./src/dropbox-local.js','./src/dropbox-sync.js','./src/dropbox-oauth.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v202-dev');
+      const cache=await caches.open('cuaderno-docente-static-v203-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

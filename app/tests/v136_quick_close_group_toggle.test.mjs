@@ -35,7 +35,7 @@ test('Cerrar cuaderno se encuentra en el menú administrativo y conserva el fluj
   assert(js.includes("$('#close-notebook')?.addEventListener('click',()=>closeNotebook().catch(fail))"));
   assert(js.includes('async function closeNotebook()'));
   assert(js.includes('await STATE.mutationQueue;await STATE.saveQueue;'),'No omitir guardados pendientes');
-  assert(js.includes('const prepared=await createPortableCopy(snapshot,STATE.key,STATE.salt,exportedDate,preferences)'));
+  assert(js.includes('const prepared=await createPortableCopy(snapshot,key,salt,exportedDate,preferences)'));
   assert(js.includes('const preferences=await periodPreferences.load().catch(()=>null)'));
 });
 
