@@ -192,8 +192,17 @@ function scheduleDeferredRefresh(){
  refreshTimer=setTimeout(()=>{
   refreshTimer=null;
   if(!STATE.doc||STATE.pending||!canRefreshView())return;
+  const view=currentView(),table=$('.table-scroller');
+  const scroll=table&&{left:table.scrollLeft,top:table.scrollTop,x:window.scrollX,y:window.scrollY};
   const changed=applyDeferredPeriod();
-  if(changed||deferredRender)render();
+  if(changed||deferredRender){
+   render();
+   if(!changed&&scroll&&sameView(view)){
+    const next=$('.table-scroller');
+    if(next){next.scrollLeft=scroll.left;next.scrollTop=scroll.top;}
+    window.scrollTo(scroll.x,scroll.y);
+   }
+  }
  },100);
 }
 function renderAfterMutation(){
@@ -245,8 +254,16 @@ function paintDropboxStatus(){
   if(label)label.textContent=dropboxStatus==='conflict'?'Conflicto':dropboxStatus==='syncing'?'Sincronizando…':dropboxStatus==='pending'?'Pendiente':dropboxStatus==='offline'?'Sin conexión':'Dropbox';
 }
 const dropboxSession=createDropboxSession({state:STATE,preferences:periodPreferences,enqueue:enqueueMutation,windowTarget:window,documentTarget:document,origin:location.origin,
-  canApply:()=>!dialog.open&&!STATE.studentPresentation&&!document.activeElement?.matches?.('input,select,textarea,[contenteditable=true]'),
-  adopt:()=>{STATE.history=emptyHistory();if(STATE.studentId&&!STATE.doc.students.some(s=>s.id===STATE.studentId))STATE.studentId=null;render();},
+  canApply:()=>canRefreshView()&&!document.activeElement?.matches?.('input,select,textarea,[contenteditable=true]'),
+  adopt:()=>{
+    STATE.history=emptyHistory();
+    if(STATE.studentId&&!STATE.doc.students.some(s=>s.id===STATE.studentId))STATE.studentId=null;
+    // Puede comenzar una edición durante la última escritura en IndexedDB.
+    // La revisión remota ya está guardada: posponer solo la pintura.
+    if(!canRefreshView()||document.activeElement?.matches?.('input,select,textarea,[contenteditable=true]')){
+      deferredRender=true;scheduleDeferredRefresh();
+    }else renderAfterMutation();
+  },
   onStatus:({status})=>{dropboxStatus=status;if(status!=='synced')preferenceSyncState='';paintDropboxStatus();},
   onPreferences:ok=>{
     preferenceSyncState=ok?'Preferencias de evaluación sincronizadas.':'Preferencias de evaluación pendientes de sincronizar.';
@@ -3032,7 +3049,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/evaluation-groups.js','./src/evaluation-ui.js','./src/evaluation-workspace.js','./src/notebook-evaluation-notice.js','./src/evaluation-period-board.js','./src/evaluation-session-presentation.js','./src/student-link-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/dropbox-conflict.js','./src/dropbox-config.js','./src/dropbox-onboarding.js','./src/dropbox-session.js','./src/period-preferences.js','./src/dropbox-controller.js','./src/dropbox-local.js','./src/dropbox-sync.js','./src/dropbox-oauth.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v209-dev');
+      const cache=await caches.open('cuaderno-docente-static-v210-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

@@ -25,3 +25,14 @@ test('la cola rechaza una mutación de otro cuaderno o sesión y exportación re
  assert(source.includes('const prepared=await createPortableCopy(snapshot,key,salt,exportedDate,preferences)'));
  assert(source.includes('!sameEnvelope(await readEnvelope(db),expected)||!stillCurrent()'));
 });
+
+test('una revisión remota terminada durante una edición no reconstruye la interfaz',()=>{
+ const start=source.indexOf('  adopt:()=>{'),end=source.indexOf('  onStatus:',start);
+ const code=source.slice(start,end).trim().replace(/,$/,'');
+ const state={history:['old'],studentId:'s',doc:{students:[{id:'s'}]}};
+ const calls=[];let editing=true;
+ const ctx={STATE:state,emptyHistory:()=>[],canRefreshView:()=>!editing,document:{activeElement:{matches:()=>editing}},scheduleDeferredRefresh:()=>calls.push('defer'),renderAfterMutation:()=>calls.push('render'),deferredRender:false};
+ const adopt=runInNewContext('({'+code+'}).adopt',ctx);
+ adopt();assert.deepEqual(calls,['defer']);assert.equal(ctx.deferredRender,true);assert.deepEqual(state.history,[]);
+ editing=false;adopt();assert.deepEqual(calls,['defer','render']);
+});
