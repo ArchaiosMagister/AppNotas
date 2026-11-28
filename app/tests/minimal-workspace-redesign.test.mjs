@@ -123,6 +123,11 @@ test('se mantiene la edición directa de notas, rúbricas, ortografía y excepci
 
 test('los ajustes del grupo y la leyenda se pueden desplegar sin ocupar el cuaderno',()=>{
  assert(js.includes('<details class="notebook-grade-options">'));
+ assert(js.includes('<details class="notebook-student-options">'));
+ assert(js.includes('class="notebook-organize-tools"'));
+ assert(js.includes('id="configure-itaca-attitude-toolbar"'));
+ assert(js.includes("closeMenu($('.notebook-grade-options'),true);openItacaAttitudeCondition();"));
+ assert(js.includes("$('#configure-itaca-attitude')?.addEventListener('click',openItacaAttitudeCondition)"));
  assert(js.includes('<details class="legend notebook-legend">'));
  assert(js.includes('id="itaca-general-rule"'));
  assert(css.includes('.notebook-grade-options>summary:focus-visible'));

@@ -3328,17 +3328,29 @@ html[data-theme="oled"] .notebook-eval-open{background:#000}
 .notebook-primary-actions{gap:7px}
 .notebook-primary-actions>.btn{min-height:40px;padding:8px 11px;font-size:12px}
 .notebook-primary-actions .notebook-more-actions>summary{min-height:40px;font-size:12px}
-.notebook-grade-options{margin:0;border-bottom:1px solid var(--line);background:var(--surface);font-size:12px}
-.notebook-grade-options>summary{display:flex;align-items:center;gap:7px;cursor:pointer;
- padding:9px 16px;color:var(--muted);font-weight:700;list-style:none}
-.notebook-grade-options>summary::-webkit-details-marker{display:none}
-.notebook-grade-options>summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.notebook-grade-options[open]>summary{color:var(--ink);background:var(--raised)}
-.notebook-grade-options-body{display:grid;gap:8px;padding:8px 12px 12px}
-.notebook-grade-options .origin-manage-tools,.notebook-grade-options .itaca-global{
- padding:6px 4px;border:0;background:transparent}
-.notebook-grade-options .itaca-global{justify-content:flex-start}
-.notebook-grade-options .itaca-global small{font-size:11px}
+.notebook-organize-tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:6px 12px;border-bottom:1px solid var(--line);background:var(--surface)}
+.notebook-organize-tools>details{position:relative;margin:0;font-size:13px;min-width:0}
+.notebook-organize-tools>details>summary{display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;min-height:44px;padding:6px 12px;color:var(--ink);font-weight:700;list-style:none;border:1px solid var(--line);border-radius:8px;background:var(--raised)}
+.notebook-organize-tools>details>summary::-webkit-details-marker{display:none}
+.notebook-grade-options>summary:focus-visible,.notebook-student-options>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.notebook-organize-tools>details[open]>summary{border-color:var(--accent);box-shadow:inset 0 -2px var(--accent)}
+.notebook-grade-options-body{display:grid;gap:8px;padding:12px;position:absolute;left:0;top:calc(100% + 6px);width:min(320px,calc(100vw - 32px));max-height:60vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 30px #0003;z-index:30}
+.notebook-organize-tools details:not([open])>.notebook-grade-options-body{display:none}
+.notebook-organize-tools .origin-manage-tools,.notebook-organize-tools .itaca-global,.notebook-organize-tools .student-order-bar{padding:6px 4px;border:0;background:transparent}
+.notebook-organize-tools .student-order-bar{display:grid;gap:10px}
+.notebook-organize-tools .itaca-global{display:grid;justify-content:stretch}
+.notebook-organize-tools :is(.itaca-global,.student-sort-control) select{width:100%;max-width:100%;min-height:44px}
+.notebook-organize-tools .itaca-global small{font-size:11px}
+.notebook-organize-tools .origin-manage-tools>.btn,.notebook-organize-tools .notebook-grade-options-body>.btn{width:100%;min-height:44px}
+.notebook-panel:has(.notebook-organize-tools>details[open]){position:relative;overflow:visible;z-index:85}
+.notebook-panel:has(.notebook-organize-tools>details[open])>.notebook-organize-tools{position:relative;z-index:20}
+html[data-theme="oled"] .notebook-grade-options-body{background:#000}
+@media(max-width:650px){
+ .notebook-organize-tools>details{flex:1 1 0}
+ .notebook-grade-options-body{position:fixed;left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));top:auto;bottom:max(8px,env(safe-area-inset-bottom,0px));width:auto;max-height:70dvh}
+ .notebook-organize-tools .student-sort-control{width:100%}
+}
+@media print{.notebook-organize-tools{display:none!important}}
 .grade-cell-action-anchor{display:inline-flex;position:relative;align-items:center;
  justify-content:center;vertical-align:middle;margin:2px 0;min-height:30px}
 .grade-cell-original-actions[hidden]{display:none!important}
@@ -4007,6 +4019,8 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
   font-size:20px;
   padding:4px;
 }
+.notebook-organize-tools>.notebook-zoom-tools{margin-left:auto;border:0;padding:0;gap:6px;max-width:100%}
+.notebook-organize-tools .notebook-zoom-tools .btn{width:44px;min-width:44px;height:44px;min-height:44px}
 .notebook-zoom-tools output{
   display:inline-block;
   min-width:54px;
@@ -4016,6 +4030,9 @@ html[data-theme="oled"] .class-toolbar .group-quick-select{background:#000}
 }
 @media(max-width:650px){
   .notebook-zoom-tools .btn{min-height:44px;min-width:44px}
+  .notebook-organize-tools>.notebook-zoom-tools{width:100%;justify-content:space-between;margin:0}
+  .notebook-organize-tools .redesign-density{margin-right:0;min-width:0}
+  .notebook-organize-tools .notebook-zoom-tools>span{display:none}
 }
 @media print{.notebook-zoom-tools{display:none!important}}
 

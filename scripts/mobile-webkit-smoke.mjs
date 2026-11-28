@@ -91,6 +91,7 @@ async function auditExamsAndGroupedScroll(browser,name){
   assert.match(await modal.innerText(),/No hay exámenes próximos programados/);
   await modal.getByRole('button',{name:'Cerrar'}).click();
   await page.locator('[data-tab="cuaderno"]').click();
+  await page.locator('.notebook-student-options>summary').click();
   await page.locator('label[for="student-group-mode"]').click();
 
   const scroller=page.locator('.table-scroller');
@@ -496,13 +497,16 @@ async function audit(engine,name){
     assert(await page.locator('.grade-cell-actions-dialog').isVisible(),
      name+' menú ⋯ dejó de funcionar');
     await page.locator('#grade-action-close').click();
-    // La configuración se encuentra dentro de «Ítaca y procedencias».
+    // Ambos accesos deben abrir el mismo formulario, sin duplicar estado.
     await page.locator('.notebook-grade-options>summary').click();
-    await page.locator('#configure-itaca-attitude').click();
+    await page.locator('#configure-itaca-attitude-toolbar').click();
     assert(await page.locator('#itaca-attitude-form').isVisible(),
      name+' no abre la configuración de actitud');
     await page.locator('[name="guardMode"]').selectOption('category');
     assert(await page.locator('[name="guardCategory"]').count()===1);
+    await page.locator('#itaca-guard-cancel').click();
+    await page.locator('#configure-itaca-attitude').click();
+    assert(await page.locator('#itaca-attitude-form').isVisible());
     await page.locator('#itaca-guard-cancel').click();
    }
    if(size.width<=650){
