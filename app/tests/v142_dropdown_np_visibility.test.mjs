@@ -58,7 +58,8 @@ test('NP aparece en la posición principal de la nota para escala común, rúbri
   assert(view.includes("g?.notSubmitted?npGradeMarker:g?gradeChip(score)"));
   assert(view.includes("g?.notSubmitted?npGradeMarker:g?gradeChip(value)"));
   assert(!view.includes('Pulsar para editar'),'La acción se explica mediante el control, no mediante texto repetido');
-  assert(view.includes("const secondary=g?.notSubmitted||g?.pendingJustified?'':note;"));
+  assert(view.includes("const info=g?.notSubmitted||g?.pendingJustified?'':note;"));
+  assert(view.includes("gradeCellActions(s,a,g,npButton,ajButton),'',info"));
   assert(view.includes('gradeCellStack(main,gradeCellActions('));
   assert(view.includes("g?.notSubmitted?'np-grade-input'"));
   assert(view.includes("placeholder=\"${g?.pendingJustified?'AJ':g?.notSubmitted?'NP':'—'}\""));

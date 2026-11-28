@@ -137,11 +137,11 @@ for(const [name,engine,opts] of [['desktop-chromium',chromium,{viewport:{width:1
    return {overlap:r.left<menu.right-1,centers:[...row.querySelectorAll('.grade-cell-face')].map(f=>{const x=f.getBoundingClientRect(),t=f.closest('td').getBoundingClientRect();return Math.abs(x.y+x.height/2-t.y-t.height/2);})};
   });
   assert(!geometry.overlap&&geometry.centers.every(y=>y<2),name+' info '+density+' '+JSON.stringify(geometry));
-  await info.click();await tooltip.waitFor();assert.equal(await tooltip.innerText(),await info.getAttribute('data-grade-info'));
+  if(opts.hasTouch)await info.tap();else await info.click();await tooltip.waitFor();assert.equal(await tooltip.innerText(),await info.getAttribute('data-grade-info'));
   const bounds=await tooltip.boundingBox();assert(bounds&&bounds.x>=0&&bounds.x+bounds.width<=opts.viewport.width+2,name+' tooltip viewport');
   await detailPage.keyboard.press('Escape');await tooltip.waitFor({state:'detached'});
  }
- if(!opts.hasTouch){await info.hover();await tooltip.waitFor();await detailPage.locator('h1').hover();await tooltip.waitFor({state:'detached'});}
+ if(!opts.hasTouch){await detailPage.locator('h1').hover();await info.hover();await tooltip.waitFor();await detailPage.locator('h1').hover();await tooltip.waitFor({state:'detached'});}
  await info.click();await tooltip.waitFor();await detailPage.locator('h1').click();await tooltip.waitFor({state:'detached'});
  await detailPage.locator('.converted-primary').click();assert(await detailPage.locator('.original-note-input').evaluate(e=>e===document.activeElement));
  await detailPage.locator('.orthography-grade-button').first().click();await detailPage.locator('#orth-base').waitFor();assert.equal(await detailPage.locator('#orth-base').inputValue(),'9,1');await detailPage.locator('#cancel-orthography').click();
