@@ -34,3 +34,19 @@ test('two simulated devices merge with CAS without changing academic envelope',a
  assert.deepEqual(a.get(),b.get());assert.equal(a.get().entries.length,2);assert.equal(JSON.stringify(state.envelope),before);assert.deepEqual(state.doc,doc);
  a.reset();assert.equal(a.get(),null);await a.load();assert.deepEqual(a.get(),b.get());
 });
+
+import {initialNotebook} from '../src/model.js';
+import {ensureBookMetadata,createPortableCopy,decodeBackupContent,compareBookVersions} from '../src/cuaderno.js';
+test('portable backup includes optional authenticated preferences without changing academic revision or legacy format',async()=>{
+ const book=initialNotebook();ensureBookMetadata(book);const before=structuredClone(book);
+ const password='contraseña ficticia de pruebas',vault=await createVault(password,book);
+ const salt=Uint8Array.from(atob(vault.envelope.salt),c=>c.charCodeAt(0));
+ const p=rememberPeriod(emptyPeriodPreferences(book.id),book.groups[0].id,book.periods[1].id,'device');
+ const newCopy=await createPortableCopy(book,vault.key,salt,new Date(),p);
+ assert.deepEqual(Object.keys(newCopy.file).sort(),['type','vault','version']);
+ const decoded=await decodeBackupContent(newCopy.file,password);
+ assert.deepEqual(decoded.preferences,p);assert.equal(compareBookVersions(decoded.doc,before),'same');
+ const oldCopy=await createPortableCopy(book,vault.key,salt);
+ assert.equal((await decodeBackupContent(oldCopy.file,password)).preferences,undefined);
+ assert.deepEqual(book,before);
+});

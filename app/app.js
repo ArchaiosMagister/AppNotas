@@ -168,21 +168,27 @@ const STUDENT_ACTIVITY_SORT_OPTIONS=[['category','Por categoría'],['column','Or
 
 const STATE={evaluationWorkspaceTab:'sesiones',plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),notebookZoom:savedNotebookZoom(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),studentPlainSort:savedStudentPlainSort(),studentActivityOrders:savedStudentActivityOrders(),studentPeriodId:null,studentFull:false,studentPresentation:false,db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
 const periodPreferences=createPeriodPreferenceStore({state:STATE});
-let periodGroup=null,periodBook=null,preferenceError=false;
+let periodGroup=null,periodBook=null,preferenceError=false,preferenceSyncState='';
 function restoreOrdinaryPeriod(){STATE.periodId=preferredPeriod(periodPreferences.get(),STATE.doc,STATE.groupId);periodGroup=STATE.groupId;periodBook=STATE.doc.id;}
-async function loadOrdinaryPeriods(){try{await periodPreferences.load();preferenceError=false;}catch{preferenceError=true;}restoreOrdinaryPeriod();}
-function selectOrdinaryPeriod(id){return enqueueMutation(async()=>{
- if(!STATE.doc?.periods.some(p=>p.id===id)||!currentGroup())return;
- try{await periodPreferences.remember(STATE.groupId,id);preferenceError=false;}catch{preferenceError=true;toast('No se ha podido guardar la evaluación como preferencia cifrada. Las notas permanecen intactas.');}
- STATE.periodId=id;periodGroup=STATE.groupId;periodBook=STATE.doc.id;
- if(!['calculos','competencias'].includes(STATE.tab))STATE.tab='cuaderno';render();dropboxSession.preferencesChanged();
-});}
+async function loadOrdinaryPeriods(incoming=null){try{await periodPreferences.load();if(incoming)await periodPreferences.merge(incoming);preferenceError=false;}catch{preferenceError=true;}restoreOrdinaryPeriod();}
+function selectOrdinaryPeriod(id){
+ const groupId=STATE.groupId,key=STATE.key,bookId=STATE.doc?.id;
+ return enqueueMutation(async()=>{
+ if(!key||STATE.key!==key||STATE.doc?.id!==bookId||!STATE.doc.periods.some(p=>p.id===id)||!STATE.doc.groups.some(g=>g.id===groupId))return;
+ try{await periodPreferences.remember(groupId,id);preferenceError=false;}catch{preferenceError=true;toast('No se ha podido guardar la evaluación como preferencia cifrada. Las notas permanecen intactas.');}
+ if(STATE.key===key&&STATE.doc?.id===bookId&&STATE.groupId===groupId){
+  STATE.periodId=id;periodGroup=groupId;periodBook=bookId;
+  if(!['calculos','competencias'].includes(STATE.tab))STATE.tab='cuaderno';render();
+ }
+ dropboxSession.preferencesChanged();
+ });}
 let dropboxStatus='not-configured';
 let dropboxCallback=null,dropboxOnboarding=null;
 function clearDropboxOnboarding(){dropboxCallback=null;dropboxOnboarding?.stop();dropboxOnboarding=null;}
 const dropboxIcon='<svg aria-hidden="true" viewBox="0 0 48 48" width="19" height="19" fill="currentColor"><path d="M12 5 24 13 12 21 0 13zM36 5 48 13 36 21 24 13zM12 21 24 29 12 37 0 29zM36 21 48 29 36 37 24 29zM12 39 24 31 36 39 24 47z"/></svg>';
 const dropboxMessages={'not-configured':'Pendiente de configurar Dropbox','not-linked':'Dropbox no vinculado',idle:'Listo',syncing:'Sincronizando…',synced:'Sincronizado',offline:'Sin conexión',pending:'Cambios pendientes',unavailable:'Esperando guardado local',conflict:'Conflicto: se conservan ambas versiones','remote-missing':'No se encuentra la copia remota',error:'Error de sincronización',locked:'Bloqueado'};
 function paintDropboxStatus(){
+  for(const el of root.querySelectorAll('[data-period-preference-status]'))el.textContent=preferenceError?'No se han podido guardar o leer las preferencias de evaluación. Las notas están separadas.':preferenceSyncState||'Las evaluaciones se recuerdan por grupo en este dispositivo.';
   const message=dropboxMessages[dropboxStatus]||dropboxMessages.error;
   for(const el of root.querySelectorAll('[data-dropbox-status]'))el.textContent=message;
   const button=root.querySelector('#dropbox-sync');
@@ -193,7 +199,15 @@ function paintDropboxStatus(){
 const dropboxSession=createDropboxSession({state:STATE,preferences:periodPreferences,enqueue:enqueueMutation,windowTarget:window,documentTarget:document,origin:location.origin,
   canApply:()=>!dialog.open&&!STATE.studentPresentation&&!document.activeElement?.matches?.('input,select,textarea,[contenteditable=true]'),
   adopt:()=>{STATE.history=emptyHistory();if(STATE.studentId&&!STATE.doc.students.some(s=>s.id===STATE.studentId))STATE.studentId=null;render();},
-  onStatus:({status})=>{dropboxStatus=status;paintDropboxStatus();}});
+  onStatus:({status})=>{dropboxStatus=status;if(status!=='synced')preferenceSyncState='';paintDropboxStatus();},
+  onPreferences:ok=>{
+    preferenceSyncState=ok?'Preferencias de evaluación sincronizadas.':'Preferencias de evaluación pendientes de sincronizar.';
+    paintDropboxStatus();
+    if(ok&&STATE.doc&&!STATE.pending&&!dialog.open&&!STATE.studentPresentation&&['cuaderno','calculos','competencias'].includes(STATE.tab)&&!document.activeElement?.matches?.('input,select,textarea,[contenteditable=true]')){
+      const selected=preferredPeriod(periodPreferences.get(),STATE.doc,STATE.groupId);
+      if(selected!==STATE.periodId){restoreOrdinaryPeriod();render();}
+    }
+  }});
 function startDropboxSession(){void dropboxSession.start().catch(()=>{dropboxStatus='error';paintDropboxStatus();});}
 function openDropboxSettings(){STATE.tab='ajustes';STATE.studentPresentation=false;render();$('#dropbox-settings')?.scrollIntoView({block:'nearest'});}
 async function navigateDropbox(mode){
@@ -282,7 +296,7 @@ async function openDropboxConflictCopies(){
   dialog.showModal();
 }
 function renderDropboxSettings(){
-  return `<section id="dropbox-settings" class="panel panel-pad"><h2>Sincronización cifrada con Dropbox</h2>${isDropboxTest(location.origin)?'<p class="section-note"><strong>ENTORNO DE PRUEBAS.</strong> Solo datos ficticios. No importes ni escribas notas reales.</p>':''}<p data-dropbox-status role="status" aria-live="polite"></p><p class="hint">Los datos se cifran en este dispositivo antes de enviarse. No se guardan contraseñas en Dropbox. La sincronización se realizará mientras el cuaderno esté desbloqueado y la aplicación activa.</p>${STATE.envelope?.iterations!==KDF_ITERATIONS?'<p class="section-note">Para sincronizar, debes reforzar la contraseña del cuaderno. Conserva primero una copia cifrada comprobada.</p><button class="btn" type="button" id="dropbox-upgrade">Reforzar contraseña</button>':'<p class="hint">Formato de cifrado reforzado disponible. Dropbox requiere una frase de contraseña de al menos 16 caracteres.</p>'+(!dropboxSession.active()?'<button class="btn" type="button" id="dropbox-upgrade">Reforzar contraseña</button>':'')}${dropboxConfigured(location.origin)?(STATE.envelope?.iterations===KDF_ITERATIONS?'<div class="actions"><button class="btn dropbox-sync-btn" type="button" id="dropbox-link">Vincular Dropbox</button><button class="btn" type="button" id="dropbox-unlink">Desvincular este dispositivo</button><button class="btn" type="button" id="dropbox-conflict-copies">Conservar ambas versiones (conflicto)</button></div><p class="hint">Si existe un cuaderno diferente en Dropbox, no se sustituirá. Conserva copias locales verificadas además de la sincronización.</p>':'<p class="hint">Refuerza la contraseña antes de vincular Dropbox.</p>'):'<p class="hint">La conexión con Dropbox todavía no está habilitada. Ningún dato se envía.</p>'}</section>`;
+  return `<section id="dropbox-settings" class="panel panel-pad"><h2>Sincronización cifrada con Dropbox</h2>${isDropboxTest(location.origin)?'<p class="section-note"><strong>ENTORNO DE PRUEBAS.</strong> Solo datos ficticios. No importes ni escribas notas reales.</p>':''}<p data-dropbox-status role="status" aria-live="polite"></p><p class="hint" data-period-preference-status role="status" aria-live="polite"></p><p class="hint">Los datos se cifran en este dispositivo antes de enviarse. No se guardan contraseñas en Dropbox. La sincronización se realizará mientras el cuaderno esté desbloqueado y la aplicación activa.</p>${STATE.envelope?.iterations!==KDF_ITERATIONS?'<p class="section-note">Para sincronizar, debes reforzar la contraseña del cuaderno. Conserva primero una copia cifrada comprobada.</p><button class="btn" type="button" id="dropbox-upgrade">Reforzar contraseña</button>':'<p class="hint">Formato de cifrado reforzado disponible. Dropbox requiere una frase de contraseña de al menos 16 caracteres.</p>'+(!dropboxSession.active()?'<button class="btn" type="button" id="dropbox-upgrade">Reforzar contraseña</button>':'')}${dropboxConfigured(location.origin)?(STATE.envelope?.iterations===KDF_ITERATIONS?'<div class="actions"><button class="btn dropbox-sync-btn" type="button" id="dropbox-link">Vincular Dropbox</button><button class="btn" type="button" id="dropbox-unlink">Desvincular este dispositivo</button><button class="btn" type="button" id="dropbox-conflict-copies">Conservar ambas versiones (conflicto)</button></div><p class="hint">Si existe un cuaderno diferente en Dropbox, no se sustituirá. Conserva copias locales verificadas además de la sincronización.</p>':'<p class="hint">Refuerza la contraseña antes de vincular Dropbox.</p>'):'<p class="hint">La conexión con Dropbox todavía no está habilitada. Ningún dato se envía.</p>'}</section>`;
 }
 function openDropboxUpgrade(){
   if(dialog.open||!STATE.doc||!STATE.key)return;
@@ -308,10 +322,11 @@ function openDropboxUpgrade(){
       const upgraded=await prepareVaultUpgrade(oldPassword,newPassword,expected);
       assertModel(upgraded.doc);
       if(compareBookVersions(before,upgraded.doc)!=='same')throw new Error('La copia no coincide con el cuaderno.');
+      const savedPreferences=periodPreferences.get();
       dropboxSession.stop();
       await writeEnvelope(STATE.db,upgraded.envelope,expected);
       STATE.key=upgraded.key;STATE.salt=upgraded.salt;STATE.envelope=upgraded.envelope;
-      periodPreferences.reset();
+      periodPreferences.reset();await loadOrdinaryPeriods(savedPreferences);
       STATE.history=emptyHistory();STATE.exportReceipt=null;
       dialog.close();render();startDropboxSession();toast('Contraseña reforzada. Guarda y verifica una nueva copia cifrada.');
     }).catch(()=>{if(form.isConnected)err.textContent='No se ha completado el cambio. Comprueba las contraseñas, verifica una copia .cuaderno de la revisión actual y desvincula Dropbox si estaba vinculado.';}).finally(()=>{
@@ -728,7 +743,7 @@ function showUnlock(isNew,callback=null){
   dropboxCallback=callback?.mode===(isNew?'restore':'link')?callback:null;
   dropboxSession.stop();
   unbindGradeTableHeaders();
-  periodPreferences.reset();periodGroup=null;periodBook=null;preferenceError=false;
+  periodPreferences.reset();periodGroup=null;periodBook=null;preferenceError=false;preferenceSyncState='';
   STATE.doc=null;STATE.key=null;STATE.salt=null;STATE.history=emptyHistory();STATE.studentPresentation=false;
   root.innerHTML=`<main class="unlock-screen"><div class="unlock-box"><div class="brand-mini">▦</div><div class="eyebrow">AppNotas · versión 1.0</div><h1>CuadernoDocente</h1>${isDropboxTest(location.origin)?'<p class="section-note"><strong>PRUEBAS: solo datos ficticios.</strong> No importes tu cuaderno real.</p>':''}<p>${isNew?'Elige un cuaderno vacío o uno de demostración con ocho alumnos ficticios. Ambos se guardan cifrados en este dispositivo.':'Desbloquea tu cuaderno local cifrado para continuar.'}</p>${STATE.reloadProbe?`<p class="${STATE.reloadProbe.ok?'section-note':'unlock-error'}" role="status">${STATE.reloadProbe.ok?'Recarga verificada: la misma copia cifrada continúa en IndexedDB. Desbloquéala para validar las notas.':'No se ha podido verificar el guardado tras recargar. Revisa el almacenamiento y no introduzcas más datos hasta comprobar la copia.'}</p>`:''}${pwaButtons()}<button type="button" class="btn unlock-help-primary" id="how-it-works" aria-label="Cómo funciona AppNotas y cómo guardar copias de seguridad">¿Cómo funciona? <span aria-hidden="true">ⓘ</span></button>${dropboxConfigured(location.origin)?`<div class="unlock-dropbox"><button class="btn dropbox-sync-btn" type="button" id="dropbox-restore-locked" aria-describedby="unlock-dropbox-hint">${dropboxIcon}${isNew?(dropboxCallback?.mode==='restore'?'Continuar recuperación de Dropbox':'Sincronizar con Dropbox'):'Desbloquear y sincronizar con Dropbox'}</button><p class="hint" id="unlock-dropbox-hint" role="status">${isNew?'¿Ya tienes un cuaderno en Dropbox? Recupéralo sin crear otro. Necesitarás su contraseña.':'Desbloquea tu cuaderno para sincronizarlo. Si aún no está vinculado, podrás hacerlo en Ajustes.'}</p></div>`:''}<form id="unlock-form"><label for="password">${isNew?'Crea una contraseña de 12 caracteres como mínimo':'Contraseña del cuaderno'}</label><input id="password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>${isNew?'<label for="confirm-password">Repite la contraseña</label><input id="confirm-password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>':''}<div id="unlock-error" class="unlock-error" role="alert"></div>${isNew?'<div class="modal-actions"><button class="btn primary" type="submit" data-create-mode="empty">Crear cuaderno vacío</button><button class="btn" type="submit" data-create-mode="demo">Crear cuaderno de demostración</button></div>':'<button class="btn primary" type="submit">Desbloquear</button>'}</form><p class="hint">La contraseña no se envía ni se almacena. Si la pierdes, no podrás recuperar los datos cifrados.</p><p class="hint">Almacena los cuadernos cifrados únicamente en dispositivos autorizados. Guarda y verifica copias de seguridad independientes en ubicaciones locales no sincronizadas. ${dropboxConfigured(location.origin)?'Dropbox es opcional y solo recibe el cuaderno cifrado cuando lo vinculas.':'No uses servicios en la nube.'}</p>${dropboxCallback?.mode==='link'?'<p class="hint">Dropbox autorizado. Desbloquea tu cuaderno para confirmar la vinculación.</p>':''}<button class="btn" id="restore-locked">Restaurar una copia cifrada</button><input class="hidden" type="file" id="restore-locked-file" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/>${STATE.recovery?'<div class="recovery-choice"><p class="hint">Hay una copia cifrada de rescate anterior a la última restauración.</p><button class="btn" id="recover-locked">Recuperar versión anterior</button><button class="btn" id="download-recovery-locked">Descargar copia de rescate</button></div>':''}</div></main>`;
   $('#unlock-form').addEventListener('submit',e=>{
@@ -922,7 +937,7 @@ async function restoreBackup(file){
     const replacement=await seal(doc,opened.key,opened.salt);
     // La transacción CAS conserva el rescate y sustituye el principal atómicamente.
     const recovery=await replaceEnvelopeWithRecovery(STATE.db,replacement,existing);
-    await adoptRestoredNotebook(replacement,recovery,{key:opened.key,salt:opened.salt},doc);
+    await adoptRestoredNotebook(replacement,recovery,opened,doc);
     toast(recovery?'Importación completada. Versión local anterior conservada como rescate cifrado.':'Importación completada. Copia íntegra y validada.');
   });
 }
@@ -931,7 +946,7 @@ async function adoptRestoredNotebook(envelope,recovery,opened,doc){
   clearDropboxOnboarding();dropboxSession.stop();dropboxStatus='not-linked';
   STATE.envelope=envelope;STATE.recovery=recovery;
   STATE.doc=doc;STATE.key=opened.key;STATE.salt=opened.salt;STATE.saveError=null;
-  STATE.history=emptyHistory();chooseInitial();await loadOrdinaryPeriods();STATE.tab='cuaderno';STATE.studentId=null;render();
+  STATE.history=emptyHistory();chooseInitial();await loadOrdinaryPeriods(opened.preferences);STATE.tab='cuaderno';STATE.studentId=null;render();
 }
 
 /** Reiniciar exige leer un archivo portable EXACTO del cuaderno vigente. */
@@ -1036,7 +1051,8 @@ async function closeNotebook(){
   if(!sameEnvelope(await readEnvelope(STATE.db),STATE.envelope))throw new Error('El cuaderno cambió desde otra pestaña. No exportes una versión desactualizada.');
   const snapshot=structuredClone(STATE.doc);
   const exportedDate=new Date();
-  const prepared=await createPortableCopy(snapshot,STATE.key,STATE.salt,exportedDate);
+  const preferences=await periodPreferences.load().catch(()=>null);
+  const prepared=await createPortableCopy(snapshot,STATE.key,STATE.salt,exportedDate,preferences);
   const filename=portableFilename(exportedDate);
   if(dialog.open)throw new Error('Cierra el diálogo actual para exportar.');
   dialog.innerHTML=`<div class="modal-inner portable-dialog"><h2 id="modal-heading">Cerrar cuaderno · copia cifrada</h2><p>Los cambios se han guardado en este dispositivo. La copia completa está cifrada con la contraseña de este cuaderno.</p><p><strong>${esc(filename)}</strong></p><p class="hint"><strong>Solo almacenamiento local autorizado por el centro:</strong> elige «En mi iPad» / «En mi iPhone», una carpeta local del ordenador o un USB sin sincronización. No elijas iCloud Drive, OneDrive ni carpetas sincronizadas. ${dropboxConfigured(location.origin)?'Esta exportación es independiente de Dropbox; no confirma que se haya completado la sincronización.':'Esta aplicación no accede a ninguna nube ni confirma la sincronización posterior.'}</p><p id="close-result" class="hint" role="status">El cuaderno local permanece intacto aunque canceles.</p><div class="modal-actions portable-choices"><button class="btn" id="close-cancel">Cancelar</button><button class="btn primary" id="close-save">Guardar archivo cifrado</button><button class="btn hidden" id="close-lock">Bloquear cuaderno</button></div></div>`;
@@ -2895,7 +2911,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v200-dev');
+      const cache=await caches.open('cuaderno-docente-static-v201-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

@@ -4,7 +4,7 @@
  */
 import {createLocalSyncBridge,loadLocalDropboxSession,sameDropboxLink} from './dropbox-local.js';
 import {createDropboxTransport} from './dropbox-sync.js';
-import {createPeriodPreferenceTransport,syncPeriodPreferences} from './period-preferences.js';
+import {createPeriodPreferenceTransport,syncPeriodPreferences,periodPreferenceScope} from './period-preferences.js';
 import {prepareConflictCopies} from './dropbox-conflict.js';
 import {createSyncController,createSyncScheduler} from './dropbox-controller.js';
 import {readDropboxCredential,writeEnvelope} from './storage.js';
@@ -32,7 +32,7 @@ export function createSessionTokenProvider({clientId,refreshToken,refresh=refres
   function stop(){stopped=true;abort.abort();token=null;secret=null;expiry=0;}
   return Object.freeze({getAccessToken,stop});
 }
-export function createDropboxSession({state,preferences,enqueue,canApply,adopt,onStatus,windowTarget,documentTarget,origin,
+export function createDropboxSession({state,preferences,onPreferences=()=>{},enqueue,canApply,adopt,onStatus,windowTarget,documentTarget,origin,
     load=loadLocalDropboxSession,readLink=readDropboxCredential,clientId=DROPBOX_CLIENT_ID}){
   let generation=0,scheduler=null,provider=null,inspect=null,preferenceAbort=null,preferenceFlight=null,preferenceSync=null,academicSynced=false;
   const conflictCopies=async()=>{if(!inspect)throw new Error('Dropbox session unavailable.');return inspect();};
@@ -59,13 +59,15 @@ export function createDropboxSession({state,preferences,enqueue,canApply,adopt,o
     const getAccessToken=async()=>{await checkLink();const token=await sessionProvider.getAccessToken();await checkLink();return token;};
     const transport=createDropboxTransport({path:dropboxFilePath(origin),getAccessToken});
     if(preferences){
-      const sidecar=createPeriodPreferenceTransport({academicPath:dropboxFilePath(origin),getAccessToken});
+      const scope=await periodPreferenceScope(state.doc.id,state.envelope.salt);
+      if(gen!==generation||state.key!==key){sessionProvider.stop();return;}
+      const sidecar=createPeriodPreferenceTransport({academicPath:dropboxFilePath(origin),scope,getAccessToken});
       const abort=new AbortController();preferenceAbort=abort;
       preferenceSync=()=>{
         if(!academicSynced||abort.signal.aborted||documentTarget.visibilityState==='hidden')return;
         if(preferenceFlight)return preferenceFlight;
-        const job=syncPeriodPreferences({store:preferences,transport:sidecar,state,signal:abort.signal,check:checkLink})
-          .catch(()=>false).finally(()=>{if(preferenceFlight===job)preferenceFlight=null;});
+        const job=syncPeriodPreferences({store:preferences,transport:sidecar,state,signal:abort.signal,check:async()=>{await checkLink();if(!academicSynced)throw Error('Sincronización académica pendiente.');}})
+          .catch(()=>false).then(ok=>{if(!abort.signal.aborted)onPreferences(ok);return ok;}).finally(()=>{if(preferenceFlight===job)preferenceFlight=null;});
         preferenceFlight=job;return job;
       };
     }

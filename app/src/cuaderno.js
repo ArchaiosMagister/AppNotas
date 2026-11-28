@@ -4,6 +4,7 @@
  */
 import {seal,unlockVault,validateEnvelope} from './vault.js';
 import {assertModel,migrateNotebook,SCHEMA_VERSION} from './model.js';
+import {validatePeriodPreferences} from './period-preferences.js';
 export const PORTABLE_TYPE='TabulariumCuaderno';
 export const PORTABLE_VERSION=1;
 export const MAX_CUADERNO_BYTES=25_000_000;
@@ -123,11 +124,12 @@ export function backupProtection(doc,receipt,now=Date.now()){
   return 'current';
 }
 
-export async function createPortableCopy(doc,key,salt,date=new Date()){
+export async function createPortableCopy(doc,key,salt,date=new Date(),preferences=null){
   assertModel(doc);validateBookMetadata(doc);
   if(!key||!(salt instanceof Uint8Array))throw new Error('Desbloquea el cuaderno para crear una copia.');
   const exportedAt=date.toISOString();
   const payload={type:PORTABLE_TYPE,version:PORTABLE_VERSION,exportedAt,modelVersion:SCHEMA_VERSION,notebook:doc};
+  if(preferences)payload.preferences=validatePeriodPreferences(preferences,doc.id);
   const vault=await seal(payload,key,salt,undefined,AAD);
   const file={type:PORTABLE_TYPE,version:PORTABLE_VERSION,vault};
   if(JSON.stringify(file).length>MAX_CUADERNO_BYTES)throw new Error('El cuaderno supera el tamaño máximo de copia (25 MB).');
@@ -135,7 +137,7 @@ export async function createPortableCopy(doc,key,salt,date=new Date()){
 }
 export async function decodeBackupContent(raw,password){
   if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error('Archivo de cuaderno no válido.');
-  let unlocked,source,exportedAt=null;
+  let unlocked,source,exportedAt=null,preferences=null;
   if(raw.type===PORTABLE_TYPE){
     if(raw.version!==PORTABLE_VERSION)throw new Error('Versión del archivo .cuaderno incompatible. No se han modificado datos.');
     if(!raw.vault||typeof raw.vault!=='object'||Array.isArray(raw.vault))throw new Error('Archivo de cuaderno incompleto.');
@@ -148,6 +150,7 @@ export async function decodeBackupContent(raw,password){
     if(!payload.notebook?._portability)throw new Error('El archivo no incluye historial de versiones válido.');
     validateBookMetadata(payload.notebook);
     source=payload.notebook;exportedAt=payload.exportedAt;
+    if(payload.preferences){try{preferences=validatePeriodPreferences(payload.preferences,source.id);}catch{/* Academic backup stays recoverable even if optional preferences are invalid. */}}
   }else if(raw.format==='CuadernoDocenteEncrypted'){
     validateEnvelope(raw);unlocked=await unlockVault(password,raw);source=unlocked.doc;
   }else{
@@ -157,7 +160,7 @@ export async function decodeBackupContent(raw,password){
   assertModel(upgraded.doc);
   if(upgraded.doc._portability)validateBookMetadata(upgraded.doc);
   return {doc:upgraded.doc,key:unlocked.key,salt:unlocked.salt,exportedAt,
-    upgraded:upgraded.migrated,legacy:!exportedAt};
+    upgraded:upgraded.migrated,legacy:!exportedAt,...(preferences?{preferences}:{})};
 }
 export async function readBackupFile(file,password){
   if(!file||!Number.isFinite(file.size)||file.size<=0||file.size>MAX_CUADERNO_BYTES)

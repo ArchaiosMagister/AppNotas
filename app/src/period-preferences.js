@@ -62,14 +62,14 @@ export function createPeriodPreferenceStore({state,read=readPeriodPreferences,wr
  async function transact(c,change){
   for(let tries=0;tries<5;tries++){
    if(!current(c))throw Error('Sesión cerrada.');
-   const main=state.envelope,previous=await read(c.db,main);
+   const main=state.envelope,previous=await read(c.db,main,c.bookId);
    const local=previous?await openPeriodPreferences(previous,c.key,c.salt,c.bookId):emptyPeriodPreferences(c.bookId);
    const next=change(local);
    if(!current(c))throw Error('Sesión cerrada.');
    if(same(local,next)){cache=next;owner=c.key;return next;}
    const sealed=await sealPeriodPreferences(next,c.key,c.salt);
    if(!current(c))throw Error('Sesión cerrada.');
-   if(await write(c.db,main,previous,sealed)){
+   if(await write(c.db,main,previous,sealed,c.bookId)){
     if(!current(c))throw Error('Sesión cerrada.');
     cache=next;owner=c.key;return next;
    }
@@ -85,8 +85,14 @@ export function createPeriodPreferenceStore({state,read=readPeriodPreferences,wr
  });
 }
 /** The sidecar uses the existing Dropbox API and distinct fixed paths and AAD. */
-export function createPeriodPreferenceTransport({academicPath,getAccessToken,fetchImpl=globalThis.fetch}){
- const path=academicPath===DROPBOX_TEST_PATH?'/pruebas-preferencias-cifradas.json':academicPath===DROPBOX_PRODUCTION_PATH?'/preferencias-cifradas.json':null;
+export async function periodPreferenceScope(bookId,salt){
+ if(!id(bookId)||typeof salt!=='string')throw Error('Cuaderno no identificado.');
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(bookId+':'+salt));
+ return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+}
+export function createPeriodPreferenceTransport({academicPath,scope,getAccessToken,fetchImpl=globalThis.fetch}){
+ if(!/^[a-f0-9]{64}$/.test(scope))throw Error('Identificador de preferencias inválido.');
+ const path=academicPath===DROPBOX_TEST_PATH?'/pruebas-preferencias-cifradas-'+scope+'.json':academicPath===DROPBOX_PRODUCTION_PATH?'/preferencias-cifradas-'+scope+'.json':null;
  if(!path)throw Error('Ruta de preferencias no autorizada.');
  const revision=r=>{if(typeof r!=='string'||! /^[a-zA-Z0-9_-]{1,128}$/.test(r))throw Error('Revisión de preferencias inválida.');return r;};
  const request=async(action,arg,signal,body,beforeSend)=>{

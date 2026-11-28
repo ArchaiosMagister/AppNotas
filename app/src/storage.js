@@ -245,13 +245,13 @@ export function installDropboxNotebook(db,envelope,record){return new Promise((r
 });}
 
 /** Separate encrypted preferences slot. No writes to main, recovery or academic metadata. */
-const periodPreferenceSlot=main=>'period-preferences-v1:'+main.salt;
-export function readPeriodPreferences(db,main){return new Promise((resolve,reject)=>{
- const t=db.transaction(STORE,'readonly'),r=t.objectStore(STORE).get(periodPreferenceSlot(main));
+const periodPreferenceSlot=(main,bookId)=>'period-preferences-v1:'+main.salt+':'+bookId;
+export function readPeriodPreferences(db,main,bookId){return new Promise((resolve,reject)=>{
+ const t=db.transaction(STORE,'readonly'),r=t.objectStore(STORE).get(periodPreferenceSlot(main,bookId));
  r.onsuccess=()=>resolve(r.result??null);r.onerror=()=>reject(r.error);t.onabort=()=>reject(t.error||Error('Lectura interrumpida.'));
 });}
-export function writePeriodPreferences(db,main,expected,envelope){return new Promise((resolve,reject)=>{
- const t=durableWrite(db),store=t.objectStore(STORE),key=periodPreferenceSlot(main);
+export function writePeriodPreferences(db,main,expected,envelope,bookId){return new Promise((resolve,reject)=>{
+ const t=durableWrite(db),store=t.objectStore(STORE),key=periodPreferenceSlot(main,bookId);
  let saved=false;
  t.oncomplete=()=>resolve(saved);t.onerror=()=>reject(t.error);t.onabort=()=>reject(t.error||Error('Escritura interrumpida.'));
  const m=store.get('main'),p=store.get(key);
