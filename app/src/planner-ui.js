@@ -356,8 +356,9 @@ export function bindPlanner(doc,ui,ctx){
     '<label>Hasta (elige la fecha final del curso)<input class="text-field" id="patio-to" type="date" min="'+esc(year.start)+'" max="'+esc(year.end)+'" required></label>'+
     '<label>Inicio del horario de verano (opcional)<input class="text-field" id="patio-summer" type="date" min="'+esc(year.start)+'" max="'+esc(year.end)+'"></label>'+
     '<label class="patio-holiday-control"><input id="patio-skip" type="checkbox" checked> Omitir festivos y vacaciones marcados en esta agenda</label>'+
+    '<label class="patio-holiday-control"><input id="patio-overwrite" type="checkbox"> Sobrescribir guardias importadas anteriormente en el intervalo seleccionado</label>'+
    '</div>'+
-   '<p class="hint">La rotación avanza por semanas naturales incluso durante las vacaciones. El horario ordinario usa el primer patio habitual y la fecha opcional de verano cambia a su franja correspondiente. Las guardias existentes no se sobrescriben.</p>'+
+   '<p class="hint">La rotación avanza por semanas naturales incluso durante las vacaciones. El horario ordinario usa el primer patio habitual y la fecha opcional de verano cambia a su franja correspondiente. Por defecto se conservan las guardias existentes. Si activas la sobrescritura, se actualizarán las guardias importadas y se eliminarán las que ya no correspondan al nuevo Excel. Las guardias manuales y las de otros cursos se conservan.</p>'+
    '<p class="hint">El archivo no determina automáticamente todas las vacaciones ni la fecha de fin de curso: revisa ambos datos.</p>'+
    '<div class="modal-error" id="patio-import-error" role="alert"></div>'+
    '<div class="modal-actions"><button type="button" class="btn" id="patio-cancel">Cancelar</button>'+
@@ -371,7 +372,7 @@ export function bindPlanner(doc,ui,ctx){
   for(const input of form.querySelectorAll('input'))input.addEventListener('change',reset);
   $p('patio-cancel').onclick=()=>ctx.dialog.close();
   const options=()=>({from:$p('patio-from').value,to:$p('patio-to').value,
-   summerFrom:$p('patio-summer').value,skipHolidays:$p('patio-skip').checked});
+   summerFrom:$p('patio-summer').value,skipHolidays:$p('patio-skip').checked,overwrite:$p('patio-overwrite').checked});
   form.onsubmit=async event=>{
    event.preventDefault();reset();const button=$p('patio-preview');button.disabled=true;
    try{
@@ -381,38 +382,47 @@ export function bindPlanner(doc,ui,ctx){
     const config=options(),preview=previewPatioRotation(ctx.getDoc(),template,config);
     prepared={template,config,preview};
     const days=['Lunes','Martes','Miércoles','Jueves','Viernes'];
-    const details=preview.entries.map(item=>
+    const labels={create:'Nueva',replace:'Sustituir',skip:'Conservar existente'};
+    const details=preview.entries.map((item,i)=>
      '<tr><td>'+esc(item.date)+' · '+esc(days[item.day])+'</td>'+
      '<td>'+esc(item.start+'–'+item.end)+'</td><td>'+esc(item.zone)+'</td>'+
      '<td>'+esc(item.rainZone)+'</td>'+
-     '<td>'+esc(item.existingId?'Ya programada':'Nueva')+'</td></tr>').join('');
+     '<td>'+esc(labels[preview.plan.rows[i].action])+'</td></tr>').join('')+
+     preview.plan.removals.map(item=>'<tr><td>'+esc(item.date)+'</td><td>'+esc(item.time||'')+'</td><td>'+esc(item.title)+'</td><td>—</td><td>Eliminar importada</td></tr>').join('');
+    const count=action=>preview.plan.rows.filter(row=>row.action===action).length;
     out.hidden=false;
     out.innerHTML='<h3>Vista previa de la rotación</h3>'+
      '<p class="hint">Primer lunes del Excel: '+esc(template.firstMonday)+
      '. Desplazamiento: '+esc(template.shift)+' puestos por semana; ciclo de '+
      esc(template.cycleWeeks)+' semanas. Días asignados: '+
      esc(preview.weekdays.map(d=>days[d]).join(', '))+'.</p>'+
-     '<p><strong>'+esc(preview.entries.length-preview.existing)+' guardias nuevas</strong>'+
-     ' · '+esc(preview.existing)+' ya programadas (no se sobrescribirán)'+
+     '<p><strong>'+esc(count('create'))+' guardias nuevas</strong>'+
+     ' · '+esc(count('replace'))+' a sustituir · '+esc(preview.plan.removals.length)+' a eliminar · '+esc(count('skip'))+' conservadas'+
      ' · '+esc(preview.excluded)+' fechas omitidas por festivos.</p>'+
      (preview.secondCount?'<p class="hint">Atención: tu marcador aparece también en el segundo patio; esas guardias NO se importan con este formato.</p>':'')+
      '<div class="patio-preview-scroll"><table class="patio-preview-table"><thead><tr>'+
      '<th>Fecha</th><th>Hora</th><th>Zona habitual</th><th>Con lluvia o viento</th><th>Resultado</th>'+
      '</tr></thead><tbody>'+details+'</tbody></table></div>'+
      '<p class="hint">Comprueba las zonas, las vacaciones y el último día del curso antes de incorporar. Los datos se guardarán cifrados con tu cuaderno.</p>';
-    apply.disabled=preview.entries.length===preview.existing;
+    apply.textContent=config.overwrite?'Confirmar sustitución':'Confirmar e incorporar';
+    apply.disabled=!count('create')&&!count('replace')&&!preview.plan.removals.length;
    }catch(err){error.textContent=err.message||'No se ha podido interpretar la rotación.';}
    finally{button.disabled=false;}
   };
   apply.onclick=async()=>{
    if(!prepared)return;
-   if(!window.confirm('¿Incorporar las guardias revisadas a la agenda del cuaderno cifrado? No se sustituirá ninguna guardia existente.'))return;
+   const message=prepared.config.overwrite?'¿Sustituir las guardias importadas del intervalo revisado? Se eliminarán las que ya no correspondan y se reemplazarán sus notas. Las guardias manuales y los demás cursos se conservarán.':'¿Incorporar las guardias revisadas a la agenda del cuaderno cifrado? No se sustituirá ninguna guardia existente.';
+   if(!window.confirm(message))return;
    apply.disabled=true;
    try{
-    const {template,config}=prepared;
-    await ctx.commit(d=>addPatioRotationEvents(d,previewPatioRotation(d,template,config)),'Importar guardias rotatorias de patio');
+    const {template,config,preview}=prepared;
+    await ctx.commit(d=>{
+     const current=previewPatioRotation(d,template,config);
+     if(JSON.stringify(current)!==JSON.stringify(preview))throw new Error('La agenda ha cambiado. Revisa de nuevo las asignaciones.');
+     return addPatioRotationEvents(d,current);
+    },config.overwrite?'Sustituir guardias rotatorias de patio':'Importar guardias rotatorias de patio');
     ctx.dialog.close();
-    ctx.toast('Guardias incorporadas. Revisa la agenda y verifica una copia cifrada del cuaderno.');
+    ctx.toast((config.overwrite?'Guardias actualizadas.':'Guardias incorporadas.')+' Revisa la agenda y verifica una copia cifrada del cuaderno.');
    }catch(err){error.textContent=err.message;apply.disabled=false;}
   };
   ctx.dialog.showModal();
