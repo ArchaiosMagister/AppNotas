@@ -91,6 +91,7 @@ async function auditExamsAndGroupedScroll(browser,name){
   assert.match(await modal.innerText(),/No hay exámenes próximos programados/);
   await modal.getByRole('button',{name:'Cerrar'}).click();
   await page.locator('[data-tab="cuaderno"]').click();
+  await page.locator('.notebook-student-options>summary').click();
   await page.locator('label[for="student-group-mode"]').click();
 
   const scroller=page.locator('.table-scroller');
@@ -416,10 +417,12 @@ async function audit(engine,name){
     await tableMenu.locator('#csv-import').click();
     const chooser=await chooserPromise;
     assert.equal(await chooser.element().getAttribute('id'),'csv-file');
+    // El selector externo puede cerrar el menú. Volver a abrirlo antes de recuperar.
+    if(!await tableMenu.evaluate(el=>el.open))await tableMenu.locator('summary').click();
     await tableMenu.locator('#new-recovery').click();
     assert(await page.getByRole('heading',{name:'Nueva recuperación'}).isVisible());
     await page.keyboard.press('Escape');
-    await tableMenu.locator('summary').click();
+    if(await tableMenu.evaluate(el=>el.open))await tableMenu.locator('summary').click();
 
     const finalView=page.getByRole('button',{name:'Evaluación final',exact:true});
     assert.equal(await finalView.count(),1);
@@ -483,26 +486,34 @@ async function audit(engine,name){
      const actions=cell.querySelector('.grade-cell-actions-trigger')?.getBoundingClientRect();
      const body=cell.getBoundingClientRect();
      return {top:face?.top,height:face?.height,actions:!!actions,
-      actionBottom:actions?.bottom,bottom:body.bottom};
+      actionTop:actions?.top,actionBottom:actions?.bottom,actionWidth:actions?.width,actionHeight:actions?.height,
+      dx:Math.abs((actions?.left+actions?.width/2)-(face?.left+face?.width/2)),
+      supportTop:cell.querySelector('.grade-cell-support:not(:empty)')?.getBoundingClientRect().top,bottom:body.bottom};
     });
    });
    assert(gradeRows.length>=3,name+' las notas no usan la misma estructura: '+JSON.stringify(gradeRows));
    assert(gradeRows.every(x=>x.actions&&Math.abs(x.top-gradeRows[0].top)<=2),
     name+' cifras principales de distintas columnas desalineadas: '+JSON.stringify(gradeRows));
-   assert(gradeRows.every(x=>Math.abs(x.actionBottom-x.bottom)<=3),
-    name+' menú ⋯ desplaza el contenido: '+JSON.stringify(gradeRows));
+   assert(gradeRows.every(x=>x.dx<=2&&x.actionTop>=x.top+x.height-1&&
+     (x.supportTop===undefined||x.supportTop>=x.actionBottom-1)),
+    name+' menú ⋯ debe estar debajo y sin solapar información: '+JSON.stringify(gradeRows));
+   assert(gradeRows.every(x=>x.actionWidth>=43.5&&x.actionHeight>=43.5),
+    name+' menú de celda demasiado pequeño para tacto: '+JSON.stringify(gradeRows));
    if(size.width===390){
     await page.locator('td.category-tinted .grade-cell-actions-trigger').first().click();
     assert(await page.locator('.grade-cell-actions-dialog').isVisible(),
      name+' menú ⋯ dejó de funcionar');
     await page.locator('#grade-action-close').click();
-    // La configuración se encuentra dentro de «Ítaca y procedencias».
+    // Ambos accesos deben abrir el mismo formulario, sin duplicar estado.
     await page.locator('.notebook-grade-options>summary').click();
-    await page.locator('#configure-itaca-attitude').click();
+    await page.locator('#configure-itaca-attitude-toolbar').click();
     assert(await page.locator('#itaca-attitude-form').isVisible(),
      name+' no abre la configuración de actitud');
     await page.locator('[name="guardMode"]').selectOption('category');
     assert(await page.locator('[name="guardCategory"]').count()===1);
+    await page.locator('#itaca-guard-cancel').click();
+    await page.locator('#configure-itaca-attitude').click();
+    assert(await page.locator('#itaca-attitude-form').isVisible());
     await page.locator('#itaca-guard-cancel').click();
    }
    if(size.width<=650){

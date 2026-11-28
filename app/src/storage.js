@@ -243,3 +243,23 @@ export function installDropboxNotebook(db,envelope,record){return new Promise((r
     try{store.put(envelope,'main');store.put(record,DROPBOX_KEY);}catch(e){abort(e);}
   };
 });}
+
+/** Separate encrypted preferences slot. No writes to main, recovery or academic metadata. */
+const periodPreferenceSlot=(main,bookId)=>'period-preferences-v1:'+main.salt+':'+bookId;
+export function readPeriodPreferences(db,main,bookId){return new Promise((resolve,reject)=>{
+ const t=db.transaction(STORE,'readonly'),r=t.objectStore(STORE).get(periodPreferenceSlot(main,bookId));
+ r.onsuccess=()=>resolve(r.result??null);r.onerror=()=>reject(r.error);t.onabort=()=>reject(t.error||Error('Lectura interrumpida.'));
+});}
+export function writePeriodPreferences(db,main,expected,envelope,bookId,active=()=>true){return new Promise((resolve,reject)=>{
+ const t=durableWrite(db),store=t.objectStore(STORE),key=periodPreferenceSlot(main,bookId);
+ let saved=false;
+ t.oncomplete=()=>resolve(saved);t.onerror=()=>reject(t.error);t.onabort=()=>reject(t.error||Error('Escritura interrumpida.'));
+ const m=store.get('main'),p=store.get(key);
+ const finish=()=>{
+  if(m.readyState!=='done'||p.readyState!=='done')return;
+  if(!active()||!sameEnvelope(m.result??null,main)||!sameEnvelope(p.result??null,expected))return;
+  if(envelope.salt!==main.salt||envelope.iterations!==main.iterations){t.abort();return;}
+  store.put(envelope,key);saved=true;
+ };
+ m.onsuccess=finish;p.onsuccess=finish;
+});}

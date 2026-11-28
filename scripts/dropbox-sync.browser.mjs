@@ -19,7 +19,7 @@ async function passwordForm(page,selector='#password'){await page.locator(select
 async function edit(page,value){const input=page.locator(grade).first();await input.fill(value);await input.press('Tab');await page.locator('h1').click();await page.waitForFunction(v=>document.querySelector('.grade-table input.note-input:not(.original-note-input)')?.value===v,value);}
 for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
   const browser=await engine.launch({headless:true});
-  let remote=null,revision=0,uploads=0;
+  let remote=null,revision=0,uploads=0,prefsRemote=null,prefsRevision=0;
   const requests=[],errors=[];
   async function waitRevision(previous){const until=Date.now()+30000;while(revision<=previous&&Date.now()<until)await new Promise(r=>setTimeout(r,100));assert(revision>previous,'expected a new remote revision');}
   async function device(){
@@ -54,6 +54,18 @@ for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
           return json({access_token:'fictional-access-token',refresh_token:'fictional-refresh-token',token_type:'bearer',expires_in:14400,scope:'files.content.read files.content.write'});
         }
         const arg=JSON.parse(req.headers()['dropbox-api-arg']);
+        if(/^\/pruebas-preferencias-cifradas-[a-f0-9]{64}\.json$/.test(arg.path)){
+          if(url.pathname==='/2/files/download'){
+            if(!prefsRemote)return json({error:{'.tag':'path',path:{'.tag':'not_found'}}},409);
+            return route.fulfill({status:200,headers:{...headers,'content-type':'application/octet-stream','Dropbox-API-Result':JSON.stringify({rev:'p'+prefsRevision,size:Buffer.byteLength(prefsRemote)})},body:prefsRemote});
+          }
+          if(url.pathname==='/2/files/upload'){
+            assert.equal(arg.autorename,false);assert.equal(arg.strict_conflict,true);
+            if(prefsRemote?arg.mode?.update!=='p'+prefsRevision:arg.mode!=='add')return json({},409);
+            const body=req.postData();assert(!body.includes('"periodId"'));assert(!body.includes('"groupId"'));
+            prefsRemote=body;prefsRevision++;return json({rev:'p'+prefsRevision});
+          }
+        }
         assert.equal(arg.path,'/pruebas-cuaderno-cifrado.json');
         if(url.pathname==='/2/files/download'){
           if(!remote)return json({error:{'.tag':'path',path:{'.tag':'not_found'}}},409);
@@ -117,6 +129,22 @@ for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
     await p.evaluate(()=>window.dispatchEvent(new Event('pageshow')));
     await p.waitForFunction(()=>document.querySelector('.grade-table input.note-input:not(.original-note-input)')?.value==='3');
     console.log(name+': sincronización bidireccional OK');
+    // Real browser UI selection, separate Dropbox file and unchanged academic revision.
+    const academicRevision=revision,firstPeriod=await p.locator('[data-period-choice]').first().getAttribute('data-period-choice');
+    const secondPeriod=await p.locator('[data-period-choice]').nth(1).getAttribute('data-period-choice');
+    await p.locator('[data-period-choice]').nth(1).click();
+    await p.waitForFunction(id=>document.querySelector('[data-period-choice][aria-pressed="true"]')?.dataset.periodChoice===id,secondPeriod);
+    {const deadline=Date.now()+30000;while(!prefsRevision&&Date.now()<deadline)await new Promise(r=>setTimeout(r,100));assert(prefsRevision>0);}
+    await q.locator('h1').click();await q.evaluate(()=>window.dispatchEvent(new Event('pageshow')));
+    await q.waitForFunction(id=>document.querySelector('[data-period-choice][aria-pressed="true"]')?.dataset.periodChoice===id,secondPeriod,{timeout:30000});
+    assert.equal(revision,academicRevision);
+    await q.locator('[data-academic-quick="final"]').click();
+    await q.locator('[data-period-choice]').first().click();
+    await q.waitForFunction(id=>document.querySelector('[data-period-choice][aria-pressed="true"]')?.dataset.periodChoice===id,firstPeriod);
+    {const deadline=Date.now()+30000;while(prefsRevision<2&&Date.now()<deadline)await new Promise(r=>setTimeout(r,100));assert(prefsRevision>=2);}
+    await p.locator('h1').click();await p.evaluate(()=>window.dispatchEvent(new Event('pageshow')));
+    await p.waitForFunction(id=>document.querySelector('[data-period-choice][aria-pressed="true"]')?.dataset.periodChoice===id,firstPeriod,{timeout:30000});
+    assert.equal(revision,academicRevision);console.log(name+': preferencias bidireccionales sin revisión académica OK');
     // Offline concurrent edits must stop rather than overwrite either copy.
     await a.ctx.setOffline(true);await edit(p,'4');
     const beforeConflict=revision;

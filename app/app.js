@@ -23,6 +23,7 @@ import {installInstructions,mayReloadForUpdate,storagePersistence} from './src/p
 
 import {createDropboxSession,dropboxConfigured,DROPBOX_CLIENT_ID} from './src/dropbox-session.js';
 import {isDropboxTest} from './src/dropbox-config.js';
+import {createPeriodPreferenceStore,preferredPeriod} from './src/period-preferences.js';
 import {prepareDropboxNavigation,captureDropboxCallback,createDropboxOnboarding} from './src/dropbox-onboarding.js';
 import {writeDropboxCredential,readDropboxCredential} from './src/storage.js';
 
@@ -166,12 +167,31 @@ const savedStudentActivityOrders=()=>{try{
 const STUDENT_ACTIVITY_SORT_OPTIONS=[['category','Por categoría'],['column','Orden del cuaderno'],['alphabetical','Nombre de actividad (A–Z)'],['reverse','Últimas actividades primero']];
 
 const STATE={evaluationWorkspaceTab:'sesiones',plannerMode:'week',plannerDate:localToday(),plannerEventRequest:null,theme:savedTheme(),notebookZoom:savedNotebookZoom(),navCollapsed:savedNavigation(),studentSort:savedStudentSort(),studentPlainSort:savedStudentPlainSort(),studentActivityOrders:savedStudentActivityOrders(),studentPeriodId:null,studentFull:false,studentPresentation:false,db:null,doc:null,key:null,salt:null,envelope:null,groupId:null,periodId:null,level:null,subject:null,tab:'cuaderno',studentId:null,curriculumVersion:'2022',competencyVersion:'auto',curriculumSection:'competencias',curriculumCompetence:'all',curriculumQuery:'',saveQueue:Promise.resolve(),mutationQueue:Promise.resolve(),pending:0,failedEnvelope:null,history:emptyHistory(),saving:0,saveError:null,reloadProbe:null,recovery:null,exportReceipt:null};
+const periodPreferences=createPeriodPreferenceStore({state:STATE});
+let periodGroup=null,periodBook=null,preferenceError=false,preferenceSyncState='';
+function restoreOrdinaryPeriod(){STATE.periodId=preferredPeriod(periodPreferences.get(),STATE.doc,STATE.groupId);periodGroup=STATE.groupId;periodBook=STATE.doc.id;}
+async function loadOrdinaryPeriods(incoming=null){try{await periodPreferences.load();if(incoming)await periodPreferences.merge(incoming);preferenceError=false;}catch{preferenceError=true;}restoreOrdinaryPeriod();}
+function selectOrdinaryPeriod(id){
+ const groupId=STATE.groupId,key=STATE.key,bookId=STATE.doc?.id,tab=STATE.tab;
+ return enqueueMutation(async()=>{
+ if(!key||STATE.key!==key||STATE.doc?.id!==bookId||!STATE.doc.periods.some(p=>p.id===id)||!STATE.doc.groups.some(g=>g.id===groupId))return;
+ try{await periodPreferences.remember(groupId,id);preferenceError=false;}catch{preferenceError=true;toast('No se ha podido guardar la evaluación como preferencia cifrada. Las notas permanecen intactas.');}
+ if(STATE.key===key&&STATE.doc?.id===bookId&&STATE.groupId===groupId){
+  STATE.periodId=id;periodGroup=groupId;periodBook=bookId;
+  // Una navegación posterior no debe ser reemplazada por una selección en cola.
+  if(STATE.tab===tab){if(!['calculos','competencias'].includes(tab))STATE.tab='cuaderno';render();}
+  else if(['cuaderno','calculos','competencias'].includes(STATE.tab))render();
+ }
+ if(dropboxSession.active()){preferenceSyncState='Preferencias de evaluación pendientes de sincronizar.';paintDropboxStatus();}
+ dropboxSession.preferencesChanged();
+ });}
 let dropboxStatus='not-configured';
 let dropboxCallback=null,dropboxOnboarding=null;
 function clearDropboxOnboarding(){dropboxCallback=null;dropboxOnboarding?.stop();dropboxOnboarding=null;}
 const dropboxIcon='<svg aria-hidden="true" viewBox="0 0 48 48" width="19" height="19" fill="currentColor"><path d="M12 5 24 13 12 21 0 13zM36 5 48 13 36 21 24 13zM12 21 24 29 12 37 0 29zM36 21 48 29 36 37 24 29zM12 39 24 31 36 39 24 47z"/></svg>';
 const dropboxMessages={'not-configured':'Pendiente de configurar Dropbox','not-linked':'Dropbox no vinculado',idle:'Listo',syncing:'Sincronizando…',synced:'Sincronizado',offline:'Sin conexión',pending:'Cambios pendientes',unavailable:'Esperando guardado local',conflict:'Conflicto: se conservan ambas versiones','remote-missing':'No se encuentra la copia remota',error:'Error de sincronización',locked:'Bloqueado'};
 function paintDropboxStatus(){
+  for(const el of root.querySelectorAll('[data-period-preference-status]'))el.textContent=preferenceError?'No se han podido guardar o leer las preferencias de evaluación. Las notas están separadas.':preferenceSyncState||'Las evaluaciones se recuerdan por grupo en este dispositivo.';
   const message=dropboxMessages[dropboxStatus]||dropboxMessages.error;
   for(const el of root.querySelectorAll('[data-dropbox-status]'))el.textContent=message;
   const button=root.querySelector('#dropbox-sync');
@@ -179,10 +199,18 @@ function paintDropboxStatus(){
   const label=root.querySelector('#dropbox-sync .dropbox-label');
   if(label)label.textContent=dropboxStatus==='conflict'?'Conflicto':dropboxStatus==='syncing'?'Sincronizando…':dropboxStatus==='pending'?'Pendiente':dropboxStatus==='offline'?'Sin conexión':'Dropbox';
 }
-const dropboxSession=createDropboxSession({state:STATE,enqueue:enqueueMutation,windowTarget:window,documentTarget:document,origin:location.origin,
+const dropboxSession=createDropboxSession({state:STATE,preferences:periodPreferences,enqueue:enqueueMutation,windowTarget:window,documentTarget:document,origin:location.origin,
   canApply:()=>!dialog.open&&!STATE.studentPresentation&&!document.activeElement?.matches?.('input,select,textarea,[contenteditable=true]'),
   adopt:()=>{STATE.history=emptyHistory();if(STATE.studentId&&!STATE.doc.students.some(s=>s.id===STATE.studentId))STATE.studentId=null;render();},
-  onStatus:({status})=>{dropboxStatus=status;paintDropboxStatus();}});
+  onStatus:({status})=>{dropboxStatus=status;if(status!=='synced')preferenceSyncState='';paintDropboxStatus();},
+  onPreferences:ok=>{
+    preferenceSyncState=ok?'Preferencias de evaluación sincronizadas.':'Preferencias de evaluación pendientes de sincronizar.';
+    paintDropboxStatus();
+    if(ok&&!preferenceError&&STATE.doc&&!STATE.pending&&!dialog.open&&!STATE.studentPresentation&&['cuaderno','calculos','competencias'].includes(STATE.tab)&&!document.activeElement?.matches?.('input,select,textarea,[contenteditable=true]')){
+      const selected=preferredPeriod(periodPreferences.get(),STATE.doc,STATE.groupId);
+      if(selected!==STATE.periodId){restoreOrdinaryPeriod();render();}
+    }
+  }});
 function startDropboxSession(){void dropboxSession.start().catch(()=>{dropboxStatus='error';paintDropboxStatus();});}
 function openDropboxSettings(){STATE.tab='ajustes';STATE.studentPresentation=false;render();$('#dropbox-settings')?.scrollIntoView({block:'nearest'});}
 async function navigateDropbox(mode){
@@ -234,7 +262,7 @@ async function finishDropboxRestore(){
       const restored=await flow.restore({db:STATE.db,password,confirmRestore:async()=>window.confirm('Se ha autenticado el cuaderno de Dropbox con tu contraseña. ¿Instalarlo cifrado en este dispositivo vacío?')});
       if(!restored){showUnlock(true);return;}
       STATE.exportReceipt=null;
-      adoptRestoredNotebook(restored.envelope,STATE.recovery,restored,restored.doc);
+      await adoptRestoredNotebook(restored.envelope,STATE.recovery,restored,restored.doc);
       toast('Cuaderno recuperado de Dropbox y guardado cifrado en este dispositivo.');
     });
   }catch{
@@ -271,7 +299,7 @@ async function openDropboxConflictCopies(){
   dialog.showModal();
 }
 function renderDropboxSettings(){
-  return `<section id="dropbox-settings" class="panel panel-pad"><h2>Sincronización cifrada con Dropbox</h2>${isDropboxTest(location.origin)?'<p class="section-note"><strong>ENTORNO DE PRUEBAS.</strong> Solo datos ficticios. No importes ni escribas notas reales.</p>':''}<p data-dropbox-status role="status" aria-live="polite"></p><p class="hint">Los datos se cifran en este dispositivo antes de enviarse. No se guardan contraseñas en Dropbox. La sincronización se realizará mientras el cuaderno esté desbloqueado y la aplicación activa.</p>${STATE.envelope?.iterations!==KDF_ITERATIONS?'<p class="section-note">Para sincronizar, debes reforzar la contraseña del cuaderno. Conserva primero una copia cifrada comprobada.</p><button class="btn" type="button" id="dropbox-upgrade">Reforzar contraseña</button>':'<p class="hint">Formato de cifrado reforzado disponible. Dropbox requiere una frase de contraseña de al menos 16 caracteres.</p>'+(!dropboxSession.active()?'<button class="btn" type="button" id="dropbox-upgrade">Reforzar contraseña</button>':'')}${dropboxConfigured(location.origin)?(STATE.envelope?.iterations===KDF_ITERATIONS?'<div class="actions"><button class="btn dropbox-sync-btn" type="button" id="dropbox-link">Vincular Dropbox</button><button class="btn" type="button" id="dropbox-unlink">Desvincular este dispositivo</button><button class="btn" type="button" id="dropbox-conflict-copies">Conservar ambas versiones (conflicto)</button></div><p class="hint">Si existe un cuaderno diferente en Dropbox, no se sustituirá. Conserva copias locales verificadas además de la sincronización.</p>':'<p class="hint">Refuerza la contraseña antes de vincular Dropbox.</p>'):'<p class="hint">La conexión con Dropbox todavía no está habilitada. Ningún dato se envía.</p>'}</section>`;
+  return `<section id="dropbox-settings" class="panel panel-pad"><h2>Sincronización cifrada con Dropbox</h2>${isDropboxTest(location.origin)?'<p class="section-note"><strong>ENTORNO DE PRUEBAS.</strong> Solo datos ficticios. No importes ni escribas notas reales.</p>':''}<p data-dropbox-status role="status" aria-live="polite"></p><p class="hint" data-period-preference-status role="status" aria-live="polite"></p><p class="hint">Los datos se cifran en este dispositivo antes de enviarse. No se guardan contraseñas en Dropbox. La sincronización se realizará mientras el cuaderno esté desbloqueado y la aplicación activa.</p>${STATE.envelope?.iterations!==KDF_ITERATIONS?'<p class="section-note">Para sincronizar, debes reforzar la contraseña del cuaderno. Conserva primero una copia cifrada comprobada.</p><button class="btn" type="button" id="dropbox-upgrade">Reforzar contraseña</button>':'<p class="hint">Formato de cifrado reforzado disponible. Dropbox requiere una frase de contraseña de al menos 16 caracteres.</p>'+(!dropboxSession.active()?'<button class="btn" type="button" id="dropbox-upgrade">Reforzar contraseña</button>':'')}${dropboxConfigured(location.origin)?(STATE.envelope?.iterations===KDF_ITERATIONS?'<div class="actions"><button class="btn dropbox-sync-btn" type="button" id="dropbox-link">Vincular Dropbox</button><button class="btn" type="button" id="dropbox-unlink">Desvincular este dispositivo</button><button class="btn" type="button" id="dropbox-conflict-copies">Conservar ambas versiones (conflicto)</button></div><p class="hint">Si existe un cuaderno diferente en Dropbox, no se sustituirá. Conserva copias locales verificadas además de la sincronización.</p>':'<p class="hint">Refuerza la contraseña antes de vincular Dropbox.</p>'):'<p class="hint">La conexión con Dropbox todavía no está habilitada. Ningún dato se envía.</p>'}</section>`;
 }
 function openDropboxUpgrade(){
   if(dialog.open||!STATE.doc||!STATE.key)return;
@@ -297,9 +325,11 @@ function openDropboxUpgrade(){
       const upgraded=await prepareVaultUpgrade(oldPassword,newPassword,expected);
       assertModel(upgraded.doc);
       if(compareBookVersions(before,upgraded.doc)!=='same')throw new Error('La copia no coincide con el cuaderno.');
+      const savedPreferences=periodPreferences.get();
       dropboxSession.stop();
       await writeEnvelope(STATE.db,upgraded.envelope,expected);
       STATE.key=upgraded.key;STATE.salt=upgraded.salt;STATE.envelope=upgraded.envelope;
+      periodPreferences.reset();await loadOrdinaryPeriods(savedPreferences);
       STATE.history=emptyHistory();STATE.exportReceipt=null;
       dialog.close();render();startDropboxSession();toast('Contraseña reforzada. Guarda y verifica una nueva copia cifrada.');
     }).catch(()=>{if(form.isConnected)err.textContent='No se ha completado el cambio. Comprueba las contraseñas, verifica una copia .cuaderno de la revisión actual y desvincula Dropbox si estaba vinculado.';}).finally(()=>{
@@ -641,7 +671,7 @@ function chooseInitial(){
   const group=STATE.doc.groups[0];STATE.groupId=group?.id||null;
   STATE.level=group?.level||'legacy';STATE.subject=group?group.subject:'Latín I';
   if(!group){const available=catalogForNotebook(STATE.doc).flatMap(entry=>entry.subjects.map(subject=>({level:entry.level,subject})));const selected=available.find(x=>x.level==='1bach'&&x.subject==='Latín I')||available[0];STATE.level=selected?.level||'1bach';STATE.subject=selected?.subject||'Latín I';}
-  STATE.periodId=[...STATE.doc.periods].sort((a,b)=>a.order-b.order)[0]?.id||null;
+  restoreOrdinaryPeriod();
 }
 const groupsForSubject=()=>STATE.doc.groups.filter(g=>(g.level??'legacy')===STATE.level&&g.subject===STATE.subject);
 function setSubjectChoice(level,subject){
@@ -716,6 +746,7 @@ function showUnlock(isNew,callback=null){
   dropboxCallback=callback?.mode===(isNew?'restore':'link')?callback:null;
   dropboxSession.stop();
   unbindGradeTableHeaders();
+  periodPreferences.reset();periodGroup=null;periodBook=null;preferenceError=false;preferenceSyncState='';
   STATE.doc=null;STATE.key=null;STATE.salt=null;STATE.history=emptyHistory();STATE.studentPresentation=false;
   root.innerHTML=`<main class="unlock-screen"><div class="unlock-box"><div class="brand-mini">▦</div><div class="eyebrow">AppNotas · versión 1.0</div><h1>CuadernoDocente</h1>${isDropboxTest(location.origin)?'<p class="section-note"><strong>PRUEBAS: solo datos ficticios.</strong> No importes tu cuaderno real.</p>':''}<p>${isNew?'Elige un cuaderno vacío o uno de demostración con ocho alumnos ficticios. Ambos se guardan cifrados en este dispositivo.':'Desbloquea tu cuaderno local cifrado para continuar.'}</p>${STATE.reloadProbe?`<p class="${STATE.reloadProbe.ok?'section-note':'unlock-error'}" role="status">${STATE.reloadProbe.ok?'Recarga verificada: la misma copia cifrada continúa en IndexedDB. Desbloquéala para validar las notas.':'No se ha podido verificar el guardado tras recargar. Revisa el almacenamiento y no introduzcas más datos hasta comprobar la copia.'}</p>`:''}${pwaButtons()}<button type="button" class="btn unlock-help-primary" id="how-it-works" aria-label="Cómo funciona AppNotas y cómo guardar copias de seguridad">¿Cómo funciona? <span aria-hidden="true">ⓘ</span></button>${dropboxConfigured(location.origin)?`<div class="unlock-dropbox"><button class="btn dropbox-sync-btn" type="button" id="dropbox-restore-locked" aria-describedby="unlock-dropbox-hint">${dropboxIcon}${isNew?(dropboxCallback?.mode==='restore'?'Continuar recuperación de Dropbox':'Sincronizar con Dropbox'):'Desbloquear y sincronizar con Dropbox'}</button><p class="hint" id="unlock-dropbox-hint" role="status">${isNew?'¿Ya tienes un cuaderno en Dropbox? Recupéralo sin crear otro. Necesitarás su contraseña.':'Desbloquea tu cuaderno para sincronizarlo. Si aún no está vinculado, podrás hacerlo en Ajustes.'}</p></div>`:''}<form id="unlock-form"><label for="password">${isNew?'Crea una contraseña de 12 caracteres como mínimo':'Contraseña del cuaderno'}</label><input id="password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>${isNew?'<label for="confirm-password">Repite la contraseña</label><input id="confirm-password" class="text-field" type="password" required minlength="12" autocomplete="off" spellcheck="false"/>':''}<div id="unlock-error" class="unlock-error" role="alert"></div>${isNew?'<div class="modal-actions"><button class="btn primary" type="submit" data-create-mode="empty">Crear cuaderno vacío</button><button class="btn" type="submit" data-create-mode="demo">Crear cuaderno de demostración</button></div>':'<button class="btn primary" type="submit">Desbloquear</button>'}</form><p class="hint">La contraseña no se envía ni se almacena. Si la pierdes, no podrás recuperar los datos cifrados.</p><p class="hint">Almacena los cuadernos cifrados únicamente en dispositivos autorizados. Guarda y verifica copias de seguridad independientes en ubicaciones locales no sincronizadas. ${dropboxConfigured(location.origin)?'Dropbox es opcional y solo recibe el cuaderno cifrado cuando lo vinculas.':'No uses servicios en la nube.'}</p>${dropboxCallback?.mode==='link'?'<p class="hint">Dropbox autorizado. Desbloquea tu cuaderno para confirmar la vinculación.</p>':''}<button class="btn" id="restore-locked">Restaurar una copia cifrada</button><input class="hidden" type="file" id="restore-locked-file" accept=".cuaderno,.cdoc,.json,application/json,application/octet-stream"/>${STATE.recovery?'<div class="recovery-choice"><p class="hint">Hay una copia cifrada de rescate anterior a la última restauración.</p><button class="btn" id="recover-locked">Recuperar versión anterior</button><button class="btn" id="download-recovery-locked">Descargar copia de rescate</button></div>':''}</div></main>`;
   $('#unlock-form').addEventListener('submit',e=>{
@@ -741,7 +772,7 @@ function showUnlock(isNew,callback=null){
         const tracked=ensureBookMetadata(migrated.doc);
         if(migrated.migrated||tracked){await persist(migrated.doc);toast('Cuaderno anterior validado y preparado para copias portátiles.');}
       }
-      STATE.saveError=null;STATE.history=emptyHistory();chooseInitial();STATE.tab='cuaderno';STATE.studentId=null;render();
+      STATE.saveError=null;STATE.history=emptyHistory();chooseInitial();await loadOrdinaryPeriods();STATE.tab='cuaderno';STATE.studentId=null;render();
       if(STATE.reloadProbe?.ok)toast('Persistencia confirmada: el cuaderno cifrado se ha recuperado y validado tras recargar.');
       STATE.reloadProbe=null;
     }catch(err){STATE.doc=null;STATE.key=null;STATE.salt=null;$('#unlock-error').textContent=err.message;button.disabled=false;}
@@ -909,15 +940,16 @@ async function restoreBackup(file){
     const replacement=await seal(doc,opened.key,opened.salt);
     // La transacción CAS conserva el rescate y sustituye el principal atómicamente.
     const recovery=await replaceEnvelopeWithRecovery(STATE.db,replacement,existing);
-    adoptRestoredNotebook(replacement,recovery,{key:opened.key,salt:opened.salt},doc);
+    await adoptRestoredNotebook(replacement,recovery,opened,doc);
     toast(recovery?'Importación completada. Versión local anterior conservada como rescate cifrado.':'Importación completada. Copia íntegra y validada.');
   });
 }
-function adoptRestoredNotebook(envelope,recovery,opened,doc){
+async function adoptRestoredNotebook(envelope,recovery,opened,doc){
+  periodPreferences.reset();periodGroup=null;periodBook=null;
   clearDropboxOnboarding();dropboxSession.stop();dropboxStatus='not-linked';
   STATE.envelope=envelope;STATE.recovery=recovery;
   STATE.doc=doc;STATE.key=opened.key;STATE.salt=opened.salt;STATE.saveError=null;
-  STATE.history=emptyHistory();chooseInitial();STATE.tab='cuaderno';STATE.studentId=null;render();
+  STATE.history=emptyHistory();chooseInitial();await loadOrdinaryPeriods(opened.preferences);STATE.tab='cuaderno';STATE.studentId=null;render();
 }
 
 /** Reiniciar exige leer un archivo portable EXACTO del cuaderno vigente. */
@@ -977,7 +1009,7 @@ async function resetNotebookFromVerifiedCopy(file){
     // la misma transacción: un fallo deja el cuaderno anterior intacto.
     const recovery=await replaceEnvelopeWithRecovery(STATE.db,replacement,previousEnvelope);
     STATE.exportReceipt=null;
-    adoptRestoredNotebook(replacement,recovery,{key:STATE.key,salt:STATE.salt},blank);
+    await adoptRestoredNotebook(replacement,recovery,{key:STATE.key,salt:STATE.salt},blank);
     toast('Cuaderno vacío creado. Rescate cifrado disponible en Ajustes y copias.');
   });
 }
@@ -1008,7 +1040,7 @@ async function recoverPreviousVersion(){
     if(STATE.failedEnvelope)throw new Error('Descarga el intento de guardado cifrado y recarga antes de recuperar.');
     const replacement=upgraded.migrated||tracked?await seal(upgraded.doc,opened.key,opened.salt):recovery.envelope;
     const previous=await swapRecoveryEnvelope(STATE.db,STATE.envelope,recovery,replacement);
-    adoptRestoredNotebook(replacement,previous,opened,upgraded.doc);
+    await adoptRestoredNotebook(replacement,previous,opened,upgraded.doc);
     toast('Cuaderno anterior recuperado y validado. La otra versión sigue cifrada como rescate.');
   });
 }
@@ -1022,7 +1054,9 @@ async function closeNotebook(){
   if(!sameEnvelope(await readEnvelope(STATE.db),STATE.envelope))throw new Error('El cuaderno cambió desde otra pestaña. No exportes una versión desactualizada.');
   const snapshot=structuredClone(STATE.doc);
   const exportedDate=new Date();
-  const prepared=await createPortableCopy(snapshot,STATE.key,STATE.salt,exportedDate);
+  const preferences=await periodPreferences.load().catch(()=>null);
+  const prepared=await createPortableCopy(snapshot,STATE.key,STATE.salt,exportedDate,preferences);
+  if(prepared.preferencesOmitted||!preferences)toast('La copia de las notas es válida; no ha sido posible incluir las preferencias de evaluación.');
   const filename=portableFilename(exportedDate);
   if(dialog.open)throw new Error('Cierra el diálogo actual para exportar.');
   dialog.innerHTML=`<div class="modal-inner portable-dialog"><h2 id="modal-heading">Cerrar cuaderno · copia cifrada</h2><p>Los cambios se han guardado en este dispositivo. La copia completa está cifrada con la contraseña de este cuaderno.</p><p><strong>${esc(filename)}</strong></p><p class="hint"><strong>Solo almacenamiento local autorizado por el centro:</strong> elige «En mi iPad» / «En mi iPhone», una carpeta local del ordenador o un USB sin sincronización. No elijas iCloud Drive, OneDrive ni carpetas sincronizadas. ${dropboxConfigured(location.origin)?'Esta exportación es independiente de Dropbox; no confirma que se haya completado la sincronización.':'Esta aplicación no accede a ninguna nube ni confirma la sincronización posterior.'}</p><p id="close-result" class="hint" role="status">El cuaderno local permanece intacto aunque canceles.</p><div class="modal-actions portable-choices"><button class="btn" id="close-cancel">Cancelar</button><button class="btn primary" id="close-save">Guardar archivo cifrado</button><button class="btn hidden" id="close-lock">Bloquear cuaderno</button></div></div>`;
@@ -1084,15 +1118,30 @@ async function savePreparedCopy(prepared,filename){
 /** Navegación minimalista: destinos diarios y un menú de herramientas.
  * Las cinco vistas del cuaderno siguen existiendo como navegación secundaria. */
 const workspaceDisclosures={tools:false,course:false,group:false,academic:false};
+const WORKSPACE_ICONS={
+  cuaderno:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11M15 9v11M3 14h18"/>',
+  planificador:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 14h2m4 0h2m-8 3h2"/>',
+  evaluaciones:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8 10l2 2 4-4M8 16h8"/>',
+  extraescolares:'<path d="M3 8h18v12H3zM8 8V5h8v3M3 13h18M10 13v2h4v-2"/>',
+  curriculo:'<path d="M3 5c4-1 7 0 9 2v14c-2-2-5-3-9-2zM21 5c-4-1-7 0-9 2v14c2-2 5-3 9-2z"/>',
+  rubricas:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="m7 8 1 1 2-2m-3 7 1 1 2-2m3-4h4m-4 6h4"/>',
+  recursos:'<path d="M4 6h16v14H4zM8 6V3h8v3M4 11h16"/>',
+  plegar:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+  deshacer:'<path d="m8 5-5 5 5 5M3 10h11a5 5 0 0 1 0 10"/>',
+  rehacer:'<path d="m16 5 5 5-5 5m5-5H10a5 5 0 0 0 0 10"/>'
+};
+function workspaceIcon(key){
+  return '<svg class="workspace-icon" aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+WORKSPACE_ICONS[key]+'</svg>';
+}
 const PRIMARY_WORKSPACE_TABS=[
-  ['cuaderno','Cuaderno','▦'],
-  ['planificador','Agenda','▣'],
-  ['evaluaciones','Evaluaciones','◷'],
-  ['extraescolares','Extraescolares','▤']
+  ['cuaderno','Cuaderno'],
+  ['planificador','Agenda'],
+  ['evaluaciones','Evaluaciones'],
+  ['extraescolares','Extraescolares']
 ];
 const ACADEMIC_WORKSPACE_TABS=[
-  ['curriculo','Currículo','◇'],
-  ['rubricas','Rúbricas','▤']
+  ['curriculo','Currículo'],
+  ['rubricas','Rúbricas']
 ];
 const NOTEBOOK_WORKSPACE_TABS=[
   ['cuaderno','Notas'],
@@ -1100,19 +1149,19 @@ const NOTEBOOK_WORKSPACE_TABS=[
   ['competencias','Competencias'],
   ['alumno','Vista alumno']
 ];
-function workspaceTab([key,label,glyph]){
+function workspaceTab([key,label]){
   const active=STATE.tab===key||
     (key==='cuaderno'&&['calculos','competencias','final','alumno'].includes(STATE.tab));
-  return `<button type="button" data-tab="${key}" class="tab ${active?'active':''}" ${active?'aria-current="page"':''} title="${label}"><span class="nav-glyph" aria-hidden="true">${glyph}</span><span class="nav-text">${label}</span></button>`;
+  return `<button type="button" data-tab="${key}" class="tab ${active?'active':''}" ${active?'aria-current="page"':''} title="${label}"><span class="nav-glyph" aria-hidden="true">${workspaceIcon(key)}</span><span class="nav-text">${label}</span></button>`;
 }
 function renderNavigation(){
   const toolsSelected=ACADEMIC_WORKSPACE_TABS.some(([key])=>STATE.tab===key);
   return `<nav class="tabs" aria-label="Navegación principal">
-    <button type="button" class="nav-collapse" id="toggle-navigation" aria-label="Plegar o desplegar navegación" aria-expanded="${!STATE.navCollapsed}" title="Plegar o desplegar menú"><span class="nav-collapse-glyph" aria-hidden="true">☷</span><span class="nav-text">Menú</span></button>
+    <button type="button" class="nav-collapse" id="toggle-navigation" aria-label="Plegar o desplegar navegación" aria-expanded="${!STATE.navCollapsed}" title="Plegar o desplegar menú"><span class="nav-collapse-glyph" aria-hidden="true">${workspaceIcon('plegar')}</span><span class="nav-text">Menú</span></button>
     <div class="nav-primary" role="group" aria-label="Trabajo diario">${PRIMARY_WORKSPACE_TABS.map(workspaceTab).join('')}</div>
     <div class="nav-secondary">
       <details class="academic-disclosure" data-shell-disclosure="academic" ${toolsSelected||workspaceDisclosures.academic?'open':''}>
-        <summary title="Abrir recursos académicos"><span class="nav-glyph" aria-hidden="true">◇</span><span class="nav-text">Recursos</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
+        <summary title="Abrir recursos académicos"><span class="nav-glyph" aria-hidden="true">${workspaceIcon('recursos')}</span><span class="nav-text">Recursos</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
         <div class="nav-academic-links" role="group" aria-label="Recursos académicos">${ACADEMIC_WORKSPACE_TABS.map(workspaceTab).join('')}</div>
       </details>
     </div>
@@ -1141,10 +1190,10 @@ function render(){
   if(!STATE.doc)return;
   ensurePlanner(STATE.doc);
   if(!STATE.level){chooseInitial();}
-  if(!currentPeriod())STATE.periodId=[...STATE.doc.periods].sort((a,b)=>a.order-b.order)[0]?.id||null;
-  const period=currentPeriod();
   const matching=groupsForSubject();
   if(!matching.some(g=>g.id===STATE.groupId))STATE.groupId=matching[0]?.id||null;
+  if(periodBook!==STATE.doc.id||periodGroup!==STATE.groupId||!currentPeriod())restoreOrdinaryPeriod();
+  const period=currentPeriod();
   const group=currentGroup();
   applyTheme();
   unbindClassStats();
@@ -1170,12 +1219,12 @@ function render(){
   const hasGroup=!!STATE.groupId;
   const color=STATE.level==='legacy'?'#F59E0B':colorFor(STATE.level,STATE.subject);
   root.innerHTML=`<div class="shell ${STATE.tab==='alumno'&&STATE.studentId?'student-focus':''} ${STATE.navCollapsed?'nav-collapsed':''}"><header class="topbar"><div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h30M12 16h24M15 19v17m9-17v17m9-17v17M9 39h30M12 36h24M12 12c1-5 6-8 12-8s11 3 12 8"/><path d="M19 12h10"/></svg></div><div class="brand-copy"><strong>AppNotas</strong><small>CuadernoDocente · Agenda y evaluación</small></div></div><div class="topmeta"><span class="pill security-pill" title="Cuaderno guardado cifrado en el dispositivo">🔒 Cifrado local</span><span id="save-status" role="status" class="pill status ok">Guardado cifrado</span>
-  <div class="history-actions" role="group" aria-label="Historial de cambios"><button type="button" class="btn small" id="undo-change" aria-label="Deshacer" title="Deshacer último cambio (Ctrl/Cmd+Z)" ${STATE.history.past.length?'':'disabled'}><span aria-hidden="true">↶</span><span class="history-label">Deshacer</span></button><button type="button" class="btn small" id="redo-change" aria-label="Rehacer" title="Rehacer (Ctrl/Cmd+Mayús+Z)" ${STATE.history.future.length?'':'disabled'}><span aria-hidden="true">↷</span><span class="history-label">Rehacer</span></button></div>
-    <button type="button" class="btn topbar-close-btn" id="close-notebook" title="Guardar una copia cifrada y cerrar el cuaderno">Cerrar cuaderno</button><button type="button" class="btn dropbox-sync-btn" id="dropbox-sync">${dropboxIcon}<span class="dropbox-label">Dropbox</span></button><button class="lock-btn" id="lock">Bloquear</button>
+  <div class="history-actions" role="group" aria-label="Historial de cambios"><button type="button" class="btn small" id="undo-change" aria-label="Deshacer" title="Deshacer último cambio (Ctrl/Cmd+Z)" ${STATE.history.past.length?'':'disabled'}>${workspaceIcon('deshacer')}<span class="history-label">Deshacer</span></button><button type="button" class="btn small" id="redo-change" aria-label="Rehacer" title="Rehacer (Ctrl/Cmd+Mayús+Z)" ${STATE.history.future.length?'':'disabled'}>${workspaceIcon('rehacer')}<span class="history-label">Rehacer</span></button></div>
+    <button type="button" class="btn dropbox-sync-btn" id="dropbox-sync" aria-label="Dropbox">${dropboxIcon}<span class="dropbox-label">Dropbox</span></button><button class="lock-btn" id="lock">Bloquear</button>
 </div><details class="header-tools" data-shell-disclosure="tools" ${workspaceDisclosures.tools?'open':''}><summary aria-label="Ajustes y copias" title="Ajustes y copias" class="${STATE.tab==='ajustes'?'settings-active':''}"><svg class="settings-gear" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3h2l.6 2.4 1.6.9 2.4-.7 2 3.5-1.8 1.8v2.2l1.8 1.8-2 3.5-2.4-.7-1.6.9L14 21h-4l-.6-2.4-1.6-.9-2.4.7-2-3.5 1.8-1.8v-2.2L3.4 9.1l2-3.5 2.4.7 1.6-.9L10 3z"/><circle cx="12" cy="12" r="3"/></svg><span class="settings-label">Ajustes y copias</span></summary>
     <div class="header-tools-panel"><div class="settings-panel-title"><strong>Ajustes y copias</strong><button type="button" class="btn" id="close-header-tools" aria-label="Cerrar ajustes">×</button></div>
       <div class="header-tools-heading">Apariencia</div><label class="theme-picker">Tema <select id="theme-select" aria-label="Modo de apariencia">${[['light','Claro'],['dark','Oscuro'],['oled','OLED']].map(([k,v])=>opt(k,v,STATE.theme)).join('')}</select></label>
-      <div class="header-tools-heading">Cuaderno y copias</div><div class="portable-controls" role="group" aria-label="Copias de cuaderno"><button type="button" class="btn small" id="open-notebook">Abrir cuaderno</button><button type="button" class="btn small ${STATE.tab==='ajustes'?'settings-current':''}" data-tab="ajustes" ${STATE.tab==='ajustes'?'aria-current="page"':''}>Configuración y copias cifradas</button></div>
+      <div class="header-tools-heading">Cuaderno y copias</div><div class="portable-controls" role="group" aria-label="Copias de cuaderno"><button type="button" class="btn small" id="open-notebook">Abrir cuaderno</button><button type="button" class="btn small ${STATE.tab==='ajustes'?'settings-current':''}" data-tab="ajustes" ${STATE.tab==='ajustes'?'aria-current="page"':''}>Configuración y copias cifradas</button><button type="button" class="btn topbar-close-btn" id="close-notebook" title="Guardar una copia cifrada y cerrar el cuaderno">Cerrar cuaderno</button></div>
       <div class="header-tools-heading">Aplicación</div>${pwaButtons()}
     </div>
   </details></header><main class="content"><div class="workspace">${renderNavigation()}<div class="work-area">${!['planificador','evaluaciones','extraescolares'].includes(STATE.tab)?`<div class="headrow"><div><div class="eyebrow">${esc(CLASSICAL_SKIN_TITLES[classicalSkinFor(STATE.level,STATE.subject)])} · CUADERNO ACADÉMICO · v1.0</div><h1>${STATE.tab==='ajustes'?'Ajustes y copias':STATE.tab==='evaluaciones'?'Sesiones de evaluación':esc(subjectLabel)+' <span class="muted-slash">/</span> '+esc(group?.name||'Sin grupo')}</h1><p class="subtitle">${STATE.tab==='ajustes'?'Preferencias generales y almacenamiento cifrado local':STATE.tab==='evaluaciones'?'Organización por tutorías y evaluaciones · Almacenamiento cifrado local':esc(levelLabel)+' · '+esc(group?.course||'Curso escolar por configurar')+' · '+esc(period?.name||'')+' · Almacenamiento cifrado local'}</p></div><span class="demo-tag">⚠ Copias solo en almacenamiento local</span></div>`:'' }<p id="portable-status" class="portable-status" role="status" aria-live="polite"></p><input type="file" id="open-notebook-file" class="hidden" accept=".cuaderno,.cdoc,application/octet-stream,application/json"/><div class="toolbar class-toolbar" aria-label="Asignatura y grupo" ${['planificador','extraescolares','ajustes'].includes(STATE.tab)?'hidden':''}>
@@ -1284,12 +1333,11 @@ function renderNotebook(){
       ${state?'<span class="visually-hidden">Estado: '+state+'</span>':''}
     </span>`;
   };
-  // Una misma pista superior para todas las notas; el menú ⋯ permanece
-  // disponible, anclado abajo a la derecha sin empujar la cifra hacia arriba.
+  // Una cifra, un menú debajo y el texto auxiliar en flujo: sin superposiciones.
   const gradeCellStack=(main,actions='',secondary='')=>`<div class="grade-cell-stack">
     <div class="grade-cell-face">${main}</div>
-    <div class="grade-cell-support">${secondary}</div>
-    <div class="grade-cell-menu">${actions}</div></div>`;
+    <div class="grade-cell-below"><div class="grade-cell-menu">${actions}</div>
+    <div class="grade-cell-support">${secondary}</div></div></div>`;
   const gradesByStudent=new Map();
   for(const grade of STATE.doc.grades){
     if(!visibleIds.has(grade.assessmentId))continue;
@@ -1342,7 +1390,7 @@ function renderNotebook(){
   }).join('')}<td class="final-col">${gradeCellStack(`<button type="button" class="score-button" title="Ver desglose" data-explain="${esc(s.id)}">${gradeChip(overallGrade(STATE.doc,s.id,STATE.groupId,STATE.periodId))}</button>`)}</td><td class="itaca-col">${gradeCellStack(`<button type="button" class="itaca-edit" data-itaca-student="${esc(s.id)}" title="Nota Ítaca: ${esc(s.name)}. Configurar redondeo individual de esta evaluación" aria-label="Configurar Nota Ítaca de ${esc(s.name)}">${itacaChip(STATE.doc,s.id,STATE.groupId,STATE.periodId)}${itacaStudentRule(STATE.doc,s.id,STATE.periodId)!=='general'?'<span class="itaca-exception" title="Excepción individual">*</span>':''}</button>`)}</td></tr>`,assessments.length+3,'Aún no hay alumnos en este grupo.');
   const sum=effectiveCategories(STATE.doc,STATE.groupId,STATE.periodId).reduce((s,c)=>s+c.weight,0);
   const problems=students.flatMap(st=>periodCalculationWarnings(STATE.doc,st.id,STATE.groupId,STATE.periodId)).filter(v=>v.includes('sin conversión'));
-  return `<section class="panel"><div class="panel-header"><div class="notebook-heading"><strong>Calificaciones</strong><p>Introduce notas directamente. Pulsa «⋯» en una celda para NP, AJ y observaciones; «⋯» en una columna para configurarla.</p></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><details class="notebook-more-actions">
+  return `<section class="panel notebook-panel"><div class="panel-header"><div class="notebook-heading"><strong>Calificaciones</strong></div><div class="notebook-primary-actions"><button class="btn primary" id="new-student">+ Alumno</button><button class="btn primary" id="new-assessment">+ Actividad</button><details class="notebook-more-actions">
     <summary>Acciones de la tabla <span aria-hidden="true">⌄</span></summary>
     <div class="notebook-more-panel">
       <div class="action-group" role="group" aria-labelledby="notebook-students-label">
@@ -1356,7 +1404,7 @@ function renderNotebook(){
         <button type="button" class="btn" id="schedule-exam">Programar examen</button>
       </div>
     </div>
-  </details></div></div><div class="student-order-bar">${studentSortControls()}</div><details class="notebook-grade-options"><summary>Ítaca y procedencias <span aria-hidden="true">⌄</span></summary><div class="notebook-grade-options-body"><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div></div></details><div class="notebook-zoom-tools" role="group" aria-label="Zoom del cuaderno"><label class="redesign-density">Densidad <select id="notebook-density"><option value="compact">Compacta</option><option value="normal">Normal</option><option value="wide">Amplia</option></select></label><span>Zoom</span><button class="btn small" type="button" id="notebook-zoom-out" aria-label="Reducir zoom de la tabla" ${STATE.notebookZoom<=NOTEBOOK_ZOOM_MIN?'disabled':''}>−</button><output id="notebook-zoom-value" aria-live="polite">${STATE.notebookZoom} %</output><button class="btn small" type="button" id="notebook-zoom-in" aria-label="Aumentar zoom de la tabla" ${STATE.notebookZoom>=NOTEBOOK_ZOOM_MAX?'disabled':''}>+</button></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col"><button type="button" id="configure-itaca-attitude" class="itaca-column-config" title="Configurar el requisito de Actitud para subir la Nota Ítaca" aria-label="Configurar condición de Actitud para subir la Nota Ítaca">Nota Ítaca <span aria-hidden="true">⚙</span></button><small>/10 · ${itacaAttitudeCondition(STATE.doc,STATE.groupId,STATE.periodId)?'Condición activa':'Configurar actitud'}</small></th></tr></thead>${bodies}</table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><details class="legend notebook-legend"><summary>ⓘ Significado de las notas y colores</summary><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></details>`;
+  </details></div></div><div class="notebook-organize-tools" role="group" aria-label="Organización y visualización"><details class="notebook-student-options"><summary>Alumnado <span aria-hidden="true">⌄</span></summary><div class="notebook-grade-options-body"><div class="student-order-bar">${studentSortControls()}</div><div class="origin-manage-tools"><button type="button" class="btn small" id="manage-origin-groups" title="Asignar tutoría de procedencia a los alumnos de esta optativa">Gestionar procedencias</button></div></div></details><details class="notebook-grade-options"><summary>Ítaca <span aria-hidden="true">⌄</span></summary><div class="notebook-grade-options-body"><div class="itaca-global"><label for="itaca-general-rule">Redondeo general de Nota Ítaca</label><select id="itaca-general-rule" aria-label="Redondeo general de Nota Ítaca para el grupo">${ITACA_OPTIONS.map(([key,label])=>opt(key,label,itacaGroupRule(STATE.doc,STATE.groupId))).join('')}</select><small>La media original no cambia. Puedes ajustar cada alumno pulsando su Nota Ítaca.</small></div><button type="button" class="btn small" id="configure-itaca-attitude-toolbar">Condición de actitud para subir la nota</button></div></details><div class="notebook-zoom-tools" role="group" aria-label="Zoom del cuaderno"><label class="redesign-density">Densidad <select id="notebook-density"><option value="compact">Compacta</option><option value="normal">Normal</option><option value="wide">Amplia</option></select></label><span>Zoom</span><button class="btn small" type="button" id="notebook-zoom-out" aria-label="Reducir zoom de la tabla" ${STATE.notebookZoom<=NOTEBOOK_ZOOM_MIN?'disabled':''}>−</button><output id="notebook-zoom-value" aria-live="polite">${STATE.notebookZoom} %</output><button class="btn small" type="button" id="notebook-zoom-in" aria-label="Aumentar zoom de la tabla" ${STATE.notebookZoom>=NOTEBOOK_ZOOM_MAX?'disabled':''}>+</button></div></div><div class="table-scroller"><table class="grade-table"><thead><tr><th class="name-col">Alumno</th>${headers}<th class="final-col"><span class="class-stat-heading">Nota final ${classStatButton('period',STATE.periodId,'nota final de la evaluación')}</span></th><th class="itaca-col"><button type="button" id="configure-itaca-attitude" class="itaca-column-config" title="Configurar el requisito de Actitud para subir la Nota Ítaca" aria-label="Configurar condición de Actitud para subir la Nota Ítaca">Nota Ítaca <span aria-hidden="true">⚙</span></button><small>/10 · ${itacaAttitudeCondition(STATE.doc,STATE.groupId,STATE.periodId)?'Condición activa':'Configurar actitud'}</small></th></tr></thead>${bodies}</table></div><div class="table-foot"><span>${students.length} alumnos · ${assessments.length} actividades · ${esc(currentPeriod()?.name)}</span><span>${Math.abs(sum-100)>1e-8?'⚠ Porcentajes de este periodo: '+sum+' %. Corrige la suma para calcular la nota.':'Porcentajes: 100 %. Las categorías sin evaluar redistribuyen el peso.'}${problems.length?`<span class="warning-calculation">⚠ Hay calificaciones sin conversión que superan 10: su cálculo queda bloqueado.</span>`:''}</span></div></section><details class="legend notebook-legend"><summary>ⓘ Ayuda: notas, acciones y colores</summary><span class="note">Introduce notas directamente. Pulsa «⋯» en una celda para NP, AJ y observaciones; «⋯» en una columna para configurarla.</span><span class="note">● NP significa «No presentado» y computa como 0; AJ indica ausencia justificada pendiente y no computa. Una casilla vacía tampoco computa.</span><span class="note">● Las recuperaciones sustituyen o mejoran su examen de origen; nunca cuentan dos veces.</span><span class="note">● Los resultados se redondean solo para mostrarlos.</span><span class="note">● Colores: 0–3,49 granate; 3,50–4,99 rojo; 5–5,99 amarillo; 6–6,99 verde; 7–9,99 azul gradual; 10 morado.</span></details>`;
 }
 const ITACA_OPTIONS=[['half','Redondear desde ,5'],['seven','Redondear desde ,7'],['none','Conservar parte entera (sin subir)']];
 const RULE_LABELS={mean:'Media aritmética',weighted_mean:'Media ponderada por actividad',highest:'Mejor nota',best_n:'Media de las N mejores',last:'Última evaluada',latest_if_highest:'Última si iguala o supera la mejor; si no, media'};
@@ -2116,7 +2164,7 @@ function bindCommon(){
     input?.focus();input?.select();
   });
   document.querySelectorAll('[data-period-choice]').forEach(b=>{
-    b.onclick=()=>{STATE.periodId=b.dataset.periodChoice;if(!['calculos','competencias'].includes(STATE.tab))STATE.tab='cuaderno';render();};
+    b.onclick=()=>selectOrdinaryPeriod(b.dataset.periodChoice).catch(fail);
     b.ondblclick=event=>{event.preventDefault();managePeriodFromTab(b.dataset.periodChoice);};
   });
   document.querySelectorAll('[data-notebook-evaluation-open]').forEach(button=>button.onclick=async()=>{
@@ -2214,7 +2262,7 @@ function bindCommon(){
     const [level,...parts]=v.pair.split(':');const subject=parts.join(':');const groupId=STATE.groupId;
     await commit(d=>classifyGroup(d,groupId,level,subject));STATE.level=level;STATE.subject=subject;STATE.groupId=groupId;render();
   },'No se modificará ningún alumno, actividad o calificación.'));
-  $('#new-period')?.addEventListener('click',()=>fieldsModal('Nuevo periodo',[{id:'name',label:'Nombre del periodo',value:`${STATE.doc.periods.length+1}.ª evaluación`}],async v=>{let p;await commit(d=>{p=addPeriod(d,v.name);});STATE.periodId=p.id;STATE.tab='cuaderno';render();}));
+  $('#new-period')?.addEventListener('click',()=>fieldsModal('Nuevo periodo',[{id:'name',label:'Nombre del periodo',value:`${STATE.doc.periods.length+1}.ª evaluación`}],async v=>{let p;await commit(d=>{p=addPeriod(d,v.name);});STATE.tab='cuaderno';await selectOrdinaryPeriod(p.id);}));
   $('#new-assessment')?.addEventListener('click',openAssessmentCreator);
   $('#new-recovery')?.addEventListener('click',()=>{
     const candidates=allAssessments().filter(a=>!a.recoveryOf&&!STATE.doc.assessments.some(x=>x.recoveryOf===a.id));
@@ -2574,6 +2622,14 @@ function openGradeCellActions(studentId,assessmentId){
   dialog.showModal();
 }
 function bindNotebook(){
+  const panel=$('.notebook-panel');
+  const menus=[...panel.querySelectorAll('.notebook-more-actions,.notebook-student-options,.notebook-grade-options')];
+  const closeMenu=(menu,focus=false)=>{menu.open=false;if(focus)menu.querySelector('summary')?.focus({preventScroll:true});};
+  for(const menu of menus){
+    menu.querySelector('summary').addEventListener('click',()=>{for(const other of menus)if(other!==menu)closeMenu(other);});
+    menu.addEventListener('keydown',event=>{if(event.key==='Escape'&&menu.open){event.preventDefault();event.stopPropagation();closeMenu(menu,true);}});
+  }
+  $('.shell').addEventListener('click',event=>{for(const menu of menus)if(menu.open&&!menu.contains(event.target))closeMenu(menu);});
   const density=root.querySelector('#notebook-density');
   if(density){density.value=document.documentElement.dataset.redesignDensity||'compact';density.addEventListener('change',()=>{document.documentElement.dataset.redesignDensity=density.value;try{localStorage.setItem('appnotas-notebook-density',density.value);}catch{}bindGradeTableHeaders();});}
   const table=root.querySelector('.grade-table');
@@ -2598,6 +2654,7 @@ function bindNotebook(){
   $('#notebook-zoom-in')?.addEventListener('click',()=>adjustNotebookZoom(10));
   $('#manage-origin-groups')?.addEventListener('click',openOriginGroupsManager);
   $('#configure-itaca-attitude')?.addEventListener('click',openItacaAttitudeCondition);
+  $('#configure-itaca-attitude-toolbar')?.addEventListener('click',()=>{closeMenu($('.notebook-grade-options'),true);openItacaAttitudeCondition();});
   $('#itaca-general-rule')?.addEventListener('change',e=>{
     const groupId=STATE.groupId;
     commit(doc=>setItacaGroupRule(doc,groupId,e.target.value),'Redondeo general Nota Ítaca').catch(fail);
@@ -2857,8 +2914,8 @@ function bindSettings(){
       if(!('serviceWorker' in navigator)||!('caches' in window))throw new Error('Este navegador no dispone de las API necesarias.');
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
-      const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v194-dev');
+      const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/evaluation-groups.js','./src/evaluation-ui.js','./src/evaluation-workspace.js','./src/notebook-evaluation-notice.js','./src/evaluation-period-board.js','./src/evaluation-session-presentation.js','./src/student-link-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/dropbox-conflict.js','./src/dropbox-config.js','./src/dropbox-onboarding.js','./src/dropbox-session.js','./src/period-preferences.js','./src/dropbox-controller.js','./src/dropbox-local.js','./src/dropbox-sync.js','./src/dropbox-oauth.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
+      const cache=await caches.open('cuaderno-docente-static-v202-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

@@ -99,7 +99,7 @@ test('Agenda, Evaluaciones y Extraescolares muestran un único título, sin ocul
  const doc=initialNotebook(),before=structuredClone(doc);
  const agenda=renderPlanner(doc,{plannerMode:'week',plannerDate:'2026-11-23'});
  const evaluations=renderEvaluationWorkspace(doc,{evaluationWorkspaceTab:'sesiones'});
- assert(agenda.includes('<h2>Mi planificador</h2>'));
+ assert(agenda.includes('<h2>Agenda docente</h2>'));
  assert(evaluations.includes('<h2>Sesiones de evaluación</h2>'));
  assert.deepEqual(doc,before);
 });

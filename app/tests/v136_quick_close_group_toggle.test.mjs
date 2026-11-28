@@ -24,17 +24,19 @@ async function controls(initial='surname',plain='surname'){
   return {state,storage,calls,...api};
 }
 
-test('Cerrar cuaderno se encuentra visible en la cabecera y se conecta al mismo flujo cifrado',async()=>{
+test('Cerrar cuaderno se encuentra en el menú administrativo y conserva el flujo cifrado',async()=>{
   const js=await read('app.js'),start=js.indexOf('function render(){'),end=js.indexOf('function renderNotebook(){',start);
   const section=js.slice(start,end),label=section.indexOf('id="close-notebook"');
   assert(label>=0,'Cerrar cuaderno ausente');
-  assert(label<section.indexOf('<details class="header-tools"'),'El cierre debe estar fuera del menú Herramientas');
-  assert(label>section.indexOf('id="save-status"'),'El cierre está junto al estado de guardado');
+  assert(label>section.indexOf('<details class="header-tools"'),'El cierre debe estar dentro del menú Ajustes');
+  assert(label<section.indexOf('>Aplicación</div>'),'El cierre pertenece al bloque Cuaderno y copias');
+  assert(label>section.indexOf('id="save-status"'),'El cierre está después del estado de guardado');
   assert.equal([...section.matchAll(/id="close-notebook"/g)].length,1,'No deben aparecer botones duplicados');
   assert(js.includes("$('#close-notebook')?.addEventListener('click',()=>closeNotebook().catch(fail))"));
   assert(js.includes('async function closeNotebook()'));
   assert(js.includes('await STATE.mutationQueue;await STATE.saveQueue;'),'No omitir guardados pendientes');
-  assert(js.includes('const prepared=await createPortableCopy(snapshot,STATE.key,STATE.salt,exportedDate)'));
+  assert(js.includes('const prepared=await createPortableCopy(snapshot,STATE.key,STATE.salt,exportedDate,preferences)'));
+  assert(js.includes('const preferences=await periodPreferences.load().catch(()=>null)'));
 });
 
 test('el interruptor se muestra junto a Alumnos y refleja la agrupación actual',async()=>{

@@ -58,6 +58,18 @@ jobs:
         run: node --test scripts/dedicated-hosting.test.mjs scripts/backup-origin-migration.test.mjs scripts/cloudflare-only.test.mjs
       - name: Comprobar separación de despliegues y endpoints Dropbox
         run: node --test scripts/dropbox-deployment.test.mjs
+      - name: Empaquetar versión experimental estática (solo PR de interfaz)
+        if: github.event_name == 'pull_request' && github.head_ref == 'feature/interface-period-preferences'
+        run: |
+          mkdir -p _release
+          (cd dist && zip -qr ../_release/AppNotas-experimental.zip .)
+      - name: Conservar versión experimental para pruebas locales
+        if: github.event_name == 'pull_request' && github.head_ref == 'feature/interface-period-preferences'
+        uses: actions/upload-artifact@v4
+        with:
+          name: AppNotas-experimental
+          path: _release/AppNotas-experimental.zip
+          if-no-files-found: error
       - name: Empaquetar fuentes versionadas para testers
         if: github.ref == 'refs/heads/main'
         shell: bash
