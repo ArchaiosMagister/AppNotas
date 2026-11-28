@@ -11,7 +11,7 @@ test('etimología griega no modifica la anchura de la columna',async()=>{
   const [css,js]=await Promise.all([read('styles.css'),read('app.js')]);
   assert.match(css,/\.table-scroller>\.grade-table\{[^}]*table-layout:fixed;/);
   assert.match(css,/\.table-scroller>\.grade-table th\.category-tinted,[\s\S]*?\{[^}]*width:165px;[^}]*min-width:165px;[^}]*max-width:165px;/);
-  assert.match(css,/\.table-scroller>\.grade-table tbody td \.orthography-meta\{[^}]*overflow-wrap:anywhere;/);
+  assert.match(css,/\.grade-info-popover\{[^}]*overflow-wrap:anywhere;/);
   assert(js.includes("table.style.setProperty('--notebook-table-min-width'"));
   assert(js.includes("a.greekEtymologyBonusEnabled?' · +1 etimología griega'"));
 });
@@ -75,4 +75,28 @@ test('los títulos de las columnas envuelven palabras completas sin modificar su
   assert.match(layout,/overflow-wrap:normal;/);
   assert(css.includes('width:165px;'));
   assert(css.includes('max-width:165px;'));
+});
+
+test('detalle ortográfico completo fuera del flujo de celda; menú y nota independientes',async()=>{
+ const [js,css]=await Promise.all([read('app.js'),read('styles.css')]);
+ const table=fragment(js,'function renderNotebook(){','const ITACA_OPTIONS=');
+ assert(table.includes('data-grade-info="${esc(info)}"'));
+ assert(table.includes("const info=g?.notSubmitted||g?.pendingJustified?'':note;"));
+ assert(table.includes("gradeCellActions(s,a,g,npButton,ajButton),'',info"));
+ assert(!table.includes('<small class="orthography-meta">'));
+ assert(table.includes('Etimología +${rawFmt(assigned)}'));
+ assert(table.includes('(${faults} faltas)'));
+ assert(js.includes('layer.textContent=button.dataset.gradeInfo;'));
+ assert(js.includes('document.body.append(layer)'));
+ assert(js.includes("event.pointerType==='mouse'"));
+ assert(js.includes('if(gradeInfo?.button===button&&gradeInfo.pinned)closeGradeInfo()'));
+ assert.match(css,/\.table-scroller>\.grade-table tbody td:has\(>\.grade-cell-stack\)\{\s*vertical-align:middle/);
+ assert(css.includes('grid-template-rows:minmax(var(--notebook-menu-size,44px),1fr) var(--notebook-face-height,44px) minmax(var(--notebook-menu-size,44px),1fr)'));
+});
+
+test('la notificación de scroll no cierra un detalle cuyo anclaje sigue visible',async()=>{
+ const js=await read('app.js');
+ assert(js.includes("window.addEventListener('scroll',positionGradeInfo,true)"));
+ assert(js.includes('r.right<=visible.left||r.left>=visible.right||r.bottom<=visible.top||r.top>=visible.bottom'));
+ assert(js.includes('window.visualViewport?.addEventListener(\'resize\',positionGradeInfo)'));
 });

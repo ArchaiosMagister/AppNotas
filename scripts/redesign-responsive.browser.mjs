@@ -25,7 +25,8 @@ for(const [name,engine,opts] of [['desktop-chromium',chromium,{viewport:{width:1
   let prior=0;const heights={};
   for(const density of ['compact','normal','wide']){
    await page.locator('#notebook-density').selectOption(density);
-   const metrics=await page.evaluate(()=>{const table=document.querySelector('.grade-table');const row=table.querySelector('tbody tr:not(.student-origin-divider)');const cols=[...table.querySelectorAll('thead th.category-tinted,thead th.final-col,thead th.itaca-col')];return {widths:cols.map(c=>c.getBoundingClientRect().width),height:row.getBoundingClientRect().height,scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth,colors:[...row.querySelectorAll('.grade-chip')].map(c=>[getComputedStyle(c).color,getComputedStyle(c).backgroundColor])};});
+   const metrics=await page.evaluate(()=>{const table=document.querySelector('.grade-table');const row=table.querySelector('tbody tr:not(.student-origin-divider)');const cols=[...table.querySelectorAll('thead th.category-tinted,thead th.final-col,thead th.itaca-col')];const centers=[...row.querySelectorAll('.grade-cell-face')].map(face=>{const r=(face.querySelector('.grade-chip,.np-grade-marker,.grade-empty,.aj-badge,.note-input')||face.firstElementChild).getBoundingClientRect(),td=face.closest('td').getBoundingClientRect();return {dx:Math.abs(r.x+r.width/2-td.x-td.width/2),dy:Math.abs(r.y+r.height/2-td.y-td.height/2),y:r.y+r.height/2};});return {widths:cols.map(c=>c.getBoundingClientRect().width),height:row.getBoundingClientRect().height,scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth,centers,colors:[...row.querySelectorAll('.grade-chip')].map(c=>[getComputedStyle(c).color,getComputedStyle(c).backgroundColor])};});
+   assert(metrics.centers.every(c=>c.dx<2&&c.dy<2&&Math.abs(c.y-metrics.centers[0].y)<2),name+' '+theme+' '+density+' '+JSON.stringify(metrics.centers));
    assert(metrics.widths.length===6,JSON.stringify(metrics));assert(metrics.widths.every(w=>Math.abs(w-165)<2),name+' '+theme+' '+JSON.stringify(metrics.widths));assert(metrics.height>prior||prior===0,name+' density must change row height '+JSON.stringify(metrics));prior=metrics.height;heights[density]=metrics.height;assert(metrics.scroll<=metrics.client+3,name+' overflow');assert.deepEqual(await page.locator(gradeSelector).allTextContents(),values);
   }
   console.log(name+' '+theme+' row heights px '+JSON.stringify(heights));
@@ -109,6 +110,43 @@ for(const [name,engine,opts] of [['desktop-chromium',chromium,{viewport:{width:1
  await page.locator(gradeInput).first().waitFor();
  for(const e of edited)assert.equal(await page.locator(gradeInput+'[data-student="'+e.student+'"][data-assessment="'+e.assessment+'"]').inputValue(),e.value);
  assert.deepEqual(errors,[]);console.log(name+': widths, themes, density, zoom, student, final, periods and concurrent grade edits passed');
+ // Real orthography and converted grades in a fresh encrypted fixture.
+ const detailsContext=await browser.newContext(opts);
+ try{
+ const detailPage=await detailsContext.newPage();detailPage.on('pageerror',e=>errors.push(e.message));
+ await detailPage.goto(url);
+ await detailPage.evaluate(async pw=>{
+  const {emptyNotebook,addGroup,addStudent,addAssessment,setOrthographyGrade,setGrade}=await import('./src/model.js');
+  const {createVault}=await import('./src/vault.js');const {openDb,writeEnvelope}=await import('./src/storage.js');
+  const doc=emptyNotebook(),group=addGroup(doc,'Latín 4.º · prueba','Latín 4.º','2026-2027','4eso'),p=doc.periods[0],cat=doc.categories.find(c=>c.name==='Exámenes');
+  const student=addStudent(doc,group.id,'Alumno ficticio'),other=addStudent(doc,group.id,'Alumno sin nota');
+  const a=addAssessment(doc,{name:'Ortografía',groupId:group.id,periodId:p.id,categoryId:cat.id,maxScore:10,convertToTen:true,orthography:{enabled:true,penaltyPerFault:.1,repetitions:30,refundable:true},greekEtymologyBonusEnabled:true});
+  const b=addAssessment(doc,{name:'Conversión',groupId:group.id,periodId:p.id,categoryId:cat.id,maxScore:5,convertToTen:true,orthography:null});
+  setOrthographyGrade(doc,student.id,a.id,{score:'9.1',faults:'3',delivered:false,greekEtymologyBonus:'0.4'});
+  setGrade(doc,student.id,b.id,4);
+  const {envelope}=await createVault(pw,doc),db=await openDb();await writeEnvelope(db,envelope,null);db.close();
+ },pw);
+ await detailPage.reload();await detailPage.locator('#password').fill(pw);await detailPage.getByRole('button',{name:'Desbloquear',exact:true}).click();
+ const info=detailPage.locator('.grade-info-trigger');await info.waitFor();assert.equal(await info.count(),1);
+ assert.match(await info.getAttribute('data-grade-info'),/Original: 9,1\/10.*−0,30.*3 faltas.*Etimología \+0,4 \(no computa\)/);
+ const tooltip=detailPage.locator('#grade-info-popover');
+ for(const density of ['compact','normal','wide']){
+  await detailPage.locator('#notebook-density').selectOption(density);
+  const geometry=await info.evaluate(button=>{
+   const td=button.closest('td'),row=td.closest('tr'),r=button.getBoundingClientRect(),menu=td.querySelector('.grade-cell-actions-trigger').getBoundingClientRect();
+   return {overlap:r.left<menu.right-1,centers:[...row.querySelectorAll('.grade-cell-face')].map(f=>{const x=f.getBoundingClientRect(),t=f.closest('td').getBoundingClientRect();return Math.abs(x.y+x.height/2-t.y-t.height/2);})};
+  });
+  assert(!geometry.overlap&&geometry.centers.every(y=>y<2),name+' info '+density+' '+JSON.stringify(geometry));
+  if(opts.hasTouch)await info.tap();else await info.click();await tooltip.waitFor();assert.equal(await tooltip.innerText(),await info.getAttribute('data-grade-info'));
+  const bounds=await tooltip.boundingBox();assert(bounds&&bounds.x>=0&&bounds.x+bounds.width<=opts.viewport.width+2,name+' tooltip viewport');
+  await detailPage.keyboard.press('Escape');await tooltip.waitFor({state:'detached'});
+ }
+ if(!opts.hasTouch){await detailPage.locator('h1').hover();await info.scrollIntoViewIfNeeded();await info.hover();await tooltip.waitFor();await detailPage.evaluate(()=>window.dispatchEvent(new Event('scroll')));assert(await tooltip.isVisible(),name+' visible hover survives scroll notification');await detailPage.locator('h1').hover();await tooltip.waitFor({state:'detached'});}
+ await info.click();await tooltip.waitFor();await detailPage.locator('h1').click();await tooltip.waitFor({state:'detached'});
+ await detailPage.locator('.converted-primary').click();assert(await detailPage.locator('.original-note-input').evaluate(e=>e===document.activeElement));
+ await detailPage.locator('.orthography-grade-button').first().click();await detailPage.locator('#orth-base').waitFor();assert.equal(await detailPage.locator('#orth-base').inputValue(),'9,1');await detailPage.locator('#cancel-orthography').click();
+ assert.deepEqual(errors,[]);console.log(name+': actual orthography detail, touch/hover, original grade editing and centers passed');
+ }finally{await detailsContext.close();}
  }finally{await browser.close();}
 }
 }finally{await new Promise(ok=>server.close(ok));}

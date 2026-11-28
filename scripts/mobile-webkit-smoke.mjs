@@ -534,14 +534,15 @@ async function audit(engine,name){
      const face=cell.querySelector('.grade-cell-face')?.getBoundingClientRect();
      const actions=cell.querySelector('.grade-cell-actions-trigger')?.getBoundingClientRect();
      const body=cell.getBoundingClientRect();
-     return {top:face?.top,height:face?.height,actions:!!actions,
+     const td=cell.closest('td').getBoundingClientRect();
+     return {top:face?.top,height:face?.height,centerError:Math.abs(face.top+face.height/2-td.top-td.height/2),actions:!!actions,
       actionTop:actions?.top,actionBottom:actions?.bottom,actionWidth:actions?.width,actionHeight:actions?.height,
       dx:Math.abs((actions?.left+actions?.width/2)-(face?.left+face?.width/2)),
       supportTop:cell.querySelector('.grade-cell-support:not(:empty)')?.getBoundingClientRect().top,bottom:body.bottom};
     });
    });
    assert(gradeRows.length>=3,name+' las notas no usan la misma estructura: '+JSON.stringify(gradeRows));
-   assert(gradeRows.every(x=>x.actions&&Math.abs(x.top-gradeRows[0].top)<=2),
+   assert(gradeRows.every(x=>x.actions&&x.centerError<=2&&Math.abs(x.top-gradeRows[0].top)<=2),
     name+' cifras principales de distintas columnas desalineadas: '+JSON.stringify(gradeRows));
    assert(gradeRows.every(x=>x.dx<=2&&x.actionTop>=x.top+x.height-1&&
      (x.supportTop===undefined||x.supportTop>=x.actionBottom-1)),
