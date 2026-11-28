@@ -143,7 +143,9 @@ test('la interfaz agrupa solo para ver y muestra las mismas fichas y notas',asyn
  const [app,css]=await Promise.all(['app.js','styles.css'].map(file=>readFile(new URL('../'+file,import.meta.url),'utf8')));
  assert(app.includes("studentSort:savedStudentSort(),studentPlainSort:savedStudentPlainSort()"));
  assert(app.includes("sortStudents(STATE.doc.students.filter(x=>x.groupId===STATE.groupId),STATE.studentSort)"));
- assert(app.includes("const studentSortControls=()=>"));
+ assert(app.includes("const studentSortControls=(showGroupSwitch=true)=>"));
+ assert(app.includes("const studentGroupSwitch=()=>"));
+ assert(app.includes('<span>Alumno</span>${studentGroupSwitch()}</div></th>'));
  assert(app.includes("renderGradeTableBodies(students,s=>"));
  assert(app.includes("renderGradeTableBodies(students,student=>"));
  assert(app.includes('originDirectoryHeader(students,i)'));
