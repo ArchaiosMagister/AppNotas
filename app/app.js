@@ -472,14 +472,14 @@ function paintStudentCategoryCards(context=document){
 const gradeChip=(score,suffix='')=>score===null||score===undefined||!Number.isFinite(score)?'<span class="grade-empty">—</span>':`<span class="grade-chip"${gradeStyle(score)}>${esc(gradeFmt(score))}${suffix?`<span class="grade-suffix">${esc(suffix)}</span>`:''}</span>`;
 /** La media 0–10 se conserva intacta. Solo su presentación competencial
  * emplea niveles 1–4, con 1 como la mayor adquisición. */
-const competencySourceGrade=score=>Number(score).toLocaleString('es-ES',{maximumFractionDigits:8});
-function competencyLevelChip(score){
+const competencySourceGrade=score=>formatGrade(score,{decimals:2,rounding:'half-up'});
+function competencyLevelChip(score,sourceLabel='Media original'){
   const level=competencyAcquisitionLevel(score);
   if(level===null)return '<span class="grade-empty" aria-label="Sin evidencias">—</span>';
   const label=competencyAcquisitionLabel(score);
-  return `<span class="competency-level-cell" title="Nivel ${level}: ${esc(label)} · Media original ${esc(competencySourceGrade(score))} / 10">
+  return `<span class="competency-level-cell" title="Nivel ${level}: ${esc(label)} · ${esc(sourceLabel)}: ${esc(competencySourceGrade(score))} / 10">
     <span class="competency-level-badge competency-level-${level}" aria-label="Nivel ${level}: ${esc(label)}"><strong>${level}</strong><span>${esc(label)}</span></span>
-    <small class="competency-source-grade">Media original: ${esc(competencySourceGrade(score))} / 10</small>
+    <small class="competency-source-grade${sourceLabel==='Media aritmética'?' competency-mean-source':''}">${esc(sourceLabel)}: <span class="competency-source-value">${esc(competencySourceGrade(score))} / 10</span></small>
   </span>`;
 }
 function competencyScaleLegend(){
@@ -1624,7 +1624,7 @@ function renderCompetencies(){
               data-comp="${esc(c.id)}" data-linkcat="${esc(cat.id)}" value="${esc(c.links.find(x=>x.categoryId===cat.id)?.weight??0)}"/></td></tr>`).join('')}
           </tbody></table></div></article>`).join('')||'<p class="hint">No hay competencias propias. Pulsa «+ Competencia propia» para comenzar.</p>'}</section>
       <section class="panel panel-pad"><h2>Resultados competenciales</h2>
-      ${competencyScaleLegend()}<div class="overflow-auto"><table class="comp-table"><thead><tr><th>Alumno</th>${personal.map(c=>`<th>${esc(c.name)}</th>`).join('')}</tr></thead>
+      ${competencyScaleLegend()}<div class="overflow-auto competency-results-scroll"><table class="comp-table competency-results-table"><thead><tr><th scope="col">Alumno</th>${personal.map(c=>`<th>${esc(c.name)}</th>`).join('')}</tr></thead>
       <tbody>${students.map(student=>`<tr><td>${esc(student.name)}</td>${personal.map(c=>`<td>${competencyLevelChip(competencyGrade(STATE.doc,student.id,c.id,group.id,STATE.periodId))}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section></div>`;
   }
   const students=allStudents();
@@ -1646,9 +1646,8 @@ function renderCompetencies(){
   const currentMean=student=>{
     const score=competencyArithmeticMean(STATE.doc,student.id,meanIds,group.id,STATE.periodId);
     if(score===null)return '<span class="grade-empty">—</span>';
-    const display={decimals:2,rounding:'half-up'};
     const level=gradeToFour(score);
-    return `<span class="competency-mean-values" aria-label="Nivel de la media: ${esc(level)} · ${esc(competencyAcquisitionLabel(score))}">${competencyLevelChip(score)}<small class="competency-mean-source">Media aritmética: ${esc(formatGrade(score,display))} /10</small></span>`;
+    return `<span class="competency-mean-values" aria-label="Nivel de la media: ${esc(level)} · ${esc(competencyAcquisitionLabel(score))}">${competencyLevelChip(score,'Media aritmética')}</span>`;
   };
   const currentGrade=(student,comp)=>comp?.id?competencyLevelChip(competencyGrade(STATE.doc,student.id,comp.id,group.id,STATE.periodId)):competencyLevelChip(null);
   return `<div class="competency-view"><section class="panel panel-pad"><div class="section-title-row"><div><h2>Competencias específicas · ${esc(group.subject)}</h2><p class="subtitle">${esc(catalog.data.norma)} · ${catalog.competencias.length} competencias oficiales · selección de pesos opcional</p></div><button class="btn small" id="new-competency">+ Competencia propia</button></div>
@@ -1657,7 +1656,7 @@ function renderCompetencies(){
   <p class="section-note">Los enunciados son los del decreto. Cada competencia empieza sin cálculo: solo tendrá nota si asignas explícitamente pesos a categorías. Ninguna ponderación se presume oficial.</p>
   <div class="official-competency-grid">${official.map(ce=>`<article class="competency-item official-competency"><div class="comp-head"><strong class="ce-number">${esc(ce.code)}</strong><h3>${esc(ce.enunciado)}</h3></div><details class="comp-weights"><summary>Vincular categorías para calificar ${esc(ce.code)}</summary><p class="hint">0 = categoría sin vínculo. Los pesos son relativos y no se requiere sumarlos a 100. Consulta los criterios oficiales de esta competencia justo debajo antes de elegir su porcentaje.</p>${linkRows(ce.stored?.id,ce.key)}${criteriaFor(ce)}</details></article>`).join('')}</div>
   ${custom.length?`<details class="custom-competencies"><summary>Competencias personalizadas o de versiones anteriores (${custom.length})</summary>${custom.map(c=>`<div class="competency-item"><h3>${esc(c.name)}</h3>${linkRows(c.id,c.id)}</div>`).join('')}</details>`:''}</section>
-  <section class="panel panel-pad"><h2>Resultados por competencia</h2><p class="subtitle">${esc(group.name)} · ${esc(currentPeriod()?.name)} · las casillas sin vínculo permanecen vacías</p>${competencyScaleLegend()}<div class="overflow-auto"><table class="comp-table"><thead><tr><th>Alumno</th>${official.map(c=>`<th title="${esc(c.enunciado)}"><span class="class-stat-heading">${esc(c.code)} ${c.stored?.id?classStatButton('competency',c.stored.id,c.code):''}</span></th>`).join('')}<th class="competency-mean-heading" scope="col">Media de competencias <small>sin ponderar · /10 y /4</small></th></tr></thead><tbody>${students.map(st=>`<tr><td class="comp-name">${esc(st.name)}</td>${official.map(c=>`<td>${currentGrade(st,c.stored)}</td>`).join('')}<td class="competency-mean-cell">${currentMean(st)}</td></tr>`).join('')}</tbody></table></div><p class="section-note">La media de competencias es aritmética y sin ponderación entre las CE oficiales con nota; las no evaluadas se excluyen. Se calcula con precisión completa y se muestra sobre 10 y como nivel de adquisición discreto: 1 = alta (8–10); 2 = media (6,5–<8); 3 = baja (5–<6,5); 4 = no adquirida (<5). No afecta a la nota final. Puedes consultar los criterios completos en «Currículo».</p></section></div>`;
+  <section class="panel panel-pad"><h2>Resultados por competencia</h2><p class="subtitle">${esc(group.name)} · ${esc(currentPeriod()?.name)} · las casillas sin vínculo permanecen vacías</p>${competencyScaleLegend()}<div class="overflow-auto competency-results-scroll"><table class="comp-table competency-results-table"><thead><tr><th scope="col">Alumno</th>${official.map(c=>`<th title="${esc(c.enunciado)}"><span class="class-stat-heading">${esc(c.code)} ${c.stored?.id?classStatButton('competency',c.stored.id,c.code):''}</span></th>`).join('')}<th class="competency-mean-heading" scope="col">Media de competencias <small>sin ponderar · /10 y /4</small></th></tr></thead><tbody>${students.map(st=>`<tr><td class="comp-name">${esc(st.name)}</td>${official.map(c=>`<td>${currentGrade(st,c.stored)}</td>`).join('')}<td class="competency-mean-cell">${currentMean(st)}</td></tr>`).join('')}</tbody></table></div><p class="section-note">La media de competencias es aritmética y sin ponderación entre las CE oficiales con nota; las no evaluadas se excluyen. Se calcula con precisión completa y se muestra sobre 10 y como nivel de adquisición discreto: 1 = alta (8–10); 2 = media (6,5–<8); 3 = baja (5–<6,5); 4 = no adquirida (<5). No afecta a la nota final. Puedes consultar los criterios completos en «Currículo».</p></section></div>`;
 }
 
 /** La consulta curricular es de solo lectura, completamente separada de las calificaciones. */
@@ -1935,7 +1934,7 @@ function studentAcademicEvidence(studentId,periodId){
   const {doc,groupId}=STATE;
   const note=overallGrade(doc,studentId,groupId,periodId);
   return `<p>Media ponderada de las categorías con nota y porcentaje positivo. Se divide la suma de las notas de categoría multiplicadas por su porcentaje entre la suma de los porcentajes que intervienen.</p>
-    ${note===null?'<p>La media académica está sin calificar.</p>':`<p>Media académica antes del redondeo visual: <strong>${esc(competencySourceGrade(note))} / 10</strong>.</p>`}
+    ${note===null?'<p>La media académica está sin calificar.</p>':`<p>Media académica antes del redondeo visual: <strong>${esc(Number(note).toLocaleString('es-ES',{maximumFractionDigits:8}))} / 10</strong>.</p>`}
     ${calculationBreakdown(doc,studentId,groupId,periodId).map(entry=>studentCategoryEvidence(entry,{
       useLabel:`${studentEvidenceNumber(entry.weight)} % configurado · ${entry.weight>0&&entry.grade!==null?'con nota y peso':'fuera de la media'}`
     },periodId)).join('')}
@@ -3117,7 +3116,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/evaluation-groups.js','./src/evaluation-ui.js','./src/evaluation-workspace.js','./src/notebook-evaluation-notice.js','./src/evaluation-period-board.js','./src/evaluation-session-presentation.js','./src/student-link-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/dropbox-conflict.js','./src/dropbox-config.js','./src/dropbox-onboarding.js','./src/dropbox-session.js','./src/period-preferences.js','./src/dropbox-controller.js','./src/dropbox-local.js','./src/dropbox-sync.js','./src/dropbox-oauth.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v212-dev');
+      const cache=await caches.open('cuaderno-docente-static-v213-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

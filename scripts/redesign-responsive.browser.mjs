@@ -116,7 +116,8 @@ for(const [name,engine,opts] of [['desktop-chromium',chromium,{viewport:{width:1
  const detailPage=await detailsContext.newPage();detailPage.on('pageerror',e=>errors.push(e.message));
  await detailPage.goto(url);
  await detailPage.evaluate(async pw=>{
-  const {emptyNotebook,addGroup,addStudent,addAssessment,setOrthographyGrade,setGrade}=await import('./src/model.js');
+  const {emptyNotebook,addGroup,addStudent,addAssessment,setOrthographyGrade,setGrade,addCategory,addCompetency,setCompetencyLink,addNotebookSubject}=await import('./src/model.js');
+  const {officialCompetenciesForGroup}=await import('./src/official-competencies.js');
   const {createVault}=await import('./src/vault.js');const {openDb,writeEnvelope}=await import('./src/storage.js');
   const doc=emptyNotebook(),group=addGroup(doc,'Latín 4.º · prueba','Latín 4.º','2026-2027','4eso'),p=doc.periods[0],cat=doc.categories.find(c=>c.name==='Exámenes');
   const student=addStudent(doc,group.id,'Alumno ficticio'),other=addStudent(doc,group.id,'Alumno sin nota');
@@ -124,6 +125,15 @@ for(const [name,engine,opts] of [['desktop-chromium',chromium,{viewport:{width:1
   const b=addAssessment(doc,{name:'Conversión',groupId:group.id,periodId:p.id,categoryId:cat.id,maxScore:5,convertToTen:true,orthography:null});
   setOrthographyGrade(doc,student.id,a.id,{score:'9.1',faults:'3',delivered:false,greekEtymologyBonus:'0.4'});
   setGrade(doc,student.id,b.id,4);
+  const catA=addCategory(doc,'Prueba A',0,'mean',group.id),catB=addCategory(doc,'Prueba B',0,'mean',group.id);
+  const a1=addAssessment(doc,{name:'Prueba A',groupId:group.id,periodId:p.id,categoryId:catA.id,maxScore:10,orthography:null}),a2=addAssessment(doc,{name:'Prueba B',groupId:group.id,periodId:p.id,categoryId:catB.id,maxScore:10,orthography:null});
+  setGrade(doc,student.id,a1.id,.59);setGrade(doc,student.id,a2.id,.60);
+  const ce=officialCompetenciesForGroup(group).competencias;
+  const low=addCompetency(doc,'CE1',group.id,ce[0].key),high=addCompetency(doc,'CE2',group.id,ce[1].key);
+  setCompetencyLink(doc,low.id,catA.id,5);setCompetencyLink(doc,low.id,catB.id,7);setCompetencyLink(doc,high.id,cat.id,1);
+  addNotebookSubject(doc,'4eso','Materia de prueba');const custom=addGroup(doc,'Grupo de prueba','Materia de prueba','2026-2027','4eso');
+  const cStudent=addStudent(doc,custom.id,'Nombre de alumno ficticio con apellidos muy largos');const cExam=addAssessment(doc,{name:'Prueba',groupId:custom.id,periodId:p.id,categoryId:cat.id,maxScore:10,orthography:null});setGrade(doc,cStudent.id,cExam.id,7);
+  for(const label of ['Competencia de nombre extraordinariamente largo que debe repartirse en varias líneas','Competencia propia sin evidencia']){const c=addCompetency(doc,label,custom.id);if(label.startsWith('Competencia de nombre'))setCompetencyLink(doc,c.id,cat.id,1);}
   const {envelope}=await createVault(pw,doc),db=await openDb();await writeEnvelope(db,envelope,null);db.close();
  },pw);
  await detailPage.reload();await detailPage.locator('#password').fill(pw);await detailPage.getByRole('button',{name:'Desbloquear',exact:true}).click();
@@ -146,6 +156,34 @@ for(const [name,engine,opts] of [['desktop-chromium',chromium,{viewport:{width:1
  await detailPage.locator('.converted-primary').click();assert(await detailPage.locator('.original-note-input').evaluate(e=>e===document.activeElement));
  await detailPage.locator('.orthography-grade-button').first().click();await detailPage.locator('#orth-base').waitFor();assert.equal(await detailPage.locator('#orth-base').inputValue(),'9,1');await detailPage.locator('#cancel-orthography').click();
  assert.deepEqual(errors,[]);console.log(name+': actual orthography detail, touch/hover, original grade editing and centers passed');
+ await detailPage.locator('[data-academic-quick="competencias"]').click();
+ const results=detailPage.locator('.competency-results-table');await results.waitFor();
+ assert(await results.getByText('0,60 / 10',{exact:true}).isVisible());
+ assert.equal(await results.locator('.competency-mean-cell .competency-source-grade').count(),1);
+ assert.match(await results.locator('.competency-mean-cell .competency-source-grade').innerText(),/Media aritmética:/);
+ const auditCompetencyGeometry=async()=>{
+  const result=await results.evaluate(table=>{
+   const metrics=[...table.querySelectorAll('tbody tr')].map(row=>[...row.cells].slice(1).map(td=>{
+    const cell=td.getBoundingClientRect(),badge=td.querySelector('.competency-level-badge,.grade-empty'),r=badge.getBoundingClientRect(),source=td.querySelector('.competency-source-grade'),s=source?.getBoundingClientRect();
+    return {dx:Math.abs(r.x+r.width/2-cell.x-cell.width/2),dy:Math.abs(r.y+r.height/2-cell.y-cell.height/2),width:r.width,height:r.height,source:source?.textContent,overflow:td.scrollWidth>td.clientWidth+1||!!source&&(source.scrollWidth>source.clientWidth+1||s.bottom>cell.bottom+1||s.top<r.bottom-1)};
+   }));
+   const scroller=table.closest('.competency-results-scroll');
+   return {metrics,documentWidth:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth,tableWidth:table.getBoundingClientRect().width,scrollWidth:scroller.clientWidth};
+  });
+  assert(result.documentWidth<=result.viewport+3,name+' overflow competencial '+JSON.stringify(result));
+  assert(result.metrics.flat().every(m=>m.dx<2&&m.dy<2&&!m.overflow&&Math.abs(m.width-132)<2&&Math.abs(m.height-44)<2),name+' competency alignment '+JSON.stringify(result));
+  assert(result.metrics.flat().every(m=>!m.source||/\d+,\d{2} \/ 10$/.test(m.source)),name+' competency two decimals '+JSON.stringify(result));
+  if(opts.hasTouch)assert(result.tableWidth>=result.scrollWidth-2);
+ };
+ for(const theme of ['light','dark','oled']){
+  await detailPage.locator('.header-tools>summary').click();await detailPage.locator('#theme-select').selectOption(theme);
+  if(await detailPage.locator('.header-tools').getAttribute('open')!==null)await detailPage.locator('#close-header-tools').click();
+  await auditCompetencyGeometry();await detailPage.screenshot({path:out+'/'+name+'-competencias-'+theme+'.png'});
+ }
+ await detailPage.locator('[data-course-subject="Materia de prueba"]').click();
+ await results.waitFor();assert(await results.getByText('7,00 / 10',{exact:true}).isVisible());
+ await auditCompetencyGeometry();
+ assert.deepEqual(errors,[]);console.log(name+': official and custom competency results centered, two decimals, safe scrolling, all themes passed');
  }finally{await detailsContext.close();}
  }finally{await browser.close();}
 }

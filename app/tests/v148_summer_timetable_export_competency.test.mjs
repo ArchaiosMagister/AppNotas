@@ -181,7 +181,8 @@ test('UI accesible, formularios, exportación offline y criterios de CE al ponde
  assert(ui.includes("timetablePdfBytes(d,yr)"));
  assert(!ui.includes("'+ Otra clase'"));
  assert(css.includes('.planner-summer-switch')&&css.includes('.planner-word-action')&&css.includes('.planner-pdf-action'));
- assert(app.includes('competencyLevelChip(score)}<small class="competency-mean-source"'));
+ assert(app.includes("competencyLevelChip(score,'Media aritmética')"));
+ assert(app.includes("' competency-mean-source'"));
  assert(app.includes('criteriaFor(ce)'));
  assert(app.includes('comp-linked-criteria'));
  assert(app.includes('criterios de evaluación oficiales incorporados'));
