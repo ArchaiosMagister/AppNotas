@@ -174,6 +174,23 @@ async function auditExamsAndGroupedScroll(browser,name){
   assert.equal(await literatureRows.count(),0,name+' Literatura retirada en segunda');
   await page.locator('[data-period-choice]').first().click();
   assert(await literatureRows.count()>0,name+' Literatura permanece disponible en primera');
+  await page.locator('[data-academic-quick="cuaderno"]').click();
+  const id=await page.locator('select[data-student-origin]').first().getAttribute('data-student-origin');
+  const selector=page.locator('select[data-student-origin="'+id+'"]');
+  const original=await selector.inputValue();
+  assert((await selector.locator('option').allTextContents()).includes('1.º B'));
+  await selector.selectOption('add');
+  await page.locator('#modal-form input[name="origin"]').fill('F');
+  await page.locator('#modal-form button[type="submit"]').click();
+  await page.locator('#modal').waitFor({state:'hidden'});
+  await page.waitForFunction(id=>{const e=[...document.querySelectorAll('select[data-student-origin]')].find(x=>x.dataset.studentOrigin===id);return e?.value==='origin:F'&&e.classList.contains('origin-color-orange');},id);
+  assert((await page.locator('select[data-student-origin]').last().locator('option').allTextContents()).includes('F'));
+  await selector.selectOption(original);
+  await page.waitForFunction(({id,original})=>{const e=[...document.querySelectorAll('select[data-student-origin]')].find(x=>x.dataset.studentOrigin===id);return e?.value===original&&!e.disabled;},{id,original});
+  assert((await selector.locator('option').allTextContents()).includes('F'),'empty group stays configured');
+  await page.reload();await page.locator('#password').fill('Cuaderno ficticio 2026 para pruebas');await page.getByRole('button',{name:'Desbloquear'}).click();
+  await selector.waitFor();assert.equal(await selector.inputValue(),original);
+  assert((await selector.locator('option').allTextContents()).includes('F'),'empty group persists after reload');
  }finally{await context.close();}
 }
 

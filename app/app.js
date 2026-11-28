@@ -604,13 +604,18 @@ function bindOriginSelectors(){
    const related=live.personId?STATE.doc.students.filter(s=>s.personId===live.personId&&s.id!==studentId):[];
    const needsConfirmation=related.length&&[live,...related].some(s=>(s.originGroup||'')!==label.trim());
    if(needsConfirmation&&!window.confirm('Este alumno tiene fichas vinculadas en otras asignaturas. ¿Actualizar también su procedencia, sin modificar las notas?'))return false;
-   await commit(d=>assignStudentOriginGroup(d,studentId,label,{linked:!!needsConfirmation}),'Cambiar grupo de procedencia');
+   const personId=live.personId,confirmedIds=related.map(s=>s.id).sort().join('|');
+   await commit(d=>{
+    const target=d.students.find(s=>s.id===studentId);
+    if(!target||target.personId!==personId||(personId?d.students.filter(s=>s.personId===personId&&s.id!==studentId).map(s=>s.id).sort().join('|'):'')!==confirmedIds)throw Error('Las fichas vinculadas han cambiado. Vuelve a seleccionar la procedencia.');
+    assignStudentOriginGroup(d,studentId,label,{linked:!!needsConfirmation});
+   },'Cambiar grupo de procedencia');
    return true;
   };
   if(chosen==='add'){
    select.value=old;
    const group=STATE.doc.groups.find(g=>g.id===student.groupId);
-   fieldsModal('Añadir grupo de procedencia',[{id:'origin',label:'Etiqueta del grupo (p. ej., A o B)',value:'',maxlength:60}],async v=>{if(!v.origin.trim())throw Error('Introduce el nombre del grupo.');await apply(v.origin);},(COURSE_SUBJECTS[group?.level]?.label||'Curso sin clasificar')+' · '+(group?.course||'')+'. El grupo estará disponible para las demás asignaturas del mismo curso escolar y nivel.');
+   fieldsModal('Añadir grupo de procedencia',[{id:'origin',label:'Etiqueta del grupo (p. ej., A o B)',value:'',maxlength:60}],async v=>{if(!v.origin.trim())throw Error('Introduce el nombre del grupo.');return await apply(v.origin);},(COURSE_SUBJECTS[group?.level]?.label||'Curso sin clasificar')+' · '+(group?.course||'')+'. El grupo estará disponible para las demás asignaturas del mismo curso escolar y nivel.');
    return;
   }
   if(chosen!=='clear'&&!chosen.startsWith('origin:')){select.value=old;return;}
@@ -3027,7 +3032,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/evaluation-groups.js','./src/evaluation-ui.js','./src/evaluation-workspace.js','./src/notebook-evaluation-notice.js','./src/evaluation-period-board.js','./src/evaluation-session-presentation.js','./src/student-link-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/dropbox-conflict.js','./src/dropbox-config.js','./src/dropbox-onboarding.js','./src/dropbox-session.js','./src/period-preferences.js','./src/dropbox-controller.js','./src/dropbox-local.js','./src/dropbox-sync.js','./src/dropbox-oauth.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v207-dev');
+      const cache=await caches.open('cuaderno-docente-static-v208-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
