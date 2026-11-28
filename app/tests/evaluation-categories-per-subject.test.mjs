@@ -194,5 +194,5 @@ test('al cambiar de evaluación desde Cálculos permanece en la configuración y
   const head=app.slice(app.indexOf('function renderPeriodButtons(){'),app.indexOf('\nfunction render(){',app.indexOf('function renderPeriodButtons(){')));
   assert(head.includes("['cuaderno','calculos','competencias'].includes(STATE.tab)&&STATE.periodId===p.id"));
   assert.equal(head.split("['cuaderno','calculos','competencias'].includes(STATE.tab)&&STATE.periodId===p.id").length-1,3);
-  assert(app.includes("if(!['calculos','competencias'].includes(STATE.tab))STATE.tab='cuaderno';render();"));
+  assert(app.includes("if(STATE.tab===tab){if(!['calculos','competencias'].includes(tab))STATE.tab='cuaderno';render();}"));
 });
