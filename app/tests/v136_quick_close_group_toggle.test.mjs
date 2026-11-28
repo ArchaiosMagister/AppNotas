@@ -35,7 +35,8 @@ test('Cerrar cuaderno se encuentra en el menú administrativo y conserva el fluj
   assert(js.includes("$('#close-notebook')?.addEventListener('click',()=>closeNotebook().catch(fail))"));
   assert(js.includes('async function closeNotebook()'));
   assert(js.includes('await STATE.mutationQueue;await STATE.saveQueue;'),'No omitir guardados pendientes');
-  assert(js.includes('const prepared=await createPortableCopy(snapshot,STATE.key,STATE.salt,exportedDate)'));
+  assert(js.includes('const prepared=await createPortableCopy(snapshot,STATE.key,STATE.salt,exportedDate,preferences)'));
+  assert(js.includes('const preferences=await periodPreferences.load().catch(()=>null)'));
 });
 
 test('el interruptor se muestra junto a Alumnos y refleja la agrupación actual',async()=>{
