@@ -121,7 +121,7 @@ for(const [name,engine,opts] of [['desktop-chromium',chromium,{viewport:{width:1
   const doc=emptyNotebook(),group=addGroup(doc,'Latín 4.º · prueba','Latín 4.º','2026-2027','4eso'),p=doc.periods[0],cat=doc.categories.find(c=>c.name==='Exámenes');
   const student=addStudent(doc,group.id,'Alumno ficticio'),other=addStudent(doc,group.id,'Alumno sin nota');
   const a=addAssessment(doc,{name:'Ortografía',groupId:group.id,periodId:p.id,categoryId:cat.id,maxScore:10,convertToTen:true,orthography:{enabled:true,penaltyPerFault:.1,repetitions:30,refundable:true},greekEtymologyBonusEnabled:true});
-  const b=addAssessment(doc,{name:'Conversión',groupId:group.id,periodId:p.id,categoryId:cat.id,maxScore:5,convertToTen:true});
+  const b=addAssessment(doc,{name:'Conversión',groupId:group.id,periodId:p.id,categoryId:cat.id,maxScore:5,convertToTen:true,orthography:null});
   setOrthographyGrade(doc,student.id,a.id,{score:'9.1',faults:'3',delivered:false,greekEtymologyBonus:'0.4'});
   setGrade(doc,student.id,b.id,4);
   const {envelope}=await createVault(pw,doc),db=await openDb();await writeEnvelope(db,envelope,null);db.close();
