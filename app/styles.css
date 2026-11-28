@@ -4328,17 +4328,19 @@ html[data-redesign] .grade-table th.final-col .class-stat-heading{white-space:no
 /* Calificaciones: un eje común para todas las celdas del cuaderno.
  * Los textos y los indicadores son independientes de la posición de la nota. */
 .table-scroller>.grade-table tbody td:has(>.grade-cell-stack){
-  vertical-align:top;
+  vertical-align:middle;
   --notebook-grade-width:72px;
   --notebook-grade-height:42px;
 }
 .table-scroller>.grade-table tbody td .grade-cell-stack{
-  grid-template-rows:54px minmax(34px,auto);
-  align-content:start;
-  min-height:88px;
+  /* Dos pistas simétricas: la nota ocupa exactamente el centro de la celda. */
+  grid-template-rows:minmax(34px,1fr) 54px minmax(34px,1fr);
+  align-content:center;
+  min-height:122px;
   width:100%;
 }
 .table-scroller>.grade-table tbody td .grade-cell-face{
+  grid-row:2;
   height:54px;
   min-height:54px;
 }
@@ -4394,8 +4396,40 @@ html[data-redesign] .grade-table th.final-col .class-stat-heading{white-space:no
   transform:translateY(-50%);
   margin:0;
 }
-.table-scroller>.grade-table tbody td .grade-cell-support{
-  min-height:34px;
+.table-scroller>.grade-table tbody td .grade-cell-below{
+  grid-row:3;
   align-self:start;
+  width:100%;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
 }
+.table-scroller>.grade-table tbody td .grade-cell-menu{
+  position:static;
+  min-height:34px;
+  width:100%;
+  justify-content:center;
+}
+.table-scroller>.grade-table tbody td .grade-cell-menu .grade-cell-actions-trigger{
+  font-size:17px;
+  min-width:34px;
+  min-height:34px;
+}
+.table-scroller>.grade-table tbody td .grade-cell-support{
+  min-height:0;
+  padding:0;
+  align-self:center;
+  text-align:center;
+}
+.table-scroller>.grade-table tbody td .grade-cell-support:empty,
 .table-scroller>.grade-table tbody td .grade-cell-menu:empty{display:none}
+@media(max-width:650px){
+  .table-scroller>.grade-table tbody td .grade-cell-menu .grade-cell-actions-trigger{
+    min-width:37px;
+    min-height:40px;
+  }
+}
+@media print{
+  .table-scroller>.grade-table tbody td .grade-cell-menu{display:none!important}
+}

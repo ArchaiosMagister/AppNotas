@@ -36,7 +36,13 @@ for(const [name,engine,opts] of [['desktop-chromium',chromium,{viewport:{width:1
     const center=r=>({x:r.x+r.width/2,y:r.y+r.height/2});
     const grades=faces.map(face=>face.querySelector('.grade-chip,.np-grade-marker,.grade-empty,.aj-badge,.note-input')||face.firstElementChild);
     const before=grades.map(e=>{const r=e.getBoundingClientRect();return {...center(r),w:r.width,h:r.height};});
-    const cellCenters=faces.map(f=>center(f.closest('td').getBoundingClientRect()).x);
+    const cellCenters=faces.map(f=>center(f.closest('td').getBoundingClientRect()));
+    const menus=faces.flatMap((face,i)=>{
+      const menu=face.closest('.grade-cell-stack').querySelector('.grade-cell-actions-trigger');
+      if(!menu)return [];
+      const r=menu.getBoundingClientRect(),b=grades[i].getBoundingClientRect();
+      return [{dx:Math.abs(center(r).x-center(b).x),gap:r.top-b.bottom,font:parseFloat(getComputedStyle(menu).fontSize),w:r.width,h:r.height}];
+    });
     const itaca=row.querySelector('.itaca-edit');
     const badge=itaca.querySelector('.grade-chip,.grade-empty');
     const added=[];
@@ -48,13 +54,18 @@ for(const [name,engine,opts] of [['desktop-chromium',chromium,{viewport:{width:1
     const support=row.querySelector('.category-tinted .grade-cell-support');
     const extra=document.createElement('small');extra.className='orthography-meta';extra.textContent='Texto auxiliar de prueba con varias palabras para ocupar más de una línea';support.append(extra);
     const withText=grades.map(e=>center(e.getBoundingClientRect()).y);
+    const withTextCenters=faces.map(f=>center(f.closest('td').getBoundingClientRect()).y);
+    const extraRect=extra.getBoundingClientRect(),menuRect=support.parentElement.querySelector('.grade-cell-actions-trigger').getBoundingClientRect();
+    const noOverlap=extraRect.top>=menuRect.bottom-1;
     extra.remove();added.forEach(e=>e.remove());
-    return {before,cellCenters,after,guardLeft,withText};
+    return {before,cellCenters,after,guardLeft,withText,withTextCenters,menus,noOverlap};
   });
   assert.equal(alignment.before.length,6);
   const first=alignment.before[0],last=alignment.before.at(-1);
-  assert(alignment.before.every((r,i)=>Math.abs(r.x-alignment.cellCenters[i])<2&&Math.abs(r.y-first.y)<2),JSON.stringify(alignment));
-  assert(alignment.withText.every((y,i)=>Math.abs(y-alignment.before[i].y)<2),JSON.stringify(alignment));
+  assert(alignment.before.every((r,i)=>Math.abs(r.x-alignment.cellCenters[i].x)<2&&Math.abs(r.y-alignment.cellCenters[i].y)<2&&Math.abs(r.y-first.y)<2),JSON.stringify(alignment));
+  assert(alignment.withText.every((y,i)=>Math.abs(y-alignment.withTextCenters[i])<2&&Math.abs(y-alignment.withText[0])<2),JSON.stringify(alignment));
+  assert(alignment.menus.length===4&&alignment.menus.every(m=>m.dx<2&&m.gap>=0&&m.gap<12&&m.font===17&&m.w>=34&&m.h>=34),JSON.stringify(alignment));
+  assert(alignment.noOverlap,JSON.stringify(alignment));
   assert(Math.abs(alignment.after.x-last.x)<2&&Math.abs(alignment.after.y-last.y)<2&&alignment.guardLeft,JSON.stringify(alignment));
   assert(alignment.before.every(r=>Math.abs(r.w-first.w)<2&&Math.abs(r.h-first.h)<2),JSON.stringify(alignment));
   await page.screenshot({path:out+'/'+name+'-'+theme+'.png'});

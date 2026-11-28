@@ -1288,8 +1288,10 @@ function renderNotebook(){
   // disponible, anclado abajo a la derecha sin empujar la cifra hacia arriba.
   const gradeCellStack=(main,actions='',secondary='')=>`<div class="grade-cell-stack">
     <div class="grade-cell-face">${main}</div>
-    <div class="grade-cell-support">${secondary}</div>
-    <div class="grade-cell-menu">${actions}</div></div>`;
+    <div class="grade-cell-below">
+      <div class="grade-cell-menu">${actions}</div>
+      <div class="grade-cell-support">${secondary}</div>
+    </div></div>`;
   const gradesByStudent=new Map();
   for(const grade of STATE.doc.grades){
     if(!visibleIds.has(grade.assessmentId))continue;
@@ -2858,7 +2860,7 @@ function bindSettings(){
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
       const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v194-dev');
+      const cache=await caches.open('cuaderno-docente-static-v195-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;
