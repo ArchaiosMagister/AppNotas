@@ -82,7 +82,7 @@ export function createPeriodPreferenceStore({state,read=readPeriodPreferences,wr
  return Object.freeze({
   reset,load:()=>run(p=>p),
   get:()=>owner===state.key&&cache?.bookId===state.doc?.id?cache:null,
-  remember:(groupId,periodId)=>{const at=Date.now();return run(p=>rememberPeriod(p,groupId,periodId,device,at));},
+  remember:(groupId,periodId,at=Date.now())=>run(p=>rememberPeriod(p,groupId,periodId,device,at)),
   merge:(remote,guard)=>run(p=>mergePeriodPreferences(p,remote),guard)
  });
 }
