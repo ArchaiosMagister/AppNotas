@@ -11,7 +11,7 @@ test('medias competenciales visibles con dos decimales, sin redondear el nivel',
  for(const [n,formatted,level] of [[.59583333,'0,60',4],[0,'0,00',4],[4.9999,'5,00',4],[6.4999,'6,50',3],[7.9999,'8,00',2],[10,'10,00',1]]){
   const html=render(n);
   assert(html.includes('competency-level-'+level+'"'));assert(html.includes(formatted+' / 10'));
-  assert(!html.includes(String(n).replace('.',',')+' / 10')||String(n).replace('.',',')===formatted);
+  assert.deepEqual([...html.matchAll(/([\d]+,\d+) \/ 10/g)].map(m=>m[1]),[formatted,formatted]);
   assert.equal((html.match(/class="competency-source-grade/g)||[]).length,1);
  }
  assert(render(null).includes('Sin evidencias'));
