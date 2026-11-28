@@ -33,11 +33,13 @@ async function auditExamsAndGroupedScroll(browser,name){
   await page.clock.setFixedTime(new Date(2026,10,24,11,30));
   await page.goto(url);
   await page.evaluate(async()=>{
-   const {initialNotebook,addStudent,updateStudentIdentity}=await import('./src/model.js');
+   const {initialNotebook,addStudent,updateStudentIdentity,addCategory,setPeriodCategoryEnabled}=await import('./src/model.js');
    const {saveEvent,addAcademicYear,setActiveYear,activeYear}=await import('./src/planner.js');
    const {createVault}=await import('./src/vault.js');
    const {openDb,writeEnvelope}=await import('./src/storage.js');
    const doc=initialNotebook(),group=doc.groups[0],year=activeYear(doc);
+   const literature=addCategory(doc,'Literatura',0,'mean');
+   setPeriodCategoryEnabled(doc,group.id,doc.periods[1].id,literature.id,false);
    for(const student of doc.students)updateStudentIdentity(doc,student.id,{name:student.name,originGroup:'1.º A'});
    for(let i=0;i<8;i++)addStudent(doc,group.id,{name:'Alumno B '+i,originGroup:'1.º B'});
    saveEvent(doc,{type:'exam',title:'Examen pasado',date:'2026-11-24',time:'09:00'});
@@ -93,7 +95,29 @@ async function auditExamsAndGroupedScroll(browser,name){
   await page.locator('[data-tab="cuaderno"]').click();
   await page.locator('.notebook-student-options>summary').click();
   await page.locator('label[for="student-group-mode"]').click();
-
+  // Verify the actual rendered colors under every theme, independent of accent.
+  const colorReport=await page.evaluate(()=>{
+   const html=document.documentElement,theme=html.dataset.theme,accent=html.style.getPropertyValue('--accent');
+   const read=()=>['blue','red'].map(color=>{
+    const a=document.querySelector('.student-name-cell .origin-color-'+color);
+    const h=document.querySelector('.student-origin-divider .origin-color-'+color);
+    return [a,h].map(el=>{const c=getComputedStyle(el);return [c.backgroundColor,c.color,c.borderColor];});
+   });
+   const report=[];
+   try{for(const name of ['light','dark','oled']){
+    html.dataset.theme=name;
+    const first=read();
+    html.style.setProperty('--accent','#ff00ff');
+    report.push({name,first,second:read()});
+   }}finally{html.dataset.theme=theme;if(accent)html.style.setProperty('--accent',accent);else html.style.removeProperty('--accent');}
+   return report;
+  });
+  for(const {name:theme,first,second} of colorReport){
+   assert.deepEqual(first,second,name+' '+theme+' independent of accent');
+   assert.deepEqual(first[0][0],first[0][1],name+' A header and badge');
+   assert.deepEqual(first[1][0],first[1][1],name+' B header and badge');
+   assert.notDeepEqual(first[0][0],first[1][0],name+' A and B have distinct colors');
+  }
   const scroller=page.locator('.table-scroller');
   for(const view of ['cuaderno','final']){
    if(view==='final')await page.locator('[data-academic-quick="final"]').click();
@@ -142,6 +166,14 @@ async function auditExamsAndGroupedScroll(browser,name){
     assert(Math.abs(geometry.nextHeaderGap)<2 && geometry.transitionGap>=-1,detail);
    }
   }
+  await page.locator('[data-academic-quick="competencias"]').click();
+  const literatureRows=page.locator('.comp-table tr').filter({has:page.getByText('Literatura',{exact:true})});
+  await page.locator('[data-period-choice]').first().click();
+  assert(await literatureRows.count()>0,name+' Literatura activa en primera');
+  await page.locator('[data-period-choice]').nth(1).click();
+  assert.equal(await literatureRows.count(),0,name+' Literatura retirada en segunda');
+  await page.locator('[data-period-choice]').first().click();
+  assert(await literatureRows.count()>0,name+' Literatura permanece disponible en primera');
  }finally{await context.close();}
 }
 

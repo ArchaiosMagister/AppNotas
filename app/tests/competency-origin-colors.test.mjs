@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
-import {initialNotebook,addGroup,addCompetency,setCompetencyLink,setPeriodCategoryEnabled,availableCategories,assertModel} from '../src/model.js';
+import {initialNotebook,addGroup,addCategory,addCompetency,setCompetencyLink,setPeriodCategoryEnabled,availableCategories,assertModel} from '../src/model.js';
 import {competencyGrade} from '../src/calculations.js';
 const source=readFileSync(new URL('../app.js',import.meta.url),'utf8');
 const css=readFileSync(new URL('../styles.css',import.meta.url),'utf8');
 test('Competencias muestra solo las categorías activas del grupo y evaluación, conservando vínculos previos',()=>{
  const doc=initialNotebook(),group=doc.groups[0],period=doc.periods[1],other=doc.periods[0];
- const literature=doc.categories.find(c=>c.name==='Trabajos');
+ const literature=addCategory(doc,'Literatura',0,'mean');
  const c=addCompetency(doc,'Competencia de prueba',group.id);
  setCompetencyLink(doc,c.id,literature.id,30);
  const prior=structuredClone(c.links);
