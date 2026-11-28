@@ -130,10 +130,13 @@ export async function createPortableCopy(doc,key,salt,date=new Date(),preference
   const exportedAt=date.toISOString();
   const payload={type:PORTABLE_TYPE,version:PORTABLE_VERSION,exportedAt,modelVersion:SCHEMA_VERSION,notebook:doc};
   if(preferences)payload.preferences=validatePeriodPreferences(preferences,doc.id);
-  const vault=await seal(payload,key,salt,undefined,AAD);
-  const file={type:PORTABLE_TYPE,version:PORTABLE_VERSION,vault};
+  let vault=await seal(payload,key,salt,undefined,AAD);
+  let file={type:PORTABLE_TYPE,version:PORTABLE_VERSION,vault};
+  let preferencesOmitted=false;
+  // Una preferencia opcional nunca debe impedir exportar las notas.
+  if(preferences&&JSON.stringify(file).length>MAX_CUADERNO_BYTES){delete payload.preferences;vault=await seal(payload,key,salt,undefined,AAD);file={type:PORTABLE_TYPE,version:PORTABLE_VERSION,vault};preferencesOmitted=true;}
   if(JSON.stringify(file).length>MAX_CUADERNO_BYTES)throw new Error('El cuaderno supera el tamaño máximo de copia (25 MB).');
-  return {file,exportedAt,head:doc._portability.head,bookId:doc.id};
+  return {file,exportedAt,head:doc._portability.head,bookId:doc.id,...(preferencesOmitted?{preferencesOmitted:true}:{})};
 }
 export async function decodeBackupContent(raw,password){
   if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error('Archivo de cuaderno no válido.');

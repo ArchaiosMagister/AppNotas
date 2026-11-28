@@ -59,29 +59,30 @@ export function createPeriodPreferenceStore({state,read=readPeriodPreferences,wr
  const current=c=>!!c.key&&state.key===c.key&&state.doc?.id===c.bookId;
  const reset=()=>{cache=null;owner=null;};
  const queue=fn=>{const next=flight.then(fn,fn);flight=next.catch(()=>{});return next;};
- async function transact(c,change){
+ async function transact(c,change,guard){
+  const active=()=>current(c)&&guard();
   for(let tries=0;tries<5;tries++){
-   if(!current(c))throw Error('Sesión cerrada.');
+   if(!active())throw Error('Sesión cerrada.');
    const main=state.envelope,previous=await read(c.db,main,c.bookId);
    const local=previous?await openPeriodPreferences(previous,c.key,c.salt,c.bookId):emptyPeriodPreferences(c.bookId);
    const next=change(local);
-   if(!current(c))throw Error('Sesión cerrada.');
+   if(!active())throw Error('Sesión cerrada.');
    if(same(local,next)){cache=next;owner=c.key;return next;}
    const sealed=await sealPeriodPreferences(next,c.key,c.salt);
-   if(!current(c))throw Error('Sesión cerrada.');
-   if(await write(c.db,main,previous,sealed,c.bookId)){
-    if(!current(c))throw Error('Sesión cerrada.');
+   if(!active())throw Error('Sesión cerrada.');
+   if(await write(c.db,main,previous,sealed,c.bookId,active)){
+    if(!active())throw Error('Sesión cerrada.');
     cache=next;owner=c.key;return next;
    }
   }
   throw Error('No se pudieron guardar las preferencias en concurrencia.');
  }
- const run=change=>{const c=context();return queue(()=>transact(c,change));};
+ const run=(change,guard=()=>true)=>{const c=context();return queue(()=>transact(c,change,guard));};
  return Object.freeze({
   reset,load:()=>run(p=>p),
   get:()=>owner===state.key&&cache?.bookId===state.doc?.id?cache:null,
   remember:(groupId,periodId)=>run(p=>rememberPeriod(p,groupId,periodId,device)),
-  merge:remote=>run(p=>mergePeriodPreferences(p,remote))
+  merge:(remote,guard)=>run(p=>mergePeriodPreferences(p,remote),guard)
  });
 }
 /** The sidecar uses the existing Dropbox API and distinct fixed paths and AAD. */
@@ -125,16 +126,20 @@ export async function syncPeriodPreferences({store,transport,state,signal,check=
  const live=()=>!!key&&state.key===key&&state.doc?.id===bookId&&!signal?.aborted;
  for(let tries=0;tries<3;tries++){
   if(!live())return false;
-  await check();
+  await check();if(!live())return false;
   const remote=await transport.download(signal);
   if(!live())return false;
   const incoming=remote?await openPeriodPreferences(remote.envelope,key,salt,bookId):emptyPeriodPreferences(bookId);
   if(!live())return false;
-  const merged=await store.merge(incoming);
+  await check();if(!live())return false;
+  const merged=await store.merge(incoming,live);
   if(!live())return false;
   if(same(merged,incoming))return true;
   const envelope=await sealPeriodPreferences(merged,key,salt);
-  if(await transport.upload(envelope,remote?.rev??null,signal,async()=>{await check();return live()&&same(store.get(),merged);}))return true;
+  if(await transport.upload(envelope,remote?.rev??null,signal,async()=>{await check();return live()&&same(store.get(),merged);})){
+   if(!live())return false;
+   if(same(store.get(),merged))return true;
+  }
  }
  return false;
 }

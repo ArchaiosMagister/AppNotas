@@ -34,9 +34,9 @@ export function createSessionTokenProvider({clientId,refreshToken,refresh=refres
 }
 export function createDropboxSession({state,preferences,onPreferences=()=>{},enqueue,canApply,adopt,onStatus,windowTarget,documentTarget,origin,
     load=loadLocalDropboxSession,readLink=readDropboxCredential,clientId=DROPBOX_CLIENT_ID}){
-  let generation=0,scheduler=null,provider=null,inspect=null,preferenceAbort=null,preferenceFlight=null,preferenceSync=null,academicSynced=false;
+  let generation=0,scheduler=null,provider=null,inspect=null,preferenceAbort=null,preferenceFlight=null,preferenceSync=null,academicSynced=false,preferenceRerun=false;
   const conflictCopies=async()=>{if(!inspect)throw new Error('Dropbox session unavailable.');return inspect();};
-  function stop(){generation++;preferenceAbort?.abort();preferenceAbort=null;preferenceFlight=null;preferenceSync=null;academicSynced=false;scheduler?.stop();provider?.stop();scheduler=null;provider=null;inspect=null;}
+  function stop(){generation++;preferenceAbort?.abort();preferenceAbort=null;preferenceFlight=null;preferenceSync=null;academicSynced=false;preferenceRerun=false;scheduler?.stop();provider?.stop();scheduler=null;provider=null;inspect=null;}
   async function start(){
     stop();
     if(!dropboxConfigured(origin)||clientId!==DROPBOX_CLIENT_ID){onStatus({status:'not-configured'});return;}
@@ -63,11 +63,15 @@ export function createDropboxSession({state,preferences,onPreferences=()=>{},enq
       if(gen!==generation||state.key!==key){sessionProvider.stop();return;}
       const sidecar=createPeriodPreferenceTransport({academicPath:dropboxFilePath(origin),scope,getAccessToken});
       const abort=new AbortController();preferenceAbort=abort;
-      preferenceSync=()=>{
+      preferenceSync=(changed=false)=>{
         if(!academicSynced||abort.signal.aborted||documentTarget.visibilityState==='hidden')return;
-        if(preferenceFlight)return preferenceFlight;
+        if(preferenceFlight){if(changed)preferenceRerun=true;return preferenceFlight;}
         const job=syncPeriodPreferences({store:preferences,transport:sidecar,state,signal:abort.signal,check:async()=>{await checkLink();if(!academicSynced)throw Error('Sincronización académica pendiente.');}})
-          .catch(()=>false).then(ok=>{if(!abort.signal.aborted)onPreferences(ok);return ok;}).finally(()=>{if(preferenceFlight===job)preferenceFlight=null;});
+          .catch(()=>false).then(ok=>{if(!abort.signal.aborted&&academicSynced&&!preferenceRerun)onPreferences(ok);return ok;}).finally(()=>{
+            if(preferenceFlight!==job)return;
+            preferenceFlight=null;
+            if(preferenceRerun){preferenceRerun=false;void preferenceSync?.();}
+          });
         preferenceFlight=job;return job;
       };
     }
@@ -77,5 +81,5 @@ export function createDropboxSession({state,preferences,onPreferences=()=>{},enq
     scheduler=createSyncScheduler({controller,windowTarget,documentTarget});
     scheduler.start();
   }
-  return Object.freeze({start,stop,conflictCopies,changed:()=>scheduler?.changed(),preferencesChanged:()=>preferenceSync?.(),manual:()=>scheduler?.manual()??Promise.resolve({status:'not-linked'}),active:()=>!!scheduler});
+  return Object.freeze({start,stop,conflictCopies,changed:()=>scheduler?.changed(),preferencesChanged:()=>preferenceSync?.(true),manual:()=>scheduler?.manual()??Promise.resolve({status:'not-linked'}),active:()=>!!scheduler});
 }

@@ -50,3 +50,33 @@ test('portable backup includes optional authenticated preferences without changi
  assert.equal((await decodeBackupContent(oldCopy.file,password)).preferences,undefined);
  assert.deepEqual(book,before);
 });
+
+import {readFileSync} from 'node:fs';
+test('diagnóstico sin conexión comprueba exactamente el inventario PWA',()=>{
+ const app=readFileSync(new URL('../app.js',import.meta.url),'utf8'),sw=readFileSync(new URL('../sw.js',import.meta.url),'utf8');
+ assert.equal(app.match(/const expected=(\['\.\/','\.\/index\.html',[^\]]+\]);/)[1],sw.match(/const ASSETS=(\[[^\]]+\]);/)[1]);
+});
+test('una descarga cancelada no puede fusionar preferencias ni escribir después de desvincular',async()=>{
+ const {key,envelope}=await createVault('contraseña ficticia de pruebas',doc),salt=Uint8Array.from(atob(envelope.salt),c=>c.charCodeAt(0));
+ const state={key,salt,doc,envelope},abort=new AbortController();
+ let writes=0;
+ const store=createPeriodPreferenceStore({state,read:async()=>null,write:async()=>{writes++;return true;}});
+ const remote=await sealPeriodPreferences(rememberPeriod(emptyPeriodPreferences(doc.id),'g1','p2','b'),key,salt);
+ const transport={download:async()=>{abort.abort();return {rev:'r1',envelope:remote};},upload:async()=>{throw Error('unexpected upload');}};
+ assert.equal(await syncPeriodPreferences({store,transport,state,signal:abort.signal}),false);assert.equal(writes,0);
+ await assert.rejects(store.merge(rememberPeriod(emptyPeriodPreferences(doc.id),'g1','p2','b'),()=>false));assert.equal(writes,0);
+});
+test('un cambio local durante una subida obliga a sincronizar la nueva selección',async()=>{
+ const {key,envelope}=await createVault('contraseña ficticia de pruebas',doc),salt=Uint8Array.from(atob(envelope.salt),c=>c.charCodeAt(0));
+ const state={key,salt,doc,envelope};let local=null,remote=null,rev=0;
+ const store=createPeriodPreferenceStore({state,read:async()=>local,write:async(db,main,previous,next)=>{if(local!==previous)return false;local=next;return true;}});
+ await store.remember('g1','p2');
+ const transport={download:async()=>remote,upload:async(env,expected,signal,check)=>{
+  if(!await check())return false;
+  remote={rev:String(++rev),envelope:env};
+  if(rev===1)await store.remember('g1','p1');
+  return true;
+ }};
+ assert.equal(await syncPeriodPreferences({store,transport,state}),true);
+ assert.equal(rev,2);assert.equal(preferredPeriod(await openPeriodPreferences(remote.envelope,key,salt,doc.id),doc,'g1'),'p1');
+});

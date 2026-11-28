@@ -172,14 +172,17 @@ let periodGroup=null,periodBook=null,preferenceError=false,preferenceSyncState='
 function restoreOrdinaryPeriod(){STATE.periodId=preferredPeriod(periodPreferences.get(),STATE.doc,STATE.groupId);periodGroup=STATE.groupId;periodBook=STATE.doc.id;}
 async function loadOrdinaryPeriods(incoming=null){try{await periodPreferences.load();if(incoming)await periodPreferences.merge(incoming);preferenceError=false;}catch{preferenceError=true;}restoreOrdinaryPeriod();}
 function selectOrdinaryPeriod(id){
- const groupId=STATE.groupId,key=STATE.key,bookId=STATE.doc?.id;
+ const groupId=STATE.groupId,key=STATE.key,bookId=STATE.doc?.id,tab=STATE.tab;
  return enqueueMutation(async()=>{
  if(!key||STATE.key!==key||STATE.doc?.id!==bookId||!STATE.doc.periods.some(p=>p.id===id)||!STATE.doc.groups.some(g=>g.id===groupId))return;
  try{await periodPreferences.remember(groupId,id);preferenceError=false;}catch{preferenceError=true;toast('No se ha podido guardar la evaluación como preferencia cifrada. Las notas permanecen intactas.');}
  if(STATE.key===key&&STATE.doc?.id===bookId&&STATE.groupId===groupId){
   STATE.periodId=id;periodGroup=groupId;periodBook=bookId;
-  if(!['calculos','competencias'].includes(STATE.tab))STATE.tab='cuaderno';render();
+  // Una navegación posterior no debe ser reemplazada por una selección en cola.
+  if(STATE.tab===tab){if(!['calculos','competencias'].includes(tab))STATE.tab='cuaderno';render();}
+  else if(['cuaderno','calculos','competencias'].includes(STATE.tab))render();
  }
+ if(dropboxSession.active()){preferenceSyncState='Preferencias de evaluación pendientes de sincronizar.';paintDropboxStatus();}
  dropboxSession.preferencesChanged();
  });}
 let dropboxStatus='not-configured';
@@ -203,7 +206,7 @@ const dropboxSession=createDropboxSession({state:STATE,preferences:periodPrefere
   onPreferences:ok=>{
     preferenceSyncState=ok?'Preferencias de evaluación sincronizadas.':'Preferencias de evaluación pendientes de sincronizar.';
     paintDropboxStatus();
-    if(ok&&STATE.doc&&!STATE.pending&&!dialog.open&&!STATE.studentPresentation&&['cuaderno','calculos','competencias'].includes(STATE.tab)&&!document.activeElement?.matches?.('input,select,textarea,[contenteditable=true]')){
+    if(ok&&!preferenceError&&STATE.doc&&!STATE.pending&&!dialog.open&&!STATE.studentPresentation&&['cuaderno','calculos','competencias'].includes(STATE.tab)&&!document.activeElement?.matches?.('input,select,textarea,[contenteditable=true]')){
       const selected=preferredPeriod(periodPreferences.get(),STATE.doc,STATE.groupId);
       if(selected!==STATE.periodId){restoreOrdinaryPeriod();render();}
     }
@@ -1053,6 +1056,7 @@ async function closeNotebook(){
   const exportedDate=new Date();
   const preferences=await periodPreferences.load().catch(()=>null);
   const prepared=await createPortableCopy(snapshot,STATE.key,STATE.salt,exportedDate,preferences);
+  if(prepared.preferencesOmitted||!preferences)toast('La copia de las notas es válida; no ha sido posible incluir las preferencias de evaluación.');
   const filename=portableFilename(exportedDate);
   if(dialog.open)throw new Error('Cierra el diálogo actual para exportar.');
   dialog.innerHTML=`<div class="modal-inner portable-dialog"><h2 id="modal-heading">Cerrar cuaderno · copia cifrada</h2><p>Los cambios se han guardado en este dispositivo. La copia completa está cifrada con la contraseña de este cuaderno.</p><p><strong>${esc(filename)}</strong></p><p class="hint"><strong>Solo almacenamiento local autorizado por el centro:</strong> elige «En mi iPad» / «En mi iPhone», una carpeta local del ordenador o un USB sin sincronización. No elijas iCloud Drive, OneDrive ni carpetas sincronizadas. ${dropboxConfigured(location.origin)?'Esta exportación es independiente de Dropbox; no confirma que se haya completado la sincronización.':'Esta aplicación no accede a ninguna nube ni confirma la sincronización posterior.'}</p><p id="close-result" class="hint" role="status">El cuaderno local permanece intacto aunque canceles.</p><div class="modal-actions portable-choices"><button class="btn" id="close-cancel">Cancelar</button><button class="btn primary" id="close-save">Guardar archivo cifrado</button><button class="btn hidden" id="close-lock">Bloquear cuaderno</button></div></div>`;
@@ -2910,8 +2914,8 @@ function bindSettings(){
       if(!('serviceWorker' in navigator)||!('caches' in window))throw new Error('Este navegador no dispone de las API necesarias.');
       const registration=await navigator.serviceWorker.getRegistration('./');
       if(!registration?.active)throw new Error('El servicio offline aún no está activo. Abre de nuevo la aplicación con conexión.');
-      const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
-      const cache=await caches.open('cuaderno-docente-static-v201-dev');
+      const expected=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./src/pwa-controls.js','./src/model.js','./src/cuaderno.js','./src/planner.js','./src/planner-ui.js','./src/evaluation-groups.js','./src/evaluation-ui.js','./src/evaluation-workspace.js','./src/notebook-evaluation-notice.js','./src/evaluation-period-board.js','./src/evaluation-session-presentation.js','./src/student-link-ui.js','./src/extracurricular.js','./src/extracurricular-export.js','./src/extracurricular-ui.js','./src/timetable-export.js','./src/patio-rotation.js','./src/attitude-template.js','./src/rubric-xlsx.js','./vendor/jszip.min.js','./src/calculations.js','./src/statistics.js','./src/csv.js','./src/rubric-import.js','./src/rubric-ui.js','./src/history.js','./src/dropbox-conflict.js','./src/dropbox-config.js','./src/dropbox-onboarding.js','./src/dropbox-session.js','./src/period-preferences.js','./src/dropbox-controller.js','./src/dropbox-local.js','./src/dropbox-sync.js','./src/dropbox-oauth.js','./src/vault.js','./src/storage.js','./src/diagnostics.js','./src/curriculum-data.js','./src/official-competencies.js','./data/curriculos/gr1y2-nuevo.pdf','./data/curriculos/lat1y2-nuevo.pdf','./data/curriculos/lat4.pdf','./data/curriculos/lat2-2022.pdf'];
+      const cache=await caches.open('cuaderno-docente-static-v202-dev');
       const missing=[];
       for(const path of expected)if(!await cache.match(path))missing.push(path);
       el.textContent=missing.length?`Faltan ${missing.length} recursos en caché. Conéctate, recarga y repite la prueba.`:`Los ${expected.length} recursos estáticos están en caché. Falta comprobar el funcionamiento real sin conexión.`;

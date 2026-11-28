@@ -73,7 +73,16 @@ for(const [name,engine,opts] of [['desktop-chromium',chromium,{viewport:{width:1
  await page.locator('#notebook-density').selectOption('compact');
  await page.locator('#notebook-zoom-in').click();await page.locator('#notebook-zoom-out').click();
  await page.locator('.grade-table tbody [data-view-student]').first().click();await page.locator('.redesign-evolution-item').first().waitFor();assert.equal(await page.locator('.redesign-evolution-item').count(),3);await page.screenshot({path:out+'/'+name+'-student.png'});
- await page.reload();await page.locator('#password').fill(pw);await page.getByRole('button',{name:'Desbloquear',exact:true}).click();await page.locator('#notebook-density').waitFor();assert.equal(await page.locator('#notebook-density').inputValue(),'compact');assert.deepEqual(await page.locator(gradeSelector).allTextContents(),values);assert.deepEqual(errors,[]);console.log(name+': widths, themes, density, zoom, student and persistence passed');
+ await page.reload();await page.locator('#password').fill(pw);await page.getByRole('button',{name:'Desbloquear',exact:true}).click();await page.locator('#notebook-density').waitFor();assert.equal(await page.locator('#notebook-density').inputValue(),'compact');assert.deepEqual(await page.locator(gradeSelector).allTextContents(),values);const nextPeriod=await page.locator('[data-period-choice]').nth(1).getAttribute('data-period-choice');
+ await page.locator('[data-period-choice]').nth(1).click();
+ await page.waitForFunction(id=>document.querySelector('[data-period-choice][aria-pressed="true"]')?.dataset.periodChoice===id,nextPeriod);
+ await page.locator('[data-academic-quick="final"]').click();
+ await page.locator('.final-table').waitFor();
+ await page.locator('[data-academic-quick="cuaderno"]').click();
+ await page.waitForFunction(id=>document.querySelector('[data-period-choice][aria-pressed="true"]')?.dataset.periodChoice===id,nextPeriod);
+ await page.reload();await page.locator('#password').fill(pw);await page.getByRole('button',{name:'Desbloquear',exact:true}).click();
+ await page.waitForFunction(id=>document.querySelector('[data-period-choice][aria-pressed="true"]')?.dataset.periodChoice===id,nextPeriod);
+ assert.deepEqual(errors,[]);console.log(name+': widths, themes, density, zoom, student, final and period persistence passed');
  }finally{await browser.close();}
 }
 }finally{await new Promise(ok=>server.close(ok));}
